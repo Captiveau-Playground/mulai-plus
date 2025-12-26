@@ -12,7 +12,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 const app = new Hono();
-
+// Force reload for api router changes
 app.use(logger());
 app.use(
   "/*",

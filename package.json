@@ -50,7 +50,7 @@
   },
   "lint-staged": {
     "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
-      "biome check --write ."
+      "biome check --write --unsafe"
     ]
   },
   "packageManager": "bun@1.2.19"
