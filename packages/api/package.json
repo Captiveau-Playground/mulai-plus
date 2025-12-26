@@ -1,0 +1,29 @@
+{
+  "name": "@better-auth-admin/api",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@orpc/server": "catalog:",
+    "@orpc/client": "catalog:",
+    "@orpc/openapi": "catalog:",
+    "@orpc/zod": "catalog:",
+    "hono": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:",
+    "@better-auth-admin/env": "workspace:*",
+    "@better-auth-admin/auth": "workspace:*",
+    "@better-auth-admin/db": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "@better-auth-admin/config": "workspace:*"
+  }
+}
