@@ -29,6 +29,7 @@
     "better-auth": "catalog:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "dotenv": "catalog:",
     "lucide-react": "^0.546.0",
     "next": "^16.1.1",

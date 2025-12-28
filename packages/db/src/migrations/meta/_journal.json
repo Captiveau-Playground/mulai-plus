@@ -8,6 +8,20 @@
       "when": 1766931640426,
       "tag": "0000_sleepy_firebird",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766933563053,
+      "tag": "0001_cultured_lorna_dane",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1766934936947,
+      "tag": "0002_spotty_mandrill",
+      "breakpoints": true
     }
   ]
 }

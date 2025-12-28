@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
-import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { user } from "./auth";
 
 export const category = pgTable("category", {
   id: text("id").primaryKey(),
@@ -13,20 +14,49 @@ export const category = pgTable("category", {
     .notNull(),
 });
 
-export const course = pgTable("course", {
+export const tag = pgTable("tag", {
   id: text("id").primaryKey(),
-  title: text("title").notNull(),
+  name: text("name").notNull().unique(),
   slug: text("slug").notNull().unique(),
-  description: text("description"),
-  thumbnailUrl: text("thumbnail_url"),
-  published: boolean("published").default(false).notNull(),
-  categoryId: text("category_id").references(() => category.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+export const course = pgTable("course", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  thumbnailUrl: text("thumbnail_url"),
+  benefits: text("benefits").array().default([]),
+  price: integer("price").default(0),
+  discountType: text("discount_type").default("fixed"), // 'fixed' | 'percentage'
+  discountValue: integer("discount_value").default(0),
+  published: boolean("published").default(false).notNull(),
+  categoryId: text("category_id").references(() => category.id),
+  userId: text("user_id").references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const courseTag = pgTable(
+  "course_tag",
+  {
+    courseId: text("course_id")
+      .notNull()
+      .references(() => course.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tag.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.courseId, t.tagId] })],
+);
 
 export const courseSection = pgTable("course_section", {
   id: text("id").primaryKey(),
@@ -68,7 +98,27 @@ export const courseRelations = relations(course, ({ one, many }) => ({
     fields: [course.categoryId],
     references: [category.id],
   }),
+  user: one(user, {
+    fields: [course.userId],
+    references: [user.id],
+  }),
   sections: many(courseSection),
+  tags: many(courseTag),
+}));
+
+export const tagRelations = relations(tag, ({ many }) => ({
+  courses: many(courseTag),
+}));
+
+export const courseTagRelations = relations(courseTag, ({ one }) => ({
+  course: one(course, {
+    fields: [courseTag.courseId],
+    references: [course.id],
+  }),
+  tag: one(tag, {
+    fields: [courseTag.tagId],
+    references: [tag.id],
+  }),
 }));
 
 export const courseSectionRelations = relations(courseSection, ({ one, many }) => ({

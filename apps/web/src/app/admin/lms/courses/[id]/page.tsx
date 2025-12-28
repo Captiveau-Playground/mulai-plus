@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { CourseContent } from "@/components/admin/lms/course-content";
+import { CourseSettings } from "@/components/admin/lms/course-settings";
 import { SiteHeader } from "@/components/admin/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useAuthorizePage } from "@/lib/auth-client";
@@ -44,8 +45,13 @@ export default function AdminCourseContentPage() {
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col gap-4 p-4 pt-4">
-          <div className="min-h-screen flex-1 rounded-xl bg-muted/50 p-4 md:min-h-min">
-            <CourseContent courseId={courseId} />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-xl bg-muted/50 p-4">
+              <CourseSettings courseId={courseId} />
+            </div>
+            <div className="rounded-xl bg-muted/50 p-4">
+              <CourseContent courseId={courseId} />
+            </div>
           </div>
         </div>
       </SidebarInset>

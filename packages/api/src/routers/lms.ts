@@ -1,10 +1,39 @@
 import { randomUUID } from "node:crypto";
-import { asc, db, desc, eq } from "@better-auth-admin/db";
-import { category, course, courseLesson, courseSection } from "@better-auth-admin/db/schema/lms";
+import { asc, db, desc, eq, or } from "@better-auth-admin/db";
+import { user } from "@better-auth-admin/db/schema/auth";
+import { category, course, courseLesson, courseSection, courseTag, tag } from "@better-auth-admin/db/schema/lms";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 
 export const lmsRouter = {
+  mentors: {
+    list: protectedProcedure.handler(async () => {
+      return await db
+        .select()
+        .from(user)
+        .where(or(eq(user.role, "admin"), eq(user.role, "mentor")));
+    }),
+  },
+  tag: {
+    list: protectedProcedure.handler(async () => {
+      return await db.select().from(tag).orderBy(desc(tag.createdAt));
+    }),
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1),
+          slug: z.string().min(1),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const id = randomUUID();
+        await db.insert(tag).values({
+          id,
+          ...input,
+        });
+        return { success: true, id };
+      }),
+  },
   category: {
     list: protectedProcedure.handler(async () => {
       return await db.select().from(category).orderBy(desc(category.createdAt));
@@ -18,11 +47,12 @@ export const lmsRouter = {
         }),
       )
       .handler(async ({ input }) => {
+        const id = randomUUID();
         await db.insert(category).values({
-          id: randomUUID(),
+          id,
           ...input,
         });
-        return { success: true };
+        return { success: true, id };
       }),
     update: protectedProcedure
       .input(
@@ -54,6 +84,12 @@ export const lmsRouter = {
       return await db.query.course.findMany({
         with: {
           category: true,
+          user: true,
+          tags: {
+            with: {
+              tag: true,
+            },
+          },
         },
         orderBy: desc(course.createdAt),
       });
@@ -63,6 +99,12 @@ export const lmsRouter = {
         where: eq(course.id, input.id),
         with: {
           category: true,
+          user: true,
+          tags: {
+            with: {
+              tag: true,
+            },
+          },
           sections: {
             orderBy: asc(courseSection.order),
             with: {
@@ -84,14 +126,39 @@ export const lmsRouter = {
           categoryId: z.string().optional(),
           thumbnailUrl: z.string().optional(),
           published: z.boolean().default(false),
+          benefits: z.array(z.string()).optional(),
+          tags: z.array(z.string()).optional(),
+          userId: z.string().optional(),
+          price: z.number().int().default(0),
+          discountType: z.enum(["fixed", "percentage"]).default("fixed"),
+          discountValue: z.number().int().default(0),
         }),
       )
-      .handler(async ({ input }) => {
+      .handler(async ({ input, context }) => {
         const id = randomUUID();
         await db.insert(course).values({
           id,
-          ...input,
+          title: input.title,
+          slug: input.slug,
+          description: input.description,
+          categoryId: input.categoryId,
+          thumbnailUrl: input.thumbnailUrl,
+          published: input.published,
+          benefits: input.benefits,
+          userId: input.userId || context.session.user.id,
+          price: input.price,
+          discountType: input.discountType,
+          discountValue: input.discountValue,
         });
+
+        if (input.tags && input.tags.length > 0) {
+          await db.insert(courseTag).values(
+            input.tags.map((tagId) => ({
+              courseId: id,
+              tagId,
+            })),
+          );
+        }
         return { success: true, id };
       }),
     update: protectedProcedure
@@ -104,6 +171,12 @@ export const lmsRouter = {
           categoryId: z.string().optional(),
           thumbnailUrl: z.string().optional(),
           published: z.boolean().optional(),
+          benefits: z.array(z.string()).optional(),
+          tags: z.array(z.string()).optional(),
+          userId: z.string().optional(),
+          price: z.number().int().optional(),
+          discountType: z.enum(["fixed", "percentage"]).optional(),
+          discountValue: z.number().int().optional(),
         }),
       )
       .handler(async ({ input }) => {
@@ -116,8 +189,25 @@ export const lmsRouter = {
             categoryId: input.categoryId,
             thumbnailUrl: input.thumbnailUrl,
             published: input.published,
+            benefits: input.benefits,
+            userId: input.userId,
+            price: input.price,
+            discountType: input.discountType,
+            discountValue: input.discountValue,
           })
           .where(eq(course.id, input.id));
+
+        if (input.tags) {
+          await db.delete(courseTag).where(eq(courseTag.courseId, input.id));
+          if (input.tags.length > 0) {
+            await db.insert(courseTag).values(
+              input.tags.map((tagId) => ({
+                courseId: input.id,
+                tagId,
+              })),
+            );
+          }
+        }
         return { success: true };
       }),
     delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {

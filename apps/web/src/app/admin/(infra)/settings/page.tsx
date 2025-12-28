@@ -12,7 +12,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useAuthorizePage } from "@/lib/auth-client";
 
 export default function AdminSettingsPage() {
-  const { isAuthorized, isLoading, user } = useAuthorizePage({
+  const { isAuthorized, isLoading } = useAuthorizePage({
     admin_dashboard: ["access"],
   });
 
