@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
-import { DeleteUserDialog, UserSessionsDialog } from "@/components/admin/user-actions-dialogs";
+import { DeleteUserDialog, EditUserRoleDialog, UserSessionsDialog } from "@/components/admin/user-actions-dialogs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,7 @@ export function UserTable() {
 
   const [selectedUserForSessions, setSelectedUserForSessions] = React.useState<string | null>(null);
   const [selectedUserForDelete, setSelectedUserForDelete] = React.useState<string | null>(null);
+  const [selectedUserForRoleEdit, setSelectedUserForRoleEdit] = React.useState<User | null>(null);
 
   const [users, setUsers] = React.useState<User[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -290,6 +291,7 @@ export function UserTable() {
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => navigator.clipboard.writeText(user.id)}>Copy User ID</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSelectedUserForSessions(user.id)}>Manage Sessions</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedUserForRoleEdit(user)}>Edit Role</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => setSelectedUserForDelete(user.id)}
@@ -440,6 +442,14 @@ export function UserTable() {
         open={!!selectedUserForSessions}
         onOpenChange={(open) => !open && setSelectedUserForSessions(null)}
       />
+
+      <EditUserRoleDialog
+        user={selectedUserForRoleEdit}
+        open={!!selectedUserForRoleEdit}
+        onOpenChange={(open) => !open && setSelectedUserForRoleEdit(null)}
+        onSuccess={fetchUsers}
+      />
+
       <DeleteUserDialog
         userId={selectedUserForDelete}
         open={!!selectedUserForDelete}

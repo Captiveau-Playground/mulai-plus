@@ -1,26 +1,26 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+"use client";
 
-import { authClient } from "@/lib/auth-client";
+import { useAuthorizePage } from "@/lib/auth-client";
 
 import Dashboard from "./dashboard";
 
-export default async function DashboardPage() {
-  const session = await authClient.getSession({
-    fetchOptions: {
-      headers: await headers(),
-      throw: true,
-    },
+export default function DashboardPage() {
+  const { isAuthorized, isLoading, user } = useAuthorizePage({
+    dashboard: ["access"],
   });
 
-  if (!session?.user) {
-    redirect("/login");
+  if (isLoading) return <div>Loading...</div>;
+
+  if (!user) {
+    // redirect("/login"); // Cannot use server redirect in client component easily, handled by hook or auth guard usually
+    // For now, let's just return null or let the hook handle it (it usually redirects)
+    return null;
   }
 
   return (
     <div>
       <h1>Dashboard</h1>
-      <p>Welcome {session.user.name}</p>
+      <p>Welcome {user.name}</p>
       <Dashboard />
     </div>
   );

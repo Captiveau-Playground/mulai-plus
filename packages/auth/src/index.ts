@@ -1,15 +1,26 @@
-import { db } from "@better-auth-admin/db";
+import { db, eq } from "@better-auth-admin/db";
 import * as schema from "@better-auth-admin/db/schema/auth";
 import { env } from "@better-auth-admin/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin } from "better-auth/plugins";
+import { nextCookies } from "better-auth/next-js";
+import { admin, username } from "better-auth/plugins";
+import { ac, getRoles } from "./permissions";
+
+const roles = await getRoles();
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
-
-    schema: schema,
+    schema: {
+      ...schema,
+      user: schema.user,
+      session: schema.session,
+      account: schema.account,
+      verification: schema.verification,
+      role: schema.role,
+      permission: schema.permission,
+    },
   }),
   trustedOrigins: [env.CORS_ORIGIN],
   emailAndPassword: {
@@ -17,16 +28,29 @@ export const auth = betterAuth({
   },
   plugins: [
     admin({
+      ac,
       defaultRole: "student",
-      adminRole: "admin",
+      adminRoles: ["admin"],
       adminUserIds: ["xZe00ndF70nX03JnDfb6F5YIKBKDfb1V"],
+      roles: roles,
     }),
+    username(),
+    nextCookies(),
   ],
-  advanced: {
-    defaultCookieAttributes: {
-      sameSite: "none",
-      secure: true,
-      httpOnly: true,
+  callbacks: {
+    session: async ({ session, user }: { session: any; user: any }) => {
+      const [roleData] = await db
+        .select()
+        .from(schema.role)
+        .where(eq(schema.role.id, user.role || "student"));
+
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          permissions: roleData?.permissions || [],
+        },
+      };
     },
   },
 });

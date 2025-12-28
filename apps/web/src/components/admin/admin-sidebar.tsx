@@ -1,6 +1,6 @@
 "use client";
 
-import { GalleryVerticalEnd, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import { GalleryVerticalEnd, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -22,13 +22,15 @@ const data = {
       plan: "Enterprise",
     },
   ],
-  navMain: [
+  navGeneral: [
     {
       title: "Dashboard",
       url: "/admin",
       icon: LayoutDashboard,
       isActive: true,
     },
+  ],
+  navAuth: [
     {
       title: "Users",
       url: "/admin/users",
@@ -46,12 +48,44 @@ const data = {
     },
     {
       title: "Roles",
+      url: "/admin/roles",
+      icon: Shield,
+      items: [
+        {
+          title: "All Roles",
+          url: "/admin/roles",
+        },
+      ],
+    },
+    {
+      title: "Permissions",
+      url: "/admin/permissions",
+      icon: Key,
+      items: [
+        {
+          title: "All Permissions",
+          url: "/admin/permissions",
+        },
+      ],
+    },
+  ],
+  navSystem: [
+    {
+      title: "Role Testing",
       url: "#",
       icon: Shield,
       items: [
         {
-          title: "Permissions",
-          url: "#",
+          title: "Student Page",
+          url: "/dashboard/student",
+        },
+        {
+          title: "Mentor Page",
+          url: "/dashboard/mentor",
+        },
+        {
+          title: "Admin Only",
+          url: "/dashboard/admin-only",
         },
       ],
     },
@@ -62,6 +96,10 @@ const data = {
       items: [
         {
           title: "General",
+          url: "/admin/settings",
+        },
+        {
+          title: "Team",
           url: "#",
         },
       ],
@@ -86,7 +124,9 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={data.navGeneral} />
+        <NavMain label="Authentication" items={data.navAuth} />
+        <NavMain label="System" items={data.navSystem} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

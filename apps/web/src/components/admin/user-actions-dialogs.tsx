@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Globe, Laptop, Loader2, Smartphone, Trash2 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
@@ -13,7 +14,93 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
+import { orpc } from "@/utils/orpc";
+
+interface EditUserRoleDialogProps {
+  user: {
+    id: string;
+    name: string;
+    role?: string;
+  } | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+}
+
+export function EditUserRoleDialog({ user, open, onOpenChange, onSuccess }: EditUserRoleDialogProps) {
+  const [selectedRole, setSelectedRole] = React.useState(user?.role || "student");
+  const [isPending, setIsPending] = React.useState(false);
+
+  const { data: roles } = useQuery(orpc.role.list.queryOptions());
+
+  React.useEffect(() => {
+    if (user?.role) {
+      setSelectedRole(user.role);
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setIsPending(true);
+    try {
+      const { error } = await authClient.admin.setRole({
+        userId: user.id,
+        role: selectedRole as "user" | "admin",
+      });
+
+      if (error) {
+        toast.error(`Failed to update role: ${error.message}`);
+      } else {
+        toast.success("Role updated successfully");
+        onSuccess?.();
+        onOpenChange(false);
+      }
+    } catch (_e) {
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Edit User Role</DialogTitle>
+          <DialogDescription>Change the role for user {user?.name}.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <span className="text-right font-medium text-sm">Role</span>
+            <Select value={selectedRole} onValueChange={(val) => val && setSelectedRole(val)}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue title="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roles?.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface UserSessionsDialogProps {
   userId: string | null;

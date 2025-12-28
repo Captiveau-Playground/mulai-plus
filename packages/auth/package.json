@@ -15,10 +15,11 @@
     "@better-auth-admin/config": "workspace:*"
   },
   "dependencies": {
+    "@better-auth-admin/db": "workspace:*",
+    "@better-auth-admin/env": "workspace:*",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
-    "zod": "catalog:",
-    "@better-auth-admin/env": "workspace:*",
-    "@better-auth-admin/db": "workspace:*"
+    "drizzle-orm": "^0.45.1",
+    "zod": "catalog:"
   }
 }
