@@ -1,3 +1,5 @@
+import { utimes } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { createContext } from "@better-auth-admin/api/context";
 import { appRouter } from "@better-auth-admin/api/routers/index";
 import { auth } from "@better-auth-admin/auth";
@@ -25,6 +27,29 @@ app.use(
 );
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+// System Restart Endpoint for Admins
+app.post("/api/system/restart", async (c) => {
+  const session = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+
+  if (!session?.user || session.user.role !== "admin") {
+    return c.json({ success: false, message: "Unauthorized" }, 401);
+  }
+
+  // Trigger restart by touching the entry file
+  // This triggers the file watcher (bun --hot or bun --watch) to reload the server
+  try {
+    const currentFile = fileURLToPath(import.meta.url);
+    const now = new Date();
+    await utimes(currentFile, now, now);
+    return c.json({ success: true, message: "Server restarting..." });
+  } catch (error) {
+    console.error("Failed to restart server:", error);
+    return c.json({ success: false, message: "Failed to restart server" }, 500);
+  }
+});
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
