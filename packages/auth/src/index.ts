@@ -5,6 +5,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin, username } from "better-auth/plugins";
+import { auditPlugin } from "./audit-plugin";
 import { ac, getRoles } from "./permissions";
 
 const roles = await getRoles();
@@ -36,6 +37,7 @@ export const auth = betterAuth({
     }),
     username(),
     nextCookies(),
+    auditPlugin(),
   ],
   callbacks: {
     session: async ({ session, user }: { session: any; user: any }) => {
