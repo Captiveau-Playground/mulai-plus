@@ -38,7 +38,7 @@ const data = {
       items: [
         {
           title: "All Users",
-          url: "/admin", // User table is on main admin page for now
+          url: "/admin/users",
         },
         {
           title: "Banned Users",
@@ -99,7 +99,7 @@ const data = {
           url: "/admin/settings",
         },
         {
-          title: "Team",
+          title: "Security",
           url: "#",
         },
       ],

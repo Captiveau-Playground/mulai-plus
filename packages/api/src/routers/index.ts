@@ -1,4 +1,4 @@
-import { count, db, eq, sql } from "@better-auth-admin/db";
+import { count, db, desc, eq, sql } from "@better-auth-admin/db";
 import { permission, role, session, user } from "@better-auth-admin/db/schema/auth";
 import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
@@ -18,11 +18,27 @@ export const appRouter = {
     const [totalUsers] = await db.select({ count: count() }).from(user);
     const [activeSessions] = await db.select({ count: count() }).from(session);
     const [bannedUsers] = await db.select({ count: count() }).from(user).where(eq(user.banned, true));
+    const [totalRoles] = await db.select({ count: count() }).from(role);
+    const [totalPermissions] = await db.select({ count: count() }).from(permission);
+
+    const usersByRole = await db
+      .select({
+        role: user.role,
+        count: count(),
+      })
+      .from(user)
+      .groupBy(user.role);
+
+    const recentUsers = await db.select().from(user).orderBy(desc(user.createdAt)).limit(5);
 
     return {
       totalUsers: totalUsers?.count || 0,
       activeSessions: activeSessions?.count || 0,
       bannedUsers: bannedUsers?.count || 0,
+      totalRoles: totalRoles?.count || 0,
+      totalPermissions: totalPermissions?.count || 0,
+      usersByRole,
+      recentUsers,
     };
   }),
   role: {
