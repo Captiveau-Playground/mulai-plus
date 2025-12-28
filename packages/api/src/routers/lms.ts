@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { asc, db, desc, eq, or } from "@better-auth-admin/db";
+import { asc, db, desc, eq, isNull, or } from "@better-auth-admin/db";
 import { user } from "@better-auth-admin/db/schema/auth";
 import { category, course, courseLesson, courseSection, courseTag, tag } from "@better-auth-admin/db/schema/lms";
 import { z } from "zod";
@@ -106,9 +106,11 @@ export const lmsRouter = {
             },
           },
           sections: {
+            where: isNull(courseSection.deletedAt),
             orderBy: asc(courseSection.order),
             with: {
               lessons: {
+                where: isNull(courseLesson.deletedAt),
                 orderBy: asc(courseLesson.order),
               },
             },
@@ -250,25 +252,71 @@ export const lmsRouter = {
         return { success: true };
       }),
     delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
-      await db.delete(courseSection).where(eq(courseSection.id, input.id));
+      await db
+        .update(courseSection)
+        .set({
+          deletedAt: new Date(),
+        })
+        .where(eq(courseSection.id, input.id));
       return { success: true };
     }),
+    reorder: protectedProcedure
+      .input(
+        z.object({
+          items: z.array(
+            z.object({
+              id: z.string(),
+              order: z.number().int(),
+            }),
+          ),
+        }),
+      )
+      .handler(async ({ input }) => {
+        await db.transaction(async (tx) => {
+          for (const item of input.items) {
+            await tx.update(courseSection).set({ order: item.order }).where(eq(courseSection.id, item.id));
+          }
+        });
+        return { success: true };
+      }),
   },
   lesson: {
     create: protectedProcedure
       .input(
         z.object({
           sectionId: z.string(),
+          courseId: z.string().optional(),
           title: z.string().min(1),
-          videoUrl: z.string().url(),
+          description: z.string().optional(),
+          videoUrl: z.string().url().optional().or(z.literal("")),
           order: z.number().int().default(0),
+          status: z.enum(["draft", "published", "archived"]).default("draft"),
           duration: z.number().int().optional(),
         }),
       )
       .handler(async ({ input }) => {
+        // If courseId is not provided, fetch it from section?
+        // For now relying on client to provide it or leaving it null if schema allows (it allows)
+        // But better to fetch it if missing.
+        let courseId: string | null = input.courseId ?? null;
+        if (!courseId) {
+          const section = await db.query.courseSection.findFirst({
+            where: eq(courseSection.id, input.sectionId),
+            columns: { courseId: true },
+          });
+          courseId = section?.courseId ?? null;
+        }
+
         await db.insert(courseLesson).values({
           id: randomUUID(),
-          ...input,
+          sectionId: input.sectionId,
+          courseId,
+          title: input.title,
+          description: input.description,
+          videoUrl: input.videoUrl || null,
+          order: input.order,
+          status: input.status,
+          duration: input.duration,
         });
         return { success: true };
       }),
@@ -276,9 +324,12 @@ export const lmsRouter = {
       .input(
         z.object({
           id: z.string(),
-          title: z.string().min(1),
-          videoUrl: z.string().url(),
+          sectionId: z.string().optional(), // For moving lesson
+          title: z.string().min(1).optional(),
+          description: z.string().optional(),
+          videoUrl: z.string().url().optional().or(z.literal("")),
           order: z.number().int().optional(),
+          status: z.enum(["draft", "published", "archived"]).optional(),
           duration: z.number().int().optional(),
         }),
       )
@@ -286,17 +337,44 @@ export const lmsRouter = {
         await db
           .update(courseLesson)
           .set({
+            sectionId: input.sectionId,
             title: input.title,
-            videoUrl: input.videoUrl,
+            description: input.description,
+            videoUrl: input.videoUrl || null,
             order: input.order,
+            status: input.status,
             duration: input.duration,
           })
           .where(eq(courseLesson.id, input.id));
         return { success: true };
       }),
     delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
-      await db.delete(courseLesson).where(eq(courseLesson.id, input.id));
+      await db
+        .update(courseLesson)
+        .set({
+          deletedAt: new Date(),
+        })
+        .where(eq(courseLesson.id, input.id));
       return { success: true };
     }),
+    reorder: protectedProcedure
+      .input(
+        z.object({
+          items: z.array(
+            z.object({
+              id: z.string(),
+              order: z.number().int(),
+            }),
+          ),
+        }),
+      )
+      .handler(async ({ input }) => {
+        await db.transaction(async (tx) => {
+          for (const item of input.items) {
+            await tx.update(courseLesson).set({ order: item.order }).where(eq(courseLesson.id, item.id));
+          }
+        });
+        return { success: true };
+      }),
   },
 };

@@ -60,11 +60,12 @@ export const courseTag = pgTable(
 
 export const courseSection = pgTable("course_section", {
   id: text("id").primaryKey(),
-  courseId: text("course_id")
-    .notNull()
-    .references(() => course.id, { onDelete: "cascade" }),
+  courseId: text("course_id").references(() => course.id, {
+    onDelete: "cascade",
+  }),
   title: text("title").notNull(),
   order: integer("order").notNull().default(0),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -77,10 +78,16 @@ export const courseLesson = pgTable("course_lesson", {
   sectionId: text("section_id")
     .notNull()
     .references(() => courseSection.id, { onDelete: "cascade" }),
+  courseId: text("course_id").references(() => course.id, {
+    onDelete: "cascade",
+  }),
   title: text("title").notNull(),
-  videoUrl: text("video_url").notNull(), // YouTube URL
+  description: text("description"),
+  videoUrl: text("video_url"), // Optional
   order: integer("order").notNull().default(0),
+  status: text("status").default("draft").notNull(), // 'draft' | 'published' | 'archived'
   duration: integer("duration"), // Duration in seconds
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -133,5 +140,9 @@ export const courseLessonRelations = relations(courseLesson, ({ one }) => ({
   section: one(courseSection, {
     fields: [courseLesson.sectionId],
     references: [courseSection.id],
+  }),
+  course: one(course, {
+    fields: [courseLesson.courseId],
+    references: [course.id],
   }),
 }));

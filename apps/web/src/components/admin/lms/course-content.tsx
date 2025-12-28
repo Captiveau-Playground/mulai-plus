@@ -1,15 +1,48 @@
 "use client";
 
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, GripVertical, Loader2, Pencil, PlayCircle, Plus, Trash, Video } from "lucide-react";
-import Link from "next/link";
+import {
+  Archive,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  EyeOff,
+  FileText,
+  GripVertical,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash,
+  Video,
+} from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button, buttonVariants } from "@/components/ui/button";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -18,30 +51,212 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
+// Schemas
 const sectionSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  order: z.number().int().default(0),
+  order: z.number().int(),
 });
 
 const lessonSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  videoUrl: z.string().url("Must be a valid URL"),
-  order: z.number().int().default(0),
+  description: z.string().optional(),
+  videoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  order: z.number().int(),
+  status: z.enum(["draft", "published", "archived"]),
   duration: z.number().int().optional(),
 });
 
 type SectionFormValues = z.infer<typeof sectionSchema>;
 type LessonFormValues = z.infer<typeof lessonSchema>;
 
+// Sortable Section Component
+function SortableSection({
+  section,
+  isExpanded,
+  onToggle,
+  onEdit,
+  onDelete,
+  onAddLesson,
+  children,
+}: {
+  section: any;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onAddLesson: () => void;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: section.id,
+    data: {
+      type: "Section",
+      section,
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="mb-4">
+      <div className="flex items-center rounded-lg border bg-card p-2 shadow-sm">
+        <div {...attributes} {...listeners} className="cursor-grab p-2 text-muted-foreground hover:text-foreground">
+          <GripVertical className="h-5 w-5" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{section.title}</span>
+              <Badge variant="secondary" className="text-xs">
+                {section.lessons.length} lessons
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={onToggle}>
+                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onEdit}>
+                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onAddLesson}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Lesson
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                    <Trash className="mr-2 h-4 w-4" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+      </div>
+      {isExpanded && <div className="mt-2 pl-8">{children}</div>}
+    </div>
+  );
+}
+
+// Sortable Lesson Component
+function SortableLesson({
+  lesson,
+  onEdit,
+  onDelete,
+  onMove,
+  sections,
+}: {
+  lesson: any;
+  onEdit: () => void;
+  onDelete: () => void;
+  onMove: (sectionId: string) => void;
+  sections: any[];
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: lesson.id,
+    data: {
+      type: "Lesson",
+      lesson,
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "published":
+        return <Eye className="h-4 w-4 text-green-500" />;
+      case "archived":
+        return <Archive className="h-4 w-4 text-orange-500" />;
+      default:
+        return <EyeOff className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="mb-2 flex items-center rounded-md border bg-background p-2">
+      <div {...attributes} {...listeners} className="cursor-grab p-2 text-muted-foreground hover:text-foreground">
+        <GripVertical className="h-4 w-4" />
+      </div>
+      <div className="flex flex-1 items-center justify-between">
+        <div className="flex items-center gap-3">
+          {lesson.videoUrl ? (
+            <Video className="h-4 w-4 text-blue-500" />
+          ) : (
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="font-medium text-sm">{lesson.title}</span>
+          <div title={lesson.status}>{getStatusIcon(lesson.status)}</div>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-3 w-3" />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="mr-2 h-4 w-4" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Move to</DropdownMenuLabel>
+              {sections
+                .filter((s) => s.id !== lesson.sectionId)
+                .map((s) => (
+                  <DropdownMenuItem key={s.id} onClick={() => onMove(s.id)}>
+                    {s.title}
+                  </DropdownMenuItem>
+                ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+              <Trash className="mr-2 h-4 w-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
+
 export function CourseContent({ courseId }: { courseId: string }) {
-  const [isSectionOpen, setIsSectionOpen] = useState(false);
-  const [isLessonOpen, setIsLessonOpen] = useState(false);
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
+  const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<{
     id: string;
     title: string;
@@ -49,26 +264,46 @@ export function CourseContent({ courseId }: { courseId: string }) {
   } | null>(null);
   const [editingLesson, setEditingLesson] = useState<{
     id: string;
+    sectionId: string;
     title: string;
-    videoUrl: string;
+    description?: string;
+    videoUrl?: string;
     order: number;
-    duration?: number | null;
+    status: "draft" | "published" | "archived";
+    duration?: number;
   } | null>(null);
+  const [activeSectionIdForLesson, setActiveSectionIdForLesson] = useState<string | null>(null);
+  const [_activeDragId, setActiveDragId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const { data: course, isLoading } = useQuery(orpc.lms.course.get.queryOptions({ input: { id: courseId } }));
 
-  // Section Mutations
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // Forms
+  const sectionForm = useForm<SectionFormValues>({
+    resolver: zodResolver(sectionSchema),
+  });
+
+  const lessonForm = useForm<LessonFormValues>({
+    resolver: zodResolver(lessonSchema),
+  });
+
+  // Mutations
   const createSectionMutation = useMutation(
     orpc.lms.section.create.mutationOptions({
       onSuccess: () => {
         toast.success("Section created");
-        setIsSectionOpen(false);
+        setIsSectionDialogOpen(false);
+        sectionForm.reset();
         queryClient.invalidateQueries({
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (error) => toast.error(error.message),
+      onError: (err) => toast.error(err.message),
     }),
   );
 
@@ -76,12 +311,14 @@ export function CourseContent({ courseId }: { courseId: string }) {
     orpc.lms.section.update.mutationOptions({
       onSuccess: () => {
         toast.success("Section updated");
+        setIsSectionDialogOpen(false);
         setEditingSection(null);
+        sectionForm.reset();
         queryClient.invalidateQueries({
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (error) => toast.error(error.message),
+      onError: (err) => toast.error(err.message),
     }),
   );
 
@@ -93,21 +330,32 @@ export function CourseContent({ courseId }: { courseId: string }) {
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (error) => toast.error(error.message),
+      onError: (err) => toast.error(err.message),
     }),
   );
 
-  // Lesson Mutations
-  const createLessonMutation = useMutation(
-    orpc.lms.lesson.create.mutationOptions({
+  const reorderSectionMutation = useMutation(
+    orpc.lms.section.reorder.mutationOptions({
       onSuccess: () => {
-        toast.success("Lesson created");
-        setIsLessonOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (error) => toast.error(error.message),
+      onError: (err) => toast.error(err.message),
+    }),
+  );
+
+  const createLessonMutation = useMutation(
+    orpc.lms.lesson.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Lesson created");
+        setIsLessonDialogOpen(false);
+        lessonForm.reset();
+        queryClient.invalidateQueries({
+          queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
+        });
+      },
+      onError: (err) => toast.error(err.message),
     }),
   );
 
@@ -115,12 +363,14 @@ export function CourseContent({ courseId }: { courseId: string }) {
     orpc.lms.lesson.update.mutationOptions({
       onSuccess: () => {
         toast.success("Lesson updated");
+        setIsLessonDialogOpen(false);
         setEditingLesson(null);
+        lessonForm.reset();
         queryClient.invalidateQueries({
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (error) => toast.error(error.message),
+      onError: (err) => toast.error(err.message),
     }),
   );
 
@@ -132,298 +382,241 @@ export function CourseContent({ courseId }: { courseId: string }) {
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (error) => toast.error(error.message),
+      onError: (err) => toast.error(err.message),
     }),
   );
 
-  // Forms
-  const sectionForm = useForm<SectionFormValues>({
-    resolver: zodResolver(sectionSchema),
-    defaultValues: { title: "", order: 0 },
-  });
-
-  const lessonForm = useForm<LessonFormValues>({
-    resolver: zodResolver(lessonSchema),
-    defaultValues: { title: "", videoUrl: "", order: 0, duration: 0 },
-  });
-
-  const editSectionForm = useForm<SectionFormValues>({
-    resolver: zodResolver(sectionSchema),
-    defaultValues: { title: "", order: 0 },
-  });
-
-  const editLessonForm = useForm<LessonFormValues>({
-    resolver: zodResolver(lessonSchema),
-    defaultValues: { title: "", videoUrl: "", order: 0, duration: 0 },
-  });
+  const reorderLessonMutation = useMutation(
+    orpc.lms.lesson.reorder.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
+        });
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
 
   // Handlers
-  const onCreateSection = (values: SectionFormValues) => {
-    createSectionMutation.mutate({ courseId, ...values });
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    if (!over) return;
+
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    if (!activeData || !overData) return;
+
+    // Section Reorder
+    if (activeData.type === "Section" && overData.type === "Section") {
+      if (active.id !== over.id) {
+        const oldIndex = course?.sections.findIndex((s) => s.id === active.id) ?? -1;
+        const newIndex = course?.sections.findIndex((s) => s.id === over.id) ?? -1;
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newSections = arrayMove(course?.sections || [], oldIndex, newIndex);
+          // Optimistic update could go here, but for now we rely on mutation
+          reorderSectionMutation.mutate({
+            items: newSections.map((s, idx) => ({ id: s.id, order: idx })),
+          });
+        }
+      }
+    }
+
+    // Lesson Reorder (within same section)
+    if (activeData.type === "Lesson" && overData.type === "Lesson") {
+      const activeLesson = activeData.lesson;
+      const overLesson = overData.lesson;
+
+      if (activeLesson.sectionId === overLesson.sectionId && active.id !== over.id) {
+        const section = course?.sections.find((s) => s.id === activeLesson.sectionId);
+        if (section) {
+          const oldIndex = section.lessons.findIndex((l) => l.id === active.id);
+          const newIndex = section.lessons.findIndex((l) => l.id === over.id);
+
+          if (oldIndex !== -1 && newIndex !== -1) {
+            const newLessons = arrayMove(section.lessons, oldIndex, newIndex);
+            reorderLessonMutation.mutate({
+              items: newLessons.map((l, idx) => ({ id: l.id, order: idx })),
+            });
+          }
+        }
+      }
+    }
   };
 
-  const onUpdateSection = (values: SectionFormValues) => {
-    if (!editingSection) return;
-    updateSectionMutation.mutate({ id: editingSection.id, ...values });
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
   };
 
-  const onCreateLesson = (values: LessonFormValues) => {
-    if (!activeSectionId) return;
-    createLessonMutation.mutate({ sectionId: activeSectionId, ...values });
+  const toggleSection = (id: string) => {
+    setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const onUpdateLesson = (values: LessonFormValues) => {
-    if (!editingLesson) return;
-    updateLessonMutation.mutate({ id: editingLesson.id, ...values });
+  const openCreateSection = () => {
+    setEditingSection(null);
+    sectionForm.reset({ title: "", order: course?.sections.length || 0 });
+    setIsSectionDialogOpen(true);
+  };
+
+  const openEditSection = (section: any) => {
+    setEditingSection(section);
+    sectionForm.reset({ title: section.title, order: section.order });
+    setIsSectionDialogOpen(true);
+  };
+
+  const openCreateLesson = (sectionId: string) => {
+    setActiveSectionIdForLesson(sectionId);
+    setEditingLesson(null);
+    const section = course?.sections.find((s) => s.id === sectionId);
+    const order = section?.lessons.length || 0;
+    lessonForm.reset({
+      title: "",
+      description: "",
+      videoUrl: "",
+      order,
+      status: "draft",
+    });
+    setIsLessonDialogOpen(true);
+  };
+
+  const openEditLesson = (lesson: any) => {
+    setEditingLesson(lesson);
+    lessonForm.reset({
+      title: lesson.title,
+      description: lesson.description || "",
+      videoUrl: lesson.videoUrl || "",
+      order: lesson.order,
+      status: lesson.status,
+    });
+    setIsLessonDialogOpen(true);
+  };
+
+  const handleSectionSubmit = (values: SectionFormValues) => {
+    if (editingSection) {
+      updateSectionMutation.mutate({ id: editingSection.id, ...values });
+    } else {
+      createSectionMutation.mutate({ courseId, ...values });
+    }
+  };
+
+  const handleLessonSubmit = (values: LessonFormValues) => {
+    if (editingLesson) {
+      updateLessonMutation.mutate({
+        id: editingLesson.id,
+        sectionId: editingLesson.sectionId,
+        ...values,
+      });
+    } else if (activeSectionIdForLesson) {
+      createLessonMutation.mutate({
+        sectionId: activeSectionIdForLesson,
+        courseId,
+        ...values,
+      });
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="flex h-64 w-full items-center justify-center">
+      <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  if (!course) {
-    return (
-      <div className="flex h-64 w-full items-center justify-center">
-        <p className="text-muted-foreground">Course not found</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/admin/lms/courses" className={cn(buttonVariants({ variant: "outline", size: "icon" }))}>
-          <ChevronLeft className="h-4 w-4" />
-        </Link>
-        <div>
-          <h2 className="font-bold text-2xl tracking-tight">{course.title}</h2>
-          <p className="text-muted-foreground text-sm">Manage curriculum and content</p>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <Button onClick={() => setIsSectionOpen(true)}>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-lg">Course Content</h2>
+        <Button onClick={openCreateSection} size="sm">
           <Plus className="mr-2 h-4 w-4" /> Add Section
         </Button>
-        <Dialog open={isSectionOpen} onOpenChange={setIsSectionOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Section</DialogTitle>
-              <DialogDescription>Create a new section (chapter) for this course.</DialogDescription>
-            </DialogHeader>
-            <Form {...sectionForm}>
-              <form onSubmit={sectionForm.handleSubmit(onCreateSection)} className="space-y-4">
-                <FormField
-                  control={sectionForm.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Introduction" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={sectionForm.control}
-                  name="order"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Order</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="submit" disabled={createSectionMutation.isPending}>
-                    {createSectionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      <div className="space-y-4">
-        <Accordion className="w-full">
-          {course.sections.map((section) => (
-            <AccordionItem key={section.id} value={section.id} className="mb-4 rounded-lg border px-4">
-              <div className="flex items-center justify-between py-2">
-                <AccordionTrigger className="flex-1 py-2 hover:no-underline">
-                  <div className="flex items-center gap-2 text-left">
-                    <span className="font-medium text-lg">
-                      Section {section.order}: {section.title}
-                    </span>
-                    <span className="text-muted-foreground text-sm">({section.lessons.length} lessons)</span>
-                  </div>
-                </AccordionTrigger>
-                <div className="ml-4 flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingSection(section);
-                      editSectionForm.reset({
-                        title: section.title,
-                        order: section.order,
-                      });
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm("Delete this section and all its lessons?")) {
-                        deleteSectionMutation.mutate({ id: section.id });
-                      }
-                    }}
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <AccordionContent className="pt-2 pb-4">
-                <div className="space-y-2 pl-4">
-                  {section.lessons.map((lesson) => (
-                    <div
-                      key={lesson.id}
-                      className="flex items-center justify-between rounded-md border bg-muted/50 p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <GripVertical className="h-4 w-4 cursor-grab text-muted-foreground" />
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <PlayCircle className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{lesson.title}</p>
-                          <a
-                            href={lesson.videoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-muted-foreground text-xs hover:underline"
-                          >
-                            <Video className="h-3 w-3" /> Video Link
-                          </a>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingLesson(lesson);
-                            editLessonForm.reset({
-                              title: lesson.title,
-                              videoUrl: lesson.videoUrl,
-                              order: lesson.order,
-                              duration: lesson.duration || 0,
-                            });
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => {
-                            if (confirm("Delete this lesson?")) {
-                              deleteLessonMutation.mutate({ id: lesson.id });
-                            }
-                          }}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 w-full border-dashed"
-                    onClick={() => {
-                      setActiveSectionId(section.id);
-                      setIsLessonOpen(true);
-                      lessonForm.reset({
-                        order: section.lessons.length + 1,
-                        title: "",
-                        videoUrl: "",
-                      });
-                    }}
-                  >
-                    <Plus className="mr-2 h-4 w-4" /> Add Lesson
-                  </Button>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-        {course.sections.length === 0 && (
-          <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
-            <p>No sections yet. Click "Add Section" to start building your course.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Edit Section Dialog */}
-      <Dialog
-        open={!!editingSection}
-        onOpenChange={(open) => {
-          if (!open) setEditingSection(null);
-        }}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
       >
+        <SortableContext items={course?.sections.map((s) => s.id) || []} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {course?.sections.map((section) => (
+              <SortableSection
+                key={section.id}
+                section={section}
+                isExpanded={!!expandedSections[section.id]}
+                onToggle={() => toggleSection(section.id)}
+                onEdit={() => openEditSection(section)}
+                onDelete={() => {
+                  if (confirm("Are you sure you want to delete this section?")) {
+                    deleteSectionMutation.mutate({ id: section.id });
+                  }
+                }}
+                onAddLesson={() => {
+                  if (!expandedSections[section.id]) toggleSection(section.id);
+                  openCreateLesson(section.id);
+                }}
+              >
+                <SortableContext items={section.lessons.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                  {section.lessons.length === 0 ? (
+                    <div className="py-2 text-center text-muted-foreground text-sm">No lessons in this section.</div>
+                  ) : (
+                    section.lessons.map((lesson) => (
+                      <SortableLesson
+                        key={lesson.id}
+                        lesson={lesson}
+                        sections={course?.sections || []}
+                        onEdit={() => openEditLesson(lesson)}
+                        onDelete={() => {
+                          if (confirm("Are you sure you want to delete this lesson?")) {
+                            deleteLessonMutation.mutate({ id: lesson.id });
+                          }
+                        }}
+                        onMove={(targetSectionId) => {
+                          updateLessonMutation.mutate({
+                            id: lesson.id,
+                            sectionId: targetSectionId,
+                          });
+                        }}
+                      />
+                    ))
+                  )}
+                </SortableContext>
+              </SortableSection>
+            ))}
+          </div>
+        </SortableContext>
+        <DragOverlay>{/* Optional: Add drag overlay for better visual feedback */}</DragOverlay>
+      </DndContext>
+
+      {/* Section Dialog */}
+      <Dialog open={isSectionDialogOpen} onOpenChange={setIsSectionDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Section</DialogTitle>
+            <DialogTitle>{editingSection ? "Edit Section" : "Create Section"}</DialogTitle>
+            <DialogDescription>Sections help organize your course content.</DialogDescription>
           </DialogHeader>
-          <Form {...editSectionForm}>
-            <form onSubmit={editSectionForm.handleSubmit(onUpdateSection)} className="space-y-4">
+          <Form {...sectionForm}>
+            <form onSubmit={sectionForm.handleSubmit(handleSectionSubmit)} className="space-y-4">
               <FormField
-                control={editSectionForm.control}
+                control={sectionForm.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Title</FormLabel>
                     <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editSectionForm.control}
-                name="order"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Order</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
+                      <Input placeholder="Section Title" {...field} autoFocus />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <DialogFooter>
-                <Button type="submit" disabled={updateSectionMutation.isPending}>
-                  {updateSectionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Update
+                <Button type="submit" disabled={createSectionMutation.isPending || updateSectionMutation.isPending}>
+                  {editingSection ? "Update" : "Create"}
                 </Button>
               </DialogFooter>
             </form>
@@ -431,16 +624,16 @@ export function CourseContent({ courseId }: { courseId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Create Lesson Dialog */}
-      <Dialog open={isLessonOpen} onOpenChange={setIsLessonOpen}>
-        <DialogContent>
+      {/* Lesson Dialog */}
+      <Dialog open={isLessonDialogOpen} onOpenChange={setIsLessonDialogOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Add Lesson</DialogTitle>
-            <DialogDescription>Add a new video lesson to this section.</DialogDescription>
+            <DialogTitle>{editingLesson ? "Edit Lesson" : "Create Lesson"}</DialogTitle>
+            <DialogDescription>Add content to your section.</DialogDescription>
           </DialogHeader>
           <Form {...lessonForm}>
-            <form onSubmit={lessonForm.handleSubmit(onCreateLesson)} className="space-y-4">
-              <FormField
+            <form onSubmit={lessonForm.handleSubmit(handleLessonSubmit)} className="space-y-4">
+              <FormField<LessonFormValues>
                 control={lessonForm.control}
                 name="title"
                 render={({ field }) => (
@@ -453,140 +646,64 @@ export function CourseContent({ courseId }: { courseId: string }) {
                   </FormItem>
                 )}
               />
-              <FormField
+              <FormField<LessonFormValues>
                 control={lessonForm.control}
-                name="videoUrl"
+                name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Video URL (YouTube)</FormLabel>
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://youtube.com/watch?v=..." {...field} />
+                      <Textarea placeholder="Lesson description..." {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <div className="grid grid-cols-2 gap-4">
-                <FormField
+                <FormField<LessonFormValues>
                   control={lessonForm.control}
-                  name="order"
+                  name="videoUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Order</FormLabel>
+                      <FormLabel>Video URL (Optional)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
+                        <Input placeholder="https://..." {...field} value={field.value || ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
+                <FormField<LessonFormValues>
                   control={lessonForm.control}
-                  name="duration"
+                  name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Duration (seconds)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Optional"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber || undefined)}
-                        />
-                      </FormControl>
+                      <FormLabel>Status</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value as string | number | null | undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue className={cn(!field.value && "text-muted-foreground")}>
+                              {field.value ? undefined : "Select status"}
+                            </SelectValue>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="published">Published</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={createLessonMutation.isPending}>
-                  {createLessonMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Lesson Dialog */}
-      <Dialog
-        open={!!editingLesson}
-        onOpenChange={(open) => {
-          if (!open) setEditingLesson(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Lesson</DialogTitle>
-          </DialogHeader>
-          <Form {...editLessonForm}>
-            <form onSubmit={editLessonForm.handleSubmit(onUpdateLesson)} className="space-y-4">
-              <FormField
-                control={editLessonForm.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editLessonForm.control}
-                name="videoUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Video URL</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={editLessonForm.control}
-                  name="order"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Order</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} onChange={(e) => field.onChange(e.target.valueAsNumber || 0)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editLessonForm.control}
-                  name="duration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duration (seconds)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber || undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={updateLessonMutation.isPending}>
-                  {updateLessonMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Update
+                <Button type="submit" disabled={createLessonMutation.isPending || updateLessonMutation.isPending}>
+                  {editingLesson ? "Update" : "Create"}
                 </Button>
               </DialogFooter>
             </form>
