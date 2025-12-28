@@ -1,6 +1,6 @@
 "use client";
 
-import { GalleryVerticalEnd, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import { BookOpen, GalleryVerticalEnd, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -69,6 +69,23 @@ const data = {
       ],
     },
   ],
+  navLms: [
+    {
+      title: "Learning",
+      url: "#",
+      icon: BookOpen,
+      items: [
+        {
+          title: "Categories",
+          url: "/admin/lms/categories",
+        },
+        {
+          title: "Courses",
+          url: "/admin/lms/courses",
+        },
+      ],
+    },
+  ],
   navSystem: [
     {
       title: "Role Testing",
@@ -125,6 +142,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navGeneral} />
+        <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
       </SidebarContent>

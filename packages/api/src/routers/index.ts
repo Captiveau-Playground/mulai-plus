@@ -3,11 +3,13 @@ import { permission, role, session, user } from "@better-auth-admin/db/schema/au
 import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
+import { lmsRouter } from "./lms";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
+  lms: lmsRouter,
   privateData: protectedProcedure.handler(({ context }) => {
     return {
       message: "This is private",
