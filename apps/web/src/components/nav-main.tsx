@@ -40,7 +40,7 @@ export function NavMain({
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild tooltip={item.title}>
-                  <Link href={item.url as any}>
+                  <Link href={item.url as any} className="group flex gap-2">
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                   </Link>
