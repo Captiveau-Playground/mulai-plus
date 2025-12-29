@@ -11,6 +11,9 @@ export async function createContext({ context }: CreateContextOptions) {
   });
   return {
     session,
+    headers: context.req.raw.headers,
+    ip: context.req.header("x-forwarded-for") || context.req.header("x-real-ip"),
+    userAgent: context.req.header("user-agent"),
   };
 }
 
