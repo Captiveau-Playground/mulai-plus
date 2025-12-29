@@ -56,6 +56,18 @@ export default function CourseDetailPage() {
     );
   }
 
+  const finalPrice = (() => {
+    const price = course.price ?? 0;
+    const discountType = (course.discountType as "fixed" | "percentage") ?? "fixed";
+    const discountValue = course.discountValue ?? 0;
+    const discounted =
+      discountType === "percentage"
+        ? Math.max(0, price - Math.floor((price * discountValue) / 100))
+        : Math.max(0, price - discountValue);
+    const hasDiscount = discountValue > 0;
+    return hasDiscount ? discounted : price;
+  })();
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <section className="mb-6">
@@ -141,7 +153,7 @@ export default function CourseDetailPage() {
               )}
             </div>
             <div className="mt-4 flex gap-2">
-              <OrderActions courseId={course.id} price={course.price || 0} title={course.title} slug={course.slug} />
+              <OrderActions courseId={course.id} price={finalPrice} title={course.title} slug={course.slug} />
             </div>
           </div>
         </div>

@@ -469,6 +469,8 @@ function SidebarMenuButton({
   size = "default",
   tooltip,
   className,
+  asChild,
+  children,
   ...props
 }: useRender.ComponentProps<"button"> &
   React.ComponentProps<"button"> & {
@@ -482,6 +484,7 @@ function SidebarMenuButton({
     props: mergeProps<"button">(
       {
         className: cn(sidebarMenuButtonVariants({ variant, size }), className),
+        ...(asChild ? { render: children as any } : { children }),
       },
       props,
     ),
