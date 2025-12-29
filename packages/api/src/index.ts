@@ -9,7 +9,7 @@ export const publicProcedure = o;
 
 const auditMiddleware = o.middleware(async ({ context, next, path, ...rest }) => {
   const result = await next({});
-  const input = (rest as any).input;
+  const input = (rest as { input?: unknown }).input;
 
   if (context.session?.user) {
     try {

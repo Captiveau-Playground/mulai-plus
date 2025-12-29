@@ -40,6 +40,7 @@ export function NavMain({
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild tooltip={item.title}>
+                  {/* biome-ignore lint/suspicious/noExplicitAny: Workaround for typed routes */}
                   <Link href={item.url as any} className="group flex gap-2">
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>

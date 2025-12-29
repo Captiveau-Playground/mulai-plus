@@ -1,11 +1,68 @@
 import { randomUUID } from "node:crypto";
-import { asc, db, desc, eq, isNull, or } from "@better-auth-admin/db";
+import { and, asc, db, desc, eq, isNull, or } from "@better-auth-admin/db";
 import { user } from "@better-auth-admin/db/schema/auth";
 import { category, course, courseLesson, courseSection, courseTag, tag } from "@better-auth-admin/db/schema/lms";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { protectedProcedure, publicProcedure } from "../index";
 
 export const lmsRouter = {
+  public: {
+    categories: publicProcedure.handler(async () => {
+      return await db.select().from(category).orderBy(desc(category.createdAt));
+    }),
+    courses: publicProcedure
+      .input(
+        z
+          .object({
+            categoryId: z.string().optional(),
+          })
+          .optional(),
+      )
+      .handler(async ({ input }) => {
+        const result = await db.query.course.findMany({
+          where: (fields, { and, eq }) =>
+            and(eq(fields.published, true), input?.categoryId ? eq(fields.categoryId, input.categoryId) : undefined),
+          with: {
+            category: true,
+          },
+          orderBy: desc(course.createdAt),
+        });
+        return result;
+      }),
+    courseBySlug: publicProcedure
+      .input(
+        z.object({
+          slug: z.string().min(1),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const result = await db.query.course.findFirst({
+          where: eq(course.slug, input.slug),
+          with: {
+            category: true,
+            user: true,
+            tags: {
+              with: {
+                tag: true,
+              },
+            },
+            sections: {
+              where: isNull(courseSection.deletedAt),
+              orderBy: asc(courseSection.order),
+              with: {
+                lessons: {
+                  where: and(isNull(courseLesson.deletedAt), eq(courseLesson.status, "published")),
+                  orderBy: asc(courseLesson.order),
+                },
+              },
+            },
+          },
+        });
+        // Only return if published to ensure student-only visibility
+        if (!result?.published) return null;
+        return result;
+      }),
+  },
   mentors: {
     list: protectedProcedure.handler(async () => {
       return await db

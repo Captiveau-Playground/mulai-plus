@@ -1,6 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Loader2, Search } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -30,9 +31,10 @@ type Course = {
   price?: number | null;
 };
 
-export default function Home() {
+export default function LandingPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
   const { data: categories, isLoading: isCategoriesLoading } = useQuery(orpc.lms.public.categories.queryOptions());
   const { data: courses, isLoading: isCoursesLoading } = useQuery(
     orpc.lms.public.courses.queryOptions({
@@ -67,7 +69,7 @@ export default function Home() {
             <div className="flex gap-2">
               <Button
                 render={
-                  <Link href={"/dashboard/student"} aria-label="Buka Student Dashboard">
+                  <Link href={"/dashboard/student" as Route} aria-label="Buka Student Dashboard">
                     <BookOpen className="mr-2 h-4 w-4" />
                     Buka Dashboard
                   </Link>
@@ -135,20 +137,18 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredCourses.map((course) => (
               <Card key={course.id} className="overflow-hidden">
-                {course.thumbnailUrl ? (
-                  <div className="relative aspect-video w-full bg-muted">
+                <div className="relative aspect-video w-full bg-muted">
+                  {course.thumbnailUrl && (
                     <Image
                       src={course.thumbnailUrl}
                       alt={course.title}
                       fill
                       unoptimized
                       className="object-cover"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
-                  </div>
-                ) : (
-                  <div className="aspect-video w-full bg-muted" />
-                )}
+                  )}
+                </div>
                 <CardHeader>
                   <CardTitle className="line-clamp-1 text-base">{course.title}</CardTitle>
                 </CardHeader>
@@ -171,8 +171,7 @@ export default function Home() {
                     variant="secondary"
                     size="sm"
                     render={
-                      /* biome-ignore lint/suspicious/noExplicitAny: Workaround for typed routes */
-                      <Link href={`/courses/${course.slug}` as any} aria-label={`Lihat detail ${course.title}`}>
+                      <Link href={`/courses/${course.slug}` as Route} aria-label={`Lihat detail ${course.title}`}>
                         Lihat Detail
                       </Link>
                     }
@@ -181,8 +180,7 @@ export default function Home() {
                     variant="ghost"
                     size="sm"
                     render={
-                      /* biome-ignore lint/suspicious/noExplicitAny: Workaround for typed routes */
-                      <Link href={"/dashboard/student" as any} aria-label={`Mulai belajar ${course.title}`}>
+                      <Link href={"/dashboard/student" as Route} aria-label={`Mulai belajar ${course.title}`}>
                         Mulai Belajar
                       </Link>
                     }
