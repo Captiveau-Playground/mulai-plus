@@ -146,3 +146,65 @@ export const courseLessonRelations = relations(courseLesson, ({ one }) => ({
     references: [course.id],
   }),
 }));
+
+export const enrollment = pgTable("enrollment", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  courseId: text("course_id")
+    .notNull()
+    .references(() => course.id, { onDelete: "cascade" }),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  status: text("status").default("active").notNull(), // 'active' | 'completed' | 'dropped'
+  progress: integer("progress").default(0).notNull(), // 0-100
+});
+
+export const paymentOrder = pgTable("payment_order", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  externalOrderId: text("external_order_id").notNull().unique(),
+  paymentNumber: text("payment_number"),
+  amount: integer("amount").notNull(),
+  currency: text("currency").default("IDR").notNull(),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  sourceService: text("source_service").default("LMS").notNull(),
+  metadata: text("metadata"),
+  notes: text("notes"),
+  itemDetails: text("item_details").array().default([]).notNull(),
+  status: text("status").default("pending").notNull(),
+  snapToken: text("snap_token"),
+  paymentUrl: text("payment_url"),
+  userId: text("user_id").references(() => user.id),
+  courseId: text("course_id").references(() => course.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const enrollmentRelations = relations(enrollment, ({ one }) => ({
+  user: one(user, {
+    fields: [enrollment.userId],
+    references: [user.id],
+  }),
+  course: one(course, {
+    fields: [enrollment.courseId],
+    references: [course.id],
+  }),
+}));
+
+export const paymentOrderRelations = relations(paymentOrder, ({ one }) => ({
+  user: one(user, {
+    fields: [paymentOrder.userId],
+    references: [user.id],
+  }),
+  course: one(course, {
+    fields: [paymentOrder.courseId],
+    references: [course.id],
+  }),
+}));

@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Loader2, Tag } from "lucide-react";
+import { Loader2, Tag } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { orpc } from "@/utils/orpc";
+
+import { OrderActions } from "./_components/order-actions";
 
 export default function CourseDetailPage() {
   const params = useParams<{ slug: string }>();
@@ -139,14 +141,7 @@ export default function CourseDetailPage() {
               )}
             </div>
             <div className="mt-4 flex gap-2">
-              <Button
-                render={
-                  <Link href={"/dashboard/student"} aria-label={`Mulai belajar ${course.title}`}>
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    Mulai Belajar
-                  </Link>
-                }
-              />
+              <OrderActions courseId={course.id} price={course.price || 0} title={course.title} slug={course.slug} />
             </div>
           </div>
         </div>
@@ -215,11 +210,9 @@ export default function CourseDetailPage() {
                     )}
                   </div>
                   <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      render={<Link href={`/courses/${c.slug}`}>Lihat Detail</Link>}
-                    />
+                    <Button size="sm" variant="secondary">
+                      <Link href={`/courses/${c.slug}` as any}>Lihat Detail</Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
