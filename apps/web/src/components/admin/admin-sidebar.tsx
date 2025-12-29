@@ -76,12 +76,24 @@ const data = {
       icon: BookOpen,
       items: [
         {
+          title: "Overview",
+          url: "/admin/lms/dashboard",
+        },
+        {
           title: "Categories",
           url: "/admin/lms/categories",
         },
         {
           title: "Courses",
           url: "/admin/lms/courses",
+        },
+        {
+          title: "Orders",
+          url: "/admin/lms/orders",
+        },
+        {
+          title: "Enrollments",
+          url: "/admin/lms/enrollments",
         },
       ],
     },

@@ -1,11 +1,199 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, db, desc, eq, isNull, or } from "@better-auth-admin/db";
+import { and, asc, count, db, desc, eq, isNull, or, sum } from "@better-auth-admin/db";
 import { user } from "@better-auth-admin/db/schema/auth";
-import { category, course, courseLesson, courseSection, courseTag, tag } from "@better-auth-admin/db/schema/lms";
+import {
+  category,
+  course,
+  courseLesson,
+  courseSection,
+  courseTag,
+  enrollment,
+  paymentOrder,
+  tag,
+} from "@better-auth-admin/db/schema/lms";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 
 export const lmsRouter = {
+  admin: {
+    orders: {
+      list: protectedProcedure
+        .input(
+          z
+            .object({
+              limit: z.number().default(50),
+              offset: z.number().default(0),
+              status: z.string().optional(),
+            })
+            .optional(),
+        )
+        .handler(async ({ input }) => {
+          const limit = input?.limit ?? 50;
+          const offset = input?.offset ?? 0;
+
+          const conditions = [];
+          if (input?.status && input.status !== "all") {
+            conditions.push(eq(paymentOrder.status, input.status));
+          }
+
+          const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+          const orders = await db
+            .select({
+              id: paymentOrder.id,
+              externalOrderId: paymentOrder.externalOrderId,
+              amount: paymentOrder.amount,
+              status: paymentOrder.status,
+              customerName: paymentOrder.customerName,
+              customerEmail: paymentOrder.customerEmail,
+              createdAt: paymentOrder.createdAt,
+              user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+              },
+              course: {
+                id: course.id,
+                title: course.title,
+              },
+            })
+            .from(paymentOrder)
+            .leftJoin(user, eq(paymentOrder.userId, user.id))
+            .leftJoin(course, eq(paymentOrder.courseId, course.id))
+            .where(whereClause)
+            .limit(limit)
+            .offset(offset)
+            .orderBy(desc(paymentOrder.createdAt));
+
+          const [total] = await db.select({ count: count() }).from(paymentOrder).where(whereClause);
+
+          return {
+            data: orders,
+            pagination: {
+              total: total?.count ?? 0,
+              limit,
+              offset,
+            },
+          };
+        }),
+      stats: protectedProcedure.handler(async () => {
+        const [totalRevenue] = await db
+          .select({ value: sum(paymentOrder.amount) })
+          .from(paymentOrder)
+          .where(eq(paymentOrder.status, "success"));
+
+        const [totalOrders] = await db.select({ count: count() }).from(paymentOrder);
+
+        const [pendingOrders] = await db
+          .select({ count: count() })
+          .from(paymentOrder)
+          .where(eq(paymentOrder.status, "pending"));
+
+        const [successOrders] = await db
+          .select({ count: count() })
+          .from(paymentOrder)
+          .where(eq(paymentOrder.status, "success"));
+
+        return {
+          totalRevenue: Number(totalRevenue?.value ?? 0),
+          totalOrders: totalOrders?.count ?? 0,
+          pendingOrders: pendingOrders?.count ?? 0,
+          successOrders: successOrders?.count ?? 0,
+        };
+      }),
+    },
+    enrollments: {
+      list: protectedProcedure
+        .input(
+          z
+            .object({
+              limit: z.number().default(50),
+              offset: z.number().default(0),
+              courseId: z.string().optional(),
+            })
+            .optional(),
+        )
+        .handler(async ({ input }) => {
+          const limit = input?.limit ?? 50;
+          const offset = input?.offset ?? 0;
+
+          const conditions = [];
+          if (input?.courseId && input.courseId !== "all") {
+            conditions.push(eq(enrollment.courseId, input.courseId));
+          }
+
+          const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+          const enrollments = await db
+            .select({
+              id: enrollment.id,
+              status: enrollment.status,
+              progress: enrollment.progress,
+              enrolledAt: enrollment.enrolledAt,
+              completedAt: enrollment.completedAt,
+              user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+              },
+              course: {
+                id: course.id,
+                title: course.title,
+                thumbnailUrl: course.thumbnailUrl,
+              },
+            })
+            .from(enrollment)
+            .leftJoin(user, eq(enrollment.userId, user.id))
+            .leftJoin(course, eq(enrollment.courseId, course.id))
+            .where(whereClause)
+            .limit(limit)
+            .offset(offset)
+            .orderBy(desc(enrollment.enrolledAt));
+
+          const [total] = await db.select({ count: count() }).from(enrollment).where(whereClause);
+
+          return {
+            data: enrollments,
+            pagination: {
+              total: total?.count ?? 0,
+              limit,
+              offset,
+            },
+          };
+        }),
+      create: protectedProcedure
+        .input(
+          z.object({
+            userId: z.string().min(1),
+            courseId: z.string().min(1),
+          }),
+        )
+        .handler(async ({ input }) => {
+          // Check if already enrolled
+          const existing = await db
+            .select()
+            .from(enrollment)
+            .where(and(eq(enrollment.userId, input.userId), eq(enrollment.courseId, input.courseId)))
+            .limit(1);
+
+          if (existing.length > 0) {
+            throw new Error("User already enrolled in this course");
+          }
+
+          const id = randomUUID();
+          await db.insert(enrollment).values({
+            id,
+            userId: input.userId,
+            courseId: input.courseId,
+            status: "active",
+            progress: 0,
+          });
+
+          return { success: true, id };
+        }),
+    },
+  },
   public: {
     categories: publicProcedure.handler(async () => {
       return await db.select().from(category).orderBy(desc(category.createdAt));
