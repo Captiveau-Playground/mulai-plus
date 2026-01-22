@@ -6,15 +6,66 @@ export const program = pgTable("program", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  durationWeeks: integer("duration_weeks").default(0).notNull(),
-  quota: integer("quota").default(0).notNull(),
-  status: text("status").default("draft").notNull(), // draft | open | running | completed
+  durationWeeks: integer("duration_weeks").default(0).notNull(), // Kept as general info
+  // quota: integer("quota").default(0).notNull(), // Moved to batch
+  status: text("status").default("draft").notNull(), // active | inactive | draft
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
   deletedAt: timestamp("deleted_at"),
+});
+
+export const programBatch = pgTable("program_batch", {
+  id: text("id").primaryKey(),
+  programId: text("program_id")
+    .notNull()
+    .references(() => program.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // e.g. "Batch 1 - Jan 2024"
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  registrationStartDate: timestamp("registration_start_date").notNull(),
+  registrationEndDate: timestamp("registration_end_date").notNull(),
+  quota: integer("quota").default(0).notNull(),
+  status: text("status").default("upcoming").notNull(), // upcoming | open | closed | running | completed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+  deletedAt: timestamp("deleted_at"),
+});
+
+export const programFaq = pgTable("program_faq", {
+  id: text("id").primaryKey(),
+  programId: text("program_id")
+    .notNull()
+    .references(() => program.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  order: integer("order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const programBenefit = pgTable("program_benefit", {
+  id: text("id").primaryKey(),
+  programId: text("program_id")
+    .notNull()
+    .references(() => program.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  icon: text("icon"), // Lucide icon name
+  order: integer("order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
 });
 
 export const programSyllabus = pgTable("program_syllabus", {
@@ -53,6 +104,7 @@ export const programApplication = pgTable("program_application", {
   programId: text("program_id")
     .notNull()
     .references(() => program.id, { onDelete: "cascade" }),
+  batchId: text("batch_id").references(() => programBatch.id),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
@@ -70,6 +122,7 @@ export const programParticipant = pgTable("program_participant", {
   programId: text("program_id")
     .notNull()
     .references(() => program.id, { onDelete: "cascade" }),
+  batchId: text("batch_id").references(() => programBatch.id),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
@@ -87,6 +140,7 @@ export const programSession = pgTable("program_session", {
   programId: text("program_id")
     .notNull()
     .references(() => program.id, { onDelete: "cascade" }),
+  batchId: text("batch_id").references(() => programBatch.id),
   mentorId: text("mentor_id").references(() => user.id),
   datetime: timestamp("datetime").notNull(),
   notes: text("notes"),
@@ -129,6 +183,10 @@ export const programApplicationRelations = relations(programApplication, ({ one 
     fields: [programApplication.programId],
     references: [program.id],
   }),
+  batch: one(programBatch, {
+    fields: [programApplication.batchId],
+    references: [programBatch.id],
+  }),
   user: one(user, {
     fields: [programApplication.userId],
     references: [user.id],
@@ -139,6 +197,10 @@ export const programParticipantRelations = relations(programParticipant, ({ one 
   program: one(program, {
     fields: [programParticipant.programId],
     references: [program.id],
+  }),
+  batch: one(programBatch, {
+    fields: [programParticipant.batchId],
+    references: [programBatch.id],
   }),
   user: one(user, {
     fields: [programParticipant.userId],

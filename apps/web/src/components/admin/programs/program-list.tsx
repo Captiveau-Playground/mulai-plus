@@ -36,7 +36,6 @@ const programSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   durationWeeks: z.coerce.number().min(0).default(0),
-  quota: z.coerce.number().min(0).default(0),
 });
 
 type ProgramFormValues = z.infer<typeof programSchema>;
@@ -48,7 +47,6 @@ export function ProgramList() {
     name: string;
     description?: string | null;
     durationWeeks: number;
-    quota: number;
   } | null>(null);
 
   const queryClient = useQueryClient();
@@ -106,7 +104,6 @@ export function ProgramList() {
       name: "",
       description: "",
       durationWeeks: 0,
-      quota: 0,
     },
   });
 
@@ -168,7 +165,6 @@ export function ProgramList() {
                     </div>
                   </TableCell>
                   <TableCell>{program.durationWeeks} weeks</TableCell>
-                  <TableCell>{program.quota}</TableCell>
                   <TableCell>
                     <Badge variant={program.status === "running" ? "default" : "secondary"}>{program.status}</Badge>
                   </TableCell>
@@ -196,7 +192,6 @@ export function ProgramList() {
                                 name: program.name,
                                 description: program.description,
                                 durationWeeks: program.durationWeeks,
-                                quota: program.quota,
                               });
                             }}
                           >
@@ -271,19 +266,6 @@ export function ProgramList() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="quota"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quota</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={createMutation.isPending}>
@@ -330,7 +312,6 @@ function EditProgramForm({
     name: string;
     description?: string | null;
     durationWeeks: number;
-    quota: number;
   } | null;
   onSubmit: (values: ProgramFormValues) => void;
   isPending: boolean;
@@ -343,7 +324,6 @@ function EditProgramForm({
       name: program?.name || "",
       description: program?.description || "",
       durationWeeks: program?.durationWeeks || 0,
-      quota: program?.quota || 0,
     },
   });
 
@@ -383,19 +363,6 @@ function EditProgramForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Duration (Weeks)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="quota"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quota</FormLabel>
                 <FormControl>
                   <Input type="number" {...field} />
                 </FormControl>

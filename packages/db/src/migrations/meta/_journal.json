@@ -43,6 +43,20 @@
       "when": 1769077176796,
       "tag": "0005_chubby_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1769079242126,
+      "tag": "0006_sturdy_zodiak",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769079883638,
+      "tag": "0007_marvelous_stepford_cuckoos",
+      "breakpoints": true
     }
   ]
 }

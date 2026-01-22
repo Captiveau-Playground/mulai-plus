@@ -19,7 +19,7 @@ const programSchema = z.object({
   description: z.string().optional(),
   durationWeeks: z.coerce.number().min(0).default(0),
   quota: z.coerce.number().min(0).default(0),
-  status: z.enum(["draft", "open", "running", "completed"]),
+  status: z.enum(["draft", "open", "running", "completed"] as const),
 });
 
 type ProgramFormValues = z.infer<typeof programSchema>;

@@ -4,6 +4,9 @@ import { user } from "@better-auth-admin/db/schema/auth";
 import {
   program,
   programApplication,
+  programBatch,
+  programBenefit,
+  programFaq,
   programMentor,
   programParticipant,
   programSyllabus,
@@ -117,6 +120,163 @@ export const programsRouter = {
       await db.update(program).set({ deletedAt: new Date() }).where(eq(program.id, input.id));
       return { success: true };
     }),
+
+    batches: {
+      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+        return await db
+          .select()
+          .from(programBatch)
+          .where(and(eq(programBatch.programId, input.programId), isNull(programBatch.deletedAt)))
+          .orderBy(desc(programBatch.startDate));
+      }),
+      create: protectedProcedure
+        .input(
+          z.object({
+            programId: z.string(),
+            name: z.string().min(1),
+            startDate: z.string().transform((str) => new Date(str)),
+            endDate: z.string().transform((str) => new Date(str)),
+            registrationStartDate: z.string().transform((str) => new Date(str)),
+            registrationEndDate: z.string().transform((str) => new Date(str)),
+            quota: z.number().min(0),
+            status: z.enum(["upcoming", "open", "closed", "running", "completed"]).default("upcoming"),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const id = randomUUID();
+          await db.insert(programBatch).values({
+            id,
+            ...input,
+          });
+          return { id };
+        }),
+      update: protectedProcedure
+        .input(
+          z.object({
+            id: z.string(),
+            name: z.string().min(1).optional(),
+            startDate: z
+              .string()
+              .transform((str) => new Date(str))
+              .optional(),
+            endDate: z
+              .string()
+              .transform((str) => new Date(str))
+              .optional(),
+            registrationStartDate: z
+              .string()
+              .transform((str) => new Date(str))
+              .optional(),
+            registrationEndDate: z
+              .string()
+              .transform((str) => new Date(str))
+              .optional(),
+            quota: z.number().min(0).optional(),
+            status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const { id, ...data } = input;
+          await db.update(programBatch).set(data).where(eq(programBatch.id, id));
+          return { success: true };
+        }),
+      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+        await db.update(programBatch).set({ deletedAt: new Date() }).where(eq(programBatch.id, input.id));
+        return { success: true };
+      }),
+    },
+
+    faqs: {
+      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+        return await db
+          .select()
+          .from(programFaq)
+          .where(eq(programFaq.programId, input.programId))
+          .orderBy(programFaq.order);
+      }),
+      create: protectedProcedure
+        .input(
+          z.object({
+            programId: z.string(),
+            question: z.string().min(1),
+            answer: z.string().min(1),
+            order: z.number().default(0),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const id = randomUUID();
+          await db.insert(programFaq).values({
+            id,
+            ...input,
+          });
+          return { id };
+        }),
+      update: protectedProcedure
+        .input(
+          z.object({
+            id: z.string(),
+            question: z.string().min(1).optional(),
+            answer: z.string().min(1).optional(),
+            order: z.number().optional(),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const { id, ...data } = input;
+          await db.update(programFaq).set(data).where(eq(programFaq.id, id));
+          return { success: true };
+        }),
+      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+        await db.delete(programFaq).where(eq(programFaq.id, input.id));
+        return { success: true };
+      }),
+    },
+
+    benefits: {
+      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+        return await db
+          .select()
+          .from(programBenefit)
+          .where(eq(programBenefit.programId, input.programId))
+          .orderBy(programBenefit.order);
+      }),
+      create: protectedProcedure
+        .input(
+          z.object({
+            programId: z.string(),
+            title: z.string().min(1),
+            description: z.string().optional(),
+            icon: z.string().optional(),
+            order: z.number().default(0),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const id = randomUUID();
+          await db.insert(programBenefit).values({
+            id,
+            ...input,
+          });
+          return { id };
+        }),
+      update: protectedProcedure
+        .input(
+          z.object({
+            id: z.string(),
+            title: z.string().min(1).optional(),
+            description: z.string().optional(),
+            icon: z.string().optional(),
+            order: z.number().optional(),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const { id, ...data } = input;
+          await db.update(programBenefit).set(data).where(eq(programBenefit.id, id));
+          return { success: true };
+        }),
+      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+        await db.delete(programBenefit).where(eq(programBenefit.id, input.id));
+        return { success: true };
+      }),
+    },
 
     syllabus: {
       update: protectedProcedure
