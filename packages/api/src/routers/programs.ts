@@ -97,6 +97,103 @@ export const programsRouter = {
     }),
   },
 
+  apply: protectedProcedure
+    .input(
+      z.object({
+        programId: z.string(),
+        batchId: z.string(),
+        answers: z.object({
+          name: z.string().min(1),
+          class: z.string().min(1),
+          school: z.string().min(1),
+          major: z.string().min(1),
+          domicile: z.string().min(1),
+          reason: z.string().min(1),
+          phone: z.string().min(1),
+          email: z.string().email(),
+        }),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      // 1. Check if program exists
+      const programItem = await db.query.program.findFirst({
+        where: eq(program.id, input.programId),
+      });
+      if (!programItem) {
+        throw new Error("Program not found");
+      }
+
+      // 2. Check if batch exists and is valid
+      const batchItem = await db.query.programBatch.findFirst({
+        where: eq(programBatch.id, input.batchId),
+      });
+
+      if (!batchItem) {
+        throw new Error("Batch not found");
+      }
+
+      if (batchItem.programId !== input.programId) {
+        throw new Error("Batch does not belong to this program");
+      }
+
+      if (batchItem.status === "closed" || batchItem.status === "completed") {
+        throw new Error("Registration is closed for this batch");
+      }
+
+      const now = new Date();
+      if (now < batchItem.registrationStartDate) {
+        throw new Error("Registration has not started yet");
+      }
+      if (now > batchItem.registrationEndDate) {
+        throw new Error("Registration has ended");
+      }
+
+      // 3. Check if already applied
+      const existingApplication = await db.query.programApplication.findFirst({
+        where: and(
+          eq(programApplication.programId, input.programId),
+          eq(programApplication.batchId, input.batchId),
+          eq(programApplication.userId, context.session.user.id),
+        ),
+      });
+
+      if (existingApplication) {
+        throw new Error("You have already applied to this program batch");
+      }
+
+      // 4. Create application
+      const id = randomUUID();
+      await db.insert(programApplication).values({
+        id,
+        programId: input.programId,
+        batchId: input.batchId,
+        userId: context.session.user.id,
+        status: "applied",
+        reflectiveAnswers: input.answers,
+      });
+
+      return { success: true, id };
+    }),
+
+  student: {
+    checkApplication: protectedProcedure
+      .input(z.object({ programId: z.string(), batchId: z.string() }))
+      .handler(async ({ input, context }) => {
+        const application = await db.query.programApplication.findFirst({
+          where: and(
+            eq(programApplication.programId, input.programId),
+            eq(programApplication.batchId, input.batchId),
+            eq(programApplication.userId, context.session.user.id),
+          ),
+        });
+
+        return {
+          hasApplied: !!application,
+          status: application?.status,
+        };
+      }),
+  },
+
   admin: {
     list: protectedProcedure
       .input(
@@ -529,15 +626,40 @@ export const programsRouter = {
           }),
         )
         .handler(async ({ input }) => {
-          await db.update(programApplication).set({ status: input.status }).where(eq(programApplication.id, input.id));
+          await db.transaction(async (tx) => {
+            await tx
+              .update(programApplication)
+              .set({ status: input.status })
+              .where(eq(programApplication.id, input.id));
 
-          // Logic: If accepted, maybe we should auto-create a participant record?
-          // Or wait for "Commitment"?
-          // Spec says: "Commitment Gate: Peserta accepted wajib setuju komitmen... Tanpa agreement -> tidak bisa active"
-          // So Participant record is likely created AFTER commitment.
-          // OR Participant record created with status "confirmed" (waiting for commitment) or something.
-          // Spec 3.7: Participant status: confirmed | active | dropped | completed.
-          // Spec 3.6: Field agreed_at.
+            if (input.status === "accepted") {
+              const application = await tx.query.programApplication.findFirst({
+                where: eq(programApplication.id, input.id),
+              });
+
+              if (application) {
+                // Check if already a participant in this program (and batch if applicable)
+                // Assuming one participant record per program-user-batch combo
+                const existingParticipant = await tx.query.programParticipant.findFirst({
+                  where: and(
+                    eq(programParticipant.programId, application.programId),
+                    eq(programParticipant.userId, application.userId),
+                    application.batchId ? eq(programParticipant.batchId, application.batchId) : undefined,
+                  ),
+                });
+
+                if (!existingParticipant) {
+                  await tx.insert(programParticipant).values({
+                    id: randomUUID(),
+                    programId: application.programId,
+                    batchId: application.batchId,
+                    userId: application.userId,
+                    status: "confirmed", // Initial status waiting for commitment
+                  });
+                }
+              }
+            }
+          });
 
           return { success: true };
         }),

@@ -10,6 +10,7 @@ export const program = pgTable("program", {
   durationWeeks: integer("duration_weeks").default(0).notNull(), // Kept as general info
   // quota: integer("quota").default(0).notNull(), // Moved to batch
   status: text("status").default("draft").notNull(), // active | inactive | draft
+  registrationForm: jsonb("registration_form"), // Form definition for applicants
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

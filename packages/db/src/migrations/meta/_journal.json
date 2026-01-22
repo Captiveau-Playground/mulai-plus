@@ -57,6 +57,13 @@
       "when": 1769079883638,
       "tag": "0007_marvelous_stepford_cuckoos",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1769091018388,
+      "tag": "0008_sleepy_the_initiative",
+      "breakpoints": true
     }
   ]
 }

@@ -4,10 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { BookOpen, CheckCircle2, Clock, HelpCircle, Loader2, Users } from "lucide-react";
 import { useParams } from "next/navigation";
+import { ProgramRegistration } from "@/components/front/program-registration";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { orpc } from "@/utils/orpc";
 
@@ -201,9 +201,7 @@ export default function ProgramDetailPage() {
                           </div>
                         )}
                       </div>
-                      <Button className="w-full" disabled={batch.status !== "open"}>
-                        {batch.status === "open" ? "Register Now" : "Unavailable"}
-                      </Button>
+                      <ProgramRegistration programId={program.id} batch={batch} />
                     </div>
                   ))
                 )}
