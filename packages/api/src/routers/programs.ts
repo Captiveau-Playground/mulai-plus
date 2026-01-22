@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, isNull } from "@better-auth-admin/db";
+import { and, count, db, desc, eq, isNull, ne } from "@better-auth-admin/db";
 import { user } from "@better-auth-admin/db/schema/auth";
 import {
   program,
@@ -12,9 +12,91 @@ import {
   programSyllabus,
 } from "@better-auth-admin/db/schema/programs";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { protectedProcedure, publicProcedure } from "../index";
+
+function slugify(text: string) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]+/g, "")
+    .replace(/--+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
 
 export const programsRouter = {
+  public: {
+    list: publicProcedure
+      .input(
+        z
+          .object({
+            limit: z.number().default(50),
+            offset: z.number().default(0),
+          })
+          .optional(),
+      )
+      .handler(async ({ input }) => {
+        const limit = input?.limit ?? 50;
+        const offset = input?.offset ?? 0;
+
+        // Show open and running programs for public
+        const whereClause = and(isNull(program.deletedAt), ne(program.status, "draft"));
+
+        const items = await db
+          .select()
+          .from(program)
+          .where(whereClause)
+          .limit(limit)
+          .offset(offset)
+          .orderBy(desc(program.createdAt));
+
+        const [total] = await db.select({ count: count() }).from(program).where(whereClause);
+
+        return {
+          data: items,
+          pagination: {
+            total: total?.count ?? 0,
+            limit,
+            offset,
+          },
+        };
+      }),
+
+    get: publicProcedure.input(z.object({ slug: z.string() })).handler(async ({ input }) => {
+      const item = await db.query.program.findFirst({
+        where: eq(program.slug, input.slug),
+        with: {
+          syllabus: {
+            orderBy: (syllabus, { asc }) => [asc(syllabus.week)],
+          },
+          mentors: {
+            with: {
+              user: true,
+            },
+          },
+          batches: {
+            where: (batch, { isNull }) => isNull(batch.deletedAt),
+            orderBy: (batch, { desc }) => [desc(batch.startDate)],
+          },
+          faqs: {
+            orderBy: (faq, { asc }) => [asc(faq.order)],
+          },
+          benefits: {
+            orderBy: (benefit, { asc }) => [asc(benefit.order)],
+          },
+        },
+      });
+
+      if (!item) {
+        throw new Error("Program not found");
+      }
+
+      return item;
+    }),
+  },
+
   admin: {
     list: protectedProcedure
       .input(
@@ -83,17 +165,29 @@ export const programsRouter = {
       .input(
         z.object({
           name: z.string().min(1),
+          slug: z.string().optional(),
           description: z.string().optional(),
           durationWeeks: z.number().default(0),
-          quota: z.number().default(0),
           status: z.enum(["draft", "open", "running", "completed"]).default("draft"),
         }),
       )
       .handler(async ({ input }) => {
         const id = randomUUID();
+        let slug = input.slug;
+        if (!slug || slug.trim() === "") {
+          slug = slugify(input.name);
+        }
+        if (!slug || slug.trim() === "") {
+          slug = `program-${id}`;
+        }
+
         await db.insert(program).values({
           id,
-          ...input,
+          name: input.name,
+          description: input.description,
+          durationWeeks: input.durationWeeks,
+          status: input.status,
+          slug,
         });
         return { id };
       }),
@@ -103,14 +197,23 @@ export const programsRouter = {
         z.object({
           id: z.string(),
           name: z.string().min(1).optional(),
+          slug: z.string().min(1).optional(),
           description: z.string().optional(),
           durationWeeks: z.number().optional(),
-          quota: z.number().optional(),
           status: z.enum(["draft", "open", "running", "completed"]).optional(),
         }),
       )
       .handler(async ({ input }) => {
         const { id, ...data } = input;
+
+        if (data.name && !data.slug) {
+          // Check if slug needs update?
+          // If explicit slug is not provided, but name is changed,
+          // generally we might NOT want to auto-update slug to preserve URLs.
+          // But if the user wants to update it, they should send it.
+          // So let's leave it as is: only update slug if explicitly provided.
+        }
+
         await db.update(program).set(data).where(eq(program.id, id));
         return { success: true };
       }),

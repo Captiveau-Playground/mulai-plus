@@ -16,9 +16,9 @@ import { orpc } from "@/utils/orpc";
 
 const programSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  slug: z.string().min(1, "Slug is required"),
   description: z.string().optional(),
   durationWeeks: z.coerce.number().min(0).default(0),
-  quota: z.coerce.number().min(0).default(0),
   status: z.enum(["draft", "open", "running", "completed"] as const),
 });
 
@@ -27,9 +27,9 @@ type ProgramFormValues = z.infer<typeof programSchema>;
 export interface Program {
   id: string;
   name: string;
+  slug: string;
   description?: string | null;
   durationWeeks: number;
-  quota: number;
   status: "draft" | "open" | "running" | "completed";
 }
 
@@ -54,9 +54,9 @@ export function ProgramInfo({ program }: { program: Program }) {
     resolver: zodResolver(programSchema) as any,
     defaultValues: {
       name: program.name,
+      slug: program.slug,
       description: program.description || "",
       durationWeeks: program.durationWeeks,
-      quota: program.quota,
       status: program.status,
     },
   });
@@ -119,12 +119,12 @@ export function ProgramInfo({ program }: { program: Program }) {
               />
               <FormField
                 control={form.control}
-                name="quota"
+                name="slug"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quota</FormLabel>
+                    <FormLabel>Slug</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input placeholder="program-slug" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

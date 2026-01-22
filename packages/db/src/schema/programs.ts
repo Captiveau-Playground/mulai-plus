@@ -4,6 +4,7 @@ import { user } from "./auth";
 
 export const program = pgTable("program", {
   id: text("id").primaryKey(),
+  slug: text("slug").unique().notNull(),
   name: text("name").notNull(),
   description: text("description"),
   durationWeeks: integer("duration_weeks").default(0).notNull(), // Kept as general info
@@ -158,6 +159,32 @@ export const programRelations = relations(program, ({ many }) => ({
   applications: many(programApplication),
   participants: many(programParticipant),
   sessions: many(programSession),
+  batches: many(programBatch),
+  faqs: many(programFaq),
+  benefits: many(programBenefit),
+}));
+
+export const programBatchRelations = relations(programBatch, ({ one, many }) => ({
+  program: one(program, {
+    fields: [programBatch.programId],
+    references: [program.id],
+  }),
+  participants: many(programParticipant),
+  sessions: many(programSession),
+}));
+
+export const programFaqRelations = relations(programFaq, ({ one }) => ({
+  program: one(program, {
+    fields: [programFaq.programId],
+    references: [program.id],
+  }),
+}));
+
+export const programBenefitRelations = relations(programBenefit, ({ one }) => ({
+  program: one(program, {
+    fields: [programBenefit.programId],
+    references: [program.id],
+  }),
 }));
 
 export const programSyllabusRelations = relations(programSyllabus, ({ one }) => ({
