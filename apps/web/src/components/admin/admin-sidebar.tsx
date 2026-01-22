@@ -98,6 +98,19 @@ const data = {
       ],
     },
   ],
+  navMentoring: [
+    {
+      title: "Mentoring",
+      url: "#",
+      icon: BookOpen,
+      items: [
+        {
+          title: "Programs",
+          url: "/admin/programs",
+        },
+      ],
+    },
+  ],
   navSystem: [
     {
       title: "Audit Logs",
@@ -160,6 +173,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       <SidebarContent>
         <NavMain items={data.navGeneral} />
         <NavMain label="LMS" items={data.navLms} />
+        <NavMain label="Mentoring" items={data.navMentoring} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
       </SidebarContent>

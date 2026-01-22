@@ -36,6 +36,13 @@
       "when": 1767005035974,
       "tag": "0004_bouncy_skrulls",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1769077176796,
+      "tag": "0005_chubby_jean_grey",
+      "breakpoints": true
     }
   ]
 }
