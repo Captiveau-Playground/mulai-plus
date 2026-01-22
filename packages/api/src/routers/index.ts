@@ -6,12 +6,14 @@ import { protectedProcedure, publicProcedure } from "../index";
 import { auditRouter } from "./audit";
 import { lmsRouter } from "./lms";
 import { paymentsRouter } from "./payments";
+import { programsRouter } from "./programs";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
   lms: lmsRouter,
+  programs: programsRouter,
   payments: paymentsRouter,
   audit: auditRouter,
   privateData: protectedProcedure.handler(({ context }) => {

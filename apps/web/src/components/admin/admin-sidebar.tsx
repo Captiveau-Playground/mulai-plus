@@ -76,12 +76,41 @@ const data = {
       icon: BookOpen,
       items: [
         {
+          title: "Overview",
+          url: "/admin/lms/dashboard",
+        },
+        {
           title: "Categories",
           url: "/admin/lms/categories",
         },
         {
           title: "Courses",
           url: "/admin/lms/courses",
+        },
+        {
+          title: "Orders",
+          url: "/admin/lms/orders",
+        },
+        {
+          title: "Enrollments",
+          url: "/admin/lms/enrollments",
+        },
+      ],
+    },
+  ],
+  navMentoring: [
+    {
+      title: "Mentoring",
+      url: "#",
+      icon: BookOpen,
+      items: [
+        {
+          title: "Analytics",
+          url: "/admin/programs/analytics",
+        },
+        {
+          title: "Programs",
+          url: "/admin/programs",
         },
       ],
     },
@@ -148,6 +177,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       <SidebarContent>
         <NavMain items={data.navGeneral} />
         <NavMain label="LMS" items={data.navLms} />
+        <NavMain label="Mentoring" items={data.navMentoring} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
       </SidebarContent>

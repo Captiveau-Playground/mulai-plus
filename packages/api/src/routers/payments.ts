@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, db, eq } from "@better-auth-admin/db";
+import { and, db, desc, eq } from "@better-auth-admin/db";
 import { course, enrollment, paymentOrder } from "@better-auth-admin/db/schema/lms";
 import { env } from "@better-auth-admin/env/server";
 import { z } from "zod";
@@ -39,6 +39,41 @@ function mapRemoteStatus(s?: string) {
 
 export const paymentsRouter = {
   create: protectedProcedure.input(createOrderInput).handler(async ({ input, context }) => {
+    // Check if there is an existing pending order for this user and course
+    const existingOrder = await db
+      .select()
+      .from(paymentOrder)
+      .where(
+        and(
+          eq(paymentOrder.userId, context.session.user.id),
+          eq(paymentOrder.courseId, input.course_id),
+          eq(paymentOrder.status, "pending"),
+        ),
+      )
+      .limit(1);
+
+    if (existingOrder.length > 0 && existingOrder[0]) {
+      const order = existingOrder[0];
+      // Check status again from remote if it's pending to be sure (optional, but good for consistency)
+      // But for now, just return the existing details to avoid re-creation
+      if (order.snapToken) {
+        return {
+          id: order.id,
+          externalOrderId: order.externalOrderId,
+          paymentNumber: order.paymentNumber,
+          paymentUrl: order.paymentUrl,
+          status: order.status,
+          snapToken: order.snapToken,
+          success: true,
+          data: {
+            payment_number: order.paymentNumber ?? "",
+            snap_token: order.snapToken ?? undefined,
+            snap_redirect_url: order.paymentUrl ?? undefined,
+          },
+        };
+      }
+    }
+
     const id = randomUUID();
 
     await db.insert(paymentOrder).values({
@@ -373,6 +408,30 @@ export const paymentsRouter = {
         data: { status: finalStatus },
       };
     }),
+  myOrders: protectedProcedure.handler(async ({ context }) => {
+    const orders = await db
+      .select({
+        id: paymentOrder.id,
+        externalOrderId: paymentOrder.externalOrderId,
+        paymentNumber: paymentOrder.paymentNumber,
+        amount: paymentOrder.amount,
+        status: paymentOrder.status,
+        snapToken: paymentOrder.snapToken,
+        paymentUrl: paymentOrder.paymentUrl,
+        createdAt: paymentOrder.createdAt,
+        course: {
+          title: course.title,
+          slug: course.slug,
+          thumbnailUrl: course.thumbnailUrl,
+        },
+      })
+      .from(paymentOrder)
+      .leftJoin(course, eq(paymentOrder.courseId, course.id))
+      .where(eq(paymentOrder.userId, context.session.user.id))
+      .orderBy(desc(paymentOrder.createdAt));
+
+    return orders;
+  }),
   myClasses: protectedProcedure.handler(async ({ context }) => {
     const items = await db
       .select({
