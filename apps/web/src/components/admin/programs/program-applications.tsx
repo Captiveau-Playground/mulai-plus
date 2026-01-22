@@ -19,7 +19,11 @@ import { orpc } from "@/utils/orpc";
 
 export function ProgramApplications({ programId }: { programId: string }) {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery(orpc.programs.admin.applications.list.queryOptions({ input: { programId } }));
+  const { data, isLoading } = useQuery(
+    orpc.programs.admin.applications.list.queryOptions({
+      input: { programId },
+    }),
+  );
   const applications = data?.data || [];
 
   const updateStatusMutation = useMutation(
@@ -27,7 +31,9 @@ export function ProgramApplications({ programId }: { programId: string }) {
       onSuccess: () => {
         toast.success("Status updated");
         queryClient.invalidateQueries({
-          queryKey: orpc.programs.admin.applications.list.key({ input: { programId } }),
+          queryKey: orpc.programs.admin.applications.list.key({
+            input: { programId },
+          }),
         });
       },
       onError: (error) => {
@@ -54,6 +60,7 @@ export function ProgramApplications({ programId }: { programId: string }) {
           <TableHeader>
             <TableRow>
               <TableHead>Student</TableHead>
+              <TableHead>Batch</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Actions</TableHead>
@@ -62,13 +69,13 @@ export function ProgramApplications({ programId }: { programId: string }) {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : applications.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   No applications found.
                 </TableCell>
               </TableRow>
@@ -80,6 +87,9 @@ export function ProgramApplications({ programId }: { programId: string }) {
                       <span className="font-medium">{app.user?.name}</span>
                       <span className="text-muted-foreground text-xs">{app.user?.email}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{app.batchName || "N/A"}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -94,7 +104,7 @@ export function ProgramApplications({ programId }: { programId: string }) {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Dialog>
-                        <DialogTrigger asChild>
+                        <DialogTrigger>
                           <Button variant="outline" size="sm">
                             View Answers
                           </Button>

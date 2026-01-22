@@ -22,6 +22,7 @@ export function ProgramParticipants({ programId }: { programId: string }) {
           <TableHeader>
             <TableRow>
               <TableHead>Student</TableHead>
+              <TableHead>Batch</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Agreed At</TableHead>
               <TableHead>Joined At</TableHead>
@@ -30,13 +31,13 @@ export function ProgramParticipants({ programId }: { programId: string }) {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : participants.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   No participants found.
                 </TableCell>
               </TableRow>
@@ -48,6 +49,9 @@ export function ProgramParticipants({ programId }: { programId: string }) {
                       <span className="font-medium">{participant.user?.name}</span>
                       <span className="text-muted-foreground text-xs">{participant.user?.email}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{participant.batchName || "N/A"}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{participant.status}</Badge>

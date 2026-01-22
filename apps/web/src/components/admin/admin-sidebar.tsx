@@ -105,6 +105,10 @@ const data = {
       icon: BookOpen,
       items: [
         {
+          title: "Analytics",
+          url: "/admin/programs/analytics",
+        },
+        {
           title: "Programs",
           url: "/admin/programs",
         },

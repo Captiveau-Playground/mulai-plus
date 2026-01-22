@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, isNull, ne } from "@better-auth-admin/db";
+import { and, count, db, desc, eq, isNull, ne, sql } from "@better-auth-admin/db";
 import { user } from "@better-auth-admin/db/schema/auth";
 import {
   program,
@@ -195,6 +195,57 @@ export const programsRouter = {
   },
 
   admin: {
+    analytics: protectedProcedure.handler(async () => {
+      const [totalPrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
+      const [activePrograms] = await db
+        .select({ count: count() })
+        .from(program)
+        .where(and(isNull(program.deletedAt), eq(program.status, "running")));
+
+      const [totalBatches] = await db
+        .select({ count: count() })
+        .from(programBatch)
+        .where(isNull(programBatch.deletedAt));
+      const [activeBatches] = await db
+        .select({ count: count() })
+        .from(programBatch)
+        .where(and(isNull(programBatch.deletedAt), eq(programBatch.status, "open")));
+
+      const [totalApplicants] = await db.select({ count: count() }).from(programApplication);
+      const [totalParticipants] = await db.select({ count: count() }).from(programParticipant);
+
+      const recentApplications = await db.query.programApplication.findMany({
+        orderBy: (app, { desc }) => [desc(app.createdAt)],
+        limit: 5,
+        with: {
+          user: true,
+          program: true,
+          batch: true,
+        },
+      });
+
+      const applicationsOverTime = await db
+        .select({
+          date: sql<string>`DATE(${programApplication.createdAt})`.as("date"),
+          count: count(),
+        })
+        .from(programApplication)
+        .groupBy(sql`DATE(${programApplication.createdAt})`)
+        .orderBy(sql`DATE(${programApplication.createdAt}) desc`)
+        .limit(30);
+
+      return {
+        totalPrograms: totalPrograms?.count ?? 0,
+        activePrograms: activePrograms?.count ?? 0,
+        totalBatches: totalBatches?.count ?? 0,
+        activeBatches: activeBatches?.count ?? 0,
+        totalApplicants: totalApplicants?.count ?? 0,
+        totalParticipants: totalParticipants?.count ?? 0,
+        recentApplications,
+        applicationsOverTime: applicationsOverTime.reverse(),
+      };
+    }),
+
     list: protectedProcedure
       .input(
         z
@@ -592,6 +643,7 @@ export const programsRouter = {
               status: programApplication.status,
               reflectiveAnswers: programApplication.reflectiveAnswers,
               createdAt: programApplication.createdAt,
+              batchName: programBatch.name,
               user: {
                 id: user.id,
                 name: user.name,
@@ -601,6 +653,7 @@ export const programsRouter = {
             })
             .from(programApplication)
             .leftJoin(user, eq(programApplication.userId, user.id))
+            .leftJoin(programBatch, eq(programApplication.batchId, programBatch.id))
             .where(whereClause)
             .limit(input.limit)
             .offset(input.offset)
@@ -689,6 +742,7 @@ export const programsRouter = {
               status: programParticipant.status,
               agreedAt: programParticipant.agreedAt,
               createdAt: programParticipant.createdAt,
+              batchName: programBatch.name,
               user: {
                 id: user.id,
                 name: user.name,
@@ -698,6 +752,7 @@ export const programsRouter = {
             })
             .from(programParticipant)
             .leftJoin(user, eq(programParticipant.userId, user.id))
+            .leftJoin(programBatch, eq(programParticipant.batchId, programBatch.id))
             .where(whereClause)
             .limit(input.limit)
             .offset(input.offset)
