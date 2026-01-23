@@ -16,23 +16,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc, queryClient } from "@/utils/orpc";
 
 export function NotificationBell() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const { data: session } = authClient.useSession();
 
   const { data: unreadCountData } = useQuery({
     ...orpc.notification.getUnreadCount.queryOptions(),
     refetchInterval: 30000, // Poll every 30s
+    enabled: !!session,
   });
 
   const { data: notificationsData } = useQuery({
     ...orpc.notification.list.queryOptions({
       input: { limit: 10 },
     }),
-    enabled: isOpen,
+    enabled: isOpen && !!session,
   });
 
   const { mutateAsync: markAsRead } = useMutation(
@@ -72,7 +75,8 @@ export function NotificationBell() {
       await markAsRead({ id: notification.id });
     }
     if (notification.link) {
-      router.push(notification.link as any);
+      // @ts-expect-error - dynamic link
+      router.push(notification.link);
       setIsOpen(false);
     }
   };

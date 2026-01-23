@@ -18,7 +18,8 @@ export default function Header() {
   const handleStopImpersonation = async () => {
     await authClient.admin.stopImpersonating();
     router.refresh();
-    router.push("/admin/users" as any);
+    // @ts-expect-error - valid route
+    router.push("/admin/users");
   };
 
   if (pathname.startsWith("/admin")) {
@@ -62,7 +63,7 @@ export default function Header() {
           <Link href={"/dashboard/student" as Route} className="text-sm">
             Dashboard
           </Link>
-          <NotificationBell />
+          {session && <NotificationBell />}
           <ModeToggle />
           <UserMenu />
         </div>

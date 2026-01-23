@@ -10,12 +10,36 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAuthorizePage } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 export default function ProgramAnalyticsPage() {
-  const { data: analytics, isLoading } = useQuery(orpc.programs.admin.analytics.queryOptions());
+  const { isAuthorized, isLoading: isAuthLoading } = useAuthorizePage({
+    admin_dashboard: ["access"],
+  });
 
-  if (isLoading) {
+  const { data: analytics, isLoading: isAnalyticsLoading } = useQuery({
+    ...orpc.programs.admin.analytics.queryOptions(),
+    enabled: !!isAuthorized,
+  });
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <p className="text-muted-foreground">Unauthorized</p>
+      </div>
+    );
+  }
+
+  if (isAnalyticsLoading) {
     return (
       <SidebarProvider
         style={
