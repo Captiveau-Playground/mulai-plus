@@ -13,6 +13,7 @@ import {
   programParticipant,
   programSyllabus,
 } from "@better-auth-admin/db/schema/programs";
+import { systemSettings } from "@better-auth-admin/db/schema/settings";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import {
@@ -193,17 +194,24 @@ export const programsRouter = {
 
       // Send registration confirmation email
       try {
-        const emailHtml = getRegistrationEmailHtml({
-          name: input.answers.name,
-          programName: programItem.name,
-          batchName: batchItem.name,
+        const emailConfig = await db.query.systemSettings.findFirst({
+          where: eq(systemSettings.key, "email_config"),
         });
+        const isEmailEnabled = (emailConfig?.value as any)?.enabled ?? true;
 
-        await unosend.send({
-          to: input.answers.email,
-          subject: `Registration Confirmed: ${programItem.name}`,
-          html: emailHtml,
-        });
+        if (isEmailEnabled) {
+          const emailHtml = getRegistrationEmailHtml({
+            name: input.answers.name,
+            programName: programItem.name,
+            batchName: batchItem.name,
+          });
+
+          await unosend.send({
+            to: input.answers.email,
+            subject: `Registration Confirmed: ${programItem.name}`,
+            html: emailHtml,
+          });
+        }
       } catch (error) {
         console.error("Failed to send registration email:", error);
       }
@@ -909,6 +917,11 @@ export const programsRouter = {
 
             if (!application) return;
 
+            const emailConfig = await tx.query.systemSettings.findFirst({
+              where: eq(systemSettings.key, "email_config"),
+            });
+            const isEmailEnabled = (emailConfig?.value as any)?.enabled ?? true;
+
             if (input.status === "accepted") {
               // Check if already a participant in this program (and batch if applicable)
               // Assuming one participant record per program-user-batch combo
@@ -932,69 +945,73 @@ export const programsRouter = {
 
               // Send Acceptance Email
               try {
-                const emailHtml = getApplicationAcceptedEmailHtml({
-                  firstName: application.user.name?.split(" ")[0] || "Applicant",
-                  programName: application.program.name,
-                  startDate: application.batch?.startDate
-                    ? new Date(application.batch.startDate).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })
-                    : "TBA",
-                });
+                if (isEmailEnabled) {
+                  const emailHtml = getApplicationAcceptedEmailHtml({
+                    firstName: application.user.name?.split(" ")[0] || "Applicant",
+                    programName: application.program.name,
+                    startDate: application.batch?.startDate
+                      ? new Date(application.batch.startDate).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "TBA",
+                  });
 
-                await unosend.send({
-                  to: application.user.email,
-                  subject: `Selamat! Anda Diterima di Program ${application.program.name}`,
-                  html: emailHtml,
-                });
+                  await unosend.send({
+                    to: application.user.email,
+                    subject: `Selamat! Anda Diterima di Program ${application.program.name}`,
+                    html: emailHtml,
+                  });
 
-                // Audit Log for Email
-                await tx.insert(auditLog).values({
-                  id: randomUUID(),
-                  userId: context.session.user.id,
-                  action: "EMAIL_SENT",
-                  resource: "program_application",
-                  resourceId: application.id,
-                  details: {
-                    type: "acceptance",
-                    recipient: application.user.email,
-                  },
-                  createdAt: new Date(),
-                });
+                  // Audit Log for Email
+                  await tx.insert(auditLog).values({
+                    id: randomUUID(),
+                    userId: context.session.user.id,
+                    action: "EMAIL_SENT",
+                    resource: "program_application",
+                    resourceId: application.id,
+                    details: {
+                      type: "acceptance",
+                      recipient: application.user.email,
+                    },
+                    createdAt: new Date(),
+                  });
+                }
               } catch (error) {
                 console.error("Failed to send acceptance email:", error);
               }
             } else if (input.status === "rejected") {
               // Send Rejection Email
               try {
-                const emailHtml = getApplicationRejectedEmailHtml({
-                  firstName: application.user.name?.split(" ")[0] || "Applicant",
-                  programName: application.program.name,
-                  registrationId: application.id.slice(0, 8).toUpperCase(),
-                  rejectionReason: input.rejectionReason || "Tidak memenuhi kriteria seleksi administrasi.",
-                });
+                if (isEmailEnabled) {
+                  const emailHtml = getApplicationRejectedEmailHtml({
+                    firstName: application.user.name?.split(" ")[0] || "Applicant",
+                    programName: application.program.name,
+                    registrationId: application.id.slice(0, 8).toUpperCase(),
+                    rejectionReason: input.rejectionReason || "Tidak memenuhi kriteria seleksi administrasi.",
+                  });
 
-                await unosend.send({
-                  to: application.user.email,
-                  subject: `Update Status Aplikasi Program ${application.program.name}`,
-                  html: emailHtml,
-                });
+                  await unosend.send({
+                    to: application.user.email,
+                    subject: `Update Status Aplikasi Program ${application.program.name}`,
+                    html: emailHtml,
+                  });
 
-                // Audit Log for Email
-                await tx.insert(auditLog).values({
-                  id: randomUUID(),
-                  userId: context.session.user.id,
-                  action: "EMAIL_SENT",
-                  resource: "program_application",
-                  resourceId: application.id,
-                  details: {
-                    type: "rejection",
-                    recipient: application.user.email,
-                  },
-                  createdAt: new Date(),
-                });
+                  // Audit Log for Email
+                  await tx.insert(auditLog).values({
+                    id: randomUUID(),
+                    userId: context.session.user.id,
+                    action: "EMAIL_SENT",
+                    resource: "program_application",
+                    resourceId: application.id,
+                    details: {
+                      type: "rejection",
+                      recipient: application.user.email,
+                    },
+                    createdAt: new Date(),
+                  });
+                }
               } catch (error) {
                 console.error("Failed to send rejection email:", error);
               }

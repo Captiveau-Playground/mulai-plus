@@ -7,11 +7,13 @@ import { auditRouter } from "./audit";
 import { lmsRouter } from "./lms";
 import { paymentsRouter } from "./payments";
 import { programsRouter } from "./programs";
+import { settingsRouter } from "./settings";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
+  settings: settingsRouter,
   lms: lmsRouter,
   programs: programsRouter,
   payments: paymentsRouter,
