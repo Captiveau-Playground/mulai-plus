@@ -12,6 +12,8 @@ export const env = createEnv({
     PAYMENT_API_KEY: z.string().min(1),
     UNOSEND_API_KEY: z.string().min(1).optional(),
     UNOSEND_FROM_EMAIL: z.string().email().optional(),
+    GOOGLE_CLIENT_ID: z.string().min(1),
+    GOOGLE_CLIENT_SECRET: z.string().min(1),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

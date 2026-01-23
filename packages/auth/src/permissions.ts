@@ -1,4 +1,4 @@
-import { db } from "@better-auth-admin/db";
+import { db, eq } from "@better-auth-admin/db";
 import * as schema from "@better-auth-admin/db/schema/auth";
 import { createAccessControl } from "better-auth/plugins/access";
 
@@ -41,7 +41,7 @@ export const ac = createAccessControl(statement);
 export const getRoles = async () => {
   try {
     const roles = await db.select().from(schema.role);
-    const roleMap: Record<string, any> = {};
+    const roleMap: Record<string, unknown> = {};
 
     for (const r of roles) {
       const permissions: Record<string, string[]> = {};
@@ -77,11 +77,24 @@ export const getRoles = async () => {
       roleMap[r.id] = ac.newRole(permissions as any);
     }
 
-    return roleMap;
+    return roleMap as any;
   } catch (error) {
     console.error("Failed to load roles from DB:", error);
     // Fallback to empty or default if DB fails
     return {};
+  }
+};
+
+/**
+ * Fetch all user IDs that have the 'admin' role.
+ */
+export const getAdminUserIds = async () => {
+  try {
+    const admins = await db.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.role, "admin"));
+    return admins.map((a) => a.id);
+  } catch (error) {
+    console.error("Failed to load admin IDs from DB:", error);
+    return [];
   }
 };
 
