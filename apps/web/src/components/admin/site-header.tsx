@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
-
+import { NotificationBell } from "@/components/notification-bell";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -44,6 +44,9 @@ export function SiteHeader() {
           })}
         </BreadcrumbList>
       </Breadcrumb>
+      <div className="ml-auto">
+        <NotificationBell />
+      </div>
     </header>
   );
 }

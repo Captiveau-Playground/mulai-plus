@@ -5,6 +5,7 @@ import { Activity, AlertCircle, Ban, Key, Loader2, Shield, Users } from "lucide-
 import { Bar, BarChart, CartesianGrid, Label, Pie, PieChart, XAxis } from "recharts";
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { RecentApplicationsWidget } from "@/components/admin/dashboard/recent-applications";
 import { SiteHeader } from "@/components/admin/site-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -252,35 +253,39 @@ export default function AdminPage() {
             </Card>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Signups</CardTitle>
-              <CardDescription>Newest users joined the platform</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {stats?.recentUsers?.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div>
-                        <p className="font-medium text-sm leading-none">{user.name}</p>
-                        <p className="text-muted-foreground text-sm">{user.email}</p>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Signups</CardTitle>
+                <CardDescription>Newest users joined the platform</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats?.recentUsers?.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div>
+                          <p className="font-medium text-sm leading-none">{user.name}</p>
+                          <p className="text-muted-foreground text-sm">{user.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-muted-foreground text-sm capitalize">{user.role}</div>
+                        <div className="text-muted-foreground text-sm">
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-muted-foreground text-sm capitalize">{user.role}</div>
-                      <div className="text-muted-foreground text-sm">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {(!stats?.recentUsers || stats.recentUsers.length === 0) && (
-                  <div className="py-4 text-center text-muted-foreground text-sm">No recent users found</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                  {(!stats?.recentUsers || stats.recentUsers.length === 0) && (
+                    <div className="py-4 text-center text-muted-foreground text-sm">No recent users found</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <RecentApplicationsWidget />
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>

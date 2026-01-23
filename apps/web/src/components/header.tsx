@@ -3,6 +3,7 @@ import { VenetianMask } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { ModeToggle } from "./mode-toggle";
@@ -61,6 +62,7 @@ export default function Header() {
           <Link href={"/dashboard/student" as Route} className="text-sm">
             Dashboard
           </Link>
+          <NotificationBell />
           <ModeToggle />
           <UserMenu />
         </div>

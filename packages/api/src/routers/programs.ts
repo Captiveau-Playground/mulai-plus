@@ -21,6 +21,7 @@ import {
   getApplicationRejectedEmailHtml,
   getRegistrationEmailHtml,
 } from "../lib/email-templates";
+import { sendNotification } from "../lib/notification";
 import { unosend } from "../lib/unosend";
 
 function slugify(text: string) {
@@ -214,6 +215,27 @@ export const programsRouter = {
         }
       } catch (error) {
         console.error("Failed to send registration email:", error);
+      }
+
+      // Notify Admins
+      try {
+        const admins = await db.select({ id: user.id }).from(user).where(eq(user.role, "admin"));
+
+        if (admins.length > 0) {
+          await Promise.all(
+            admins.map((admin) =>
+              sendNotification({
+                userId: admin.id,
+                title: "New Program Application",
+                message: `${input.answers.name} applied to ${programItem.name}`,
+                type: "info",
+                link: `/admin/programs/${programItem.id}`,
+              }),
+            ),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to notify admins:", error);
       }
 
       return { success: true, id };
@@ -847,6 +869,38 @@ export const programsRouter = {
           };
         }),
 
+      recent: protectedProcedure
+        .input(
+          z.object({
+            limit: z.number().default(5),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const items = await db
+            .select({
+              id: programApplication.id,
+              programId: programApplication.programId,
+              status: programApplication.status,
+              createdAt: programApplication.createdAt,
+              user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+              },
+              program: {
+                name: program.name,
+              },
+            })
+            .from(programApplication)
+            .leftJoin(user, eq(programApplication.userId, user.id))
+            .leftJoin(program, eq(programApplication.programId, program.id))
+            .orderBy(desc(programApplication.createdAt))
+            .limit(input.limit);
+
+          return items;
+        }),
+
       bulkUpdateStatus: protectedProcedure
         .input(
           z.object({
@@ -978,8 +1032,17 @@ export const programsRouter = {
                     createdAt: new Date(),
                   });
                 }
+
+                // Send In-App Notification
+                await sendNotification({
+                  userId: application.userId,
+                  title: "Application Accepted",
+                  message: `Congratulations! Your application for ${application.program.name} has been accepted.`,
+                  type: "success",
+                  link: `/dashboard/programs/${application.programId}`,
+                });
               } catch (error) {
-                console.error("Failed to send acceptance email:", error);
+                console.error("Failed to send acceptance email/notification:", error);
               }
             } else if (input.status === "rejected") {
               // Send Rejection Email
@@ -1012,8 +1075,17 @@ export const programsRouter = {
                     createdAt: new Date(),
                   });
                 }
+
+                // Send In-App Notification
+                await sendNotification({
+                  userId: application.userId,
+                  title: "Application Status Update",
+                  message: `Your application for ${application.program.name} has been updated.`,
+                  type: "info",
+                  link: `/dashboard/programs/${application.programId}`,
+                });
               } catch (error) {
-                console.error("Failed to send rejection email:", error);
+                console.error("Failed to send rejection email/notification:", error);
               }
             }
           });
