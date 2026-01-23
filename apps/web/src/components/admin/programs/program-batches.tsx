@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
+import { Calendar, Clock, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -88,7 +88,7 @@ function BatchAttendanceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl">
+      <DialogContent className="w-full max-w-5xl">
         <DialogHeader>
           <DialogTitle>Batch Attendance</DialogTitle>
           <DialogDescription>Track weekly attendance for accepted participants.</DialogDescription>
@@ -250,12 +250,124 @@ function BatchMentorsDialog({
   );
 }
 
+function BatchTimelineDialog({
+  batch,
+  open,
+  onOpenChange,
+}: {
+  batch: {
+    name: string;
+    startDate: Date | string;
+    endDate: Date | string;
+    registrationStartDate: Date | string;
+    registrationEndDate: Date | string;
+    verificationStartDate?: Date | string | null;
+    verificationEndDate?: Date | string | null;
+    assessmentStartDate?: Date | string | null;
+    assessmentEndDate?: Date | string | null;
+    announcementDate?: Date | string | null;
+    onboardingDate?: Date | string | null;
+  };
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const events = [
+    {
+      label: "Registration Start",
+      date: batch.registrationStartDate,
+      color: "bg-blue-500",
+    },
+    {
+      label: "Registration End",
+      date: batch.registrationEndDate,
+      color: "bg-blue-500",
+    },
+    {
+      label: "Verification Start",
+      date: batch.verificationStartDate,
+      color: "bg-yellow-500",
+    },
+    {
+      label: "Verification End",
+      date: batch.verificationEndDate,
+      color: "bg-yellow-500",
+    },
+    {
+      label: "Assessment Start",
+      date: batch.assessmentStartDate,
+      color: "bg-orange-500",
+    },
+    {
+      label: "Assessment End",
+      date: batch.assessmentEndDate,
+      color: "bg-orange-500",
+    },
+    {
+      label: "Announcement",
+      date: batch.announcementDate,
+      color: "bg-green-500",
+    },
+    {
+      label: "Onboarding",
+      date: batch.onboardingDate,
+      color: "bg-purple-500",
+    },
+    {
+      label: "Program Start",
+      date: batch.startDate,
+      color: "bg-emerald-500",
+    },
+    {
+      label: "Program End",
+      date: batch.endDate,
+      color: "bg-emerald-500",
+    },
+  ]
+    .filter((e) => e.date)
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime());
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Timeline: {batch.name}</DialogTitle>
+          <DialogDescription>Chronological sequence of events for this batch.</DialogDescription>
+        </DialogHeader>
+        <div className="relative ml-4 space-y-6 border-muted border-l py-4 pl-6">
+          {events.map((event, index) => (
+            <div key={index} className="relative">
+              <span
+                className={`absolute -left-[31px] flex h-4 w-4 rounded-full ${event.color} ring-4 ring-background`}
+              />
+              <div className="flex flex-col">
+                <span className="font-medium text-sm">{event.label}</span>
+                <span className="text-muted-foreground text-sm">
+                  {format(new Date(event.date!), "EEEE, MMMM d, yyyy")}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const batchSchema = z.object({
   name: z.string().min(1, "Name is required"),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   registrationStartDate: z.string().min(1, "Registration start date is required"),
   registrationEndDate: z.string().min(1, "Registration end date is required"),
+  verificationStartDate: z.string().optional(),
+  verificationEndDate: z.string().optional(),
+  assessmentStartDate: z.string().optional(),
+  assessmentEndDate: z.string().optional(),
+  announcementDate: z.string().optional(),
+  onboardingDate: z.string().optional(),
   quota: z.coerce.number().min(0).default(0),
   status: z.enum(["upcoming", "open", "closed", "running", "completed"] as const),
 });
@@ -271,11 +383,30 @@ export function ProgramBatches({ programId }: { programId: string }) {
     endDate: string;
     registrationStartDate: string;
     registrationEndDate: string;
+    verificationStartDate?: string | null;
+    verificationEndDate?: string | null;
+    assessmentStartDate?: string | null;
+    assessmentEndDate?: string | null;
+    announcementDate?: string | null;
+    onboardingDate?: string | null;
     quota: number;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   } | null>(null);
   const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
   const [attendanceBatchId, setAttendanceBatchId] = useState<string | null>(null);
+  const [timelineBatch, setTimelineBatch] = useState<{
+    name: string;
+    startDate: Date | string;
+    endDate: Date | string;
+    registrationStartDate: Date | string;
+    registrationEndDate: Date | string;
+    verificationStartDate?: Date | string | null;
+    verificationEndDate?: Date | string | null;
+    assessmentStartDate?: Date | string | null;
+    assessmentEndDate?: Date | string | null;
+    announcementDate?: Date | string | null;
+    onboardingDate?: Date | string | null;
+  } | null>(null);
 
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(orpc.programs.admin.batches.list.queryOptions({ input: { programId } }));
@@ -437,6 +568,9 @@ export function ProgramBatches({ programId }: { programId: string }) {
                           <DropdownMenuItem onClick={() => setAttendanceBatchId(batch.id)}>
                             <Calendar className="mr-2 h-4 w-4" /> Attendance
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setTimelineBatch(batch)}>
+                            <Clock className="mr-2 h-4 w-4" /> Timeline
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() =>
                               setEditingBatch({
@@ -448,6 +582,24 @@ export function ProgramBatches({ programId }: { programId: string }) {
                                   .toISOString()
                                   .split("T")[0],
                                 registrationEndDate: new Date(batch.registrationEndDate).toISOString().split("T")[0],
+                                verificationStartDate: batch.verificationStartDate
+                                  ? new Date(batch.verificationStartDate).toISOString().split("T")[0]
+                                  : "",
+                                verificationEndDate: batch.verificationEndDate
+                                  ? new Date(batch.verificationEndDate).toISOString().split("T")[0]
+                                  : "",
+                                assessmentStartDate: batch.assessmentStartDate
+                                  ? new Date(batch.assessmentStartDate).toISOString().split("T")[0]
+                                  : "",
+                                assessmentEndDate: batch.assessmentEndDate
+                                  ? new Date(batch.assessmentEndDate).toISOString().split("T")[0]
+                                  : "",
+                                announcementDate: batch.announcementDate
+                                  ? new Date(batch.announcementDate).toISOString().split("T")[0]
+                                  : "",
+                                onboardingDate: batch.onboardingDate
+                                  ? new Date(batch.onboardingDate).toISOString().split("T")[0]
+                                  : "",
                                 quota: batch.quota,
                                 status: batch.status as "upcoming" | "open" | "closed" | "running" | "completed",
                               })
@@ -556,6 +708,90 @@ export function ProgramBatches({ programId }: { programId: string }) {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
+                  name="verificationStartDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Verif. Start</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="verificationEndDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Verif. End</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="assessmentStartDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assess. Start</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="assessmentEndDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assess. End</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="announcementDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Announcement</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="onboardingDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Onboarding</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
                   name="quota"
                   render={({ field }) => (
                     <FormItem>
@@ -631,6 +867,14 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setAttendanceBatchId(null)}
         />
       )}
+
+      {timelineBatch && (
+        <BatchTimelineDialog
+          batch={timelineBatch}
+          open={!!timelineBatch}
+          onOpenChange={(open) => !open && setTimelineBatch(null)}
+        />
+      )}
     </div>
   );
 }
@@ -649,6 +893,12 @@ function EditBatchDialog({
     endDate: string;
     registrationStartDate: string;
     registrationEndDate: string;
+    verificationStartDate?: string | null;
+    verificationEndDate?: string | null;
+    assessmentStartDate?: string | null;
+    assessmentEndDate?: string | null;
+    announcementDate?: string | null;
+    onboardingDate?: string | null;
     quota: number;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   };
@@ -666,6 +916,12 @@ function EditBatchDialog({
       endDate: batch.endDate,
       registrationStartDate: batch.registrationStartDate,
       registrationEndDate: batch.registrationEndDate,
+      verificationStartDate: batch.verificationStartDate ?? undefined,
+      verificationEndDate: batch.verificationEndDate ?? undefined,
+      assessmentStartDate: batch.assessmentStartDate ?? undefined,
+      assessmentEndDate: batch.assessmentEndDate ?? undefined,
+      announcementDate: batch.announcementDate ?? undefined,
+      onboardingDate: batch.onboardingDate ?? undefined,
       quota: batch.quota,
       status: batch.status,
     },
@@ -743,6 +999,90 @@ function EditBatchDialog({
                     <FormLabel>Reg. End</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="verificationStartDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Verif. Start</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="verificationEndDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Verif. End</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="assessmentStartDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assess. Start</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="assessmentEndDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assess. End</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="announcementDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Announcement</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="onboardingDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Onboarding</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -9,7 +9,6 @@ import {
   programBatchMentor,
   programBenefit,
   programFaq,
-  programMentor,
   programParticipant,
   programSyllabus,
 } from "@better-auth-admin/db/schema/programs";
@@ -73,11 +72,6 @@ export const programsRouter = {
           syllabus: {
             orderBy: (syllabus, { asc }) => [asc(syllabus.week)],
           },
-          mentors: {
-            with: {
-              user: true,
-            },
-          },
           batches: {
             where: (batch, { isNull }) => isNull(batch.deletedAt),
             orderBy: (batch, { desc }) => [desc(batch.startDate)],
@@ -95,7 +89,23 @@ export const programsRouter = {
         throw new Error("Program not found");
       }
 
-      return item;
+      // Aggregate mentors from all batches
+      const mentors = await db
+        .selectDistinct({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+        })
+        .from(programBatchMentor)
+        .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
+        .innerJoin(user, eq(programBatchMentor.userId, user.id))
+        .where(eq(programBatch.programId, item.id));
+
+      return {
+        ...item,
+        mentors: mentors.map((m) => ({ user: m })),
+      };
     }),
   },
 
@@ -296,11 +306,6 @@ export const programsRouter = {
           syllabus: {
             orderBy: (syllabus, { asc }) => [asc(syllabus.week)],
           },
-          mentors: {
-            with: {
-              user: true,
-            },
-          },
         },
       });
 
@@ -308,7 +313,23 @@ export const programsRouter = {
         throw new Error("Program not found");
       }
 
-      return item;
+      // Aggregate mentors from all batches
+      const mentors = await db
+        .selectDistinct({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+        })
+        .from(programBatchMentor)
+        .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
+        .innerJoin(user, eq(programBatchMentor.userId, user.id))
+        .where(eq(programBatch.programId, item.id));
+
+      return {
+        ...item,
+        mentors: mentors.map((m) => ({ user: m })),
+      };
     }),
 
     create: protectedProcedure
@@ -424,6 +445,30 @@ export const programsRouter = {
               .string()
               .transform((str) => new Date(str))
               .optional(),
+            verificationStartDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            verificationEndDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            assessmentStartDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            assessmentEndDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            announcementDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            onboardingDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
             quota: z.number().min(0).optional(),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
           }),
@@ -697,25 +742,18 @@ export const programsRouter = {
       assign: protectedProcedure
         .input(
           z.object({
-            programId: z.string(),
+            batchId: z.string(),
             userIds: z.array(z.string()),
           }),
         )
         .handler(async ({ input }) => {
           await db.transaction(async (tx) => {
-            // First remove all existing mentors for this program (full sync approach)
-            // Or maybe just add new ones?
-            // "Assign" usually implies setting the state.
-            // Let's make it additive for now to avoid accidental removals, or provide a separate remove endpoint.
-            // Actually, for "Manage Mentors" UI, it's often easier to send the full list.
-            // Let's stick to: input is the list of ALL mentors.
-
-            await tx.delete(programMentor).where(eq(programMentor.programId, input.programId));
+            await tx.delete(programBatchMentor).where(eq(programBatchMentor.batchId, input.batchId));
 
             if (input.userIds.length > 0) {
-              await tx.insert(programMentor).values(
+              await tx.insert(programBatchMentor).values(
                 input.userIds.map((userId) => ({
-                  programId: input.programId,
+                  batchId: input.batchId,
                   userId,
                 })),
               );

@@ -29,6 +29,12 @@ export const programBatch = pgTable("program_batch", {
   endDate: timestamp("end_date").notNull(),
   registrationStartDate: timestamp("registration_start_date").notNull(),
   registrationEndDate: timestamp("registration_end_date").notNull(),
+  verificationStartDate: timestamp("verification_start_date"),
+  verificationEndDate: timestamp("verification_end_date"),
+  assessmentStartDate: timestamp("assessment_start_date"),
+  assessmentEndDate: timestamp("assessment_end_date"),
+  announcementDate: timestamp("announcement_date"),
+  onboardingDate: timestamp("onboarding_date"),
   quota: integer("quota").default(0).notNull(),
   status: text("status").default("upcoming").notNull(), // upcoming | open | closed | running | completed
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -196,7 +202,6 @@ export const programAttendance = pgTable(
 // Relations
 export const programRelations = relations(program, ({ many }) => ({
   syllabus: many(programSyllabus),
-  mentors: many(programMentor),
   applications: many(programApplication),
   participants: many(programParticipant),
   sessions: many(programSession),
@@ -234,17 +239,6 @@ export const programSyllabusRelations = relations(programSyllabus, ({ one }) => 
   program: one(program, {
     fields: [programSyllabus.programId],
     references: [program.id],
-  }),
-}));
-
-export const programMentorRelations = relations(programMentor, ({ one }) => ({
-  program: one(program, {
-    fields: [programMentor.programId],
-    references: [program.id],
-  }),
-  user: one(user, {
-    fields: [programMentor.userId],
-    references: [user.id],
   }),
 }));
 
