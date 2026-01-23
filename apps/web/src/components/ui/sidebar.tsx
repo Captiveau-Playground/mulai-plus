@@ -469,10 +469,13 @@ function SidebarMenuButton({
   size = "default",
   tooltip,
   className,
+  asChild,
+  children,
   ...props
 }: useRender.ComponentProps<"button"> &
   React.ComponentProps<"button"> & {
     isActive?: boolean;
+    asChild?: boolean;
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const { isMobile, state } = useSidebar();
@@ -481,6 +484,7 @@ function SidebarMenuButton({
     props: mergeProps<"button">(
       {
         className: cn(sidebarMenuButtonVariants({ variant, size }), className),
+        ...(asChild ? { render: children as any } : { children }),
       },
       props,
     ),

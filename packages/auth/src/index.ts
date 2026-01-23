@@ -5,9 +5,11 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin, username } from "better-auth/plugins";
-import { ac, getRoles } from "./permissions";
+import { auditPlugin } from "./audit-plugin";
+import { ac, getAdminUserIds, getRoles } from "./permissions";
 
 const roles = await getRoles();
+const adminUserIds = await getAdminUserIds();
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -26,27 +28,39 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  socialProviders: {
+    google: {
+      prompt: "select_account consent",
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    },
+  },
+  advanced: {
+    cookiePrefix: "mulaiplus",
+  },
   plugins: [
     admin({
       ac,
       defaultRole: "student",
       adminRoles: ["admin"],
-      adminUserIds: ["xZe00ndF70nX03JnDfb6F5YIKBKDfb1V"],
+      adminUserIds: adminUserIds,
       roles: roles,
     }),
     username(),
     nextCookies(),
+    auditPlugin(),
   ],
   callbacks: {
-    session: async ({ session, user }: { session: any; user: any }) => {
-      const [roleData] = await db
-        .select()
-        .from(schema.role)
-        .where(eq(schema.role.id, user.role || "student"));
+    session: async ({ session, user }: { session: unknown; user: unknown }) => {
+      // @ts-expect-error - session and user types are inferred
+      const userRole = user.role || "student";
+      const [roleData] = await db.select().from(schema.role).where(eq(schema.role.id, userRole));
 
       return {
+        // @ts-expect-error - session type
         ...session,
         user: {
+          // @ts-expect-error - session.user type
           ...session.user,
           permissions: roleData?.permissions || [],
         },

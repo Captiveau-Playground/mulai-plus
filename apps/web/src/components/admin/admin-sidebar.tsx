@@ -1,6 +1,6 @@
 "use client";
 
-import { GalleryVerticalEnd, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import { BookOpen, FileText, GalleryVerticalEnd, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -69,7 +69,58 @@ const data = {
       ],
     },
   ],
+  navLms: [
+    {
+      title: "Learning",
+      url: "#",
+      icon: BookOpen,
+      items: [
+        {
+          title: "Overview",
+          url: "/admin/lms/dashboard",
+        },
+        {
+          title: "Categories",
+          url: "/admin/lms/categories",
+        },
+        {
+          title: "Courses",
+          url: "/admin/lms/courses",
+        },
+        {
+          title: "Orders",
+          url: "/admin/lms/orders",
+        },
+        {
+          title: "Enrollments",
+          url: "/admin/lms/enrollments",
+        },
+      ],
+    },
+  ],
+  navMentoring: [
+    {
+      title: "Mentoring",
+      url: "#",
+      icon: BookOpen,
+      items: [
+        {
+          title: "Analytics",
+          url: "/admin/programs/analytics",
+        },
+        {
+          title: "Programs",
+          url: "/admin/programs",
+        },
+      ],
+    },
+  ],
   navSystem: [
+    {
+      title: "Audit Logs",
+      url: "/admin/audit",
+      icon: FileText,
+    },
     {
       title: "Role Testing",
       url: "#",
@@ -125,6 +176,8 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navGeneral} />
+        <NavMain label="LMS" items={data.navLms} />
+        <NavMain label="Mentoring" items={data.navMentoring} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
       </SidebarContent>

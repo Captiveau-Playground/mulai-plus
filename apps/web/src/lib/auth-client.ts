@@ -35,7 +35,8 @@ export const usePermission = () => {
     }
 
     // 1. Check session permissions (fastest, avoids network/async issues)
-    const userPermissions = (session.user as any).permissions as string[] | undefined;
+    const maybePerms = (session.user as unknown as { permissions?: unknown }).permissions;
+    const userPermissions = Array.isArray(maybePerms) ? (maybePerms as string[]) : undefined;
 
     if (userPermissions && Array.isArray(userPermissions)) {
       return userPermissions.includes(permission);
@@ -56,8 +57,11 @@ export const usePermission = () => {
     if (!action || !resource) return false;
 
     // 1. Check session permissions first
-    if (session?.user && (session.user as any).permissions?.includes(permission)) {
-      return true;
+    if (session?.user) {
+      const perms = (session.user as unknown as { permissions?: unknown }).permissions;
+      if (Array.isArray(perms) && (perms as string[]).includes(permission)) {
+        return true;
+      }
     }
 
     // 2. Fallback to server check (Native Better Auth)

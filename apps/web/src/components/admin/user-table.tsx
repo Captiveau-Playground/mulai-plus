@@ -20,8 +20,10 @@ import {
   Loader2,
   MoreHorizontal,
   ShieldCheck,
+  VenetianMask,
   XCircle,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import { DeleteUserDialog, EditUserRoleDialog, UserSessionsDialog } from "@/components/admin/user-actions-dialogs";
@@ -70,6 +72,24 @@ export function UserTable() {
 
   const [users, setUsers] = React.useState<User[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const router = useRouter();
+
+  const handleImpersonateUser = async (userId: string) => {
+    toast.promise(
+      authClient.admin.impersonateUser({
+        userId,
+      }),
+      {
+        loading: "Impersonating user...",
+        success: () => {
+          router.push("/");
+          router.refresh();
+          return "Impersonation started";
+        },
+        error: (err) => `Failed to impersonate user: ${err.message}`,
+      },
+    );
+  };
 
   const fetchUsers = React.useCallback(async () => {
     setIsLoading(true);
@@ -291,6 +311,9 @@ export function UserTable() {
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => navigator.clipboard.writeText(user.id)}>Copy User ID</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSelectedUserForSessions(user.id)}>Manage Sessions</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleImpersonateUser(user.id)}>
+                  <VenetianMask className="mr-2 h-4 w-4" /> Impersonate
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSelectedUserForRoleEdit(user)}>Edit Role</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
