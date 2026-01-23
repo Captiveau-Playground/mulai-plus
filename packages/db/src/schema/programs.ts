@@ -153,6 +153,46 @@ export const programSession = pgTable("program_session", {
     .notNull(),
 });
 
+export const programBatchMentor = pgTable(
+  "program_batch_mentor",
+  {
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => programBatch.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: { columns: [t.batchId, t.userId] },
+  }),
+);
+
+export const programAttendance = pgTable(
+  "program_attendance",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => programBatch.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    week: integer("week").notNull(),
+    status: text("status").notNull(), // 'present', 'absent', 'excused'
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => ({
+    unq: { columns: [t.batchId, t.userId, t.week] },
+  }),
+);
+
 // Relations
 export const programRelations = relations(program, ({ many }) => ({
   syllabus: many(programSyllabus),
@@ -172,6 +212,8 @@ export const programBatchRelations = relations(programBatch, ({ one, many }) => 
   }),
   participants: many(programParticipant),
   sessions: many(programSession),
+  mentors: many(programBatchMentor),
+  attendance: many(programAttendance),
 }));
 
 export const programFaqRelations = relations(programFaq, ({ one }) => ({
@@ -202,6 +244,28 @@ export const programMentorRelations = relations(programMentor, ({ one }) => ({
   }),
   user: one(user, {
     fields: [programMentor.userId],
+    references: [user.id],
+  }),
+}));
+
+export const programBatchMentorRelations = relations(programBatchMentor, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [programBatchMentor.batchId],
+    references: [programBatch.id],
+  }),
+  user: one(user, {
+    fields: [programBatchMentor.userId],
+    references: [user.id],
+  }),
+}));
+
+export const programAttendanceRelations = relations(programAttendance, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [programAttendance.batchId],
+    references: [programBatch.id],
+  }),
+  user: one(user, {
+    fields: [programAttendance.userId],
     references: [user.id],
   }),
 }));

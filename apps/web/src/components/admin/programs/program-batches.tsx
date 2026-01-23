@@ -3,13 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
-import { useState } from "react";
+import { Calendar, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -28,9 +29,226 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { orpc } from "@/utils/orpc";
+
+function BatchAttendanceDialog({
+  batchId,
+  open,
+  onOpenChange,
+}: {
+  batchId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { data, isLoading } = useQuery(
+    orpc.programs.admin.batches.attendance.list.queryOptions({
+      input: { batchId },
+    }),
+  );
+
+  const [updates, setUpdates] = useState<Record<string, { status: "present" | "absent" | "excused"; notes?: string }>>(
+    {},
+  );
+
+  const mutation = useMutation(
+    orpc.programs.admin.batches.attendance.update.mutationOptions({
+      onSuccess: () => {
+        toast.success("Attendance updated");
+        onOpenChange(false);
+        setUpdates({});
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
+
+  const handleSave = () => {
+    const updateList = Object.entries(updates).map(([key, value]) => {
+      const [userId, weekStr] = key.split("-");
+      return {
+        userId,
+        week: Number.parseInt(weekStr, 10),
+        status: value.status,
+        notes: value.notes,
+      };
+    });
+    mutation.mutate({ batchId, updates: updateList });
+  };
+
+  const getStatus = (userId: string, week: number) => {
+    if (updates[`${userId}-${week}`]) {
+      return updates[`${userId}-${week}`].status;
+    }
+    const existing = data?.attendance.find((a) => a.userId === userId && a.week === week);
+    return existing?.status || "";
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>Batch Attendance</DialogTitle>
+          <DialogDescription>Track weekly attendance for accepted participants.</DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          {isLoading ? (
+            <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+          ) : (
+            <ScrollArea className="h-[500px] rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="sticky left-0 z-10 w-[200px] min-w-[200px] bg-background">Student</TableHead>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((week) => (
+                      <TableHead key={week} className="min-w-[120px]">
+                        Week {week}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data?.participants.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-24 text-center">
+                        No accepted participants found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    data?.participants.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell className="sticky left-0 z-10 bg-background font-medium">{student.name}</TableCell>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((week) => (
+                          <TableCell key={week}>
+                            <Select
+                              value={getStatus(student.id, week)}
+                              onValueChange={(val) => {
+                                setUpdates((prev) => ({
+                                  ...prev,
+                                  [`${student.id}-${week}`]: {
+                                    status: val as "present" | "absent" | "excused",
+                                  },
+                                }));
+                              }}
+                            >
+                              <SelectTrigger className="h-8 w-[100px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="present">Present</SelectItem>
+                                <SelectItem value="absent">Absent</SelectItem>
+                                <SelectItem value="excused">Excused</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={mutation.isPending}>
+            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BatchMentorsDialog({
+  batchId,
+  open,
+  onOpenChange,
+}: {
+  batchId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const _queryClient = useQueryClient();
+  const { data: allMentors } = useQuery(orpc.lms.mentors.list.queryOptions());
+  const { data: batchMentors, isLoading } = useQuery(
+    orpc.programs.admin.batches.getMentors.queryOptions({ input: { batchId } }),
+  );
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (batchMentors) {
+      setSelectedIds(batchMentors.map((m) => m.id));
+    }
+  }, [batchMentors]);
+
+  const mutation = useMutation(
+    orpc.programs.admin.batches.assignMentors.mutationOptions({
+      onSuccess: () => {
+        toast.success("Mentors updated");
+        onOpenChange(false);
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
+
+  const handleSave = () => {
+    mutation.mutate({ batchId, userIds: selectedIds });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Manage Batch Mentors</DialogTitle>
+          <DialogDescription>Select mentors for this batch.</DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          {isLoading ? (
+            <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+          ) : (
+            <ScrollArea className="h-[300px] rounded-md border p-4">
+              <div className="space-y-4">
+                {allMentors?.map((mentor) => (
+                  <div key={mentor.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={mentor.id}
+                      checked={selectedIds.includes(mentor.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) setSelectedIds([...selectedIds, mentor.id]);
+                        else setSelectedIds(selectedIds.filter((id) => id !== mentor.id));
+                      }}
+                    />
+                    <Label htmlFor={mentor.id} className="flex cursor-pointer flex-col">
+                      <span className="font-medium">{mentor.name}</span>
+                      <span className="text-muted-foreground text-xs">{mentor.email}</span>
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={mutation.isPending}>
+            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const batchSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -56,6 +274,8 @@ export function ProgramBatches({ programId }: { programId: string }) {
     quota: number;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   } | null>(null);
+  const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
+  const [attendanceBatchId, setAttendanceBatchId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(orpc.programs.admin.batches.list.queryOptions({ input: { programId } }));
@@ -211,6 +431,12 @@ export function ProgramBatches({ programId }: { programId: string }) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => setMentorBatchId(batch.id)}>
+                            <Users className="mr-2 h-4 w-4" /> Manage Mentors
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setAttendanceBatchId(batch.id)}>
+                            <Calendar className="mr-2 h-4 w-4" /> Attendance
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() =>
                               setEditingBatch({
@@ -387,6 +613,22 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setEditingBatch(null)}
           onSubmit={onUpdate}
           isPending={updateMutation.isPending}
+        />
+      )}
+
+      {mentorBatchId && (
+        <BatchMentorsDialog
+          batchId={mentorBatchId}
+          open={!!mentorBatchId}
+          onOpenChange={(open) => !open && setMentorBatchId(null)}
+        />
+      )}
+
+      {attendanceBatchId && (
+        <BatchAttendanceDialog
+          batchId={attendanceBatchId}
+          open={!!attendanceBatchId}
+          onOpenChange={(open) => !open && setAttendanceBatchId(null)}
         />
       )}
     </div>
