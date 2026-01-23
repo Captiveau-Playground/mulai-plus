@@ -9,7 +9,6 @@ import { ProgramBatches } from "./program-batches";
 import { ProgramBenefits } from "./program-benefits";
 import { ProgramFaqs } from "./program-faqs";
 import { type Program, ProgramInfo } from "./program-info";
-import { ProgramMentors } from "./program-mentors";
 import { ProgramParticipants } from "./program-participants";
 import { ProgramSyllabus } from "./program-syllabus";
 
@@ -41,40 +40,58 @@ export function ProgramDetail({ programId }: { programId: string }) {
         </div>
       </div>
 
-      <Tabs defaultValue="info" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="info">Info</TabsTrigger>
-          <TabsTrigger value="batches">Batches</TabsTrigger>
-          <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
-          <TabsTrigger value="mentors">Mentors</TabsTrigger>
-          <TabsTrigger value="applications">Applications</TabsTrigger>
-          <TabsTrigger value="participants">Participants</TabsTrigger>
-          <TabsTrigger value="faqs">FAQs</TabsTrigger>
-          <TabsTrigger value="benefits">Benefits</TabsTrigger>
+      <Tabs defaultValue="management" className="space-y-4">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="management">Management</TabsTrigger>
+          <TabsTrigger value="content">Content</TabsTrigger>
         </TabsList>
-        <TabsContent value="info" className="space-y-4">
-          <ProgramInfo program={program as unknown as Program} />
+
+        <TabsContent value="management" className="space-y-4">
+          <Tabs defaultValue="batches" className="space-y-4">
+            <div className="overflow-x-auto pb-2">
+              <TabsList>
+                <TabsTrigger value="info">Info</TabsTrigger>
+                <TabsTrigger value="batches">Batches</TabsTrigger>
+                <TabsTrigger value="applications">Applications</TabsTrigger>
+                <TabsTrigger value="participants">Participants</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="info" className="space-y-4">
+              <ProgramInfo program={program as unknown as Program} />
+            </TabsContent>
+            <TabsContent value="batches" className="space-y-4">
+              <ProgramBatches programId={program.id} />
+            </TabsContent>
+            <TabsContent value="applications" className="space-y-4">
+              <ProgramApplications programId={program.id} />
+            </TabsContent>
+            <TabsContent value="participants" className="space-y-4">
+              <ProgramParticipants programId={program.id} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
-        <TabsContent value="batches" className="space-y-4">
-          <ProgramBatches programId={program.id} />
-        </TabsContent>
-        <TabsContent value="syllabus" className="space-y-4">
-          <ProgramSyllabus programId={program.id} initialSyllabus={program.syllabus} />
-        </TabsContent>
-        <TabsContent value="mentors" className="space-y-4">
-          <ProgramMentors programId={program.id} initialMentors={program.mentors} />
-        </TabsContent>
-        <TabsContent value="applications" className="space-y-4">
-          <ProgramApplications programId={program.id} />
-        </TabsContent>
-        <TabsContent value="participants" className="space-y-4">
-          <ProgramParticipants programId={program.id} />
-        </TabsContent>
-        <TabsContent value="faqs" className="space-y-4">
-          <ProgramFaqs programId={program.id} />
-        </TabsContent>
-        <TabsContent value="benefits" className="space-y-4">
-          <ProgramBenefits programId={program.id} />
+
+        <TabsContent value="content" className="space-y-4">
+          <Tabs defaultValue="syllabus" className="space-y-4">
+            <div className="overflow-x-auto pb-2">
+              <TabsList>
+                <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
+                <TabsTrigger value="benefits">Benefits</TabsTrigger>
+                <TabsTrigger value="faqs">FAQs</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="syllabus" className="space-y-4">
+              <ProgramSyllabus programId={program.id} initialSyllabus={program.syllabus} />
+            </TabsContent>
+            <TabsContent value="benefits" className="space-y-4">
+              <ProgramBenefits programId={program.id} />
+            </TabsContent>
+            <TabsContent value="faqs" className="space-y-4">
+              <ProgramFaqs programId={program.id} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>

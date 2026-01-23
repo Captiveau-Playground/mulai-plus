@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, isNull, ne, sql } from "@better-auth-admin/db";
+import { and, count, db, desc, eq, inArray, isNull, ne, sql } from "@better-auth-admin/db";
 import { user } from "@better-auth-admin/db/schema/auth";
 import {
   program,
   programApplication,
+  programAttendance,
   programBatch,
+  programBatchMentor,
   programBenefit,
   programFaq,
-  programMentor,
   programParticipant,
   programSyllabus,
 } from "@better-auth-admin/db/schema/programs";
@@ -71,11 +72,6 @@ export const programsRouter = {
           syllabus: {
             orderBy: (syllabus, { asc }) => [asc(syllabus.week)],
           },
-          mentors: {
-            with: {
-              user: true,
-            },
-          },
           batches: {
             where: (batch, { isNull }) => isNull(batch.deletedAt),
             orderBy: (batch, { desc }) => [desc(batch.startDate)],
@@ -93,7 +89,23 @@ export const programsRouter = {
         throw new Error("Program not found");
       }
 
-      return item;
+      // Aggregate mentors from all batches
+      const mentors = await db
+        .selectDistinct({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+        })
+        .from(programBatchMentor)
+        .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
+        .innerJoin(user, eq(programBatchMentor.userId, user.id))
+        .where(eq(programBatch.programId, item.id));
+
+      return {
+        ...item,
+        mentors: mentors.map((m) => ({ user: m })),
+      };
     }),
   },
 
@@ -294,11 +306,6 @@ export const programsRouter = {
           syllabus: {
             orderBy: (syllabus, { asc }) => [asc(syllabus.week)],
           },
-          mentors: {
-            with: {
-              user: true,
-            },
-          },
         },
       });
 
@@ -306,7 +313,23 @@ export const programsRouter = {
         throw new Error("Program not found");
       }
 
-      return item;
+      // Aggregate mentors from all batches
+      const mentors = await db
+        .selectDistinct({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+        })
+        .from(programBatchMentor)
+        .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
+        .innerJoin(user, eq(programBatchMentor.userId, user.id))
+        .where(eq(programBatch.programId, item.id));
+
+      return {
+        ...item,
+        mentors: mentors.map((m) => ({ user: m })),
+      };
     }),
 
     create: protectedProcedure
@@ -422,6 +445,30 @@ export const programsRouter = {
               .string()
               .transform((str) => new Date(str))
               .optional(),
+            verificationStartDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            verificationEndDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            assessmentStartDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            assessmentEndDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            announcementDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
+            onboardingDate: z
+              .string()
+              .optional()
+              .transform((str) => (str ? new Date(str) : undefined)),
             quota: z.number().min(0).optional(),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
           }),
@@ -435,6 +482,110 @@ export const programsRouter = {
         await db.update(programBatch).set({ deletedAt: new Date() }).where(eq(programBatch.id, input.id));
         return { success: true };
       }),
+
+      assignMentors: protectedProcedure
+        .input(
+          z.object({
+            batchId: z.string(),
+            userIds: z.array(z.string()),
+          }),
+        )
+        .handler(async ({ input }) => {
+          await db.transaction(async (tx) => {
+            // Remove existing mentors for this batch
+            await tx.delete(programBatchMentor).where(eq(programBatchMentor.batchId, input.batchId));
+
+            if (input.userIds.length > 0) {
+              await tx.insert(programBatchMentor).values(
+                input.userIds.map((userId) => ({
+                  batchId: input.batchId,
+                  userId,
+                })),
+              );
+            }
+          });
+          return { success: true };
+        }),
+
+      getMentors: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+        const mentors = await db.query.programBatchMentor.findMany({
+          where: eq(programBatchMentor.batchId, input.batchId),
+          with: {
+            user: true,
+          },
+        });
+        return mentors.map((m) => m.user);
+      }),
+
+      attendance: {
+        list: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+          const participants = await db.query.programApplication.findMany({
+            where: and(eq(programApplication.batchId, input.batchId), eq(programApplication.status, "accepted")),
+            with: {
+              user: true,
+            },
+          });
+
+          const attendance = await db.query.programAttendance.findMany({
+            where: eq(programAttendance.batchId, input.batchId),
+          });
+
+          return {
+            participants: participants.map((p) => p.user),
+            attendance,
+          };
+        }),
+
+        update: protectedProcedure
+          .input(
+            z.object({
+              batchId: z.string(),
+              updates: z.array(
+                z.object({
+                  userId: z.string(),
+                  week: z.number(),
+                  status: z.enum(["present", "absent", "excused"]),
+                  notes: z.string().optional(),
+                }),
+              ),
+            }),
+          )
+          .handler(async ({ input }) => {
+            await db.transaction(async (tx) => {
+              for (const update of input.updates) {
+                // Upsert logic
+                // Check if exists
+                const existing = await tx.query.programAttendance.findFirst({
+                  where: and(
+                    eq(programAttendance.batchId, input.batchId),
+                    eq(programAttendance.userId, update.userId),
+                    eq(programAttendance.week, update.week),
+                  ),
+                });
+
+                if (existing) {
+                  await tx
+                    .update(programAttendance)
+                    .set({
+                      status: update.status,
+                      notes: update.notes,
+                    })
+                    .where(eq(programAttendance.id, existing.id));
+                } else {
+                  await tx.insert(programAttendance).values({
+                    id: randomUUID(),
+                    batchId: input.batchId,
+                    userId: update.userId,
+                    week: update.week,
+                    status: update.status,
+                    notes: update.notes,
+                  });
+                }
+              }
+            });
+            return { success: true };
+          }),
+      },
     },
 
     faqs: {
@@ -591,25 +742,18 @@ export const programsRouter = {
       assign: protectedProcedure
         .input(
           z.object({
-            programId: z.string(),
+            batchId: z.string(),
             userIds: z.array(z.string()),
           }),
         )
         .handler(async ({ input }) => {
           await db.transaction(async (tx) => {
-            // First remove all existing mentors for this program (full sync approach)
-            // Or maybe just add new ones?
-            // "Assign" usually implies setting the state.
-            // Let's make it additive for now to avoid accidental removals, or provide a separate remove endpoint.
-            // Actually, for "Manage Mentors" UI, it's often easier to send the full list.
-            // Let's stick to: input is the list of ALL mentors.
-
-            await tx.delete(programMentor).where(eq(programMentor.programId, input.programId));
+            await tx.delete(programBatchMentor).where(eq(programBatchMentor.batchId, input.batchId));
 
             if (input.userIds.length > 0) {
-              await tx.insert(programMentor).values(
+              await tx.insert(programBatchMentor).values(
                 input.userIds.map((userId) => ({
-                  programId: input.programId,
+                  batchId: input.batchId,
                   userId,
                 })),
               );
@@ -669,6 +813,50 @@ export const programsRouter = {
               offset: input.offset,
             },
           };
+        }),
+
+      bulkUpdateStatus: protectedProcedure
+        .input(
+          z.object({
+            ids: z.array(z.string()),
+            status: z.enum(["applied", "accepted", "rejected", "waitlisted"]),
+          }),
+        )
+        .handler(async ({ input }) => {
+          await db.transaction(async (tx) => {
+            await tx
+              .update(programApplication)
+              .set({ status: input.status })
+              .where(inArray(programApplication.id, input.ids));
+
+            if (input.status === "accepted") {
+              const applications = await tx.query.programApplication.findMany({
+                where: inArray(programApplication.id, input.ids),
+              });
+
+              for (const application of applications) {
+                // Check if already a participant in this program (and batch if applicable)
+                const existingParticipant = await tx.query.programParticipant.findFirst({
+                  where: and(
+                    eq(programParticipant.programId, application.programId),
+                    eq(programParticipant.userId, application.userId),
+                    application.batchId ? eq(programParticipant.batchId, application.batchId) : undefined,
+                  ),
+                });
+
+                if (!existingParticipant) {
+                  await tx.insert(programParticipant).values({
+                    id: randomUUID(),
+                    programId: application.programId,
+                    batchId: application.batchId,
+                    userId: application.userId,
+                    status: "confirmed", // Initial status waiting for commitment
+                  });
+                }
+              }
+            }
+          });
+          return { success: true };
         }),
 
       updateStatus: protectedProcedure
@@ -768,6 +956,91 @@ export const programsRouter = {
               offset: input.offset,
             },
           };
+        }),
+    },
+
+    attendance: {
+      list: protectedProcedure
+        .input(
+          z.object({
+            batchId: z.string(),
+            week: z.number().optional(),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const conditions = [eq(programAttendance.batchId, input.batchId)];
+          if (input.week) {
+            conditions.push(eq(programAttendance.week, input.week));
+          }
+          const whereClause = and(...conditions);
+
+          const records = await db
+            .select({
+              id: programAttendance.id,
+              userId: programAttendance.userId,
+              week: programAttendance.week,
+              status: programAttendance.status,
+              notes: programAttendance.notes,
+              user: {
+                id: user.id,
+                name: user.name,
+                image: user.image,
+              },
+            })
+            .from(programAttendance)
+            .leftJoin(user, eq(programAttendance.userId, user.id))
+            .where(whereClause);
+
+          return records;
+        }),
+
+      update: protectedProcedure
+        .input(
+          z.object({
+            batchId: z.string(),
+            records: z.array(
+              z.object({
+                userId: z.string(),
+                week: z.number(),
+                status: z.string(),
+                notes: z.string().optional(),
+              }),
+            ),
+          }),
+        )
+        .handler(async ({ input }) => {
+          await db.transaction(async (tx) => {
+            for (const record of input.records) {
+              // Check if exists
+              const existing = await tx.query.programAttendance.findFirst({
+                where: and(
+                  eq(programAttendance.batchId, input.batchId),
+                  eq(programAttendance.userId, record.userId),
+                  eq(programAttendance.week, record.week),
+                ),
+              });
+
+              if (existing) {
+                await tx
+                  .update(programAttendance)
+                  .set({
+                    status: record.status,
+                    notes: record.notes,
+                  })
+                  .where(eq(programAttendance.id, existing.id));
+              } else {
+                await tx.insert(programAttendance).values({
+                  id: randomUUID(),
+                  batchId: input.batchId,
+                  userId: record.userId,
+                  week: record.week,
+                  status: record.status,
+                  notes: record.notes,
+                });
+              }
+            }
+          });
+          return { success: true };
         }),
     },
   },

@@ -111,7 +111,7 @@ export default function ProgramDetailPage() {
               </h2>
               <div className="grid gap-6 sm:grid-cols-2">
                 {program.mentors.map((mentor) => (
-                  <Card key={mentor.userId} className="overflow-hidden">
+                  <Card key={mentor.user.id} className="overflow-hidden">
                     <CardContent className="flex items-center gap-4 p-6">
                       <Avatar className="h-16 w-16">
                         <AvatarImage src={mentor.user.image || ""} />
@@ -193,6 +193,39 @@ export default function ProgramDetailPage() {
                             {format(new Date(batch.registrationEndDate), "MMM d, yyyy")}
                           </span>
                         </div>
+                        {/* Timeline Highlights */}
+                        {(batch.verificationStartDate ||
+                          batch.assessmentStartDate ||
+                          batch.announcementDate ||
+                          batch.onboardingDate) && (
+                          <div className="mt-3 space-y-1 border-t pt-2">
+                            <p className="font-semibold text-foreground text-xs">Timeline Highlights</p>
+                            {batch.verificationStartDate && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span>Verification:</span>
+                                <span>{format(new Date(batch.verificationStartDate), "MMM d")}</span>
+                              </div>
+                            )}
+                            {batch.assessmentStartDate && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span>Assessment:</span>
+                                <span>{format(new Date(batch.assessmentStartDate), "MMM d")}</span>
+                              </div>
+                            )}
+                            {batch.announcementDate && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span>Announcement:</span>
+                                <span>{format(new Date(batch.announcementDate), "MMM d")}</span>
+                              </div>
+                            )}
+                            {batch.onboardingDate && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span>Onboarding:</span>
+                                <span>{format(new Date(batch.onboardingDate), "MMM d")}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {/* Quota display if needed */}
                         {batch.quota > 0 && (
                           <div className="flex items-center justify-between">
