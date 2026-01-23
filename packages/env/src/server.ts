@@ -10,6 +10,8 @@ export const env = createEnv({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     PAYMENT_API_URL: z.string().min(1),
     PAYMENT_API_KEY: z.string().min(1),
+    UNOSEND_API_KEY: z.string().min(1).optional(),
+    UNOSEND_FROM_EMAIL: z.string().email().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
