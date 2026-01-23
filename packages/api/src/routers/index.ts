@@ -1,21 +1,26 @@
 import { count, db, desc, eq, sql } from "@better-auth-admin/db";
 import { permission, role, session, user } from "@better-auth-admin/db/schema/auth";
+import { program, programApplication } from "@better-auth-admin/db/schema/programs";
 import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import { auditRouter } from "./audit";
 import { lmsRouter } from "./lms";
+import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
 import { programsRouter } from "./programs";
+import { settingsRouter } from "./settings";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
+  settings: settingsRouter,
   lms: lmsRouter,
   programs: programsRouter,
   payments: paymentsRouter,
   audit: auditRouter,
+  notification: notificationRouter,
   privateData: protectedProcedure.handler(({ context }) => {
     return {
       message: "This is private",
@@ -39,14 +44,35 @@ export const appRouter = {
 
     const recentUsers = await db.select().from(user).orderBy(desc(user.createdAt)).limit(5);
 
+    const recentApplications = await db
+      .select({
+        id: programApplication.id,
+        user: {
+          name: user.name,
+          email: user.email,
+          image: user.image,
+        },
+        program: {
+          name: program.name,
+        },
+        status: programApplication.status,
+        createdAt: programApplication.createdAt,
+      })
+      .from(programApplication)
+      .leftJoin(user, eq(programApplication.userId, user.id))
+      .leftJoin(program, eq(programApplication.programId, program.id))
+      .orderBy(desc(programApplication.createdAt))
+      .limit(5);
+
     return {
-      totalUsers: totalUsers?.count || 0,
-      activeSessions: activeSessions?.count || 0,
-      bannedUsers: bannedUsers?.count || 0,
-      totalRoles: totalRoles?.count || 0,
-      totalPermissions: totalPermissions?.count || 0,
+      totalUsers: totalUsers?.count ?? 0,
+      activeSessions: activeSessions?.count ?? 0,
+      bannedUsers: bannedUsers?.count ?? 0,
+      totalRoles: totalRoles?.count ?? 0,
+      totalPermissions: totalPermissions?.count ?? 0,
       usersByRole,
       recentUsers,
+      recentApplications,
     };
   }),
   role: {

@@ -1,22 +1,60 @@
 "use client";
 
 import { env } from "@better-auth-admin/env/web";
-import { Loader2, Power, RefreshCw, Settings } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Mail, Power, RefreshCw, Send, Settings } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { SiteHeader } from "@/components/admin/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Switch } from "@/components/ui/switch";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { orpc } from "@/utils/orpc";
 
 export default function AdminSettingsPage() {
   const { isAuthorized, isLoading } = useAuthorizePage({
     admin_dashboard: ["access"],
   });
 
+  const queryClient = useQueryClient();
   const [isRestarting, setIsRestarting] = useState(false);
+
+  // Email Settings State
+  const [testEmail, setTestEmail] = useState("");
+  const testSubject = "Test Email from Admin";
+  const testHtml = "<p>This is a test email sent from the admin panel.</p>";
+
+  const { data: emailConfig } = useQuery(orpc.settings.get.queryOptions({ input: { key: "email_config" } }));
+
+  const updateSettings = useMutation(
+    orpc.settings.update.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.settings.get.key({ input: { key: "email_config" } }),
+        });
+        toast.success("Settings updated");
+      },
+      onError: (err) => {
+        toast.error(`Failed to update settings: ${err.message}`);
+      },
+    }),
+  );
+
+  const sendTestEmail = useMutation(
+    orpc.settings.email.sendTest.mutationOptions({
+      onSuccess: () => {
+        toast.success("Test email sent");
+      },
+      onError: (err) => {
+        toast.error(`Failed to send email: ${err.message}`);
+      },
+    }),
+  );
 
   const handleRestart = async () => {
     if (!confirm("Are you sure you want to restart the server? This will temporarily disrupt service.")) {
@@ -110,6 +148,69 @@ export default function AdminSettingsPage() {
                       Restart Server
                     </>
                   )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-6 w-6" />
+                Email Settings
+              </CardTitle>
+              <CardDescription>Configure email sending and test templates.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between space-x-2">
+                <Label htmlFor="email-enabled" className="flex flex-col space-y-1">
+                  <span>Enable Email Sending</span>
+                  <span className="font-normal text-muted-foreground text-xs">
+                    If disabled, no emails will be sent from the system.
+                  </span>
+                </Label>
+                <Switch
+                  id="email-enabled"
+                  checked={(emailConfig as any)?.enabled ?? true}
+                  onCheckedChange={(checked) => {
+                    updateSettings.mutate({
+                      key: "email_config",
+                      value: { ...(emailConfig as any), enabled: checked },
+                      description: "Email configuration",
+                    });
+                  }}
+                  disabled={updateSettings.isPending}
+                />
+              </div>
+
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-medium text-sm">Send Test Email</h3>
+                <div className="grid gap-2">
+                  <Label htmlFor="test-email">Recipient Email</Label>
+                  <Input
+                    id="test-email"
+                    placeholder="admin@example.com"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                  />
+                </div>
+                <Button
+                  onClick={() => {
+                    if (!testEmail) return toast.error("Please enter an email");
+                    sendTestEmail.mutate({
+                      to: testEmail,
+                      subject: testSubject,
+                      html: testHtml,
+                    });
+                  }}
+                  disabled={sendTestEmail.isPending}
+                >
+                  {sendTestEmail.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 h-4 w-4" />
+                  )}
+                  Send Test Email
                 </Button>
               </div>
             </CardContent>

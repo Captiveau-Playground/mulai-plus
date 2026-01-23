@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, count, db, desc, eq, inArray, isNull, ne, sql } from "@better-auth-admin/db";
+import { auditLog } from "@better-auth-admin/db/schema/audit";
 import { user } from "@better-auth-admin/db/schema/auth";
 import {
   program,
@@ -12,8 +13,16 @@ import {
   programParticipant,
   programSyllabus,
 } from "@better-auth-admin/db/schema/programs";
+import { systemSettings } from "@better-auth-admin/db/schema/settings";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
+import {
+  getApplicationAcceptedEmailHtml,
+  getApplicationRejectedEmailHtml,
+  getRegistrationEmailHtml,
+} from "../lib/email-templates";
+import { sendNotification } from "../lib/notification";
+import { unosend } from "../lib/unosend";
 
 function slugify(text: string) {
   return text
@@ -183,6 +192,51 @@ export const programsRouter = {
         status: "applied",
         reflectiveAnswers: input.answers,
       });
+
+      // Send registration confirmation email
+      try {
+        const emailConfig = await db.query.systemSettings.findFirst({
+          where: eq(systemSettings.key, "email_config"),
+        });
+        const isEmailEnabled = (emailConfig?.value as any)?.enabled ?? true;
+
+        if (isEmailEnabled) {
+          const emailHtml = getRegistrationEmailHtml({
+            name: input.answers.name,
+            programName: programItem.name,
+            batchName: batchItem.name,
+          });
+
+          await unosend.send({
+            to: input.answers.email,
+            subject: `Registration Confirmed: ${programItem.name}`,
+            html: emailHtml,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to send registration email:", error);
+      }
+
+      // Notify Admins
+      try {
+        const admins = await db.select({ id: user.id }).from(user).where(eq(user.role, "admin"));
+
+        if (admins.length > 0) {
+          await Promise.all(
+            admins.map((admin) =>
+              sendNotification({
+                userId: admin.id,
+                title: "New Program Application",
+                message: `${input.answers.name} applied to ${programItem.name}`,
+                type: "info",
+                link: `/admin/programs/${programItem.id}`,
+              }),
+            ),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to notify admins:", error);
+      }
 
       return { success: true, id };
     }),
@@ -815,6 +869,38 @@ export const programsRouter = {
           };
         }),
 
+      recent: protectedProcedure
+        .input(
+          z.object({
+            limit: z.number().default(5),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const items = await db
+            .select({
+              id: programApplication.id,
+              programId: programApplication.programId,
+              status: programApplication.status,
+              createdAt: programApplication.createdAt,
+              user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+              },
+              program: {
+                name: program.name,
+              },
+            })
+            .from(programApplication)
+            .leftJoin(user, eq(programApplication.userId, user.id))
+            .leftJoin(program, eq(programApplication.programId, program.id))
+            .orderBy(desc(programApplication.createdAt))
+            .limit(input.limit);
+
+          return items;
+        }),
+
       bulkUpdateStatus: protectedProcedure
         .input(
           z.object({
@@ -864,40 +950,142 @@ export const programsRouter = {
           z.object({
             id: z.string(),
             status: z.enum(["applied", "accepted", "rejected", "waitlisted"]),
+            rejectionReason: z.string().optional(),
           }),
         )
-        .handler(async ({ input }) => {
+        .handler(async ({ input, context }) => {
           await db.transaction(async (tx) => {
             await tx
               .update(programApplication)
               .set({ status: input.status })
               .where(eq(programApplication.id, input.id));
 
+            const application = await tx.query.programApplication.findFirst({
+              where: eq(programApplication.id, input.id),
+              with: {
+                user: true,
+                program: true,
+                batch: true,
+              },
+            });
+
+            if (!application) return;
+
+            const emailConfig = await tx.query.systemSettings.findFirst({
+              where: eq(systemSettings.key, "email_config"),
+            });
+            const isEmailEnabled = (emailConfig?.value as any)?.enabled ?? true;
+
             if (input.status === "accepted") {
-              const application = await tx.query.programApplication.findFirst({
-                where: eq(programApplication.id, input.id),
+              // Check if already a participant in this program (and batch if applicable)
+              // Assuming one participant record per program-user-batch combo
+              const existingParticipant = await tx.query.programParticipant.findFirst({
+                where: and(
+                  eq(programParticipant.programId, application.programId),
+                  eq(programParticipant.userId, application.userId),
+                  application.batchId ? eq(programParticipant.batchId, application.batchId) : undefined,
+                ),
               });
 
-              if (application) {
-                // Check if already a participant in this program (and batch if applicable)
-                // Assuming one participant record per program-user-batch combo
-                const existingParticipant = await tx.query.programParticipant.findFirst({
-                  where: and(
-                    eq(programParticipant.programId, application.programId),
-                    eq(programParticipant.userId, application.userId),
-                    application.batchId ? eq(programParticipant.batchId, application.batchId) : undefined,
-                  ),
+              if (!existingParticipant) {
+                await tx.insert(programParticipant).values({
+                  id: randomUUID(),
+                  programId: application.programId,
+                  batchId: application.batchId,
+                  userId: application.userId,
+                  status: "confirmed", // Initial status waiting for commitment
                 });
+              }
 
-                if (!existingParticipant) {
-                  await tx.insert(programParticipant).values({
+              // Send Acceptance Email
+              try {
+                if (isEmailEnabled) {
+                  const emailHtml = getApplicationAcceptedEmailHtml({
+                    firstName: application.user.name?.split(" ")[0] || "Applicant",
+                    programName: application.program.name,
+                    startDate: application.batch?.startDate
+                      ? new Date(application.batch.startDate).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "TBA",
+                  });
+
+                  await unosend.send({
+                    to: application.user.email,
+                    subject: `Selamat! Anda Diterima di Program ${application.program.name}`,
+                    html: emailHtml,
+                  });
+
+                  // Audit Log for Email
+                  await tx.insert(auditLog).values({
                     id: randomUUID(),
-                    programId: application.programId,
-                    batchId: application.batchId,
-                    userId: application.userId,
-                    status: "confirmed", // Initial status waiting for commitment
+                    userId: context.session.user.id,
+                    action: "EMAIL_SENT",
+                    resource: "program_application",
+                    resourceId: application.id,
+                    details: {
+                      type: "acceptance",
+                      recipient: application.user.email,
+                    },
+                    createdAt: new Date(),
                   });
                 }
+
+                // Send In-App Notification
+                await sendNotification({
+                  userId: application.userId,
+                  title: "Application Accepted",
+                  message: `Congratulations! Your application for ${application.program.name} has been accepted.`,
+                  type: "success",
+                  link: `/dashboard/programs/${application.programId}`,
+                });
+              } catch (error) {
+                console.error("Failed to send acceptance email/notification:", error);
+              }
+            } else if (input.status === "rejected") {
+              // Send Rejection Email
+              try {
+                if (isEmailEnabled) {
+                  const emailHtml = getApplicationRejectedEmailHtml({
+                    firstName: application.user.name?.split(" ")[0] || "Applicant",
+                    programName: application.program.name,
+                    registrationId: application.id.slice(0, 8).toUpperCase(),
+                    rejectionReason: input.rejectionReason || "Tidak memenuhi kriteria seleksi administrasi.",
+                  });
+
+                  await unosend.send({
+                    to: application.user.email,
+                    subject: `Update Status Aplikasi Program ${application.program.name}`,
+                    html: emailHtml,
+                  });
+
+                  // Audit Log for Email
+                  await tx.insert(auditLog).values({
+                    id: randomUUID(),
+                    userId: context.session.user.id,
+                    action: "EMAIL_SENT",
+                    resource: "program_application",
+                    resourceId: application.id,
+                    details: {
+                      type: "rejection",
+                      recipient: application.user.email,
+                    },
+                    createdAt: new Date(),
+                  });
+                }
+
+                // Send In-App Notification
+                await sendNotification({
+                  userId: application.userId,
+                  title: "Application Status Update",
+                  message: `Your application for ${application.program.name} has been updated.`,
+                  type: "info",
+                  link: `/dashboard/programs/${application.programId}`,
+                });
+              } catch (error) {
+                console.error("Failed to send rejection email/notification:", error);
               }
             }
           });

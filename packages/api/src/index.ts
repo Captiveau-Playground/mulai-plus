@@ -43,3 +43,6 @@ const requireAuth = o.middleware(async ({ context, next }) => {
 });
 
 export const protectedProcedure = publicProcedure.use(requireAuth).use(auditMiddleware);
+
+export * from "./lib/email-templates";
+export * from "./lib/unosend";
