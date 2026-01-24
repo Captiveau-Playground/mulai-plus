@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { BookOpen, CheckCircle2, Clock, HelpCircle, Loader2, Users } from "lucide-react";
+import { BookOpen, CheckCircle2, HelpCircle, Loader2, Users } from "lucide-react";
 import { useParams } from "next/navigation";
 import { ProgramRegistration } from "@/components/front/program-registration";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -42,15 +42,9 @@ export default function ProgramDetailPage() {
     <div className="container py-10">
       {/* Header Section */}
       <div className="mb-10 space-y-4">
-        <Badge variant={program.status === "running" ? "default" : "secondary"}>{program.status}</Badge>
         <h1 className="font-extrabold text-4xl tracking-tight sm:text-5xl">{program.name}</h1>
         <p className="max-w-3xl text-lg text-muted-foreground">{program.description}</p>
-        <div className="flex items-center gap-4 text-muted-foreground text-sm">
-          <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            <span>{program.durationWeeks} Weeks</span>
-          </div>
-        </div>
+        <div className="flex items-center gap-4 text-muted-foreground text-sm">{/* Duration moved to batches */}</div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">

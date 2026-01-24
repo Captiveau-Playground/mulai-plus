@@ -11,6 +11,7 @@ import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -679,7 +680,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Start Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -692,7 +696,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>End Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -707,7 +714,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Reg. Start</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -720,7 +730,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Reg. End</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -735,7 +748,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Verif. Start</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -748,7 +764,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Verif. End</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -763,7 +782,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Assess. Start</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -776,7 +798,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Assess. End</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -791,7 +816,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Announcement</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -804,7 +832,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Onboarding</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -994,7 +1025,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Start Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1007,7 +1041,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>End Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1022,7 +1059,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Reg. Start</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1035,7 +1075,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Reg. End</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1050,7 +1093,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Verif. Start</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1063,7 +1109,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Verif. End</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1078,7 +1127,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Assess. Start</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1091,7 +1143,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Assess. End</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1106,7 +1161,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Announcement</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1119,7 +1177,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Onboarding</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
