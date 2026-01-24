@@ -38,6 +38,12 @@ export const auth = betterAuth({
   advanced: {
     cookiePrefix: "mulaiplus",
   },
+  rateLimit: {
+    enabled: true,
+    window: 10,
+    max: 100,
+    storage: "memory",
+  },
   logger: {
     level: "warn",
     log: async (level, message, ...args) => {
