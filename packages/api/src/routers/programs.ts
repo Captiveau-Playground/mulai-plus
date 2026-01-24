@@ -22,6 +22,7 @@ import {
   getRegistrationEmailHtml,
 } from "../lib/email-templates";
 import { sendNotification } from "../lib/notification";
+import { getPathFromUrl, supabase } from "../lib/supabase";
 import { unosend } from "../lib/unosend";
 
 function slugify(text: string) {
@@ -429,6 +430,21 @@ export const programsRouter = {
           // So let's leave it as is: only update slug if explicitly provided.
         }
 
+        // Handle Banner Cleanup
+        if (data.bannerUrl !== undefined && supabase) {
+          const currentProgram = await db.query.program.findFirst({
+            where: eq(program.id, id),
+            columns: { bannerUrl: true },
+          });
+
+          if (currentProgram?.bannerUrl && currentProgram.bannerUrl !== data.bannerUrl) {
+            const oldPath = getPathFromUrl(currentProgram.bannerUrl, "banners");
+            if (oldPath) {
+              await supabase.storage.from("banners").remove([oldPath]);
+            }
+          }
+        }
+
         await db.update(program).set(data).where(eq(program.id, id));
         return { success: true };
       }),
@@ -523,6 +539,22 @@ export const programsRouter = {
         )
         .handler(async ({ input }) => {
           const { id, ...data } = input;
+
+          // Handle Banner Cleanup
+          if (data.bannerUrl !== undefined && supabase) {
+            const currentBatch = await db.query.programBatch.findFirst({
+              where: eq(programBatch.id, id),
+              columns: { bannerUrl: true },
+            });
+
+            if (currentBatch?.bannerUrl && currentBatch.bannerUrl !== data.bannerUrl) {
+              const oldPath = getPathFromUrl(currentBatch.bannerUrl, "banners");
+              if (oldPath) {
+                await supabase.storage.from("banners").remove([oldPath]);
+              }
+            }
+          }
+
           await db.update(programBatch).set(data).where(eq(programBatch.id, id));
           return { success: true };
         }),

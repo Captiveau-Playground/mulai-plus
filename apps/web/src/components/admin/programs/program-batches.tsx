@@ -628,6 +628,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
                                   : "",
                                 quota: batch.quota,
                                 durationWeeks: batch.durationWeeks,
+                                bannerUrl: batch.bannerUrl,
                                 status: batch.status as "upcoming" | "open" | "closed" | "running" | "completed",
                               })
                             }
@@ -881,7 +882,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
                   <FormItem>
                     <FormLabel>Banner Image</FormLabel>
                     <FormControl>
-                      <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="batches" />
+                      <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -984,6 +985,7 @@ function EditBatchDialog({
     onboardingDate?: string | null;
     quota: number;
     durationWeeks: number;
+    bannerUrl?: string | null;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   };
   open: boolean;
@@ -1008,6 +1010,7 @@ function EditBatchDialog({
       onboardingDate: batch.onboardingDate ?? undefined,
       quota: batch.quota,
       durationWeeks: batch.durationWeeks,
+      bannerUrl: batch.bannerUrl || "",
       status: batch.status,
     },
   });
@@ -1220,10 +1223,10 @@ function EditBatchDialog({
               />
               <FormField
                 control={form.control}
-                name="quota"
+                name="durationWeeks"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quota</FormLabel>
+                    <FormLabel>Duration (Weeks)</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>

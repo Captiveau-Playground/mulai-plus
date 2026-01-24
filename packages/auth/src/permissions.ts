@@ -80,8 +80,15 @@ export const getRoles = async () => {
     return roleMap as any;
   } catch (error) {
     console.error("Failed to load roles from DB:", error);
-    // Fallback to empty or default if DB fails
-    return {};
+    // Fallback to default admin role if DB fails to prevent startup crash
+    return {
+      admin: ac.newRole({
+        admin: ["access"],
+        dashboard: ["access"],
+        admin_dashboard: ["access"],
+        "*": ["*"],
+      }),
+    } as any;
   }
 };
 

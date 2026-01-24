@@ -18,6 +18,7 @@
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "@supabase/supabase-js": "^2.91.1",
     "dotenv": "catalog:",
     "hono": "catalog:",
     "nanoid": "^5.1.6",
