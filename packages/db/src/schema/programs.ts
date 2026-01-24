@@ -9,6 +9,7 @@ export const program = pgTable("program", {
   slug: text("slug").unique().notNull(),
   name: text("name").notNull(),
   description: text("description"),
+  bannerUrl: text("banner_url"),
   registrationForm: jsonb("registration_form"), // Form definition for applicants
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -24,6 +25,7 @@ export const programBatch = pgTable("program_batch", {
     .notNull()
     .references(() => program.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // e.g. "Batch 1 - Jan 2024"
+  bannerUrl: text("banner_url"),
   durationWeeks: integer("duration_weeks").default(0).notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),

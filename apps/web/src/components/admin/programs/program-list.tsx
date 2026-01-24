@@ -26,6 +26,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,6 +36,7 @@ import { orpc } from "@/utils/orpc";
 const programSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
+  bannerUrl: z.string().optional(),
 });
 
 type ProgramFormValues = z.infer<typeof programSchema>;
@@ -45,6 +47,7 @@ export function ProgramList() {
     id: string;
     name: string;
     description?: string | null;
+    bannerUrl?: string | null;
   } | null>(null);
 
   const queryClient = useQueryClient();
@@ -101,6 +104,7 @@ export function ProgramList() {
     defaultValues: {
       name: "",
       description: "",
+      bannerUrl: "",
     },
   });
 
@@ -185,6 +189,7 @@ export function ProgramList() {
                                 id: program.id,
                                 name: program.name,
                                 description: program.description,
+                                bannerUrl: program.bannerUrl,
                               });
                             }}
                           >
@@ -245,6 +250,19 @@ export function ProgramList() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="bannerUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner Image</FormLabel>
+                    <FormControl>
+                      <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="programs" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -289,6 +307,7 @@ function EditProgramForm({
     id: string;
     name: string;
     description?: string | null;
+    bannerUrl?: string | null;
   } | null;
   onSubmit: (values: ProgramFormValues) => void;
   isPending: boolean;
@@ -298,8 +317,9 @@ function EditProgramForm({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
     resolver: zodResolver(programSchema) as any,
     defaultValues: {
-      name: program?.name || "",
-      description: program?.description || "",
+      name: program?.name ?? "",
+      description: program?.description ?? "",
+      bannerUrl: program?.bannerUrl ?? "",
     },
   });
 
@@ -327,6 +347,19 @@ function EditProgramForm({
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea placeholder="Description" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="bannerUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Banner Image</FormLabel>
+              <FormControl>
+                <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="programs" />
               </FormControl>
               <FormMessage />
             </FormItem>

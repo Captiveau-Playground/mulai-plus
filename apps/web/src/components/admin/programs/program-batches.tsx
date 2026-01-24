@@ -28,6 +28,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -375,6 +376,7 @@ const batchSchema = z.object({
   onboardingDate: z.string().optional(),
   quota: z.coerce.number().min(0).default(0),
   durationWeeks: z.coerce.number().min(0).default(0),
+  bannerUrl: z.string().optional(),
   status: z.enum(["upcoming", "open", "closed", "running", "completed"] as const),
 });
 
@@ -397,6 +399,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
     onboardingDate?: string | null;
     quota: number;
     durationWeeks: number;
+    bannerUrl?: string | null;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   } | null>(null);
   const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
@@ -484,6 +487,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
       registrationEndDate: "",
       quota: 0,
       durationWeeks: 0,
+      bannerUrl: "",
       status: "upcoming",
     },
   });
@@ -872,6 +876,19 @@ export function ProgramBatches({ programId }: { programId: string }) {
               </div>
               <FormField
                 control={form.control}
+                name="bannerUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner Image</FormLabel>
+                    <FormControl>
+                      <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="batches" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="status"
                 render={({ field }) => (
                   <FormItem>
@@ -1203,10 +1220,10 @@ function EditBatchDialog({
               />
               <FormField
                 control={form.control}
-                name="durationWeeks"
+                name="quota"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Duration (Weeks)</FormLabel>
+                    <FormLabel>Quota</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
@@ -1214,31 +1231,44 @@ function EditBatchDialog({
                   </FormItem>
                 )}
               />
-            </div>
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormField
+                control={form.control}
+                name="bannerUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner Image</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="upcoming">Upcoming</SelectItem>
-                      <SelectItem value="open">Open</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
-                      <SelectItem value="running">Running</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="upcoming">Upcoming</SelectItem>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="running">Running</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

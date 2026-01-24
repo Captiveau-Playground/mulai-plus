@@ -385,6 +385,7 @@ export const programsRouter = {
           name: z.string().min(1),
           slug: z.string().optional(),
           description: z.string().optional(),
+          bannerUrl: z.string().optional(),
         }),
       )
       .handler(async ({ input }) => {
@@ -401,6 +402,7 @@ export const programsRouter = {
           id,
           name: input.name,
           description: input.description,
+          bannerUrl: input.bannerUrl,
           slug,
         });
         return { id };
@@ -413,6 +415,7 @@ export const programsRouter = {
           name: z.string().min(1).optional(),
           slug: z.string().min(1).optional(),
           description: z.string().optional(),
+          bannerUrl: z.string().optional(),
         }),
       )
       .handler(async ({ input }) => {
@@ -455,6 +458,7 @@ export const programsRouter = {
             registrationEndDate: z.string().transform((str) => new Date(str)),
             quota: z.number().min(0),
             durationWeeks: z.number().min(1),
+            bannerUrl: z.string().optional(),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).default("upcoming"),
           }),
         )
@@ -513,6 +517,7 @@ export const programsRouter = {
               .transform((str) => (str ? new Date(str) : undefined)),
             quota: z.number().min(0).optional(),
             durationWeeks: z.number().min(1).optional(),
+            bannerUrl: z.string().optional(),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
           }),
         )
