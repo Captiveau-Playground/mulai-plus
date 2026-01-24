@@ -8,6 +8,7 @@ import { auditRouter } from "./audit";
 import { lmsRouter } from "./lms";
 import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
+import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
 import { testimonialsRouter } from "./testimonials";
@@ -20,6 +21,7 @@ export const appRouter = {
   testimonials: testimonialsRouter,
   lms: lmsRouter,
   programs: programsRouter,
+  programActivities: programActivitiesRouter,
   payments: paymentsRouter,
   audit: auditRouter,
   notification: notificationRouter,

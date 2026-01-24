@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, Clock, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
+import { Calendar, Clock, File, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -36,6 +36,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { orpc } from "@/utils/orpc";
+
+import { BatchAttachmentsDialog } from "./batch-attachments";
+import { BatchSessionsDialog } from "./batch-sessions";
 
 function BatchAttendanceDialog({
   batch,
@@ -421,6 +424,15 @@ export function ProgramBatches({ programId }: { programId: string }) {
     announcementDate?: Date | string | null;
     onboardingDate?: Date | string | null;
   } | null>(null);
+  const [sessionsBatch, setSessionsBatch] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [attachmentsBatch, setAttachmentsBatch] = useState<{
+    id: string;
+    name: string;
+    durationWeeks: number;
+  } | null>(null);
 
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(orpc.programs.admin.batches.list.queryOptions({ input: { programId } }));
@@ -580,6 +592,12 @@ export function ProgramBatches({ programId }: { programId: string }) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => setSessionsBatch(batch)}>
+                            <Calendar className="mr-2 h-4 w-4" /> Manage Sessions
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setAttachmentsBatch(batch)}>
+                            <File className="mr-2 h-4 w-4" /> Manage Attachments
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setMentorBatchId(batch.id)}>
                             <Users className="mr-2 h-4 w-4" /> Manage Mentors
                           </DropdownMenuItem>
@@ -957,6 +975,22 @@ export function ProgramBatches({ programId }: { programId: string }) {
           batch={timelineBatch}
           open={!!timelineBatch}
           onOpenChange={(open) => !open && setTimelineBatch(null)}
+        />
+      )}
+
+      {sessionsBatch && (
+        <BatchSessionsDialog
+          batch={sessionsBatch}
+          open={!!sessionsBatch}
+          onOpenChange={(open) => !open && setSessionsBatch(null)}
+        />
+      )}
+
+      {attachmentsBatch && (
+        <BatchAttachmentsDialog
+          batch={attachmentsBatch}
+          open={!!attachmentsBatch}
+          onOpenChange={(open) => !open && setAttachmentsBatch(null)}
         />
       )}
     </div>

@@ -3,6 +3,9 @@ import { check, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle
 import { user } from "./auth";
 
 export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "absent", "excused"]);
+export const sessionTypeEnum = pgEnum("session_type", ["one_on_one", "group_mentoring"]);
+export const sessionStatusEnum = pgEnum("session_status", ["scheduled", "completed", "cancelled", "missed"]);
+export const attachmentTypeEnum = pgEnum("attachment_type", ["file", "video", "link", "tool"]);
 
 export const program = pgTable("program", {
   id: text("id").primaryKey(),
@@ -147,18 +150,45 @@ export const programParticipant = pgTable("program_participant", {
 
 export const programSession = pgTable("program_session", {
   id: text("id").primaryKey(),
-  programId: text("program_id")
+  batchId: text("batch_id")
     .notNull()
-    .references(() => program.id, { onDelete: "cascade" }),
-  batchId: text("batch_id").references(() => programBatch.id),
-  mentorId: text("mentor_id").references(() => user.id),
-  datetime: timestamp("datetime").notNull(),
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  mentorId: text("mentor_id")
+    .notNull()
+    .references(() => user.id),
+  studentId: text("student_id").references(() => user.id), // Nullable for Group Sessions
+
+  week: integer("week").notNull(),
+  type: sessionTypeEnum("type").notNull(),
+  status: sessionStatusEnum("status").default("scheduled").notNull(),
+
+  startsAt: timestamp("starts_at").notNull(),
+  durationMinutes: integer("duration_minutes").default(60).notNull(),
+  meetingLink: text("meeting_link"),
+  recordingLink: text("recording_link"),
+
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
+});
+
+export const programAttachment = pgTable("program_attachment", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+
+  week: integer("week"), // Nullable (Batch level)
+  sessionId: text("session_id").references(() => programSession.id), // Nullable
+
+  name: text("name").notNull(),
+  type: attachmentTypeEnum("type").notNull(),
+  url: text("url").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const programBatchMentor = pgTable(
@@ -207,7 +237,6 @@ export const programRelations = relations(program, ({ many }) => ({
   syllabus: many(programSyllabus),
   applications: many(programApplication),
   participants: many(programParticipant),
-  sessions: many(programSession),
   batches: many(programBatch),
   faqs: many(programFaq),
   benefits: many(programBenefit),
@@ -222,6 +251,7 @@ export const programBatchRelations = relations(programBatch, ({ one, many }) => 
   sessions: many(programSession),
   mentors: many(programBatchMentor),
   attendance: many(programAttendance),
+  attachments: many(programAttachment),
 }));
 
 export const programFaqRelations = relations(programFaq, ({ one }) => ({
@@ -294,5 +324,32 @@ export const programParticipantRelations = relations(programParticipant, ({ one 
   user: one(user, {
     fields: [programParticipant.userId],
     references: [user.id],
+  }),
+}));
+
+export const programSessionRelations = relations(programSession, ({ one, many }) => ({
+  batch: one(programBatch, {
+    fields: [programSession.batchId],
+    references: [programBatch.id],
+  }),
+  mentor: one(user, {
+    fields: [programSession.mentorId],
+    references: [user.id],
+  }),
+  student: one(user, {
+    fields: [programSession.studentId],
+    references: [user.id],
+  }),
+  attachments: many(programAttachment),
+}));
+
+export const programAttachmentRelations = relations(programAttachment, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [programAttachment.batchId],
+    references: [programBatch.id],
+  }),
+  session: one(programSession, {
+    fields: [programAttachment.sessionId],
+    references: [programSession.id],
   }),
 }));
