@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, inArray, isNull, ne, sql } from "@better-auth-admin/db";
+import { and, count, db, desc, eq, inArray, isNull, sql } from "@better-auth-admin/db";
 import { auditLog } from "@better-auth-admin/db/schema/audit";
 import { user } from "@better-auth-admin/db/schema/auth";
 import {
@@ -52,7 +52,7 @@ export const programsRouter = {
         const offset = input?.offset ?? 0;
 
         // Show open and running programs for public
-        const whereClause = and(isNull(program.deletedAt), ne(program.status, "draft"));
+        const whereClause = isNull(program.deletedAt);
 
         const items = await db
           .select()
@@ -263,10 +263,7 @@ export const programsRouter = {
   admin: {
     analytics: protectedProcedure.handler(async () => {
       const [totalPrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
-      const [activePrograms] = await db
-        .select({ count: count() })
-        .from(program)
-        .where(and(isNull(program.deletedAt), eq(program.status, "running")));
+      const [activePrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
 
       const [totalBatches] = await db
         .select({ count: count() })
@@ -318,7 +315,6 @@ export const programsRouter = {
           .object({
             limit: z.number().default(50),
             offset: z.number().default(0),
-            status: z.string().optional(),
           })
           .optional(),
       )
@@ -327,9 +323,6 @@ export const programsRouter = {
         const offset = input?.offset ?? 0;
 
         const conditions = [isNull(program.deletedAt)];
-        if (input?.status && input.status !== "all") {
-          conditions.push(eq(program.status, input.status));
-        }
 
         const whereClause = and(...conditions);
 
@@ -392,8 +385,6 @@ export const programsRouter = {
           name: z.string().min(1),
           slug: z.string().optional(),
           description: z.string().optional(),
-          durationWeeks: z.number().default(0),
-          status: z.enum(["draft", "open", "running", "completed"]).default("draft"),
         }),
       )
       .handler(async ({ input }) => {
@@ -410,8 +401,6 @@ export const programsRouter = {
           id,
           name: input.name,
           description: input.description,
-          durationWeeks: input.durationWeeks,
-          status: input.status,
           slug,
         });
         return { id };
@@ -424,8 +413,6 @@ export const programsRouter = {
           name: z.string().min(1).optional(),
           slug: z.string().min(1).optional(),
           description: z.string().optional(),
-          durationWeeks: z.number().optional(),
-          status: z.enum(["draft", "open", "running", "completed"]).optional(),
         }),
       )
       .handler(async ({ input }) => {
@@ -467,6 +454,7 @@ export const programsRouter = {
             registrationStartDate: z.string().transform((str) => new Date(str)),
             registrationEndDate: z.string().transform((str) => new Date(str)),
             quota: z.number().min(0),
+            durationWeeks: z.number().min(1),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).default("upcoming"),
           }),
         )
@@ -524,6 +512,7 @@ export const programsRouter = {
               .optional()
               .transform((str) => (str ? new Date(str) : undefined)),
             quota: z.number().min(0).optional(),
+            durationWeeks: z.number().min(1).optional(),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
           }),
         )
@@ -605,8 +594,17 @@ export const programsRouter = {
             }),
           )
           .handler(async ({ input }) => {
+            const batch = await db.query.programBatch.findFirst({
+              where: eq(programBatch.id, input.batchId),
+            });
+            if (!batch) throw new Error("Batch not found");
+
             await db.transaction(async (tx) => {
               for (const update of input.updates) {
+                if (update.week < 1 || update.week > batch.durationWeeks) {
+                  throw new Error(`Invalid week ${update.week}. Batch duration is ${batch.durationWeeks} weeks.`);
+                }
+
                 // Upsert logic
                 // Check if exists
                 const existing = await tx.query.programAttendance.findFirst({
@@ -1190,15 +1188,24 @@ export const programsRouter = {
               z.object({
                 userId: z.string(),
                 week: z.number(),
-                status: z.string(),
+                status: z.enum(["present", "absent", "excused"]),
                 notes: z.string().optional(),
               }),
             ),
           }),
         )
         .handler(async ({ input }) => {
+          const batch = await db.query.programBatch.findFirst({
+            where: eq(programBatch.id, input.batchId),
+          });
+          if (!batch) throw new Error("Batch not found");
+
           await db.transaction(async (tx) => {
             for (const record of input.records) {
+              if (record.week < 1 || record.week > batch.durationWeeks) {
+                throw new Error(`Invalid week ${record.week}. Batch duration is ${batch.durationWeeks} weeks.`);
+              }
+
               // Check if exists
               const existing = await tx.query.programAttendance.findFirst({
                 where: and(

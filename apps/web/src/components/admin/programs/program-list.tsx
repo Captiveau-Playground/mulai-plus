@@ -35,7 +35,6 @@ import { orpc } from "@/utils/orpc";
 const programSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  durationWeeks: z.coerce.number().min(0).default(0),
 });
 
 type ProgramFormValues = z.infer<typeof programSchema>;
@@ -46,7 +45,6 @@ export function ProgramList() {
     id: string;
     name: string;
     description?: string | null;
-    durationWeeks: number;
   } | null>(null);
 
   const queryClient = useQueryClient();
@@ -103,7 +101,6 @@ export function ProgramList() {
     defaultValues: {
       name: "",
       description: "",
-      durationWeeks: 0,
     },
   });
 
@@ -136,22 +133,20 @@ export function ProgramList() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Duration</TableHead>
               <TableHead>Quota</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={3} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : programs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={3} className="h-24 text-center">
                   No programs found.
                 </TableCell>
               </TableRow>
@@ -164,9 +159,8 @@ export function ProgramList() {
                       <span className="line-clamp-1 text-muted-foreground text-xs">{program.description}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{program.durationWeeks} weeks</TableCell>
                   <TableCell>
-                    <Badge variant={program.status === "running" ? "default" : "secondary"}>{program.status}</Badge>
+                    <Badge variant="secondary">0</Badge>
                   </TableCell>
                   <TableCell>
                     <DropdownMenuGroup>
@@ -191,7 +185,6 @@ export function ProgramList() {
                                 id: program.id,
                                 name: program.name,
                                 description: program.description,
-                                durationWeeks: program.durationWeeks,
                               });
                             }}
                           >
@@ -252,21 +245,6 @@ export function ProgramList() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="durationWeeks"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duration (Weeks)</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
               <DialogFooter>
                 <Button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -311,7 +289,6 @@ function EditProgramForm({
     id: string;
     name: string;
     description?: string | null;
-    durationWeeks: number;
   } | null;
   onSubmit: (values: ProgramFormValues) => void;
   isPending: boolean;
@@ -323,7 +300,6 @@ function EditProgramForm({
     defaultValues: {
       name: program?.name || "",
       description: program?.description || "",
-      durationWeeks: program?.durationWeeks || 0,
     },
   });
 
@@ -356,21 +332,6 @@ function EditProgramForm({
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="durationWeeks"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Duration (Weeks)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel

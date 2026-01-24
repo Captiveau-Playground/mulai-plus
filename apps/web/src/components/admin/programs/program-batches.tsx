@@ -36,17 +36,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { orpc } from "@/utils/orpc";
 
 function BatchAttendanceDialog({
-  batchId,
+  batch,
   open,
   onOpenChange,
 }: {
-  batchId: string;
+  batch: { id: string; durationWeeks: number; name: string };
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const { data, isLoading } = useQuery(
     orpc.programs.admin.batches.attendance.list.queryOptions({
-      input: { batchId },
+      input: { batchId: batch.id },
     }),
   );
 
@@ -75,7 +75,7 @@ function BatchAttendanceDialog({
         notes: value.notes,
       };
     });
-    mutation.mutate({ batchId, updates: updateList });
+    mutation.mutate({ batchId: batch.id, updates: updateList });
   };
 
   const getStatus = (userId: string, week: number) => {
@@ -86,12 +86,16 @@ function BatchAttendanceDialog({
     return existing?.status || "";
   };
 
+  const weeks = Array.from({ length: batch.durationWeeks }, (_, i) => i + 1);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-5xl">
         <DialogHeader>
-          <DialogTitle>Batch Attendance</DialogTitle>
-          <DialogDescription>Track weekly attendance for accepted participants.</DialogDescription>
+          <DialogTitle>Batch Attendance: {batch.name}</DialogTitle>
+          <DialogDescription>
+            Track weekly attendance for accepted participants ({batch.durationWeeks} weeks).
+          </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           {isLoading ? (
@@ -102,7 +106,7 @@ function BatchAttendanceDialog({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="sticky left-0 z-10 w-[200px] min-w-[200px] bg-background">Student</TableHead>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((week) => (
+                    {weeks.map((week) => (
                       <TableHead key={week} className="min-w-[120px]">
                         Week {week}
                       </TableHead>
@@ -112,7 +116,7 @@ function BatchAttendanceDialog({
                 <TableBody>
                   {data?.participants.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-24 text-center">
+                      <TableCell colSpan={weeks.length + 1} className="h-24 text-center">
                         No accepted participants found.
                       </TableCell>
                     </TableRow>
@@ -120,7 +124,7 @@ function BatchAttendanceDialog({
                     data?.participants.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="sticky left-0 z-10 bg-background font-medium">{student.name}</TableCell>
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((week) => (
+                        {weeks.map((week) => (
                           <TableCell key={week}>
                             <Select
                               value={getStatus(student.id, week)}
@@ -369,6 +373,7 @@ const batchSchema = z.object({
   announcementDate: z.string().optional(),
   onboardingDate: z.string().optional(),
   quota: z.coerce.number().min(0).default(0),
+  durationWeeks: z.coerce.number().min(0).default(0),
   status: z.enum(["upcoming", "open", "closed", "running", "completed"] as const),
 });
 
@@ -390,10 +395,15 @@ export function ProgramBatches({ programId }: { programId: string }) {
     announcementDate?: string | null;
     onboardingDate?: string | null;
     quota: number;
+    durationWeeks: number;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   } | null>(null);
   const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
-  const [attendanceBatchId, setAttendanceBatchId] = useState<string | null>(null);
+  const [attendanceBatch, setAttendanceBatch] = useState<{
+    id: string;
+    name: string;
+    durationWeeks: number;
+  } | null>(null);
   const [timelineBatch, setTimelineBatch] = useState<{
     name: string;
     startDate: Date | string;
@@ -472,6 +482,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
       registrationStartDate: "",
       registrationEndDate: "",
       quota: 0,
+      durationWeeks: 0,
       status: "upcoming",
     },
   });
@@ -511,6 +522,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
               <TableHead>Dates</TableHead>
               <TableHead>Registration</TableHead>
               <TableHead>Quota</TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
@@ -518,13 +530,13 @@ export function ProgramBatches({ programId }: { programId: string }) {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : batches.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No batches found.
                 </TableCell>
               </TableRow>
@@ -549,6 +561,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     </div>
                   </TableCell>
                   <TableCell>{batch.quota}</TableCell>
+                  <TableCell>{batch.durationWeeks} Weeks</TableCell>
                   <TableCell>
                     <Badge variant={batch.status === "open" ? "default" : "secondary"}>{batch.status}</Badge>
                   </TableCell>
@@ -565,7 +578,15 @@ export function ProgramBatches({ programId }: { programId: string }) {
                           <DropdownMenuItem onClick={() => setMentorBatchId(batch.id)}>
                             <Users className="mr-2 h-4 w-4" /> Manage Mentors
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setAttendanceBatchId(batch.id)}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setAttendanceBatch({
+                                id: batch.id,
+                                name: batch.name,
+                                durationWeeks: batch.durationWeeks,
+                              })
+                            }
+                          >
                             <Calendar className="mr-2 h-4 w-4" /> Attendance
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setTimelineBatch(batch)}>
@@ -601,6 +622,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
                                   ? new Date(batch.onboardingDate).toISOString().split("T")[0]
                                   : "",
                                 quota: batch.quota,
+                                durationWeeks: batch.durationWeeks,
                                 status: batch.status as "upcoming" | "open" | "closed" | "running" | "completed",
                               })
                             }
@@ -805,29 +827,42 @@ export function ProgramBatches({ programId }: { programId: string }) {
                 />
                 <FormField
                   control={form.control}
-                  name="status"
+                  name="durationWeeks"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="upcoming">Upcoming</SelectItem>
-                          <SelectItem value="open">Open</SelectItem>
-                          <SelectItem value="closed">Closed</SelectItem>
-                          <SelectItem value="running">Running</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Duration (Weeks)</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="upcoming">Upcoming</SelectItem>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="running">Running</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
@@ -860,11 +895,11 @@ export function ProgramBatches({ programId }: { programId: string }) {
         />
       )}
 
-      {attendanceBatchId && (
+      {attendanceBatch && (
         <BatchAttendanceDialog
-          batchId={attendanceBatchId}
-          open={!!attendanceBatchId}
-          onOpenChange={(open) => !open && setAttendanceBatchId(null)}
+          batch={attendanceBatch}
+          open={!!attendanceBatch}
+          onOpenChange={(open) => !open && setAttendanceBatch(null)}
         />
       )}
 
@@ -900,6 +935,7 @@ function EditBatchDialog({
     announcementDate?: string | null;
     onboardingDate?: string | null;
     quota: number;
+    durationWeeks: number;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   };
   open: boolean;
@@ -923,6 +959,7 @@ function EditBatchDialog({
       announcementDate: batch.announcementDate ?? undefined,
       onboardingDate: batch.onboardingDate ?? undefined,
       quota: batch.quota,
+      durationWeeks: batch.durationWeeks,
       status: batch.status,
     },
   });
@@ -1105,29 +1142,42 @@ function EditBatchDialog({
               />
               <FormField
                 control={form.control}
-                name="status"
+                name="durationWeeks"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="upcoming">Upcoming</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                        <SelectItem value="running">Running</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Duration (Weeks)</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                      <SelectItem value="running">Running</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

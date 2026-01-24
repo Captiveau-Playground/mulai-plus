@@ -1,15 +1,14 @@
-import { relations } from "drizzle-orm";
-import { integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { check, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./auth";
+
+export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "absent", "excused"]);
 
 export const program = pgTable("program", {
   id: text("id").primaryKey(),
   slug: text("slug").unique().notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  durationWeeks: integer("duration_weeks").default(0).notNull(), // Kept as general info
-  // quota: integer("quota").default(0).notNull(), // Moved to batch
-  status: text("status").default("draft").notNull(), // active | inactive | draft
   registrationForm: jsonb("registration_form"), // Form definition for applicants
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -25,6 +24,7 @@ export const programBatch = pgTable("program_batch", {
     .notNull()
     .references(() => program.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // e.g. "Batch 1 - Jan 2024"
+  durationWeeks: integer("duration_weeks").default(0).notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   registrationStartDate: timestamp("registration_start_date").notNull(),
@@ -186,7 +186,7 @@ export const programAttendance = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     week: integer("week").notNull(),
-    status: text("status").notNull(), // 'present', 'absent', 'excused'
+    status: attendanceStatusEnum("status").notNull(),
     notes: text("notes"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -196,6 +196,7 @@ export const programAttendance = pgTable(
   },
   (t) => ({
     unq: { columns: [t.batchId, t.userId, t.week] },
+    weekCheck: check("week_check", sql`${t.week} > 0`),
   }),
 );
 
