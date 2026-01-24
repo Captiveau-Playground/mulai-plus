@@ -10,12 +10,14 @@ import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
+import { testimonialsRouter } from "./testimonials";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
   settings: settingsRouter,
+  testimonials: testimonialsRouter,
   lms: lmsRouter,
   programs: programsRouter,
   payments: paymentsRouter,
@@ -98,7 +100,7 @@ export const appRouter = {
     update: protectedProcedure
       .input(
         z.object({
-          id: z.string(),
+          id: z.string().min(1),
           name: z.string().min(1),
           description: z.string().optional(),
           permissions: z.array(z.string()),
@@ -111,6 +113,7 @@ export const appRouter = {
             name: input.name,
             description: input.description,
             permissions: input.permissions,
+            updatedAt: new Date(),
           })
           .where(eq(role.id, input.id));
         return { success: true };
@@ -118,6 +121,20 @@ export const appRouter = {
     delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(role).where(eq(role.id, input.id));
       return { success: true };
+    }),
+  },
+  user: {
+    listStudents: protectedProcedure.handler(async () => {
+      const students = await db.query.user.findMany({
+        where: eq(user.role, "student"),
+        columns: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+      });
+      return students;
     }),
   },
   permission: {
