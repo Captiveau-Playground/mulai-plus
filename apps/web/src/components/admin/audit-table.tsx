@@ -1,14 +1,26 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Eye, Loader2, Search } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { orpc } from "@/utils/orpc";
 
 export function AuditTable() {
   const [page, setPage] = useState(0);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"createdAt" | "action" | "resource">("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const pageSize = 20;
 
   const { data, isLoading } = useQuery(
@@ -16,6 +28,9 @@ export function AuditTable() {
       input: {
         limit: pageSize,
         offset: page * pageSize,
+        search: search || undefined,
+        sortBy,
+        sortOrder,
       },
     }),
   );
@@ -24,30 +39,72 @@ export function AuditTable() {
     return new Date(date).toLocaleString();
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex w-full items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const handleSort = (field: "createdAt" | "action" | "resource") => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("desc"); // Default to desc for new sort
+    }
+  };
+
+  const SortIcon = ({ field }: { field: "createdAt" | "action" | "resource" }) => {
+    if (sortBy !== field) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
+    return sortOrder === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />;
+  };
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search action, resource, user..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0); // Reset page on search
+            }}
+            className="pl-8"
+          />
+        </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Time</TableHead>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("createdAt")}>
+                <div className="flex items-center">
+                  Time
+                  <SortIcon field="createdAt" />
+                </div>
+              </TableHead>
               <TableHead>User</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Resource</TableHead>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("action")}>
+                <div className="flex items-center">
+                  Action
+                  <SortIcon field="action" />
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("resource")}>
+                <div className="flex items-center">
+                  Resource
+                  <SortIcon field="resource" />
+                </div>
+              </TableHead>
               <TableHead>IP Address</TableHead>
               <TableHead>Details</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data?.items.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                </TableCell>
+              </TableRow>
+            ) : data?.items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
                   No audit logs found.
@@ -74,8 +131,37 @@ export function AuditTable() {
                   </TableCell>
                   <TableCell>{log.resource}</TableCell>
                   <TableCell className="font-mono text-xs">{log.ipAddress || "-"}</TableCell>
-                  <TableCell className="max-w-xs truncate font-mono text-muted-foreground text-xs">
-                    {JSON.stringify(log.details)}
+                  <TableCell>
+                    <Dialog>
+                      <DialogTrigger>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">View details</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>Log Details</DialogTitle>
+                          <DialogDescription>
+                            Full details for action <span className="font-medium font-mono">{log.action}</span> on{" "}
+                            {formatDate(log.createdAt)}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="mt-4">
+                          <div className="rounded-md bg-muted p-4">
+                            <pre className="whitespace-pre-wrap font-mono text-xs">
+                              {JSON.stringify(log.details, null, 2)}
+                            </pre>
+                          </div>
+                          {log.userAgent && (
+                            <div className="mt-4 space-y-2">
+                              <h4 className="font-medium text-sm">User Agent</h4>
+                              <p className="text-muted-foreground text-sm">{log.userAgent}</p>
+                            </div>
+                          )}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </TableCell>
                 </TableRow>
               ))
