@@ -35,9 +35,10 @@
     "db:migrate": "turbo -F @better-auth-admin/db db:migrate"
   },
   "dependencies": {
+    "@better-auth-admin/env": "workspace:*",
+    "@supabase/supabase-js": "^2.91.1",
     "dotenv": "catalog:",
-    "zod": "catalog:",
-    "@better-auth-admin/env": "workspace:*"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "turbo": "^2.6.3",

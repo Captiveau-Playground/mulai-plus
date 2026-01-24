@@ -26,6 +26,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,7 +36,7 @@ import { orpc } from "@/utils/orpc";
 const programSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  durationWeeks: z.coerce.number().min(0).default(0),
+  bannerUrl: z.string().optional(),
 });
 
 type ProgramFormValues = z.infer<typeof programSchema>;
@@ -46,7 +47,7 @@ export function ProgramList() {
     id: string;
     name: string;
     description?: string | null;
-    durationWeeks: number;
+    bannerUrl?: string | null;
   } | null>(null);
 
   const queryClient = useQueryClient();
@@ -103,7 +104,7 @@ export function ProgramList() {
     defaultValues: {
       name: "",
       description: "",
-      durationWeeks: 0,
+      bannerUrl: "",
     },
   });
 
@@ -136,22 +137,20 @@ export function ProgramList() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Duration</TableHead>
               <TableHead>Quota</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={3} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : programs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={3} className="h-24 text-center">
                   No programs found.
                 </TableCell>
               </TableRow>
@@ -164,9 +163,8 @@ export function ProgramList() {
                       <span className="line-clamp-1 text-muted-foreground text-xs">{program.description}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{program.durationWeeks} weeks</TableCell>
                   <TableCell>
-                    <Badge variant={program.status === "running" ? "default" : "secondary"}>{program.status}</Badge>
+                    <Badge variant="secondary">0</Badge>
                   </TableCell>
                   <TableCell>
                     <DropdownMenuGroup>
@@ -191,7 +189,7 @@ export function ProgramList() {
                                 id: program.id,
                                 name: program.name,
                                 description: program.description,
-                                durationWeeks: program.durationWeeks,
+                                bannerUrl: program.bannerUrl,
                               });
                             }}
                           >
@@ -252,21 +250,19 @@ export function ProgramList() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="durationWeeks"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duration (Weeks)</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="bannerUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner Image</FormLabel>
+                    <FormControl>
+                      <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="programs" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -311,7 +307,7 @@ function EditProgramForm({
     id: string;
     name: string;
     description?: string | null;
-    durationWeeks: number;
+    bannerUrl?: string | null;
   } | null;
   onSubmit: (values: ProgramFormValues) => void;
   isPending: boolean;
@@ -321,9 +317,9 @@ function EditProgramForm({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
     resolver: zodResolver(programSchema) as any,
     defaultValues: {
-      name: program?.name || "",
-      description: program?.description || "",
-      durationWeeks: program?.durationWeeks || 0,
+      name: program?.name ?? "",
+      description: program?.description ?? "",
+      bannerUrl: program?.bannerUrl ?? "",
     },
   });
 
@@ -356,21 +352,19 @@ function EditProgramForm({
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="durationWeeks"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Duration (Weeks)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="bannerUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Banner Image</FormLabel>
+              <FormControl>
+                <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="programs" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel

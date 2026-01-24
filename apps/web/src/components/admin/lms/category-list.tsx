@@ -113,16 +113,14 @@ export function CategoryList() {
   });
 
   const onCreate = (values: CategoryFormValues) => {
-    createMutation.mutate({ input: values });
+    createMutation.mutate(values);
   };
 
   const onUpdate = (values: CategoryFormValues) => {
     if (!editingCategory) return;
     updateMutation.mutate({
-      input: {
-        id: editingCategory.id,
-        ...values,
-      },
+      id: editingCategory.id,
+      ...values,
     });
   };
 
@@ -259,9 +257,7 @@ export function CategoryList() {
                             className="text-destructive"
                             onClick={() => {
                               if (confirm("Are you sure? This cannot be undone.")) {
-                                deleteMutation.mutate({
-                                  input: { id: category.id },
-                                });
+                                deleteMutation.mutate({ id: category.id });
                               }
                             }}
                           >
