@@ -16,14 +16,35 @@ import { useAuthorizePage } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 function MentorSessionsContent() {
+  const { isAuthorized, isLoading: isAuthLoading } = useAuthorizePage({
+    mentor_dashboard: ["access"],
+  });
+
   const searchParams = useSearchParams();
   const batchId = searchParams.get("batchId");
   const { data: sessions, isLoading } = useQuery(
     orpc.programActivities.session.mySessions.queryOptions({
       input: { batchId: batchId || undefined },
+      enabled: !!isAuthorized,
     }),
   );
   const [editingSession, setEditingSession] = useState<any>(null);
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <p className="text-muted-foreground">Unauthorized</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

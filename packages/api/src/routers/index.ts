@@ -25,6 +25,7 @@ export const appRouter = {
   payments: paymentsRouter,
   audit: auditRouter,
   notification: notificationRouter,
+
   privateData: protectedProcedure.handler(({ context }) => {
     return {
       message: "This is private",
@@ -126,6 +127,12 @@ export const appRouter = {
     }),
   },
   user: {
+    myPermissions: protectedProcedure.handler(async ({ context }) => {
+      if (!context.session?.user) return [];
+      const userRole = context.session.user.role || "student";
+      const [roleData] = await db.select().from(role).where(eq(role.id, userRole));
+      return roleData?.permissions || [];
+    }),
     listStudents: protectedProcedure.handler(async () => {
       const students = await db.query.user.findMany({
         where: eq(user.role, "student"),

@@ -83,6 +83,9 @@ export const usePermission = () => {
   };
 };
 
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/utils/orpc";
+
 /**
  * Hook to protect a page based on permissions.
  * It handles loading state, redirects to login if unauthenticated,
@@ -90,11 +93,17 @@ export const usePermission = () => {
  */
 export const useAuthorizePage = (permission: Record<string, string[]>) => {
   const { data: session, isPending: isSessionPending } = authClient.useSession();
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const router = useRouter();
 
-  // Memoize permission string to prevent infinite loops if object reference changes
-  const _permissionKey = JSON.stringify(permission);
+  // Use ORPC to get fresh permissions from DB directly
+  const { data: userPermissions, isLoading: isPermsLoading } = useQuery(
+    orpc.user.myPermissions.queryOptions({
+      enabled: !!session?.user,
+      retry: false,
+    }),
+  );
+
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (isSessionPending) return;
@@ -104,31 +113,50 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
       return;
     }
 
-    const checkPermission = async () => {
-      // 0. Super Admin Bypass
-      if (session.user.role === "admin") {
-        setIsAuthorized(true);
-        return;
+    if (session.user.role === "admin") {
+      setIsAuthorized(true);
+      return;
+    }
+
+    // Wait for permissions to load
+    if (isPermsLoading && !userPermissions) return;
+
+    // Use fetched permissions if available, fallback to session permissions, then empty
+    const permsToCheck = userPermissions || ((session.user as any).permissions as string[]) || [];
+
+    let allAuthorized = true;
+    for (const [resource, actions] of Object.entries(permission)) {
+      for (const action of actions) {
+        // Check for action:resource (e.g. access:mentor_dashboard)
+        const colonFormat = `${action}:${resource}`;
+        // Check for resource.action (e.g. mentor_dashboard.access)
+        const dotFormat = `${resource}.${action}`;
+        // Check for exact resource match (if simplified)
+        const _resourceOnly = resource;
+
+        if (
+          !permsToCheck.includes(colonFormat) &&
+          !permsToCheck.includes(dotFormat) &&
+          // Fallback: if permission is just "access" and resource is "mentor_dashboard", maybe DB stores just "mentor_dashboard"?
+          // But based on permissions.ts, it stores "access:mentor_dashboard" or "mentor_dashboard.access".
+          // We can also check if the permission ID itself is in the list (if passed as key)
+          !permsToCheck.includes(resource)
+        ) {
+          allAuthorized = false;
+          // Console log for debugging
+          console.warn(`[Auth] Missing permission: ${colonFormat} or ${dotFormat}`, { permsToCheck });
+          break;
+        }
       }
+      if (!allAuthorized) break;
+    }
 
-      // 1. Check using the server-side verification
-      const { data, error } = await authClient.admin.hasPermission({
-        permission,
-      });
-
-      if (error || !data?.success) {
-        setIsAuthorized(false);
-      } else {
-        setIsAuthorized(true);
-      }
-    };
-
-    checkPermission();
-  }, [session, isSessionPending, router, permission]);
+    setIsAuthorized(allAuthorized);
+  }, [session, isSessionPending, userPermissions, isPermsLoading, router, permission]);
 
   return {
     isAuthorized,
-    isLoading: isSessionPending || isAuthorized === null,
+    isLoading: isSessionPending || (!!session?.user && isPermsLoading) || isAuthorized === null,
     user: session?.user,
   };
 };
