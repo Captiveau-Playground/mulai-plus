@@ -1,18 +1,30 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, Clock, Loader2, Video } from "lucide-react";
-import Link from "next/link";
+import { Calendar, Clock, Loader2, Plus, Trash2, Video } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { toast } from "sonner";
 import { MentorSidebar } from "@/components/mentor/mentor-sidebar";
+import { SessionCreateDialog } from "@/components/mentor/sessions/session-create-dialog";
 import { SessionUpdateDialog } from "@/components/mentor/sessions/session-update-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
 function MentorSessionsContent() {
@@ -22,6 +34,7 @@ function MentorSessionsContent() {
 
   const searchParams = useSearchParams();
   const batchId = searchParams.get("batchId");
+  const queryClient = useQueryClient();
   const { data: sessions, isLoading } = useQuery(
     orpc.programActivities.session.mySessions.queryOptions({
       input: { batchId: batchId || undefined },
@@ -29,6 +42,21 @@ function MentorSessionsContent() {
     }),
   );
   const [editingSession, setEditingSession] = useState<any>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
+
+  const deleteMutation = useMutation(
+    orpc.programActivities.mentor.deleteOneOnOne.mutationOptions({
+      onSuccess: () => {
+        toast.success("Session deleted");
+        setDeleteSessionId(null);
+        queryClient.invalidateQueries({
+          queryKey: orpc.programActivities.session.mySessions.key(),
+        });
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
 
   if (isAuthLoading) {
     return (
@@ -56,6 +84,12 @@ function MentorSessionsContent() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="flex items-center justify-end">
+        <Button onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Session
+        </Button>
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -124,15 +158,28 @@ function MentorSessionsContent() {
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       {session.meetingLink && (
-                        <Button variant="ghost" size="icon">
-                          <Link href={session.meetingLink as any} target="_blank">
-                            <Video className="h-4 w-4" />
-                          </Link>
-                        </Button>
+                        <a
+                          href={session.meetingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+                        >
+                          <Video className="h-4 w-4" />
+                        </a>
                       )}
                       <Button variant="outline" size="sm" onClick={() => setEditingSession(session)}>
                         Edit
                       </Button>
+                      {session.type === "one_on_one" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setDeleteSessionId(session.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -141,6 +188,15 @@ function MentorSessionsContent() {
           </TableBody>
         </Table>
       </div>
+
+      {createDialogOpen && (
+        <SessionCreateDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          defaultBatchId={batchId || undefined}
+        />
+      )}
+
       {editingSession && (
         <SessionUpdateDialog
           session={editingSession}
@@ -148,6 +204,32 @@ function MentorSessionsContent() {
           onOpenChange={(open) => !open && setEditingSession(null)}
         />
       )}
+
+      <AlertDialog open={!!deleteSessionId} onOpenChange={(open) => !open && setDeleteSessionId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the session.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteSessionId) {
+                  deleteMutation.mutate({ id: deleteSessionId });
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

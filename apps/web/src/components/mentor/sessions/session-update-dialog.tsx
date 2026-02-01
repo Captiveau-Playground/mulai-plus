@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { type Resolver, type SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ const sessionSchema = z.object({
   meetingLink: z.string().optional(),
   recordingLink: z.string().optional(),
   notes: z.string().optional(),
+  startsAt: z.string().min(1, "Date and time is required"),
+  durationMinutes: z.coerce.number().min(15, "Duration must be at least 15 minutes"),
 });
 
 type SessionFormValues = z.infer<typeof sessionSchema>;
@@ -51,18 +53,34 @@ interface SessionUpdateDialogProps {
 
 export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpdateDialogProps) {
   const queryClient = useQueryClient();
+  const isOneOnOne = session.type === "one_on_one";
 
   const form = useForm<SessionFormValues>({
-    resolver: zodResolver(sessionSchema),
+    resolver: zodResolver(sessionSchema) as unknown as Resolver<SessionFormValues>,
     defaultValues: {
       status: session.status as any,
       meetingLink: session.meetingLink || "",
       recordingLink: session.recordingLink || "",
       notes: session.notes || "",
+      startsAt: session.startsAt ? new Date(session.startsAt).toISOString().slice(0, 16) : "",
+      durationMinutes: session.durationMinutes || 60,
     },
   });
 
-  const mutation = useMutation(
+  const updateOneOnOneMutation = useMutation(
+    orpc.programActivities.mentor.updateOneOnOne.mutationOptions({
+      onSuccess: () => {
+        toast.success("Session updated");
+        onOpenChange(false);
+        queryClient.invalidateQueries({
+          queryKey: orpc.programActivities.session.mySessions.key(),
+        });
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
+
+  const upsertMutation = useMutation(
     orpc.programActivities.session.upsert.mutationOptions({
       onSuccess: () => {
         toast.success("Session updated");
@@ -75,18 +93,30 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
     }),
   );
 
-  const onSubmit = (values: SessionFormValues) => {
-    mutation.mutate({
-      id: session.id,
-      batchId: session.batchId,
-      mentorId: session.mentorId,
-      week: session.week,
-      type: session.type as any,
-      startsAt: new Date(session.startsAt).toISOString(),
-      durationMinutes: session.durationMinutes,
-      studentId: session.studentId || undefined,
-      ...values,
-    });
+  const isPending = updateOneOnOneMutation.isPending || upsertMutation.isPending;
+
+  const onSubmit: SubmitHandler<SessionFormValues> = (values) => {
+    if (isOneOnOne) {
+      updateOneOnOneMutation.mutate({
+        id: session.id,
+        ...values,
+      });
+    } else {
+      upsertMutation.mutate({
+        id: session.id,
+        batchId: session.batchId,
+        mentorId: session.mentorId,
+        week: session.week,
+        type: session.type as any,
+        startsAt: new Date(values.startsAt).toISOString(),
+        durationMinutes: values.durationMinutes,
+        studentId: session.studentId || undefined,
+        status: values.status,
+        meetingLink: values.meetingLink,
+        recordingLink: values.recordingLink,
+        notes: values.notes,
+      });
+    }
   };
 
   return (
@@ -98,6 +128,35 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startsAt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date & Time</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} disabled={isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="durationMinutes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (minutes)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={15} step={15} {...field} disabled={isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="status"
@@ -106,7 +165,7 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
                   <FormLabel>Status</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger disabled={mutation.isPending}>
+                      <SelectTrigger disabled={isPending}>
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
@@ -128,7 +187,7 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
                 <FormItem>
                   <FormLabel>Meeting Link</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://meet.google.com/..." {...field} disabled={mutation.isPending} />
+                    <Input placeholder="https://meet.google.com/..." {...field} disabled={isPending} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -141,7 +200,7 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
                 <FormItem>
                   <FormLabel>Recording Link</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://..." {...field} disabled={mutation.isPending} />
+                    <Input placeholder="https://..." {...field} disabled={isPending} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -154,15 +213,15 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Session notes..." {...field} disabled={mutation.isPending} />
+                    <Textarea placeholder="Session notes..." {...field} disabled={isPending} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <DialogFooter>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>
             </DialogFooter>
