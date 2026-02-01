@@ -95,7 +95,7 @@ function BatchAttendanceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-5xl">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Batch Attendance: {batch.name}</DialogTitle>
           <DialogDescription>
@@ -214,7 +214,7 @@ function BatchMentorsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Manage Batch Mentors</DialogTitle>
           <DialogDescription>Select mentors for this batch.</DialogDescription>
@@ -337,7 +337,7 @@ function BatchTimelineDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Timeline: {batch.name}</DialogTitle>
           <DialogDescription>Chronological sequence of events for this batch.</DialogDescription>

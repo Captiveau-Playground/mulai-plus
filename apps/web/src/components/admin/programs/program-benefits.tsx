@@ -217,7 +217,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Add Benefit</DialogTitle>
             <DialogDescription>Add a new benefit.</DialogDescription>
@@ -337,7 +337,7 @@ function EditBenefitDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Edit Benefit</DialogTitle>
           <DialogDescription>Edit benefit details.</DialogDescription>

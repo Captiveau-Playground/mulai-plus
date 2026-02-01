@@ -132,7 +132,7 @@ export function CategoryList() {
           <Plus className="mr-2 h-4 w-4" /> Add Category
         </Button>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent>
+          <DialogContent className="min-w-7xl">
             <DialogHeader>
               <DialogTitle>Create Category</DialogTitle>
               <DialogDescription>Add a new category for your courses.</DialogDescription>
@@ -280,7 +280,7 @@ export function CategoryList() {
           if (!open) setEditingCategory(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Edit Category</DialogTitle>
           </DialogHeader>

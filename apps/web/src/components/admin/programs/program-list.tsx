@@ -217,7 +217,7 @@ export function ProgramList() {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Create Program</DialogTitle>
             <DialogDescription>Create a new mentoring program.</DialogDescription>
@@ -280,7 +280,7 @@ export function ProgramList() {
           if (!open) setEditingProgram(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Edit Program</DialogTitle>
             <DialogDescription>Update program details.</DialogDescription>

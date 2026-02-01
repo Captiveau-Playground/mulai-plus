@@ -139,7 +139,7 @@ export function AuditTable() {
                           <span className="sr-only">View details</span>
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+                      <DialogContent className="max-h-[80vh] min-w-7xl overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Log Details</DialogTitle>
                           <DialogDescription>

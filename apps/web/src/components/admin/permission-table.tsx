@@ -314,7 +314,7 @@ function CreatePermissionDialog({ children }: { children: React.ReactNode }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={children as React.ReactElement} />
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Create Permission</DialogTitle>
           <DialogDescription>Add a new permission to the master list. Format: action:resource</DialogDescription>

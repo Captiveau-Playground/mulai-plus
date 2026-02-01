@@ -134,7 +134,7 @@ export function CourseList() {
           <Plus className="mr-2 h-4 w-4" /> Add Course
         </Button>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent>
+          <DialogContent className="min-w-7xl">
             <DialogHeader>
               <DialogTitle>Create Course</DialogTitle>
               <DialogDescription>Create a new course to add content to.</DialogDescription>
@@ -320,7 +320,7 @@ export function CourseList() {
           if (!open) setEditingCourse(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Edit Course</DialogTitle>
           </DialogHeader>

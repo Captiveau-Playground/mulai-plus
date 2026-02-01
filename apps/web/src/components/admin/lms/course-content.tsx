@@ -594,7 +594,7 @@ export function CourseContent({ courseId }: { courseId: string }) {
 
       {/* Section Dialog */}
       <Dialog open={isSectionDialogOpen} onOpenChange={setIsSectionDialogOpen}>
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>{editingSection ? "Edit Section" : "Create Section"}</DialogTitle>
             <DialogDescription>Sections help organize your course content.</DialogDescription>

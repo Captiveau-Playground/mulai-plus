@@ -108,6 +108,21 @@ export const programActivitiesRouter = {
         return { id };
       }),
 
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          name: z.string().min(1).optional(),
+          type: z.enum(attachmentTypeEnum.enumValues).optional(),
+          url: z.string().url().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...data } = input;
+        await db.update(programAttachment).set(data).where(eq(programAttachment.id, id));
+        return { success: true };
+      }),
+
     delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(programAttachment).where(eq(programAttachment.id, input.id));
       return { success: true };

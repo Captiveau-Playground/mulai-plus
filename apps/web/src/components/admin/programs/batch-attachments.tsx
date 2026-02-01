@@ -123,7 +123,7 @@ export function BatchAttachmentsDialog({
   if (isFormOpen) {
     return (
       <Dialog open={true} onOpenChange={(open) => !open && setIsFormOpen(false)}>
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Add Attachment</DialogTitle>
             <DialogDescription>Add a resource link for this batch.</DialogDescription>
@@ -154,7 +154,7 @@ export function BatchAttachmentsDialog({
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue>Select type</SelectValue>
+                            <SelectValue />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -180,7 +180,7 @@ export function BatchAttachmentsDialog({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue>All Weeks</SelectValue>
+                            {field.value ? <SelectValue /> : <span className="text-muted-foreground">All Weeks</span>}
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -207,7 +207,11 @@ export function BatchAttachmentsDialog({
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue>None</SelectValue>
+                          {field.value && field.value !== "none" ? (
+                            <SelectValue />
+                          ) : (
+                            <span className="text-muted-foreground">None</span>
+                          )}
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -256,7 +260,7 @@ export function BatchAttachmentsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-4xl">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Attachments: {batch.name}</DialogTitle>
           <DialogDescription>Manage resources and links.</DialogDescription>

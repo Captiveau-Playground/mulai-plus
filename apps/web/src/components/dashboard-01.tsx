@@ -322,14 +322,14 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               render={
-                <a href="/" aria-label="Acme Inc.">
-                  <span className="sr-only">Acme Inc.</span>
+                <a href="/" aria-label="MulaiPlus.">
+                  <span className="sr-only">MulaiPlus.</span>
                 </a>
               }
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <LayersIcon className="size-5!" />
-              <span className="font-semibold text-base">Acme Inc.</span>
+              <span className="font-semibold text-base">MulaiPlus.</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
