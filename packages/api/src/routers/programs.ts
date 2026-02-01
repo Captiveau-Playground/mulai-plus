@@ -242,6 +242,21 @@ export const programsRouter = {
       return { success: true, id };
     }),
 
+  myBatches: protectedProcedure.handler(async ({ context }) => {
+    const batchMentors = await db.query.programBatchMentor.findMany({
+      where: eq(programBatchMentor.userId, context.session.user.id),
+      with: {
+        batch: {
+          with: {
+            program: true,
+          },
+        },
+      },
+      orderBy: [desc(programBatchMentor.assignedAt)],
+    });
+    return batchMentors.map((bm) => bm.batch);
+  }),
+
   student: {
     checkApplication: protectedProcedure
       .input(z.object({ programId: z.string(), batchId: z.string() }))

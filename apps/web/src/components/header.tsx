@@ -29,6 +29,7 @@ export default function Header() {
     { to: "/" as Route, label: "Home" },
     { to: "/categories" as Route, label: "Categories" },
     { to: "/courses" as Route, label: "Courses" },
+    { to: "/programs" as Route, label: "Programs" },
   ] as const;
 
   return (

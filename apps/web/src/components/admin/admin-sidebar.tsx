@@ -8,7 +8,7 @@ import { TeamSwitcher } from "@/components/team-switcher";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 
-function CvgLogo(props: React.ComponentProps<"img">) {
+export function CvgLogo(props: React.ComponentProps<"img">) {
   return (
     // biome-ignore lint/a11y/useAltText: <explanation>
     <img src="/main-icon-logo.svg" {...props} />
