@@ -5,6 +5,8 @@ import { user } from "@better-auth-admin/db/schema/auth";
 import {
   program,
   programApplication,
+  programAttachment,
+  programAttachmentRequest,
   programAttendance,
   programBatch,
   programBatchMentor,
@@ -12,6 +14,7 @@ import {
   programFaq,
   programParticipant,
   programSyllabus,
+  requestStatusEnum,
 } from "@better-auth-admin/db/schema/programs";
 import { systemSettings } from "@better-auth-admin/db/schema/settings";
 import { z } from "zod";
@@ -241,6 +244,21 @@ export const programsRouter = {
 
       return { success: true, id };
     }),
+
+  myBatches: protectedProcedure.handler(async ({ context }) => {
+    const batchMentors = await db.query.programBatchMentor.findMany({
+      where: eq(programBatchMentor.userId, context.session.user.id),
+      with: {
+        batch: {
+          with: {
+            program: true,
+          },
+        },
+      },
+      orderBy: [desc(programBatchMentor.assignedAt)],
+    });
+    return batchMentors.map((bm) => bm.batch);
+  }),
 
   student: {
     checkApplication: protectedProcedure
@@ -1272,6 +1290,133 @@ export const programsRouter = {
               }
             }
           });
+          return { success: true };
+        }),
+    },
+
+    attachmentRequests: {
+      list: protectedProcedure
+        .input(
+          z.object({
+            limit: z.number().default(50),
+            offset: z.number().default(0),
+            status: z.enum(requestStatusEnum.enumValues).optional(),
+            batchId: z.string().optional(),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const conditions = [];
+          if (input.status) {
+            conditions.push(eq(programAttachmentRequest.status, input.status));
+          }
+          if (input.batchId) {
+            conditions.push(eq(programAttachmentRequest.batchId, input.batchId));
+          }
+
+          const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+          const items = await db.query.programAttachmentRequest.findMany({
+            where: whereClause,
+            limit: input.limit,
+            offset: input.offset,
+            with: {
+              batch: true,
+              requestedBy: true,
+              reviewedBy: true,
+              attachment: true,
+            },
+            orderBy: [desc(programAttachmentRequest.createdAt)],
+          });
+
+          const [total] = await db.select({ count: count() }).from(programAttachmentRequest).where(whereClause);
+
+          return {
+            data: items,
+            pagination: {
+              total: total?.count ?? 0,
+              limit: input.limit,
+              offset: input.offset,
+            },
+          };
+        }),
+
+      approve: protectedProcedure.input(z.object({ requestId: z.string() })).handler(async ({ input, context }) => {
+        const request = await db.query.programAttachmentRequest.findFirst({
+          where: eq(programAttachmentRequest.id, input.requestId),
+        });
+
+        if (!request) throw new Error("Request not found");
+        if (request.status !== "pending") throw new Error("Request is not pending");
+
+        await db.transaction(async (tx) => {
+          const data = request.data as any;
+
+          if (request.action === "create") {
+            await tx.insert(programAttachment).values({
+              id: randomUUID(),
+              batchId: request.batchId,
+              ...data,
+            });
+          } else if (request.action === "update") {
+            if (!request.attachmentId) throw new Error("Attachment ID missing for update");
+            await tx.update(programAttachment).set(data).where(eq(programAttachment.id, request.attachmentId));
+          } else if (request.action === "delete") {
+            if (!request.attachmentId) throw new Error("Attachment ID missing for delete");
+            await tx.delete(programAttachment).where(eq(programAttachment.id, request.attachmentId));
+          }
+
+          await tx
+            .update(programAttachmentRequest)
+            .set({
+              status: "approved",
+              reviewedBy: context.session.user.id,
+              updatedAt: new Date(),
+            })
+            .where(eq(programAttachmentRequest.id, input.requestId));
+        });
+
+        // Notify Mentor
+        await sendNotification({
+          userId: request.requestedBy,
+          title: "Attachment Request Approved",
+          message: `Your request to ${request.action} attachment has been approved.`,
+          type: "success",
+          link: `/mentor/batches/${request.batchId}/attachments`,
+        });
+
+        return { success: true };
+      }),
+
+      reject: protectedProcedure
+        .input(z.object({ requestId: z.string(), reason: z.string().optional() }))
+        .handler(async ({ input, context }) => {
+          const request = await db.query.programAttachmentRequest.findFirst({
+            where: eq(programAttachmentRequest.id, input.requestId),
+          });
+
+          if (!request) throw new Error("Request not found");
+
+          await db
+            .update(programAttachmentRequest)
+            .set({
+              status: "rejected",
+              rejectionReason: input.reason,
+              reviewedBy: context.session.user.id,
+              updatedAt: new Date(),
+            })
+            .where(eq(programAttachmentRequest.id, input.requestId));
+
+          // Notify Mentor
+          await sendNotification({
+            userId: request.requestedBy,
+            title: "Attachment Request Rejected",
+            message: `Your request to ${request.action} attachment has been rejected.${
+              input.reason ? ` Reason: ${input.reason}` : ""
+            }`,
+            type: "error",
+            link: `/mentor/batches/${request.batchId}/attachments`,
+          });
+
           return { success: true };
         }),
     },

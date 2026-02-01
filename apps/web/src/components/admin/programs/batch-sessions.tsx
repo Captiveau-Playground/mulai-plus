@@ -166,7 +166,7 @@ export function BatchSessionsDialog({
   if (isFormOpen) {
     return (
       <Dialog open={true} onOpenChange={(open) => !open && setIsFormOpen(false)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>{editingSession ? "Edit Session" : "Create Session"}</DialogTitle>
             <DialogDescription>
@@ -198,7 +198,7 @@ export function BatchSessionsDialog({
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue>Select type</SelectValue>
+                            <SelectValue />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -251,7 +251,11 @@ export function BatchSessionsDialog({
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue>Select mentor</SelectValue>
+                            {field.value ? (
+                              <SelectValue />
+                            ) : (
+                              <span className="text-muted-foreground">Select mentor</span>
+                            )}
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -276,7 +280,11 @@ export function BatchSessionsDialog({
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue>Select student</SelectValue>
+                              {field.value ? (
+                                <SelectValue />
+                              ) : (
+                                <span className="text-muted-foreground">Select student</span>
+                              )}
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -326,7 +334,7 @@ export function BatchSessionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-4xl">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Sessions: {batch.name}</DialogTitle>
           <DialogDescription>Manage schedule for 1-on-1s and group mentoring.</DialogDescription>

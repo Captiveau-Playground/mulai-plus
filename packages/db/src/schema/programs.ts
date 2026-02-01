@@ -6,6 +6,8 @@ export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "abs
 export const sessionTypeEnum = pgEnum("session_type", ["one_on_one", "group_mentoring"]);
 export const sessionStatusEnum = pgEnum("session_status", ["scheduled", "completed", "cancelled", "missed"]);
 export const attachmentTypeEnum = pgEnum("attachment_type", ["file", "video", "link", "tool"]);
+export const attachmentActionEnum = pgEnum("attachment_action", ["create", "update", "delete"]);
+export const requestStatusEnum = pgEnum("request_status", ["pending", "approved", "rejected"]);
 
 export const program = pgTable("program", {
   id: text("id").primaryKey(),
@@ -191,6 +193,27 @@ export const programAttachment = pgTable("program_attachment", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const programAttachmentRequest = pgTable("program_attachment_request", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  attachmentId: text("attachment_id"), // Nullable for create action
+  action: attachmentActionEnum("action").notNull(),
+  data: jsonb("data").notNull(), // Snapshot of data to be applied
+  status: requestStatusEnum("status").default("pending").notNull(),
+  rejectionReason: text("rejection_reason"),
+  requestedBy: text("requested_by")
+    .notNull()
+    .references(() => user.id),
+  reviewedBy: text("reviewed_by").references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 export const programBatchMentor = pgTable(
   "program_batch_mentor",
   {
@@ -252,6 +275,7 @@ export const programBatchRelations = relations(programBatch, ({ one, many }) => 
   mentors: many(programBatchMentor),
   attendance: many(programAttendance),
   attachments: many(programAttachment),
+  attachmentRequests: many(programAttachmentRequest),
 }));
 
 export const programFaqRelations = relations(programFaq, ({ one }) => ({
@@ -351,5 +375,24 @@ export const programAttachmentRelations = relations(programAttachment, ({ one })
   session: one(programSession, {
     fields: [programAttachment.sessionId],
     references: [programSession.id],
+  }),
+}));
+
+export const programAttachmentRequestRelations = relations(programAttachmentRequest, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [programAttachmentRequest.batchId],
+    references: [programBatch.id],
+  }),
+  attachment: one(programAttachment, {
+    fields: [programAttachmentRequest.attachmentId],
+    references: [programAttachment.id],
+  }),
+  requestedBy: one(user, {
+    fields: [programAttachmentRequest.requestedBy],
+    references: [user.id],
+  }),
+  reviewedBy: one(user, {
+    fields: [programAttachmentRequest.reviewedBy],
+    references: [user.id],
   }),
 }));

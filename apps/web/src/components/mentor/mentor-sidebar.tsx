@@ -7,11 +7,20 @@ import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { CvgLogo } from "../admin/admin-sidebar";
+import { TeamSwitcher } from "../team-switcher";
 
 export function MentorSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = authClient.useSession();
 
   const data = {
+    teams: [
+      {
+        name: "MulaiPlus",
+        logo: CvgLogo,
+        plan: "Enterprise",
+      },
+    ],
     user: {
       name: session?.user?.name || "Mentor",
       email: session?.user?.email || "",
@@ -20,25 +29,32 @@ export function MentorSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
     navMain: [
       {
         title: "Dashboard",
-        url: "/mentor/dashboard",
+        url: "/mentor",
         icon: LayoutDashboard,
         isActive: true,
       },
       {
-        title: "Assignments",
-        url: "/mentor/assignments",
+        title: "My Sessions",
+        url: "/mentor/sessions",
         icon: FileText,
       },
+      {
+        title: "My Batches",
+        url: "/mentor/batches",
+        icon: BookOpen,
+      },
+      // {
+      //   title: "Assignments",
+      //   url: "/mentor/assignments",
+      //   icon: FileText,
+      // },
     ],
   };
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-4 py-2">
-          <BookOpen className="h-6 w-6" />
-          <span className="font-bold">LMS Mentor</span>
-        </div>
+        <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />

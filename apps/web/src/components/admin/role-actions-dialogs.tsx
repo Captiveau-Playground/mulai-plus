@@ -72,7 +72,7 @@ export function CreateRoleDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger render={children as React.ReactElement} />
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Create Role</DialogTitle>
           <DialogDescription>Add a new role to the system.</DialogDescription>
@@ -271,7 +271,7 @@ export function DeleteRoleDialog({ role, open, onOpenChange }: DeleteRoleDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Delete Role</DialogTitle>
           <DialogDescription>

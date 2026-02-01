@@ -220,7 +220,7 @@ export function TestimonialList() {
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Add Testimonial</DialogTitle>
             <DialogDescription>Create a new testimonial for a student.</DialogDescription>
@@ -239,7 +239,7 @@ export function TestimonialList() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editingTestimonial} onOpenChange={(open) => !open && setEditingTestimonial(null)}>
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Edit Testimonial</DialogTitle>
             <DialogDescription>Update the testimonial details.</DialogDescription>

@@ -206,7 +206,7 @@ export function ProgramFaqs({ programId }: { programId: string }) {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Add FAQ</DialogTitle>
             <DialogDescription>Add a new question and answer.</DialogDescription>
@@ -309,7 +309,7 @@ function EditFaqDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Edit FAQ</DialogTitle>
           <DialogDescription>Update the question and answer.</DialogDescription>
