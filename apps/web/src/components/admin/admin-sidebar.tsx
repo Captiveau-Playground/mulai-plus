@@ -1,12 +1,19 @@
 "use client";
 
-import { BookOpen, FileText, GalleryVerticalEnd, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import { BookOpen, FileText, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
 import { TeamSwitcher } from "@/components/team-switcher";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+
+function CvgLogo(props: React.ComponentProps<"img">) {
+  return (
+    // biome-ignore lint/a11y/useAltText: <explanation>
+    <img src="/main-icon-logo.svg" {...props} />
+  );
+}
 
 // This is sample data.
 const data = {
@@ -18,7 +25,7 @@ const data = {
   teams: [
     {
       name: "MulaiPlus",
-      logo: GalleryVerticalEnd,
+      logo: CvgLogo,
       plan: "Enterprise",
     },
   ],
