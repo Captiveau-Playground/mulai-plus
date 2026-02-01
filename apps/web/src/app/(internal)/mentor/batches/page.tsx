@@ -6,10 +6,11 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { MentorSidebar } from "@/components/mentor/mentor-sidebar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
 export default function MentorBatchesPage() {
@@ -109,9 +110,30 @@ export default function MentorBatchesPage() {
                         <Badge variant={batch.status === "active" ? "default" : "secondary"}>{batch.status}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm">
-                          <Link href={`/mentor/sessions?batchId=${batch.id}` as any}>View Sessions</Link>
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Link
+                            href={`/mentor/sessions?batchId=${batch.id}` as any}
+                            className={cn(
+                              buttonVariants({
+                                variant: "outline",
+                                size: "sm",
+                              }),
+                            )}
+                          >
+                            View Sessions
+                          </Link>
+                          <Link
+                            href={`/mentor/batches/${batch.id}/attendance` as any}
+                            className={cn(
+                              buttonVariants({
+                                variant: "outline",
+                                size: "sm",
+                              }),
+                            )}
+                          >
+                            Attendance
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
