@@ -2,8 +2,13 @@ import { randomUUID } from "node:crypto";
 import { and, count, db, desc, eq, gt } from "@better-auth-admin/db";
 import {
   attachmentTypeEnum,
+  attendanceStatusEnum,
   programAttachment,
+  programAttachmentRequest,
+  programAttendance,
+  programBatch,
   programBatchMentor,
+  programParticipant,
   programSession,
   sessionStatusEnum,
   sessionTypeEnum,
@@ -53,6 +58,184 @@ export const programActivitiesRouter = {
         completedSessions: completedSessions?.count ?? 0,
         assignedBatches: assignedBatches?.count ?? 0,
       };
+    }),
+
+    getBatchStudents: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+      const students = await db.query.programParticipant.findMany({
+        where: eq(programParticipant.batchId, input.batchId),
+        with: {
+          user: true,
+        },
+      });
+      return students.map((p) => p.user);
+    }),
+
+    getBatchAttendance: protectedProcedure
+      .input(z.object({ batchId: z.string() }))
+      .handler(async ({ input, context }) => {
+        const userId = context.session.user.id;
+        // Verify mentor assignment
+        const [assignment] = await db
+          .select()
+          .from(programBatchMentor)
+          .where(and(eq(programBatchMentor.batchId, input.batchId), eq(programBatchMentor.userId, userId)));
+
+        if (!assignment) {
+          throw new Error("Unauthorized: You are not assigned to this batch");
+        }
+
+        const batch = await db.query.programBatch.findFirst({
+          where: eq(programBatch.id, input.batchId),
+        });
+
+        if (!batch) {
+          throw new Error("Batch not found");
+        }
+
+        const participants = await db.query.programParticipant.findMany({
+          where: eq(programParticipant.batchId, input.batchId),
+          with: {
+            user: true,
+          },
+        });
+
+        const attendance = await db.query.programAttendance.findMany({
+          where: eq(programAttendance.batchId, input.batchId),
+        });
+
+        return {
+          batch,
+          participants: participants.map((p) => p.user),
+          attendance,
+        };
+      }),
+
+    updateBatchAttendance: protectedProcedure
+      .input(
+        z.object({
+          batchId: z.string(),
+          userId: z.string(),
+          week: z.number(),
+          status: z.enum(attendanceStatusEnum.enumValues),
+          notes: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input, context }) => {
+        const mentorId = context.session.user.id;
+        // Verify mentor assignment
+        const [assignment] = await db
+          .select()
+          .from(programBatchMentor)
+          .where(and(eq(programBatchMentor.batchId, input.batchId), eq(programBatchMentor.userId, mentorId)));
+
+        if (!assignment) {
+          throw new Error("Unauthorized: You are not assigned to this batch");
+        }
+
+        const existing = await db.query.programAttendance.findFirst({
+          where: and(
+            eq(programAttendance.batchId, input.batchId),
+            eq(programAttendance.userId, input.userId),
+            eq(programAttendance.week, input.week),
+          ),
+        });
+
+        if (existing) {
+          await db
+            .update(programAttendance)
+            .set({
+              status: input.status,
+              notes: input.notes,
+            })
+            .where(eq(programAttendance.id, existing.id));
+        } else {
+          await db.insert(programAttendance).values({
+            id: randomUUID(),
+            batchId: input.batchId,
+            userId: input.userId,
+            week: input.week,
+            status: input.status,
+            notes: input.notes,
+          });
+        }
+
+        return { success: true };
+      }),
+
+    createOneOnOne: protectedProcedure
+      .input(
+        z.object({
+          batchId: z.string(),
+          studentId: z.string(),
+          week: z.number(),
+          startsAt: z.string().transform((str) => new Date(str)),
+          durationMinutes: z.number().default(60),
+          meetingLink: z.string().optional(),
+          notes: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input, context }) => {
+        const newId = randomUUID();
+        await db.insert(programSession).values({
+          id: newId,
+          batchId: input.batchId,
+          mentorId: context.session.user.id,
+          studentId: input.studentId,
+          week: input.week,
+          type: "one_on_one",
+          status: "scheduled",
+          startsAt: input.startsAt,
+          durationMinutes: input.durationMinutes,
+          meetingLink: input.meetingLink,
+          notes: input.notes,
+        });
+        return { id: newId };
+      }),
+
+    updateOneOnOne: protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          startsAt: z
+            .string()
+            .transform((str) => new Date(str))
+            .optional(),
+          durationMinutes: z.number().optional(),
+          meetingLink: z.string().optional(),
+          recordingLink: z.string().optional(),
+          notes: z.string().optional(),
+          status: z.enum(sessionStatusEnum.enumValues).optional(),
+        }),
+      )
+      .handler(async ({ input, context }) => {
+        const { id, ...data } = input;
+
+        // Verify ownership
+        const [existing] = await db
+          .select()
+          .from(programSession)
+          .where(and(eq(programSession.id, id), eq(programSession.mentorId, context.session.user.id)));
+
+        if (!existing) {
+          throw new Error("Session not found or unauthorized");
+        }
+
+        await db.update(programSession).set(data).where(eq(programSession.id, id));
+        return { success: true };
+      }),
+
+    deleteOneOnOne: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
+      const [existing] = await db
+        .select()
+        .from(programSession)
+        .where(and(eq(programSession.id, input.id), eq(programSession.mentorId, context.session.user.id)));
+
+      if (!existing) {
+        throw new Error("Session not found or unauthorized");
+      }
+
+      await db.delete(programSession).where(eq(programSession.id, input.id));
+      return { success: true };
     }),
   },
   session: {
@@ -178,13 +361,17 @@ export const programActivitiesRouter = {
           url: z.string().url(),
         }),
       )
-      .handler(async ({ input }) => {
-        const id = randomUUID();
-        await db.insert(programAttachment).values({
-          id,
-          ...input,
+      .handler(async ({ input, context }) => {
+        const requestId = randomUUID();
+        await db.insert(programAttachmentRequest).values({
+          id: requestId,
+          batchId: input.batchId,
+          action: "create",
+          data: input,
+          requestedBy: context.session.user.id,
+          status: "pending",
         });
-        return { id };
+        return { requestId, status: "pending" };
       }),
 
     update: protectedProcedure
@@ -198,15 +385,50 @@ export const programActivitiesRouter = {
           sessionId: z.string().optional().nullable(),
         }),
       )
-      .handler(async ({ input }) => {
+      .handler(async ({ input, context }) => {
         const { id, ...data } = input;
-        await db.update(programAttachment).set(data).where(eq(programAttachment.id, id));
-        return { success: true };
+
+        const existing = await db.query.programAttachment.findFirst({
+          where: eq(programAttachment.id, id),
+        });
+
+        if (!existing) {
+          throw new Error("Attachment not found");
+        }
+
+        const requestId = randomUUID();
+        await db.insert(programAttachmentRequest).values({
+          id: requestId,
+          batchId: existing.batchId,
+          attachmentId: id,
+          action: "update",
+          data: data,
+          requestedBy: context.session.user.id,
+          status: "pending",
+        });
+        return { requestId, status: "pending" };
       }),
 
-    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
-      await db.delete(programAttachment).where(eq(programAttachment.id, input.id));
-      return { success: true };
+    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
+      const existing = await db.query.programAttachment.findFirst({
+        where: eq(programAttachment.id, input.id),
+      });
+
+      if (!existing) {
+        throw new Error("Attachment not found");
+      }
+
+      const requestId = randomUUID();
+      await db.insert(programAttachmentRequest).values({
+        id: requestId,
+        batchId: existing.batchId,
+        attachmentId: input.id,
+        action: "delete",
+        data: {},
+        requestedBy: context.session.user.id,
+        status: "pending",
+      });
+      return { requestId, status: "pending" };
     }),
   },
 };

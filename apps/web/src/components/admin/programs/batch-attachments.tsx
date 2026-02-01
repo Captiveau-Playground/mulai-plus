@@ -63,7 +63,7 @@ export function BatchAttachmentsDialog({
   const createMutation = useMutation(
     orpc.programActivities.attachment.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment added");
+        toast.success("Attachment creation request submitted for approval");
         setIsFormOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.attachment.list.key({
@@ -78,7 +78,7 @@ export function BatchAttachmentsDialog({
   const updateMutation = useMutation(
     orpc.programActivities.attachment.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment updated");
+        toast.success("Attachment update request submitted for approval");
         setIsFormOpen(false);
         setEditingAttachment(null);
         queryClient.invalidateQueries({
@@ -94,7 +94,7 @@ export function BatchAttachmentsDialog({
   const deleteMutation = useMutation(
     orpc.programActivities.attachment.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment deleted");
+        toast.success("Attachment deletion request submitted for approval");
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.attachment.list.key({
             input: { batchId: batch.id },
@@ -323,7 +323,7 @@ export function BatchAttachmentsDialog({
       <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Attachments: {batch.name}</DialogTitle>
-          <DialogDescription>Manage resources and links.</DialogDescription>
+          <DialogDescription>Manage resources and links. Actions require approval.</DialogDescription>
         </DialogHeader>
 
         <div className="flex justify-end">
