@@ -115,6 +115,8 @@ export const programActivitiesRouter = {
           name: z.string().min(1).optional(),
           type: z.enum(attachmentTypeEnum.enumValues).optional(),
           url: z.string().url().optional(),
+          week: z.number().optional(),
+          sessionId: z.string().optional().nullable(),
         }),
       )
       .handler(async ({ input }) => {

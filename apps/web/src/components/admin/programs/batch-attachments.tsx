@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { File, Link as LinkIcon, Loader2, Plus, Trash, Video } from "lucide-react";
+import { File, Link as LinkIcon, Loader2, Pencil, Plus, Trash, Video } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -43,6 +43,7 @@ export function BatchAttachmentsDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingAttachment, setEditingAttachment] = useState<any>(null);
   const queryClient = useQueryClient();
 
   // Queries
@@ -64,6 +65,22 @@ export function BatchAttachmentsDialog({
       onSuccess: () => {
         toast.success("Attachment added");
         setIsFormOpen(false);
+        queryClient.invalidateQueries({
+          queryKey: orpc.programActivities.attachment.list.key({
+            input: { batchId: batch.id },
+          }),
+        });
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
+
+  const updateMutation = useMutation(
+    orpc.programActivities.attachment.update.mutationOptions({
+      onSuccess: () => {
+        toast.success("Attachment updated");
+        setIsFormOpen(false);
+        setEditingAttachment(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.attachment.list.key({
             input: { batchId: batch.id },
@@ -99,15 +116,27 @@ export function BatchAttachmentsDialog({
   });
 
   const onSubmit = (values: AttachmentFormValues) => {
-    createMutation.mutate({
-      batchId: batch.id,
-      ...values,
-      week: values.week ? Number(values.week) : undefined,
-      sessionId: values.sessionId || undefined,
-    });
+    if (editingAttachment) {
+      updateMutation.mutate({
+        id: editingAttachment.id,
+        name: values.name,
+        type: values.type,
+        url: values.url,
+        week: values.week ? Number(values.week) : undefined,
+        sessionId: values.sessionId === "none" || !values.sessionId ? null : values.sessionId,
+      });
+    } else {
+      createMutation.mutate({
+        batchId: batch.id,
+        ...values,
+        week: values.week ? Number(values.week) : undefined,
+        sessionId: values.sessionId === "none" ? undefined : values.sessionId,
+      });
+    }
   };
 
   const handleCreate = () => {
+    setEditingAttachment(null);
     form.reset({
       name: "",
       type: "link",
@@ -118,15 +147,37 @@ export function BatchAttachmentsDialog({
     setIsFormOpen(true);
   };
 
+  const handleEdit = (attachment: any) => {
+    setEditingAttachment(attachment);
+    form.reset({
+      name: attachment.name,
+      type: attachment.type,
+      url: attachment.url,
+      week: attachment.week || undefined,
+      sessionId: attachment.sessionId || "none",
+    });
+    setIsFormOpen(true);
+  };
+
   const weeks = Array.from({ length: batch.durationWeeks }, (_, i) => i + 1);
 
   if (isFormOpen) {
     return (
-      <Dialog open={true} onOpenChange={(open) => !open && setIsFormOpen(false)}>
+      <Dialog
+        open={true}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsFormOpen(false);
+            setEditingAttachment(null);
+          }
+        }}
+      >
         <DialogContent className="min-w-7xl">
           <DialogHeader>
-            <DialogTitle>Add Attachment</DialogTitle>
-            <DialogDescription>Add a resource link for this batch.</DialogDescription>
+            <DialogTitle>{editingAttachment ? "Edit Attachment" : "Add Attachment"}</DialogTitle>
+            <DialogDescription>
+              {editingAttachment ? "Update the attachment details." : "Add a resource link for this batch."}
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -243,12 +294,21 @@ export function BatchAttachmentsDialog({
               />
 
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsFormOpen(false);
+                    setEditingAttachment(null);
+                  }}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Add
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {(createMutation.isPending || updateMutation.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {editingAttachment ? "Update" : "Add"}
                 </Button>
               </div>
             </form>
@@ -280,7 +340,7 @@ export function BatchAttachmentsDialog({
                 <TableHead>Type</TableHead>
                 <TableHead>Week</TableHead>
                 <TableHead>Linked Session</TableHead>
-                <TableHead className="w-[50px]" />
+                <TableHead className="w-[100px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -325,7 +385,10 @@ export function BatchAttachmentsDialog({
                         "-"
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(attachment)} className="mr-2">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
