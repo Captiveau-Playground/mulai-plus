@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, count, db, desc, eq, gt } from "@better-auth-admin/db";
+import { user } from "@better-auth-admin/db/schema/auth";
 import {
   attachmentTypeEnum,
   attendanceStatusEnum,
@@ -15,6 +16,7 @@ import {
 } from "@better-auth-admin/db/schema/programs";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { sendNotification } from "../lib/notification";
 
 export const programActivitiesRouter = {
   mentor: {
@@ -371,6 +373,21 @@ export const programActivitiesRouter = {
           requestedBy: context.session.user.id,
           status: "pending",
         });
+
+        // Notify Admins
+        const admins = await db.select().from(user).where(eq(user.role, "admin"));
+        await Promise.all(
+          admins.map((admin) =>
+            sendNotification({
+              userId: admin.id,
+              title: "New Attachment Request",
+              message: `${context.session.user.name} requested to add "${input.name}"`,
+              type: "info",
+              link: "/admin/programs",
+            }),
+          ),
+        );
+
         return { requestId, status: "pending" };
       }),
 
@@ -406,6 +423,21 @@ export const programActivitiesRouter = {
           requestedBy: context.session.user.id,
           status: "pending",
         });
+
+        // Notify Admins
+        const admins = await db.select().from(user).where(eq(user.role, "admin"));
+        await Promise.all(
+          admins.map((admin) =>
+            sendNotification({
+              userId: admin.id,
+              title: "Update Attachment Request",
+              message: `${context.session.user.name} requested to update "${existing.name}"`,
+              type: "info",
+              link: "/admin/programs",
+            }),
+          ),
+        );
+
         return { requestId, status: "pending" };
       }),
 
@@ -428,7 +460,35 @@ export const programActivitiesRouter = {
         requestedBy: context.session.user.id,
         status: "pending",
       });
+
+      // Notify Admins
+      const admins = await db.select().from(user).where(eq(user.role, "admin"));
+      await Promise.all(
+        admins.map((admin) =>
+          sendNotification({
+            userId: admin.id,
+            title: "Delete Attachment Request",
+            message: `${context.session.user.name} requested to delete "${existing.name}"`,
+            type: "info",
+            link: "/admin/programs",
+          }),
+        ),
+      );
+
       return { requestId, status: "pending" };
+    }),
+
+    myRequests: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input, context }) => {
+      return await db.query.programAttachmentRequest.findMany({
+        where: and(
+          eq(programAttachmentRequest.batchId, input.batchId),
+          eq(programAttachmentRequest.requestedBy, context.session.user.id),
+        ),
+        orderBy: [desc(programAttachmentRequest.createdAt)],
+        with: {
+          attachment: true,
+        },
+      });
     }),
   },
 };

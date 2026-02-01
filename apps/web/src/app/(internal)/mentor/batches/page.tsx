@@ -133,6 +133,17 @@ export default function MentorBatchesPage() {
                           >
                             Attendance
                           </Link>
+                          <Link
+                            href={`/mentor/batches/${batch.id}/attachments` as any}
+                            className={cn(
+                              buttonVariants({
+                                variant: "outline",
+                                size: "sm",
+                              }),
+                            )}
+                          >
+                            Attachments
+                          </Link>
                         </div>
                       </TableCell>
                     </TableRow>

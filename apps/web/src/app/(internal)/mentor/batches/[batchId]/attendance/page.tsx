@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -115,7 +116,7 @@ export default function MentorBatchAttendancePage() {
               <Link href={"/mentor/batches" as any} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
-              <h1 className="font-semibold text-lg">{data?.batch?.name} - Attendance</h1>
+              <h1 className="font-semibold text-lg">{data?.batch?.name}</h1>
             </div>
             {Object.keys(updates).length > 0 && (
               <Button onClick={handleSave} disabled={updateMutation.isPending}>
@@ -128,6 +129,17 @@ export default function MentorBatchAttendancePage() {
               </Button>
             )}
           </div>
+
+          <Tabs defaultValue="attendance" className="w-full">
+            <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+              <TabsTrigger value="attendance">Attendance</TabsTrigger>
+              <Link href={`/mentor/batches/${batchId}/attachments` as any} className="w-full">
+                <TabsTrigger value="attachments" className="w-full">
+                  Resources
+                </TabsTrigger>
+              </Link>
+            </TabsList>
+          </Tabs>
 
           <div className="rounded-md border">
             {isLoading ? (

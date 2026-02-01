@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { File, Link as LinkIcon, Loader2, Pencil, Plus, Trash, Video } from "lucide-react";
+import { Check, File, Link as LinkIcon, Loader2, Pencil, Plus, Trash, Video, X } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { orpc } from "@/utils/orpc";
 
 const attachmentSchema = z.object({
@@ -59,7 +60,46 @@ export function BatchAttachmentsDialog({
     }),
   );
 
+  const { data: requests, isLoading: isLoadingRequests } = useQuery(
+    orpc.programs.admin.attachmentRequests.list.queryOptions({
+      input: { batchId: batch.id, status: "pending" },
+    }),
+  );
+
   // Mutations
+  const approveMutation = useMutation(
+    orpc.programs.admin.attachmentRequests.approve.mutationOptions({
+      onSuccess: () => {
+        toast.success("Request approved");
+        queryClient.invalidateQueries({
+          queryKey: orpc.programs.admin.attachmentRequests.list.key({
+            input: { batchId: batch.id },
+          }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.programActivities.attachment.list.key({
+            input: { batchId: batch.id },
+          }),
+        });
+      },
+      onError: (err: Error) => toast.error(err.message),
+    }),
+  );
+
+  const rejectMutation = useMutation(
+    orpc.programs.admin.attachmentRequests.reject.mutationOptions({
+      onSuccess: () => {
+        toast.success("Request rejected");
+        queryClient.invalidateQueries({
+          queryKey: orpc.programs.admin.attachmentRequests.list.key({
+            input: { batchId: batch.id },
+          }),
+        });
+      },
+      onError: (err: Error) => toast.error(err.message),
+    }),
+  );
+
   const createMutation = useMutation(
     orpc.programActivities.attachment.create.mutationOptions({
       onSuccess: () => {
@@ -71,7 +111,7 @@ export function BatchAttachmentsDialog({
           }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err: Error) => toast.error(err.message),
     }),
   );
 
@@ -87,7 +127,7 @@ export function BatchAttachmentsDialog({
           }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err: Error) => toast.error(err.message),
     }),
   );
 
@@ -323,91 +363,187 @@ export function BatchAttachmentsDialog({
       <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Attachments: {batch.name}</DialogTitle>
-          <DialogDescription>Manage resources and links. Actions require approval.</DialogDescription>
+          <DialogDescription>Manage resources and links.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex justify-end">
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" /> Add Attachment
-          </Button>
-        </div>
+        <Tabs defaultValue="active" className="w-full">
+          <div className="mb-4 flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="active">Active Attachments</TabsTrigger>
+              <TabsTrigger value="requests">
+                Requests
+                {requests?.data && requests.data.length > 0 && (
+                  <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                    {requests.data.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+            <Button onClick={handleCreate}>
+              <Plus className="mr-2 h-4 w-4" /> Add Attachment
+            </Button>
+          </div>
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Week</TableHead>
-                <TableHead>Linked Session</TableHead>
-                <TableHead className="w-[100px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                  </TableCell>
-                </TableRow>
-              ) : attachments?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    No attachments found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                attachments?.map((attachment) => (
-                  <TableRow key={attachment.id}>
-                    <TableCell>
-                      <a
-                        href={attachment.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center font-medium hover:underline"
-                      >
-                        {attachment.type === "video" ? (
-                          <Video className="mr-2 h-4 w-4" />
-                        ) : attachment.type === "file" ? (
-                          <File className="mr-2 h-4 w-4" />
-                        ) : (
-                          <LinkIcon className="mr-2 h-4 w-4" />
-                        )}
-                        {attachment.name}
-                      </a>
-                    </TableCell>
-                    <TableCell className="capitalize">{attachment.type}</TableCell>
-                    <TableCell>{attachment.week ? `Week ${attachment.week}` : "All Weeks"}</TableCell>
-                    <TableCell>
-                      {attachment.sessionId ? (
-                        <span className="text-muted-foreground text-xs">Linked to session</span>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(attachment)} className="mr-2">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600"
-                        onClick={() => {
-                          if (confirm("Are you sure?")) {
-                            deleteMutation.mutate({ id: attachment.id });
-                          }
-                        }}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+          <TabsContent value="active">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Week</TableHead>
+                    <TableHead>Linked Session</TableHead>
+                    <TableHead className="w-[100px]" />
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                      </TableCell>
+                    </TableRow>
+                  ) : attachments?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        No attachments found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    attachments?.map((attachment) => (
+                      <TableRow key={attachment.id}>
+                        <TableCell>
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center font-medium hover:underline"
+                          >
+                            {attachment.type === "video" ? (
+                              <Video className="mr-2 h-4 w-4" />
+                            ) : attachment.type === "file" ? (
+                              <File className="mr-2 h-4 w-4" />
+                            ) : (
+                              <LinkIcon className="mr-2 h-4 w-4" />
+                            )}
+                            {attachment.name}
+                          </a>
+                        </TableCell>
+                        <TableCell className="capitalize">{attachment.type}</TableCell>
+                        <TableCell>{attachment.week ? `Week ${attachment.week}` : "All Weeks"}</TableCell>
+                        <TableCell>
+                          {attachment.sessionId ? (
+                            <span className="text-muted-foreground text-xs">Linked to session</span>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(attachment)} className="mr-2">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600"
+                            onClick={() => {
+                              if (confirm("Are you sure?")) {
+                                deleteMutation.mutate({ id: attachment.id });
+                              }
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="requests">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead>Requested By</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingRequests ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                      </TableCell>
+                    </TableRow>
+                  ) : requests?.data?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        No pending requests.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    requests?.data?.map((req: any) => (
+                      <TableRow key={req.id}>
+                        <TableCell className="font-medium capitalize">{req.action}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col text-sm">
+                            {req.action === "create" || req.action === "update" ? (
+                              <>
+                                <span className="font-medium">{(req.data as any).name}</span>
+                                <span className="text-muted-foreground">{(req.data as any).type}</span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">Attachment ID: {req.attachmentId}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{req.requestedBy?.name || "Unknown"}</TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center rounded-full border border-transparent bg-yellow-500 px-2.5 py-0.5 font-semibold text-white text-xs shadow transition-colors hover:bg-yellow-500/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                            {req.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              className="h-8 w-8 bg-green-600 p-0 hover:bg-green-700"
+                              onClick={() => approveMutation.mutate({ requestId: req.id })}
+                              disabled={approveMutation.isPending}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-8 w-8 p-0"
+                              onClick={() =>
+                                rejectMutation.mutate({
+                                  requestId: req.id,
+                                  reason: "Admin rejected",
+                                })
+                              }
+                              disabled={rejectMutation.isPending}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
