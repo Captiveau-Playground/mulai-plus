@@ -4,14 +4,14 @@
     "": {
       "name": "better-auth-admin",
       "dependencies": {
-        "@better-auth-admin/env": "workspace:*",
+        "@mulai-plus/env": "workspace:*",
         "@supabase/supabase-js": "^2.91.1",
         "dotenv": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@better-auth-admin/config": "workspace:*",
         "@biomejs/biome": "^2.2.0",
+        "@mulai-plus/config": "workspace:*",
         "@types/bun": "catalog:",
         "husky": "^9.1.7",
         "lint-staged": "^16.1.2",
@@ -22,10 +22,10 @@
     "apps/server": {
       "name": "server",
       "dependencies": {
-        "@better-auth-admin/api": "workspace:*",
-        "@better-auth-admin/auth": "workspace:*",
-        "@better-auth-admin/db": "workspace:*",
-        "@better-auth-admin/env": "workspace:*",
+        "@mulai-plus/api": "workspace:*",
+        "@mulai-plus/auth": "workspace:*",
+        "@mulai-plus/db": "workspace:*",
+        "@mulai-plus/env": "workspace:*",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
@@ -35,7 +35,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@better-auth-admin/config": "workspace:*",
+        "@mulai-plus/config": "workspace:*",
         "@types/bun": "catalog:",
         "tsdown": "^0.16.5",
         "typescript": "catalog:",
@@ -46,14 +46,14 @@
       "version": "0.1.0",
       "dependencies": {
         "@base-ui/react": "^1.0.0",
-        "@better-auth-admin/api": "workspace:*",
-        "@better-auth-admin/auth": "workspace:*",
-        "@better-auth-admin/env": "workspace:*",
         "@dnd-kit/core": "^6.3.1",
         "@dnd-kit/modifiers": "^9.0.0",
         "@dnd-kit/sortable": "^10.0.0",
         "@dnd-kit/utilities": "^3.2.2",
         "@hookform/resolvers": "^5.2.2",
+        "@mulai-plus/api": "workspace:*",
+        "@mulai-plus/auth": "workspace:*",
+        "@mulai-plus/env": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/tanstack-query": "^1.12.2",
@@ -86,7 +86,7 @@
         "zod": "^4.2.1",
       },
       "devDependencies": {
-        "@better-auth-admin/config": "workspace:*",
+        "@mulai-plus/config": "workspace:*",
         "@tailwindcss/postcss": "^4.1.10",
         "@tanstack/react-query-devtools": "^5.91.1",
         "@types/node": "^20",
@@ -97,11 +97,11 @@
       },
     },
     "packages/api": {
-      "name": "@better-auth-admin/api",
+      "name": "@mulai-plus/api",
       "dependencies": {
-        "@better-auth-admin/auth": "workspace:*",
-        "@better-auth-admin/db": "workspace:*",
-        "@better-auth-admin/env": "workspace:*",
+        "@mulai-plus/auth": "workspace:*",
+        "@mulai-plus/db": "workspace:*",
+        "@mulai-plus/env": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
@@ -113,47 +113,47 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@better-auth-admin/config": "workspace:*",
+        "@mulai-plus/config": "workspace:*",
         "typescript": "catalog:",
       },
     },
     "packages/auth": {
-      "name": "@better-auth-admin/auth",
+      "name": "@mulai-plus/auth",
       "dependencies": {
-        "@better-auth-admin/db": "workspace:*",
-        "@better-auth-admin/env": "workspace:*",
+        "@mulai-plus/db": "workspace:*",
+        "@mulai-plus/env": "workspace:*",
         "better-auth": "catalog:",
         "dotenv": "catalog:",
         "drizzle-orm": "^0.45.1",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@better-auth-admin/config": "workspace:*",
+        "@mulai-plus/config": "workspace:*",
         "typescript": "catalog:",
       },
     },
     "packages/config": {
-      "name": "@better-auth-admin/config",
+      "name": "@mulai-plus/config",
       "version": "0.0.0",
     },
     "packages/db": {
-      "name": "@better-auth-admin/db",
+      "name": "@mulai-plus/db",
       "dependencies": {
-        "@better-auth-admin/env": "workspace:*",
+        "@mulai-plus/env": "workspace:*",
         "dotenv": "catalog:",
         "drizzle-orm": "^0.45.1",
         "pg": "^8.16.3",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@better-auth-admin/config": "workspace:*",
+        "@mulai-plus/config": "workspace:*",
         "@types/pg": "^8.15.6",
         "drizzle-kit": "^0.31.8",
         "typescript": "catalog:",
       },
     },
     "packages/env": {
-      "name": "@better-auth-admin/env",
+      "name": "@mulai-plus/env",
       "version": "0.0.0",
       "dependencies": {
         "@t3-oss/env-core": "^0.13.1",
@@ -162,7 +162,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@better-auth-admin/config": "workspace:*",
+        "@mulai-plus/config": "workspace:*",
         "@types/bun": "catalog:",
         "typescript": "catalog:",
       },
@@ -246,16 +246,6 @@
     "@base-ui/react": ["@base-ui/react@1.0.0", "", { "dependencies": { "@babel/runtime": "^7.28.4", "@base-ui/utils": "0.2.3", "@floating-ui/react-dom": "^2.1.6", "@floating-ui/utils": "^0.2.10", "reselect": "^5.1.1", "tabbable": "^6.3.0", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "@types/react": "^17 || ^18 || ^19", "react": "^17 || ^18 || ^19", "react-dom": "^17 || ^18 || ^19" }, "optionalPeers": ["@types/react"] }, "sha512-4USBWz++DUSLTuIYpbYkSgy1F9ZmNG9S/lXvlUN6qMK0P0RlW+6eQmDUB4DgZ7HVvtXl4pvi4z5J2fv6Z3+9hg=="],
 
     "@base-ui/utils": ["@base-ui/utils@0.2.3", "", { "dependencies": { "@babel/runtime": "^7.28.4", "@floating-ui/utils": "^0.2.10", "reselect": "^5.1.1", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "@types/react": "^17 || ^18 || ^19", "react": "^17 || ^18 || ^19", "react-dom": "^17 || ^18 || ^19" }, "optionalPeers": ["@types/react"] }, "sha512-/CguQ2PDaOzeVOkllQR8nocJ0FFIDqsWIcURsVmm53QGo8NhFNpePjNlyPIB41luxfOqnG7PU0xicMEw3ls7XQ=="],
-
-    "@better-auth-admin/api": ["@better-auth-admin/api@workspace:packages/api"],
-
-    "@better-auth-admin/auth": ["@better-auth-admin/auth@workspace:packages/auth"],
-
-    "@better-auth-admin/config": ["@better-auth-admin/config@workspace:packages/config"],
-
-    "@better-auth-admin/db": ["@better-auth-admin/db@workspace:packages/db"],
-
-    "@better-auth-admin/env": ["@better-auth-admin/env@workspace:packages/env"],
 
     "@better-auth/core": ["@better-auth/core@1.4.9", "", { "dependencies": { "@standard-schema/spec": "^1.0.0", "zod": "^4.1.12" }, "peerDependencies": { "@better-auth/utils": "0.3.0", "@better-fetch/fetch": "1.1.21", "better-call": "1.1.7", "jose": "^6.1.0", "kysely": "^0.28.5", "nanostores": "^1.0.1" } }, "sha512-JT2q4NDkQzN22KclUEoZ7qU6tl9HUTfK1ctg2oWlT87SEagkwJcnrUwS9VznL+u9ziOIfY27P0f7/jSnmvLcoQ=="],
 
@@ -452,6 +442,16 @@
     "@modelcontextprotocol/sdk": ["@modelcontextprotocol/sdk@1.25.1", "", { "dependencies": { "@hono/node-server": "^1.19.7", "ajv": "^8.17.1", "ajv-formats": "^3.0.1", "content-type": "^1.0.5", "cors": "^2.8.5", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "express": "^5.0.1", "express-rate-limit": "^7.5.0", "jose": "^6.1.1", "json-schema-typed": "^8.0.2", "pkce-challenge": "^5.0.0", "raw-body": "^3.0.0", "zod": "^3.25 || ^4.0", "zod-to-json-schema": "^3.25.0" }, "peerDependencies": { "@cfworker/json-schema": "^4.1.1" }, "optionalPeers": ["@cfworker/json-schema"] }, "sha512-yO28oVFFC7EBoiKdAn+VqRm+plcfv4v0xp6osG/VsCB0NlPZWi87ajbCZZ8f/RvOFLEu7//rSRmuZZ7lMoe3gQ=="],
 
     "@mswjs/interceptors": ["@mswjs/interceptors@0.40.0", "", { "dependencies": { "@open-draft/deferred-promise": "^2.2.0", "@open-draft/logger": "^0.3.0", "@open-draft/until": "^2.0.0", "is-node-process": "^1.2.0", "outvariant": "^1.4.3", "strict-event-emitter": "^0.5.1" } }, "sha512-EFd6cVbHsgLa6wa4RljGj6Wk75qoHxUSyc5asLyyPSyuhIcdS2Q3Phw6ImS1q+CkALthJRShiYfKANcQMuMqsQ=="],
+
+    "@mulai-plus/api": ["@mulai-plus/api@workspace:packages/api"],
+
+    "@mulai-plus/auth": ["@mulai-plus/auth@workspace:packages/auth"],
+
+    "@mulai-plus/config": ["@mulai-plus/config@workspace:packages/config"],
+
+    "@mulai-plus/db": ["@mulai-plus/db@workspace:packages/db"],
+
+    "@mulai-plus/env": ["@mulai-plus/env@workspace:packages/env"],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.0", "", { "dependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1", "@tybys/wasm-util": "^0.10.1" } }, "sha512-Fq6DJW+Bb5jaWE69/qOE0D1TUN9+6uWhCeZpdnSBk14pjLcCWR7Q8n49PTSPHazM37JqrsdpEthXy2xn6jWWiA=="],
 

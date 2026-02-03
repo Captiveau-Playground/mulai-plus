@@ -3,13 +3,13 @@
 import { useMutation } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { orpc } from "@/utils/orpc";
 
-export default function FinishPaymentPage() {
+function FinishPaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "pending" | "failed">("loading");
@@ -107,5 +107,19 @@ export default function FinishPaymentPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function FinishPaymentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <FinishPaymentContent />
+    </Suspense>
   );
 }

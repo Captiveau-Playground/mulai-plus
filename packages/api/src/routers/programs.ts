@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, inArray, isNull, sql } from "@better-auth-admin/db";
-import { auditLog } from "@better-auth-admin/db/schema/audit";
-import { user } from "@better-auth-admin/db/schema/auth";
+import { and, count, db, desc, eq, inArray, isNull, sql } from "@mulai-plus/db";
+import { auditLog } from "@mulai-plus/db/schema/audit";
+import { user } from "@mulai-plus/db/schema/auth";
 import {
   program,
   programApplication,
@@ -15,8 +15,8 @@ import {
   programParticipant,
   programSyllabus,
   requestStatusEnum,
-} from "@better-auth-admin/db/schema/programs";
-import { systemSettings } from "@better-auth-admin/db/schema/settings";
+} from "@mulai-plus/db/schema/programs";
+import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import {

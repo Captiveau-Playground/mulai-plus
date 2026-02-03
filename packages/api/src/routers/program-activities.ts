@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, gt } from "@better-auth-admin/db";
-import { user } from "@better-auth-admin/db/schema/auth";
+import { and, count, db, desc, eq, gt } from "@mulai-plus/db";
+import { user } from "@mulai-plus/db/schema/auth";
 import {
   attachmentTypeEnum,
   attendanceStatusEnum,
@@ -13,7 +13,7 @@ import {
   programSession,
   sessionStatusEnum,
   sessionTypeEnum,
-} from "@better-auth-admin/db/schema/programs";
+} from "@mulai-plus/db/schema/programs";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import { sendNotification } from "../lib/notification";

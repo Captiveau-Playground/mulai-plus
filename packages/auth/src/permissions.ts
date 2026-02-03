@@ -1,5 +1,5 @@
-import { db, eq } from "@better-auth-admin/db";
-import * as schema from "@better-auth-admin/db/schema/auth";
+import { db, eq } from "@mulai-plus/db";
+import * as schema from "@mulai-plus/db/schema/auth";
 import { createAccessControl } from "better-auth/plugins/access";
 
 /**
