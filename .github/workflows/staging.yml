@@ -124,15 +124,34 @@ jobs:
             # Masuk ke direktori project (sesuaikan path ini di VPS Anda atau set via secrets)
             cd ${{ secrets.VPS_PROJECT_PATH }}
 
-            # Pull perubahan code terbaru (termasuk docker-compose.staging.yml)
-            git pull origin staging
+            # Clone atau Pull repo (menggunakan HTTPS dengan Token)
+            if [ ! -d "${{ secrets.VPS_PROJECT_PATH }}/.git" ]; then
+              git clone https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git ${{ secrets.VPS_PROJECT_PATH }}
+              cd ${{ secrets.VPS_PROJECT_PATH }}
+            else
+              cd ${{ secrets.VPS_PROJECT_PATH }}
+              git remote set-url origin https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git
+              git pull origin staging
+            fi
 
             # Login ke GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+            # Buat file .env.staging dari secrets
+            echo "PORT_WEB=3001" > .env.staging
+            echo "PORT_SERVER=3000" >> .env.staging
+            echo "NODE_ENV=staging" >> .env.staging
+            echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}" >> .env.staging
+            # Tambahkan variable lain sesuai kebutuhan runtime server
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env.staging
+            echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> .env.staging
+            echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> .env.staging
+            echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env.staging
+            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env.staging
+            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.staging
+
             # Pull image docker terbaru
             docker compose -f docker-compose.staging.yml pull
 
-            # Restart container dengan image baru
-            # Pastikan file .env.staging sudah ada di VPS
+            # Restart container
             docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
