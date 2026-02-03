@@ -137,8 +137,11 @@ jobs:
             # Login ke GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+            # Convert repository name to lowercase
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
             # Buat file .env.staging dari secrets
-            echo "GITHUB_REPOSITORY=${{ github.repository }}" > .env.staging
+            echo "GITHUB_REPOSITORY=$REPO_LOWER" > .env.staging
             echo "PORT_WEB=3001" >> .env.staging
             echo "PORT_SERVER=3000" >> .env.staging
             echo "NODE_ENV=staging" >> .env.staging
@@ -150,6 +153,17 @@ jobs:
             echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env.staging
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env.staging
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.staging
+
+            # DEBUG: Cek apakah file .env.staging terisi (Hanya tampilkan key, sembunyikan value sensitif)
+            echo "=== DEBUG: Checking .env.staging content (Values masked) ==="
+            while IFS='=' read -r key value; do
+              if [ -n "$value" ]; then
+                echo "$key=****** (Length: ${#value})"
+              else
+                echo "$key=(EMPTY)"
+              fi
+            done < .env.staging
+            echo "=========================================================="
 
             # Pull image docker terbaru
             docker compose -f docker-compose.staging.yml pull
