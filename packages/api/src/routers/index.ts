@@ -1,6 +1,6 @@
-import { count, db, desc, eq, sql } from "@better-auth-admin/db";
-import { permission, role, session, user } from "@better-auth-admin/db/schema/auth";
-import { program, programApplication } from "@better-auth-admin/db/schema/programs";
+import { count, db, desc, eq, sql } from "@mulai-plus/db";
+import { permission, role, session, user } from "@mulai-plus/db/schema/auth";
+import { program, programApplication } from "@mulai-plus/db/schema/programs";
 import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
@@ -8,19 +8,24 @@ import { auditRouter } from "./audit";
 import { lmsRouter } from "./lms";
 import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
+import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
+import { testimonialsRouter } from "./testimonials";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
   settings: settingsRouter,
+  testimonials: testimonialsRouter,
   lms: lmsRouter,
   programs: programsRouter,
+  programActivities: programActivitiesRouter,
   payments: paymentsRouter,
   audit: auditRouter,
   notification: notificationRouter,
+
   privateData: protectedProcedure.handler(({ context }) => {
     return {
       message: "This is private",
@@ -98,7 +103,7 @@ export const appRouter = {
     update: protectedProcedure
       .input(
         z.object({
-          id: z.string(),
+          id: z.string().min(1),
           name: z.string().min(1),
           description: z.string().optional(),
           permissions: z.array(z.string()),
@@ -111,6 +116,7 @@ export const appRouter = {
             name: input.name,
             description: input.description,
             permissions: input.permissions,
+            updatedAt: new Date(),
           })
           .where(eq(role.id, input.id));
         return { success: true };
@@ -118,6 +124,26 @@ export const appRouter = {
     delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(role).where(eq(role.id, input.id));
       return { success: true };
+    }),
+  },
+  user: {
+    myPermissions: protectedProcedure.handler(async ({ context }) => {
+      if (!context.session?.user) return [];
+      const userRole = context.session.user.role || "student";
+      const [roleData] = await db.select().from(role).where(eq(role.id, userRole));
+      return roleData?.permissions || [];
+    }),
+    listStudents: protectedProcedure.handler(async () => {
+      const students = await db.query.user.findMany({
+        where: eq(user.role, "student"),
+        columns: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+      });
+      return students;
     }),
   },
   permission: {

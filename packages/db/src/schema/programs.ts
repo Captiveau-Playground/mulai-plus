@@ -1,15 +1,20 @@
-import { relations } from "drizzle-orm";
-import { integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { check, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./auth";
+
+export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "absent", "excused"]);
+export const sessionTypeEnum = pgEnum("session_type", ["one_on_one", "group_mentoring"]);
+export const sessionStatusEnum = pgEnum("session_status", ["scheduled", "completed", "cancelled", "missed"]);
+export const attachmentTypeEnum = pgEnum("attachment_type", ["file", "video", "link", "tool"]);
+export const attachmentActionEnum = pgEnum("attachment_action", ["create", "update", "delete"]);
+export const requestStatusEnum = pgEnum("request_status", ["pending", "approved", "rejected"]);
 
 export const program = pgTable("program", {
   id: text("id").primaryKey(),
   slug: text("slug").unique().notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  durationWeeks: integer("duration_weeks").default(0).notNull(), // Kept as general info
-  // quota: integer("quota").default(0).notNull(), // Moved to batch
-  status: text("status").default("draft").notNull(), // active | inactive | draft
+  bannerUrl: text("banner_url"),
   registrationForm: jsonb("registration_form"), // Form definition for applicants
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -25,6 +30,8 @@ export const programBatch = pgTable("program_batch", {
     .notNull()
     .references(() => program.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // e.g. "Batch 1 - Jan 2024"
+  bannerUrl: text("banner_url"),
+  durationWeeks: integer("duration_weeks").default(0).notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   registrationStartDate: timestamp("registration_start_date").notNull(),
@@ -145,13 +152,61 @@ export const programParticipant = pgTable("program_participant", {
 
 export const programSession = pgTable("program_session", {
   id: text("id").primaryKey(),
-  programId: text("program_id")
+  batchId: text("batch_id")
     .notNull()
-    .references(() => program.id, { onDelete: "cascade" }),
-  batchId: text("batch_id").references(() => programBatch.id),
-  mentorId: text("mentor_id").references(() => user.id),
-  datetime: timestamp("datetime").notNull(),
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  mentorId: text("mentor_id")
+    .notNull()
+    .references(() => user.id),
+  studentId: text("student_id").references(() => user.id), // Nullable for Group Sessions
+
+  week: integer("week").notNull(),
+  type: sessionTypeEnum("type").notNull(),
+  status: sessionStatusEnum("status").default("scheduled").notNull(),
+
+  startsAt: timestamp("starts_at").notNull(),
+  durationMinutes: integer("duration_minutes").default(60).notNull(),
+  meetingLink: text("meeting_link"),
+  recordingLink: text("recording_link"),
+
   notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const programAttachment = pgTable("program_attachment", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+
+  week: integer("week"), // Nullable (Batch level)
+  sessionId: text("session_id").references(() => programSession.id), // Nullable
+
+  name: text("name").notNull(),
+  type: attachmentTypeEnum("type").notNull(),
+  url: text("url").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const programAttachmentRequest = pgTable("program_attachment_request", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  attachmentId: text("attachment_id"), // Nullable for create action
+  action: attachmentActionEnum("action").notNull(),
+  data: jsonb("data").notNull(), // Snapshot of data to be applied
+  status: requestStatusEnum("status").default("pending").notNull(),
+  rejectionReason: text("rejection_reason"),
+  requestedBy: text("requested_by")
+    .notNull()
+    .references(() => user.id),
+  reviewedBy: text("reviewed_by").references(() => user.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -186,7 +241,7 @@ export const programAttendance = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     week: integer("week").notNull(),
-    status: text("status").notNull(), // 'present', 'absent', 'excused'
+    status: attendanceStatusEnum("status").notNull(),
     notes: text("notes"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -196,6 +251,7 @@ export const programAttendance = pgTable(
   },
   (t) => ({
     unq: { columns: [t.batchId, t.userId, t.week] },
+    weekCheck: check("week_check", sql`${t.week} > 0`),
   }),
 );
 
@@ -204,7 +260,6 @@ export const programRelations = relations(program, ({ many }) => ({
   syllabus: many(programSyllabus),
   applications: many(programApplication),
   participants: many(programParticipant),
-  sessions: many(programSession),
   batches: many(programBatch),
   faqs: many(programFaq),
   benefits: many(programBenefit),
@@ -219,6 +274,8 @@ export const programBatchRelations = relations(programBatch, ({ one, many }) => 
   sessions: many(programSession),
   mentors: many(programBatchMentor),
   attendance: many(programAttendance),
+  attachments: many(programAttachment),
+  attachmentRequests: many(programAttachmentRequest),
 }));
 
 export const programFaqRelations = relations(programFaq, ({ one }) => ({
@@ -290,6 +347,52 @@ export const programParticipantRelations = relations(programParticipant, ({ one 
   }),
   user: one(user, {
     fields: [programParticipant.userId],
+    references: [user.id],
+  }),
+}));
+
+export const programSessionRelations = relations(programSession, ({ one, many }) => ({
+  batch: one(programBatch, {
+    fields: [programSession.batchId],
+    references: [programBatch.id],
+  }),
+  mentor: one(user, {
+    fields: [programSession.mentorId],
+    references: [user.id],
+  }),
+  student: one(user, {
+    fields: [programSession.studentId],
+    references: [user.id],
+  }),
+  attachments: many(programAttachment),
+}));
+
+export const programAttachmentRelations = relations(programAttachment, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [programAttachment.batchId],
+    references: [programBatch.id],
+  }),
+  session: one(programSession, {
+    fields: [programAttachment.sessionId],
+    references: [programSession.id],
+  }),
+}));
+
+export const programAttachmentRequestRelations = relations(programAttachmentRequest, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [programAttachmentRequest.batchId],
+    references: [programBatch.id],
+  }),
+  attachment: one(programAttachment, {
+    fields: [programAttachmentRequest.attachmentId],
+    references: [programAttachment.id],
+  }),
+  requestedBy: one(user, {
+    fields: [programAttachmentRequest.requestedBy],
+    references: [user.id],
+  }),
+  reviewedBy: one(user, {
+    fields: [programAttachmentRequest.reviewedBy],
     references: [user.id],
   }),
 }));

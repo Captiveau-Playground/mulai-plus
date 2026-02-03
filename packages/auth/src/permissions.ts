@@ -1,5 +1,5 @@
-import { db, eq } from "@better-auth-admin/db";
-import * as schema from "@better-auth-admin/db/schema/auth";
+import { db, eq } from "@mulai-plus/db";
+import * as schema from "@mulai-plus/db/schema/auth";
 import { createAccessControl } from "better-auth/plugins/access";
 
 /**
@@ -80,8 +80,15 @@ export const getRoles = async () => {
     return roleMap as any;
   } catch (error) {
     console.error("Failed to load roles from DB:", error);
-    // Fallback to empty or default if DB fails
-    return {};
+    // Fallback to default admin role if DB fails to prevent startup crash
+    return {
+      admin: ac.newRole({
+        admin: ["access"],
+        dashboard: ["access"],
+        admin_dashboard: ["access"],
+        "*": ["*"],
+      }),
+    } as any;
   }
 };
 

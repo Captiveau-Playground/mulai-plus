@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { and, db, desc, eq } from "@better-auth-admin/db";
-import { course, enrollment, paymentOrder } from "@better-auth-admin/db/schema/lms";
-import { env } from "@better-auth-admin/env/server";
+import { and, db, desc, eq } from "@mulai-plus/db";
+import { course, enrollment, paymentOrder } from "@mulai-plus/db/schema/lms";
+import { env } from "@mulai-plus/env/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 

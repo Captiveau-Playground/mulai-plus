@@ -1,5 +1,5 @@
-import { db, eq } from "@better-auth-admin/db";
-import { systemSettings } from "@better-auth-admin/db/schema/settings";
+import { db, eq } from "@mulai-plus/db";
+import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 import { unosend } from "../lib/unosend";

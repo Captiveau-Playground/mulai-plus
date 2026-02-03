@@ -1,12 +1,19 @@
 "use client";
 
-import { BookOpen, FileText, GalleryVerticalEnd, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import { BookOpen, FileText, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
 import { TeamSwitcher } from "@/components/team-switcher";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+
+export function CvgLogo(props: React.ComponentProps<"img">) {
+  return (
+    // biome-ignore lint/a11y/useAltText: <explanation>
+    <img src="/main-icon-logo.svg" {...props} />
+  );
+}
 
 // This is sample data.
 const data = {
@@ -17,8 +24,8 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
+      name: "MulaiPlus",
+      logo: CvgLogo,
       plan: "Enterprise",
     },
   ],
@@ -112,6 +119,10 @@ const data = {
           title: "Programs",
           url: "/admin/programs",
         },
+        {
+          title: "Testimonials",
+          url: "/admin/testimonials",
+        },
       ],
     },
   ],
@@ -177,7 +188,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       <SidebarContent>
         <NavMain items={data.navGeneral} />
         <NavMain label="LMS" items={data.navLms} />
-        <NavMain label="Mentoring" items={data.navMentoring} />
+        <NavMain label="Programs" items={data.navMentoring} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
       </SidebarContent>

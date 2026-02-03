@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, isNull, or, sum } from "@better-auth-admin/db";
-import { user } from "@better-auth-admin/db/schema/auth";
+import { and, asc, count, db, desc, eq, isNull, or, sum } from "@mulai-plus/db";
+import { user } from "@mulai-plus/db/schema/auth";
 import {
   category,
   course,
@@ -10,7 +10,7 @@ import {
   enrollment,
   paymentOrder,
   tag,
-} from "@better-auth-admin/db/schema/lms";
+} from "@mulai-plus/db/schema/lms";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 

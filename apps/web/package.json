@@ -9,9 +9,9 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
-    "@better-auth-admin/api": "workspace:*",
-    "@better-auth-admin/auth": "workspace:*",
-    "@better-auth-admin/env": "workspace:*",
+    "@mulai-plus/api": "workspace:*",
+    "@mulai-plus/auth": "workspace:*",
+    "@mulai-plus/env": "workspace:*",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
@@ -22,6 +22,7 @@
     "@orpc/tanstack-query": "^1.12.2",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
+    "@supabase/supabase-js": "^2.91.1",
     "@tanstack/react-form": "^1.27.3",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-table": "^8.21.3",
@@ -36,6 +37,7 @@
     "next": "^16.1.1",
     "next-themes": "^0.4.6",
     "react": "^19.2.3",
+    "react-day-picker": "^9.13.0",
     "react-dom": "^19.2.3",
     "react-hook-form": "^7.69.0",
     "recharts": "2.15.4",
@@ -54,6 +56,6 @@
     "tailwindcss": "^4.1.10",
     "typescript": "catalog:",
     "@tanstack/react-query-devtools": "^5.91.1",
-    "@better-auth-admin/config": "workspace:*"
+    "@mulai-plus/config": "workspace:*"
   }
 }

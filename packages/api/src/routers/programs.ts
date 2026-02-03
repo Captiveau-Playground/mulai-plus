@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, inArray, isNull, ne, sql } from "@better-auth-admin/db";
-import { auditLog } from "@better-auth-admin/db/schema/audit";
-import { user } from "@better-auth-admin/db/schema/auth";
+import { and, count, db, desc, eq, inArray, isNull, sql } from "@mulai-plus/db";
+import { auditLog } from "@mulai-plus/db/schema/audit";
+import { user } from "@mulai-plus/db/schema/auth";
 import {
   program,
   programApplication,
+  programAttachment,
+  programAttachmentRequest,
   programAttendance,
   programBatch,
   programBatchMentor,
@@ -12,8 +14,9 @@ import {
   programFaq,
   programParticipant,
   programSyllabus,
-} from "@better-auth-admin/db/schema/programs";
-import { systemSettings } from "@better-auth-admin/db/schema/settings";
+  requestStatusEnum,
+} from "@mulai-plus/db/schema/programs";
+import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import {
@@ -22,6 +25,7 @@ import {
   getRegistrationEmailHtml,
 } from "../lib/email-templates";
 import { sendNotification } from "../lib/notification";
+import { getPathFromUrl, supabase } from "../lib/supabase";
 import { unosend } from "../lib/unosend";
 
 function slugify(text: string) {
@@ -52,7 +56,7 @@ export const programsRouter = {
         const offset = input?.offset ?? 0;
 
         // Show open and running programs for public
-        const whereClause = and(isNull(program.deletedAt), ne(program.status, "draft"));
+        const whereClause = isNull(program.deletedAt);
 
         const items = await db
           .select()
@@ -241,6 +245,21 @@ export const programsRouter = {
       return { success: true, id };
     }),
 
+  myBatches: protectedProcedure.handler(async ({ context }) => {
+    const batchMentors = await db.query.programBatchMentor.findMany({
+      where: eq(programBatchMentor.userId, context.session.user.id),
+      with: {
+        batch: {
+          with: {
+            program: true,
+          },
+        },
+      },
+      orderBy: [desc(programBatchMentor.assignedAt)],
+    });
+    return batchMentors.map((bm) => bm.batch);
+  }),
+
   student: {
     checkApplication: protectedProcedure
       .input(z.object({ programId: z.string(), batchId: z.string() }))
@@ -263,10 +282,7 @@ export const programsRouter = {
   admin: {
     analytics: protectedProcedure.handler(async () => {
       const [totalPrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
-      const [activePrograms] = await db
-        .select({ count: count() })
-        .from(program)
-        .where(and(isNull(program.deletedAt), eq(program.status, "running")));
+      const [activePrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
 
       const [totalBatches] = await db
         .select({ count: count() })
@@ -318,7 +334,6 @@ export const programsRouter = {
           .object({
             limit: z.number().default(50),
             offset: z.number().default(0),
-            status: z.string().optional(),
           })
           .optional(),
       )
@@ -327,9 +342,6 @@ export const programsRouter = {
         const offset = input?.offset ?? 0;
 
         const conditions = [isNull(program.deletedAt)];
-        if (input?.status && input.status !== "all") {
-          conditions.push(eq(program.status, input.status));
-        }
 
         const whereClause = and(...conditions);
 
@@ -392,8 +404,7 @@ export const programsRouter = {
           name: z.string().min(1),
           slug: z.string().optional(),
           description: z.string().optional(),
-          durationWeeks: z.number().default(0),
-          status: z.enum(["draft", "open", "running", "completed"]).default("draft"),
+          bannerUrl: z.string().optional(),
         }),
       )
       .handler(async ({ input }) => {
@@ -410,8 +421,7 @@ export const programsRouter = {
           id,
           name: input.name,
           description: input.description,
-          durationWeeks: input.durationWeeks,
-          status: input.status,
+          bannerUrl: input.bannerUrl,
           slug,
         });
         return { id };
@@ -424,8 +434,7 @@ export const programsRouter = {
           name: z.string().min(1).optional(),
           slug: z.string().min(1).optional(),
           description: z.string().optional(),
-          durationWeeks: z.number().optional(),
-          status: z.enum(["draft", "open", "running", "completed"]).optional(),
+          bannerUrl: z.string().optional(),
         }),
       )
       .handler(async ({ input }) => {
@@ -437,6 +446,21 @@ export const programsRouter = {
           // generally we might NOT want to auto-update slug to preserve URLs.
           // But if the user wants to update it, they should send it.
           // So let's leave it as is: only update slug if explicitly provided.
+        }
+
+        // Handle Banner Cleanup
+        if (data.bannerUrl !== undefined && supabase) {
+          const currentProgram = await db.query.program.findFirst({
+            where: eq(program.id, id),
+            columns: { bannerUrl: true },
+          });
+
+          if (currentProgram?.bannerUrl && currentProgram.bannerUrl !== data.bannerUrl) {
+            const oldPath = getPathFromUrl(currentProgram.bannerUrl, "banners");
+            if (oldPath) {
+              await supabase.storage.from("banners").remove([oldPath]);
+            }
+          }
         }
 
         await db.update(program).set(data).where(eq(program.id, id));
@@ -467,6 +491,8 @@ export const programsRouter = {
             registrationStartDate: z.string().transform((str) => new Date(str)),
             registrationEndDate: z.string().transform((str) => new Date(str)),
             quota: z.number().min(0),
+            durationWeeks: z.number().min(1),
+            bannerUrl: z.string().optional(),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).default("upcoming"),
           }),
         )
@@ -524,11 +550,29 @@ export const programsRouter = {
               .optional()
               .transform((str) => (str ? new Date(str) : undefined)),
             quota: z.number().min(0).optional(),
+            durationWeeks: z.number().min(1).optional(),
+            bannerUrl: z.string().optional(),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
           }),
         )
         .handler(async ({ input }) => {
           const { id, ...data } = input;
+
+          // Handle Banner Cleanup
+          if (data.bannerUrl !== undefined && supabase) {
+            const currentBatch = await db.query.programBatch.findFirst({
+              where: eq(programBatch.id, id),
+              columns: { bannerUrl: true },
+            });
+
+            if (currentBatch?.bannerUrl && currentBatch.bannerUrl !== data.bannerUrl) {
+              const oldPath = getPathFromUrl(currentBatch.bannerUrl, "banners");
+              if (oldPath) {
+                await supabase.storage.from("banners").remove([oldPath]);
+              }
+            }
+          }
+
           await db.update(programBatch).set(data).where(eq(programBatch.id, id));
           return { success: true };
         }),
@@ -605,8 +649,17 @@ export const programsRouter = {
             }),
           )
           .handler(async ({ input }) => {
+            const batch = await db.query.programBatch.findFirst({
+              where: eq(programBatch.id, input.batchId),
+            });
+            if (!batch) throw new Error("Batch not found");
+
             await db.transaction(async (tx) => {
               for (const update of input.updates) {
+                if (update.week < 1 || update.week > batch.durationWeeks) {
+                  throw new Error(`Invalid week ${update.week}. Batch duration is ${batch.durationWeeks} weeks.`);
+                }
+
                 // Upsert logic
                 // Check if exists
                 const existing = await tx.query.programAttendance.findFirst({
@@ -1190,15 +1243,24 @@ export const programsRouter = {
               z.object({
                 userId: z.string(),
                 week: z.number(),
-                status: z.string(),
+                status: z.enum(["present", "absent", "excused"]),
                 notes: z.string().optional(),
               }),
             ),
           }),
         )
         .handler(async ({ input }) => {
+          const batch = await db.query.programBatch.findFirst({
+            where: eq(programBatch.id, input.batchId),
+          });
+          if (!batch) throw new Error("Batch not found");
+
           await db.transaction(async (tx) => {
             for (const record of input.records) {
+              if (record.week < 1 || record.week > batch.durationWeeks) {
+                throw new Error(`Invalid week ${record.week}. Batch duration is ${batch.durationWeeks} weeks.`);
+              }
+
               // Check if exists
               const existing = await tx.query.programAttendance.findFirst({
                 where: and(
@@ -1228,6 +1290,133 @@ export const programsRouter = {
               }
             }
           });
+          return { success: true };
+        }),
+    },
+
+    attachmentRequests: {
+      list: protectedProcedure
+        .input(
+          z.object({
+            limit: z.number().default(50),
+            offset: z.number().default(0),
+            status: z.enum(requestStatusEnum.enumValues).optional(),
+            batchId: z.string().optional(),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const conditions = [];
+          if (input.status) {
+            conditions.push(eq(programAttachmentRequest.status, input.status));
+          }
+          if (input.batchId) {
+            conditions.push(eq(programAttachmentRequest.batchId, input.batchId));
+          }
+
+          const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+          const items = await db.query.programAttachmentRequest.findMany({
+            where: whereClause,
+            limit: input.limit,
+            offset: input.offset,
+            with: {
+              batch: true,
+              requestedBy: true,
+              reviewedBy: true,
+              attachment: true,
+            },
+            orderBy: [desc(programAttachmentRequest.createdAt)],
+          });
+
+          const [total] = await db.select({ count: count() }).from(programAttachmentRequest).where(whereClause);
+
+          return {
+            data: items,
+            pagination: {
+              total: total?.count ?? 0,
+              limit: input.limit,
+              offset: input.offset,
+            },
+          };
+        }),
+
+      approve: protectedProcedure.input(z.object({ requestId: z.string() })).handler(async ({ input, context }) => {
+        const request = await db.query.programAttachmentRequest.findFirst({
+          where: eq(programAttachmentRequest.id, input.requestId),
+        });
+
+        if (!request) throw new Error("Request not found");
+        if (request.status !== "pending") throw new Error("Request is not pending");
+
+        await db.transaction(async (tx) => {
+          const data = request.data as any;
+
+          if (request.action === "create") {
+            await tx.insert(programAttachment).values({
+              id: randomUUID(),
+              batchId: request.batchId,
+              ...data,
+            });
+          } else if (request.action === "update") {
+            if (!request.attachmentId) throw new Error("Attachment ID missing for update");
+            await tx.update(programAttachment).set(data).where(eq(programAttachment.id, request.attachmentId));
+          } else if (request.action === "delete") {
+            if (!request.attachmentId) throw new Error("Attachment ID missing for delete");
+            await tx.delete(programAttachment).where(eq(programAttachment.id, request.attachmentId));
+          }
+
+          await tx
+            .update(programAttachmentRequest)
+            .set({
+              status: "approved",
+              reviewedBy: context.session.user.id,
+              updatedAt: new Date(),
+            })
+            .where(eq(programAttachmentRequest.id, input.requestId));
+        });
+
+        // Notify Mentor
+        await sendNotification({
+          userId: request.requestedBy,
+          title: "Attachment Request Approved",
+          message: `Your request to ${request.action} attachment has been approved.`,
+          type: "success",
+          link: `/mentor/batches/${request.batchId}/attachments`,
+        });
+
+        return { success: true };
+      }),
+
+      reject: protectedProcedure
+        .input(z.object({ requestId: z.string(), reason: z.string().optional() }))
+        .handler(async ({ input, context }) => {
+          const request = await db.query.programAttachmentRequest.findFirst({
+            where: eq(programAttachmentRequest.id, input.requestId),
+          });
+
+          if (!request) throw new Error("Request not found");
+
+          await db
+            .update(programAttachmentRequest)
+            .set({
+              status: "rejected",
+              rejectionReason: input.reason,
+              reviewedBy: context.session.user.id,
+              updatedAt: new Date(),
+            })
+            .where(eq(programAttachmentRequest.id, input.requestId));
+
+          // Notify Mentor
+          await sendNotification({
+            userId: request.requestedBy,
+            title: "Attachment Request Rejected",
+            message: `Your request to ${request.action} attachment has been rejected.${
+              input.reason ? ` Reason: ${input.reason}` : ""
+            }`,
+            type: "error",
+            link: `/mentor/batches/${request.batchId}/attachments`,
+          });
+
           return { success: true };
         }),
     },

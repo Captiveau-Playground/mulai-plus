@@ -1,5 +1,5 @@
 {
-  "name": "@better-auth-admin/auth",
+  "name": "@mulai-plus/auth",
   "type": "module",
   "exports": {
     ".": {
@@ -12,11 +12,11 @@
   "scripts": {},
   "devDependencies": {
     "typescript": "catalog:",
-    "@better-auth-admin/config": "workspace:*"
+    "@mulai-plus/config": "workspace:*"
   },
   "dependencies": {
-    "@better-auth-admin/db": "workspace:*",
-    "@better-auth-admin/env": "workspace:*",
+    "@mulai-plus/db": "workspace:*",
+    "@mulai-plus/env": "workspace:*",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",

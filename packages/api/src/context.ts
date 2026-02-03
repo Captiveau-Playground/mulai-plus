@@ -1,4 +1,4 @@
-import { auth } from "@better-auth-admin/auth";
+import { auth } from "@mulai-plus/auth";
 import type { Context as HonoContext } from "hono";
 
 export type CreateContextOptions = {

@@ -233,9 +233,9 @@ export function UserTable() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="user">User</SelectItem>
+              <SelectItem value="student">Student</SelectItem>
+              <SelectItem value="mentor">Mentor</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="administrator">Administrator</SelectItem>
             </SelectContent>
           </Select>
         );

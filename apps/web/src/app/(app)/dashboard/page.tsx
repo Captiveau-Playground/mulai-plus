@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import Loader from "@/components/loader";
 import { authClient } from "@/lib/auth-client";
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, isPending } = authClient.useSession();
@@ -24,7 +24,6 @@ export default function DashboardPage() {
     if (role === "admin") {
       router.push("/admin");
     } else if (role === "mentor") {
-      // @ts-expect-error - valid route
       router.push("/mentor");
     } else {
       router.push("/dashboard/student");
@@ -35,5 +34,19 @@ export default function DashboardPage() {
     <div className="flex min-h-screen items-center justify-center">
       <Loader />
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader />
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }

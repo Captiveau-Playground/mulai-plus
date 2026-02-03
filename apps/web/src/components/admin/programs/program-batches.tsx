@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, Clock, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
+import { Calendar, Clock, File, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,18 +37,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { orpc } from "@/utils/orpc";
 
+import { BatchAttachmentsDialog } from "./batch-attachments";
+import { BatchSessionsDialog } from "./batch-sessions";
+
 function BatchAttendanceDialog({
-  batchId,
+  batch,
   open,
   onOpenChange,
 }: {
-  batchId: string;
+  batch: { id: string; durationWeeks: number; name: string };
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const { data, isLoading } = useQuery(
     orpc.programs.admin.batches.attendance.list.queryOptions({
-      input: { batchId },
+      input: { batchId: batch.id },
     }),
   );
 
@@ -75,7 +80,7 @@ function BatchAttendanceDialog({
         notes: value.notes,
       };
     });
-    mutation.mutate({ batchId, updates: updateList });
+    mutation.mutate({ batchId: batch.id, updates: updateList });
   };
 
   const getStatus = (userId: string, week: number) => {
@@ -86,12 +91,16 @@ function BatchAttendanceDialog({
     return existing?.status || "";
   };
 
+  const weeks = Array.from({ length: batch.durationWeeks }, (_, i) => i + 1);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-5xl">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
-          <DialogTitle>Batch Attendance</DialogTitle>
-          <DialogDescription>Track weekly attendance for accepted participants.</DialogDescription>
+          <DialogTitle>Batch Attendance: {batch.name}</DialogTitle>
+          <DialogDescription>
+            Track weekly attendance for accepted participants ({batch.durationWeeks} weeks).
+          </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           {isLoading ? (
@@ -102,7 +111,7 @@ function BatchAttendanceDialog({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="sticky left-0 z-10 w-[200px] min-w-[200px] bg-background">Student</TableHead>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((week) => (
+                    {weeks.map((week) => (
                       <TableHead key={week} className="min-w-[120px]">
                         Week {week}
                       </TableHead>
@@ -112,7 +121,7 @@ function BatchAttendanceDialog({
                 <TableBody>
                   {data?.participants.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-24 text-center">
+                      <TableCell colSpan={weeks.length + 1} className="h-24 text-center">
                         No accepted participants found.
                       </TableCell>
                     </TableRow>
@@ -120,7 +129,7 @@ function BatchAttendanceDialog({
                     data?.participants.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="sticky left-0 z-10 bg-background font-medium">{student.name}</TableCell>
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((week) => (
+                        {weeks.map((week) => (
                           <TableCell key={week}>
                             <Select
                               value={getStatus(student.id, week)}
@@ -205,7 +214,7 @@ function BatchMentorsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Manage Batch Mentors</DialogTitle>
           <DialogDescription>Select mentors for this batch.</DialogDescription>
@@ -328,7 +337,7 @@ function BatchTimelineDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Timeline: {batch.name}</DialogTitle>
           <DialogDescription>Chronological sequence of events for this batch.</DialogDescription>
@@ -369,6 +378,8 @@ const batchSchema = z.object({
   announcementDate: z.string().optional(),
   onboardingDate: z.string().optional(),
   quota: z.coerce.number().min(0).default(0),
+  durationWeeks: z.coerce.number().min(0).default(0),
+  bannerUrl: z.string().optional(),
   status: z.enum(["upcoming", "open", "closed", "running", "completed"] as const),
 });
 
@@ -390,10 +401,16 @@ export function ProgramBatches({ programId }: { programId: string }) {
     announcementDate?: string | null;
     onboardingDate?: string | null;
     quota: number;
+    durationWeeks: number;
+    bannerUrl?: string | null;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   } | null>(null);
   const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
-  const [attendanceBatchId, setAttendanceBatchId] = useState<string | null>(null);
+  const [attendanceBatch, setAttendanceBatch] = useState<{
+    id: string;
+    name: string;
+    durationWeeks: number;
+  } | null>(null);
   const [timelineBatch, setTimelineBatch] = useState<{
     name: string;
     startDate: Date | string;
@@ -406,6 +423,15 @@ export function ProgramBatches({ programId }: { programId: string }) {
     assessmentEndDate?: Date | string | null;
     announcementDate?: Date | string | null;
     onboardingDate?: Date | string | null;
+  } | null>(null);
+  const [sessionsBatch, setSessionsBatch] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [attachmentsBatch, setAttachmentsBatch] = useState<{
+    id: string;
+    name: string;
+    durationWeeks: number;
   } | null>(null);
 
   const queryClient = useQueryClient();
@@ -472,6 +498,8 @@ export function ProgramBatches({ programId }: { programId: string }) {
       registrationStartDate: "",
       registrationEndDate: "",
       quota: 0,
+      durationWeeks: 0,
+      bannerUrl: "",
       status: "upcoming",
     },
   });
@@ -511,6 +539,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
               <TableHead>Dates</TableHead>
               <TableHead>Registration</TableHead>
               <TableHead>Quota</TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
@@ -518,13 +547,13 @@ export function ProgramBatches({ programId }: { programId: string }) {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : batches.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No batches found.
                 </TableCell>
               </TableRow>
@@ -549,6 +578,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     </div>
                   </TableCell>
                   <TableCell>{batch.quota}</TableCell>
+                  <TableCell>{batch.durationWeeks} Weeks</TableCell>
                   <TableCell>
                     <Badge variant={batch.status === "open" ? "default" : "secondary"}>{batch.status}</Badge>
                   </TableCell>
@@ -562,10 +592,24 @@ export function ProgramBatches({ programId }: { programId: string }) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => setSessionsBatch(batch)}>
+                            <Calendar className="mr-2 h-4 w-4" /> Manage Sessions
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setAttachmentsBatch(batch)}>
+                            <File className="mr-2 h-4 w-4" /> Manage Attachments
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setMentorBatchId(batch.id)}>
                             <Users className="mr-2 h-4 w-4" /> Manage Mentors
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setAttendanceBatchId(batch.id)}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setAttendanceBatch({
+                                id: batch.id,
+                                name: batch.name,
+                                durationWeeks: batch.durationWeeks,
+                              })
+                            }
+                          >
                             <Calendar className="mr-2 h-4 w-4" /> Attendance
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setTimelineBatch(batch)}>
@@ -601,6 +645,8 @@ export function ProgramBatches({ programId }: { programId: string }) {
                                   ? new Date(batch.onboardingDate).toISOString().split("T")[0]
                                   : "",
                                 quota: batch.quota,
+                                durationWeeks: batch.durationWeeks,
+                                bannerUrl: batch.bannerUrl,
                                 status: batch.status as "upcoming" | "open" | "closed" | "running" | "completed",
                               })
                             }
@@ -657,7 +703,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Start Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -670,7 +719,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>End Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -685,7 +737,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Reg. Start</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -698,7 +753,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Reg. End</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -713,7 +771,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Verif. Start</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -726,7 +787,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Verif. End</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -741,7 +805,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Assess. Start</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -754,7 +821,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Assess. End</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -769,7 +839,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Announcement</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -782,7 +855,10 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <FormItem>
                       <FormLabel>Onboarding</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value || ""} />
+                        <DatePicker
+                          date={field.value ? new Date(field.value) : undefined}
+                          setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -805,29 +881,55 @@ export function ProgramBatches({ programId }: { programId: string }) {
                 />
                 <FormField
                   control={form.control}
-                  name="status"
+                  name="durationWeeks"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="upcoming">Upcoming</SelectItem>
-                          <SelectItem value="open">Open</SelectItem>
-                          <SelectItem value="closed">Closed</SelectItem>
-                          <SelectItem value="running">Running</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Duration (Weeks)</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="bannerUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner Image</FormLabel>
+                    <FormControl>
+                      <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="upcoming">Upcoming</SelectItem>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="running">Running</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
@@ -860,11 +962,11 @@ export function ProgramBatches({ programId }: { programId: string }) {
         />
       )}
 
-      {attendanceBatchId && (
+      {attendanceBatch && (
         <BatchAttendanceDialog
-          batchId={attendanceBatchId}
-          open={!!attendanceBatchId}
-          onOpenChange={(open) => !open && setAttendanceBatchId(null)}
+          batch={attendanceBatch}
+          open={!!attendanceBatch}
+          onOpenChange={(open) => !open && setAttendanceBatch(null)}
         />
       )}
 
@@ -873,6 +975,22 @@ export function ProgramBatches({ programId }: { programId: string }) {
           batch={timelineBatch}
           open={!!timelineBatch}
           onOpenChange={(open) => !open && setTimelineBatch(null)}
+        />
+      )}
+
+      {sessionsBatch && (
+        <BatchSessionsDialog
+          batch={sessionsBatch}
+          open={!!sessionsBatch}
+          onOpenChange={(open) => !open && setSessionsBatch(null)}
+        />
+      )}
+
+      {attachmentsBatch && (
+        <BatchAttachmentsDialog
+          batch={attachmentsBatch}
+          open={!!attachmentsBatch}
+          onOpenChange={(open) => !open && setAttachmentsBatch(null)}
         />
       )}
     </div>
@@ -900,6 +1018,8 @@ function EditBatchDialog({
     announcementDate?: string | null;
     onboardingDate?: string | null;
     quota: number;
+    durationWeeks: number;
+    bannerUrl?: string | null;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   };
   open: boolean;
@@ -923,6 +1043,8 @@ function EditBatchDialog({
       announcementDate: batch.announcementDate ?? undefined,
       onboardingDate: batch.onboardingDate ?? undefined,
       quota: batch.quota,
+      durationWeeks: batch.durationWeeks,
+      bannerUrl: batch.bannerUrl || "",
       status: batch.status,
     },
   });
@@ -957,7 +1079,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Start Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -970,7 +1095,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>End Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -985,7 +1113,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Reg. Start</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -998,7 +1129,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Reg. End</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1013,7 +1147,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Verif. Start</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1026,7 +1163,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Verif. End</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1041,7 +1181,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Assess. Start</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1054,7 +1197,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Assess. End</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1069,7 +1215,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Announcement</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1082,7 +1231,10 @@ function EditBatchDialog({
                   <FormItem>
                     <FormLabel>Onboarding</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value || ""} />
+                      <DatePicker
+                        date={field.value ? new Date(field.value) : undefined}
+                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1098,6 +1250,32 @@ function EditBatchDialog({
                     <FormLabel>Quota</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="durationWeeks"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (Weeks)</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bannerUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner Image</FormLabel>
+                    <FormControl>
+                      <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

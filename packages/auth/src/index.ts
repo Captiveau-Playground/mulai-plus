@@ -1,6 +1,6 @@
-import { db, eq } from "@better-auth-admin/db";
-import * as schema from "@better-auth-admin/db/schema/auth";
-import { env } from "@better-auth-admin/env/server";
+import { db, schema as dbSchema, eq } from "@mulai-plus/db";
+import * as schema from "@mulai-plus/db/schema/auth";
+import { env } from "@mulai-plus/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
@@ -37,6 +37,30 @@ export const auth = betterAuth({
   },
   advanced: {
     cookiePrefix: "mulaiplus",
+  },
+  rateLimit: {
+    enabled: true,
+    window: 10,
+    max: 100,
+    storage: "memory",
+  },
+  logger: {
+    level: "warn",
+    log: async (level, message, ...args) => {
+      try {
+        await db.insert(dbSchema.auditLog).values({
+          action: `system_log_${level}`,
+          resource: "better-auth-system",
+          details: {
+            message,
+            args,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (e) {
+        console.error("Failed to write to audit log", e);
+      }
+    },
   },
   plugins: [
     admin({

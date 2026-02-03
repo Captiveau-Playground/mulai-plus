@@ -1,5 +1,5 @@
 {
-  "name": "@better-auth-admin/api",
+  "name": "@mulai-plus/api",
   "type": "module",
   "exports": {
     ".": {
@@ -11,13 +11,14 @@
   },
   "scripts": {},
   "dependencies": {
-    "@better-auth-admin/auth": "workspace:*",
-    "@better-auth-admin/db": "workspace:*",
-    "@better-auth-admin/env": "workspace:*",
+    "@mulai-plus/auth": "workspace:*",
+    "@mulai-plus/db": "workspace:*",
+    "@mulai-plus/env": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "@supabase/supabase-js": "^2.91.1",
     "dotenv": "catalog:",
     "hono": "catalog:",
     "nanoid": "^5.1.6",
@@ -25,6 +26,6 @@
   },
   "devDependencies": {
     "typescript": "catalog:",
-    "@better-auth-admin/config": "workspace:*"
+    "@mulai-plus/config": "workspace:*"
   }
 }

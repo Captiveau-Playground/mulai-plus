@@ -134,7 +134,7 @@ export function CourseList() {
           <Plus className="mr-2 h-4 w-4" /> Add Course
         </Button>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent>
+          <DialogContent className="min-w-7xl">
             <DialogHeader>
               <DialogTitle>Create Course</DialogTitle>
               <DialogDescription>Create a new course to add content to.</DialogDescription>
@@ -274,7 +274,7 @@ export function CourseList() {
                         <DropdownMenuGroup>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem>
-                            <Link href={`/admin/lms/courses/${course.id}`} className="flex w-full items-center">
+                            <Link href={`/admin/lms/courses/${course.id}` as any} className="flex w-full items-center">
                               <BookOpen className="mr-2 h-4 w-4" /> Manage Content
                             </Link>
                           </DropdownMenuItem>
@@ -296,7 +296,7 @@ export function CourseList() {
                             onClick={() => {
                               if (confirm("Are you sure? This will delete the course and all its content.")) {
                                 deleteMutation.mutate({
-                                  input: { id: course.id },
+                                  id: course.id,
                                 });
                               }
                             }}
@@ -320,7 +320,7 @@ export function CourseList() {
           if (!open) setEditingCourse(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="min-w-7xl">
           <DialogHeader>
             <DialogTitle>Edit Course</DialogTitle>
           </DialogHeader>

@@ -66,7 +66,7 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSuccess }: Edit
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle>Edit User Role</DialogTitle>
           <DialogDescription>Change the role for user {user?.name}.</DialogDescription>
@@ -332,7 +332,7 @@ export function DeleteUserDialog({ userId, open, onOpenChange, onSuccess }: Dele
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="min-w-7xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" /> Delete User

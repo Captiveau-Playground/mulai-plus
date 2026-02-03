@@ -1,5 +1,5 @@
 {
-  "extends": "@better-auth-admin/config/tsconfig.base.json",
+  "extends": "@mulai-plus/config/tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
     "outDir": "dist",

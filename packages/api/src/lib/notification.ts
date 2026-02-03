@@ -1,5 +1,5 @@
-import { db } from "@better-auth-admin/db";
-import { notification } from "@better-auth-admin/db/schema/notification";
+import { db } from "@mulai-plus/db";
+import { notification } from "@mulai-plus/db/schema/notification";
 import { nanoid } from "nanoid";
 
 type SendNotificationParams = {

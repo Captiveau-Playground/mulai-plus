@@ -1,0 +1,187 @@
+name: Staging Preview
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      new_version: ${{ steps.tag_version.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to count commits for versioning
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          release_branches: staging
+          tag_prefix: v
+          append_to_pre_release_tag: staging
+
+  build-web:
+    needs: tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/web
+          tags: |
+            type=raw,value=staging
+            type=raw,value=${{ needs.tag.outputs.new_tag }}
+            type=sha
+
+      - name: Create .env.staging for Web
+        run: |
+          if [ -f apps/web/.env.example ]; then
+            cp apps/web/.env.example apps/web/.env.staging
+          else
+            touch apps/web/.env.staging
+          fi
+          # Inject secrets if available (example pattern)
+          # echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.STAGING_SERVER_URL }}" >> apps/web/.env.staging
+
+      - name: Build and push Web
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_APP_URL=https://staging.mulaiplus.id
+            NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-server:
+    needs: tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/server
+          tags: |
+            type=raw,value=staging
+            type=raw,value=${{ needs.tag.outputs.new_tag }}
+            type=sha
+
+      - name: Build and push Server
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: [build-web, build-server]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_PASSPHRASE }}
+          script: |
+            # Masuk ke direktori project (sesuaikan path ini di VPS Anda atau set via secrets)
+            cd ${{ secrets.VPS_PROJECT_PATH }}
+
+            # Clone atau Pull repo (menggunakan HTTPS dengan Token)
+            if [ ! -d "${{ secrets.VPS_PROJECT_PATH }}/.git" ]; then
+              git clone https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git ${{ secrets.VPS_PROJECT_PATH }}
+              cd ${{ secrets.VPS_PROJECT_PATH }}
+            else
+              cd ${{ secrets.VPS_PROJECT_PATH }}
+              git remote set-url origin https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git
+              git pull origin staging
+            fi
+
+            # Login ke GHCR
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Convert repository name to lowercase
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+            # Buat file .env.staging dari secrets
+            echo "GITHUB_REPOSITORY=$REPO_LOWER" > .env.staging
+            echo "PORT_WEB=3001" >> .env.staging
+            echo "PORT_SERVER=3000" >> .env.staging
+            echo "NODE_ENV=staging" >> .env.staging
+            echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}" >> .env.staging
+            # Tambahkan variable lain sesuai kebutuhan runtime server
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env.staging
+            echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> .env.staging
+            echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> .env.staging
+            echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env.staging
+            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env.staging
+            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.staging
+            echo "PAYMENT_API_URL=${{ secrets.PAYMENT_API_URL }}" >> .env.staging
+            echo "PAYMENT_API_KEY=${{ secrets.PAYMENT_API_KEY }}" >> .env.staging
+
+            # DEBUG: Cek apakah file .env.staging terisi (Hanya tampilkan key, sembunyikan value sensitif)
+            echo "=== DEBUG: Checking .env.staging content (Values masked) ==="
+            while IFS='=' read -r key value; do
+              if [ -n "$value" ]; then
+                echo "$key=****** (Length: ${#value})"
+              else
+                echo "$key=(EMPTY)"
+              fi
+            done < .env.staging
+            echo "=========================================================="
+
+            # Pull image docker terbaru
+            docker compose -f docker-compose.staging.yml pull
+
+            # Restart container
+            # Kita lakukan down dulu untuk memastikan container lama terhapus bersih
+            # dan container baru dibuat ulang dengan image terbaru
+            docker compose -f docker-compose.staging.yml --env-file .env.staging down
+            docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --force-recreate

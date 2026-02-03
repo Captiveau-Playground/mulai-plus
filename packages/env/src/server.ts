@@ -14,6 +14,7 @@ export const env = createEnv({
     UNOSEND_FROM_EMAIL: z.string().email().optional(),
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
+    PORT: z.coerce.number().default(3000),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

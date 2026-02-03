@@ -1,6 +1,6 @@
 "use client";
 
-import { env } from "@better-auth-admin/env/web";
+import { env } from "@mulai-plus/env/web";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Mail, Power, RefreshCw, Send, Settings } from "lucide-react";
 import { useState } from "react";
