@@ -1,6 +1,6 @@
-import type { AppRouterClient } from "@better-auth-admin/api/routers/index";
+import type { AppRouterClient } from "@mulai-plus/api/routers/index";
 
-import { env } from "@better-auth-admin/env/web";
+import { env } from "@mulai-plus/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
