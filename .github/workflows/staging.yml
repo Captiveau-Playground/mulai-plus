@@ -138,7 +138,8 @@ jobs:
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Buat file .env.staging dari secrets
-            echo "PORT_WEB=3001" > .env.staging
+            echo "GITHUB_REPOSITORY=${{ github.repository }}" > .env.staging
+            echo "PORT_WEB=3001" >> .env.staging
             echo "PORT_SERVER=3000" >> .env.staging
             echo "NODE_ENV=staging" >> .env.staging
             echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}" >> .env.staging
