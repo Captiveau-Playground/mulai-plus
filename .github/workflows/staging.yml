@@ -171,4 +171,7 @@ jobs:
             docker compose -f docker-compose.staging.yml pull
 
             # Restart container
-            docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+            # Kita lakukan down dulu untuk memastikan container lama terhapus bersih
+            # dan container baru dibuat ulang dengan image terbaru
+            docker compose -f docker-compose.staging.yml --env-file .env.staging down
+            docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --force-recreate
