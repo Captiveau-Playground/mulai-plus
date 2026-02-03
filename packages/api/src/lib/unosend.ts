@@ -1,4 +1,4 @@
-import { env } from "@better-auth-admin/env/server";
+import { env } from "@mulai-plus/env/server";
 
 /**
  * Unosend API Client
@@ -80,7 +80,7 @@ class UnosendClient {
       }
 
       const data = await response.json();
-      return { success: true, data };
+      return { success: true, data: data as T };
     } catch (error) {
       console.error(`Unosend Exception [${endpoint}]:`, error);
       return { success: false, error };

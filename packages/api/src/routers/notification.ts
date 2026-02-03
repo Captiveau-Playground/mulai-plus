@@ -1,5 +1,5 @@
-import { and, db, desc, eq } from "@better-auth-admin/db";
-import { notification } from "@better-auth-admin/db/schema/notification";
+import { and, db, desc, eq } from "@mulai-plus/db";
+import { notification } from "@mulai-plus/db/schema/notification";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 

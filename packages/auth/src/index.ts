@@ -1,6 +1,6 @@
-import { db, schema as dbSchema, eq } from "@better-auth-admin/db";
-import * as schema from "@better-auth-admin/db/schema/auth";
-import { env } from "@better-auth-admin/env/server";
+import { db, schema as dbSchema, eq } from "@mulai-plus/db";
+import * as schema from "@mulai-plus/db/schema/auth";
+import { env } from "@mulai-plus/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";

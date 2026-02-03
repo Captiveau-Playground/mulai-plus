@@ -1,4 +1,4 @@
-import { db, schema } from "@better-auth-admin/db";
+import { db, schema } from "@mulai-plus/db";
 import { ORPCError, os } from "@orpc/server";
 
 import type { Context } from "./context";

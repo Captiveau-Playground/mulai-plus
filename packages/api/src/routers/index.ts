@@ -1,6 +1,6 @@
-import { count, db, desc, eq, sql } from "@better-auth-admin/db";
-import { permission, role, session, user } from "@better-auth-admin/db/schema/auth";
-import { program, programApplication } from "@better-auth-admin/db/schema/programs";
+import { count, db, desc, eq, sql } from "@mulai-plus/db";
+import { permission, role, session, user } from "@mulai-plus/db/schema/auth";
+import { program, programApplication } from "@mulai-plus/db/schema/programs";
 import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";

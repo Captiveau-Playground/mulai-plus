@@ -1,5 +1,5 @@
-import { db, eq } from "@better-auth-admin/db";
-import { permission, role } from "@better-auth-admin/db/schema/auth";
+import { db, eq } from "@mulai-plus/db";
+import { permission, role } from "@mulai-plus/db/schema/auth";
 
 async function seed() {
   // 1. Seed Permissions

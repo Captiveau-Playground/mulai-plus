@@ -1,5 +1,5 @@
 {
-  "name": "better-auth-admin",
+  "name": "mulai-plus",
   "private": true,
   "workspaces": {
     "packages": [
@@ -34,13 +34,13 @@
     "docker:stage": "docker compose -f docker-compose.staging.yml up -d --build",
     "docker:stage:down": "docker compose -f docker-compose.staging.yml down",
     "docker:stage:logs": "docker compose -f docker-compose.staging.yml logs -f",
-    "db:push": "turbo -F @better-auth-admin/db db:push",
-    "db:studio": "turbo -F @better-auth-admin/db db:studio",
-    "db:generate": "turbo -F @better-auth-admin/db db:generate",
-    "db:migrate": "turbo -F @better-auth-admin/db db:migrate"
+    "db:push": "turbo -F @mulai-plus/db db:push",
+    "db:studio": "turbo -F @mulai-plus/db db:studio",
+    "db:generate": "turbo -F @mulai-plus/db db:generate",
+    "db:migrate": "turbo -F @mulai-plus/db db:migrate"
   },
   "dependencies": {
-    "@better-auth-admin/env": "workspace:*",
+    "@mulai-plus/env": "workspace:*",
     "@supabase/supabase-js": "^2.91.1",
     "dotenv": "catalog:",
     "zod": "catalog:"
@@ -52,7 +52,7 @@
     "lint-staged": "^16.1.2",
     "typescript": "catalog:",
     "@types/bun": "catalog:",
-    "@better-auth-admin/config": "workspace:*"
+    "@mulai-plus/config": "workspace:*"
   },
   "lint-staged": {
     "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [

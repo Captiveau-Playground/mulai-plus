@@ -1,4 +1,4 @@
-import { env } from "@better-auth-admin/env/server";
+import { env } from "@mulai-plus/env/server";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 

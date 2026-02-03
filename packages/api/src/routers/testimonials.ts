@@ -1,5 +1,5 @@
-import { db, desc, eq } from "@better-auth-admin/db";
-import { testimonial } from "@better-auth-admin/db/schema/testimonials";
+import { db, desc, eq } from "@mulai-plus/db";
+import { testimonial } from "@mulai-plus/db/schema/testimonials";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 
