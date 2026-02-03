@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    env_file:
+      - apps/server/.env.staging
+    ports:
+      - "3002:3000"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    env_file:
+      - apps/web/.env.staging
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    restart: unless-stopped

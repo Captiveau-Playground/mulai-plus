@@ -33,7 +33,6 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
             if (role === "admin") {
               router.push("/admin");
             } else if (role === "mentor") {
-              // @ts-expect-error - valid route
               router.push("/mentor");
             } else {
               router.push("/dashboard/student");

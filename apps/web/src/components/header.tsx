@@ -18,7 +18,6 @@ export default function Header() {
   const handleStopImpersonation = async () => {
     await authClient.admin.stopImpersonating();
     router.refresh();
-    // @ts-expect-error - valid route
     router.push("/admin/users");
   };
 
