@@ -22,6 +22,7 @@ COPY --from=builder /app/server.js .
 
 # Set production environment
 ENV NODE_ENV=production
+# PORT will be overridden by docker-compose or runtime env
 ENV PORT=3000
 
 # Expose the port

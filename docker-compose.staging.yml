@@ -1,24 +1,24 @@
-version: "3.8"
-
 services:
-  server:
-    build:
-      context: .
-      dockerfile: apps/server/Dockerfile
-    env_file:
-      - apps/server/.env.staging
-    ports:
-      - "3002:3000"
-    restart: unless-stopped
-
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    env_file:
-      - apps/web/.env.staging
+    image: ghcr.io/${GITHUB_REPOSITORY}/web:staging
     ports:
-      - "3000:3000"
-    depends_on:
-      - server
-    restart: unless-stopped
+      - "${PORT_WEB}:3000"
+    environment:
+      - PORT=3000
+      - NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
+      - DATABASE_URL=${DATABASE_URL}
+    restart: always
+
+  server:
+    image: ghcr.io/${GITHUB_REPOSITORY}/server:staging
+    ports:
+      - "${PORT_SERVER}:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    restart: always
