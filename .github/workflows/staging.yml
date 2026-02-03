@@ -153,6 +153,8 @@ jobs:
             echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env.staging
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env.staging
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.staging
+            echo "PAYMENT_API_URL=${{ secrets.PAYMENT_API_URL }}" >> .env.staging
+            echo "PAYMENT_API_KEY=${{ secrets.PAYMENT_API_KEY }}" >> .env.staging
 
             # DEBUG: Cek apakah file .env.staging terisi (Hanya tampilkan key, sembunyikan value sensitif)
             echo "=== DEBUG: Checking .env.staging content (Values masked) ==="
