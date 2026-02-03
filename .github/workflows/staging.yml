@@ -108,3 +108,30 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: [build-web, build-server]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # Masuk ke direktori project (sesuaikan path ini di VPS Anda atau set via secrets)
+            cd ${{ secrets.VPS_PROJECT_PATH }}
+
+            # Pull perubahan code terbaru (termasuk docker-compose.staging.yml)
+            git pull origin staging
+
+            # Login ke GHCR
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull image docker terbaru
+            docker compose -f docker-compose.staging.yml pull
+
+            # Restart container dengan image baru
+            # Pastikan file .env.staging sudah ada di VPS
+            docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
