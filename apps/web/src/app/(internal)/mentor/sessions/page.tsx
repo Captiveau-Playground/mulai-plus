@@ -6,7 +6,6 @@ import { Calendar, Clock, Loader2, Plus, Trash2, Video } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
-import { MentorSidebar } from "@/components/mentor/mentor-sidebar";
 import { SessionCreateDialog } from "@/components/mentor/sessions/session-create-dialog";
 import { SessionUpdateDialog } from "@/components/mentor/sessions/session-update-dialog";
 import {
@@ -21,11 +20,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
+
+export default function MentorSessionsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full w-full items-center justify-center p-4">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <MentorSessionsContent />
+    </Suspense>
+  );
+}
 
 function MentorSessionsContent() {
   const { isAuthorized, isLoading: isAuthLoading } = useAuthorizePage({
@@ -87,7 +99,7 @@ function MentorSessionsContent() {
       <div className="flex items-center justify-end">
         <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Create Session
+          Schedule Session
         </Button>
       </div>
       <div className="rounded-md border">
@@ -231,55 +243,5 @@ function MentorSessionsContent() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
-}
-
-export default function MentorSessionsPage() {
-  const { isAuthorized, isLoading } = useAuthorizePage({
-    mentor_dashboard: ["access"],
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <p className="text-muted-foreground">Unauthorized</p>
-      </div>
-    );
-  }
-
-  return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "16rem",
-        } as React.CSSProperties
-      }
-    >
-      <MentorSidebar variant="inset" />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <div className="h-4 w-px bg-border" />
-          <span className="font-semibold">My Sessions</span>
-        </header>
-        <Suspense
-          fallback={
-            <div className="flex h-full w-full items-center justify-center p-4">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          }
-        >
-          <MentorSessionsContent />
-        </Suspense>
-      </SidebarInset>
-    </SidebarProvider>
   );
 }
