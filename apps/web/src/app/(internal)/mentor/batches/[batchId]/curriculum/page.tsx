@@ -3,19 +3,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
-import { MentorBatchAttachments } from "@/components/mentor/batch-attachments";
+import { useParams } from "next/navigation";
 import { MentorBatchTabs } from "@/components/mentor/mentor-batch-tabs";
 import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageState } from "@/components/ui/page-state";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
-export default function MentorBatchAttachmentsPage() {
+export default function MentorBatchCurriculumPage() {
   const params = useParams();
   const batchId = params.batchId as string;
-  const _pathname = usePathname();
 
   const { isAuthorized, isLoading: isAuthLoading } = useAuthorizePage({
     mentor_dashboard: ["access"],
@@ -28,6 +27,8 @@ export default function MentorBatchAttachmentsPage() {
     }),
   );
 
+  const syllabus = data?.batch?.program?.syllabus?.sort((a, b) => a.week - b.week) || [];
+
   return (
     <PageState isLoading={isAuthLoading} isAuthorized={isAuthorized}>
       <div className="flex flex-1 flex-col gap-4">
@@ -35,7 +36,7 @@ export default function MentorBatchAttachmentsPage() {
           <Link href={"/mentor/batches" as any} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <h1 className="font-semibold text-lg">{data?.batch?.name}</h1>
+          <h1 className="font-semibold text-lg">{data?.batch?.name || "Loading..."}</h1>
         </div>
 
         <MentorBatchTabs batchId={batchId} />
@@ -43,8 +44,30 @@ export default function MentorBatchAttachmentsPage() {
         <div className="mt-4">
           {isLoading ? (
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          ) : syllabus.length > 0 ? (
+            <div className="space-y-4">
+              {syllabus.map((item) => (
+                <Card key={item.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm">
+                        {item.week}
+                      </span>
+                      {item.title}
+                    </CardTitle>
+                  </CardHeader>
+                  {item.outcome && (
+                    <CardContent>
+                      <p className="text-muted-foreground">{item.outcome}</p>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
           ) : (
-            data?.batch && <MentorBatchAttachments batch={data.batch} />
+            <div className="flex h-48 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
+              <p>No curriculum found for this program.</p>
+            </div>
           )}
         </div>
       </div>
