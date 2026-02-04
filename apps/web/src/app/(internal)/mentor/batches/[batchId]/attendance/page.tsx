@@ -6,11 +6,21 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { MentorBatchTabs } from "@/components/mentor/mentor-batch-tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { PageState } from "@/components/ui/page-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -40,6 +50,7 @@ export default function MentorBatchAttendancePage() {
   const [updates, setUpdates] = useState<Record<string, { status: "present" | "absent" | "excused"; notes?: string }>>(
     {},
   );
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const getStatus = (userId: string, week: number) => {
     if (updates[`${userId}-${week}`]) {
@@ -49,7 +60,7 @@ export default function MentorBatchAttendancePage() {
     return existing?.status || "";
   };
 
-  const handleSave = async () => {
+  const saveUpdates = async () => {
     const promises = Object.entries(updates).map(async ([key, value]) => {
       const [userId, weekStr] = key.split("-");
       const week = Number.parseInt(weekStr, 10);
@@ -66,6 +77,7 @@ export default function MentorBatchAttendancePage() {
       await Promise.all(promises);
       toast.success("Attendance updated successfully");
       setUpdates({});
+      setShowConfirm(false);
       queryClient.invalidateQueries({
         queryKey: orpc.programActivities.mentor.getBatchAttendance.key({
           input: { batchId },
@@ -76,7 +88,32 @@ export default function MentorBatchAttendancePage() {
     }
   };
 
+  const handleSave = () => {
+    const now = new Date();
+    const hasFutureSessions = Object.keys(updates).some((key) => {
+      const [userId, weekStr] = key.split("-");
+      const week = Number.parseInt(weekStr, 10);
+
+      // Find the session for this week and student
+      const session = data?.mySessions?.find(
+        (s) => s.week === week && (s.studentId === null || s.studentId === userId),
+      );
+
+      return session?.startsAt && new Date(session.startsAt) > now;
+    });
+
+    if (hasFutureSessions) {
+      setShowConfirm(true);
+    } else {
+      saveUpdates();
+    }
+  };
+
   const weeks = data?.batch?.durationWeeks ? Array.from({ length: data.batch.durationWeeks }, (_, i) => i + 1) : [];
+
+  const canEdit = (studentId: string, week: number) => {
+    return data?.mySessions?.some((s) => s.week === week && (s.studentId === null || s.studentId === studentId));
+  };
 
   return (
     <PageState isLoading={isAuthLoading} isAuthorized={isAuthorized}>
@@ -100,16 +137,23 @@ export default function MentorBatchAttendancePage() {
           )}
         </div>
 
-        <Tabs defaultValue="attendance" className="w-full">
-          <TabsList className="grid w-full max-w-[400px] grid-cols-2">
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-            <Link href={`/mentor/batches/${batchId}/attachments` as any} className="w-full">
-              <TabsTrigger value="attachments" className="w-full">
-                Resources
-              </TabsTrigger>
-            </Link>
-          </TabsList>
-        </Tabs>
+        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Update Future Sessions?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Some of the attendance records you are updating belong to sessions that have not started yet. Are you
+                sure you want to proceed?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={saveUpdates}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <MentorBatchTabs batchId={batchId} />
 
         <div className="rounded-md border">
           {isLoading ? (
@@ -148,6 +192,7 @@ export default function MentorBatchAttendancePage() {
                         {weeks.map((week) => (
                           <TableCell key={week}>
                             <Select
+                              disabled={!canEdit(student.id, week)}
                               value={getStatus(student.id, week)}
                               onValueChange={(val) => {
                                 setUpdates((prev) => ({

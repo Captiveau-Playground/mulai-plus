@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, gt } from "@mulai-plus/db";
+import { and, count, db, desc, eq, gt, isNull, or } from "@mulai-plus/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   attachmentTypeEnum,
@@ -112,10 +112,20 @@ export const programActivitiesRouter = {
           where: eq(programAttendance.batchId, input.batchId),
         });
 
+        const mySessions = await db.query.programSession.findMany({
+          where: and(eq(programSession.batchId, input.batchId), eq(programSession.mentorId, userId)),
+          columns: {
+            week: true,
+            studentId: true,
+            startsAt: true,
+          },
+        });
+
         return {
           batch,
           participants: participants.map((p) => p.user),
           attendance,
+          mySessions,
         };
       }),
 
@@ -139,6 +149,20 @@ export const programActivitiesRouter = {
 
         if (!assignment) {
           throw new Error("Unauthorized: You are not assigned to this batch");
+        }
+
+        // Verify session ownership
+        const session = await db.query.programSession.findFirst({
+          where: and(
+            eq(programSession.batchId, input.batchId),
+            eq(programSession.mentorId, mentorId),
+            eq(programSession.week, input.week),
+            or(isNull(programSession.studentId), eq(programSession.studentId, input.userId)),
+          ),
+        });
+
+        if (!session) {
+          throw new Error("Unauthorized: You are not assigned to this session week for this student");
         }
 
         const existing = await db.query.programAttendance.findFirst({
