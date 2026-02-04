@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
+import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import {
   Breadcrumb,
@@ -44,7 +45,8 @@ export function SiteHeader() {
           })}
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
+        <ModeToggle />
         <NotificationBell />
       </div>
     </header>
