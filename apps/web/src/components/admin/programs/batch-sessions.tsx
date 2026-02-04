@@ -14,8 +14,9 @@ import {
   Trash,
   User,
   Users,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -93,6 +94,60 @@ export function BatchSessionsDialog({
     }),
   );
   const participants = attendanceData?.participants || [];
+
+  // Filtering & Sorting State
+  const [filterWeek, setFilterWeek] = useState<string | null>("all");
+  const [filterType, setFilterType] = useState<string | null>("all");
+  const [filterStatus, setFilterStatus] = useState<string | null>("all");
+  const [filterMentorId, setFilterMentorId] = useState<string | null>("all");
+  const [sortBy, setSortBy] = useState<string | null>("date_asc");
+
+  const filteredSessions = useMemo(() => {
+    if (!sessions) return [];
+
+    let result = [...sessions];
+
+    // Filter
+    if (filterWeek !== "all") {
+      result = result.filter((s) => s.week.toString() === filterWeek);
+    }
+    if (filterType !== "all") {
+      result = result.filter((s) => s.type === filterType);
+    }
+    if (filterStatus !== "all") {
+      result = result.filter((s) => s.status === filterStatus);
+    }
+    if (filterMentorId !== "all") {
+      result = result.filter((s) => s.mentorId === filterMentorId);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (sortBy === "date_asc") {
+        return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
+      }
+      if (sortBy === "date_desc") {
+        return new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime();
+      }
+      if (sortBy === "week_asc") {
+        return a.week - b.week;
+      }
+      if (sortBy === "week_desc") {
+        return b.week - a.week;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [sessions, filterWeek, filterType, filterStatus, filterMentorId, sortBy]);
+
+  const clearFilters = () => {
+    setFilterWeek("all");
+    setFilterType("all");
+    setFilterStatus("all");
+    setFilterMentorId("all");
+    setSortBy("date_asc");
+  };
 
   // Mutations
   const upsertMutation = useMutation(
@@ -540,6 +595,82 @@ export function BatchSessionsDialog({
             </Button>
           </div>
 
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Select value={filterWeek} onValueChange={setFilterWeek}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Weeks</SelectItem>
+                {Array.from({ length: batch.durationWeeks || 20 }).map((_, i) => (
+                  <SelectItem key={i + 1} value={(i + 1).toString()}>
+                    Week {i + 1}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="one_on_one">1-on-1</SelectItem>
+                <SelectItem value="group_mentoring">Group Mentoring</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="missed">Missed</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterMentorId} onValueChange={setFilterMentorId}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Mentors</SelectItem>
+                {mentors?.map((mentor) => (
+                  <SelectItem key={mentor.id} value={mentor.id}>
+                    {mentor.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date_asc">Date (Oldest First)</SelectItem>
+                <SelectItem value="date_desc">Date (Newest First)</SelectItem>
+                <SelectItem value="week_asc">Week (Ascending)</SelectItem>
+                <SelectItem value="week_desc">Week (Descending)</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {(filterWeek !== "all" ||
+              filterType !== "all" ||
+              filterStatus !== "all" ||
+              filterMentorId !== "all" ||
+              sortBy !== "date_asc") && (
+              <Button variant="ghost" size="icon" onClick={clearFilters} className="h-10 w-10" title="Clear filters">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
           <div className="flex-1 overflow-auto">
             <TabsContent value="table" className="mt-0 h-full">
               <div className="rounded-md border">
@@ -562,14 +693,14 @@ export function BatchSessionsDialog({
                           <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                         </TableCell>
                       </TableRow>
-                    ) : sessions?.length === 0 ? (
+                    ) : filteredSessions.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
-                          No sessions scheduled.
+                          No sessions found.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sessions?.map((session) => (
+                      filteredSessions.map((session) => (
                         <TableRow key={session.id}>
                           <TableCell>Week {session.week}</TableCell>
                           <TableCell>
@@ -639,7 +770,7 @@ export function BatchSessionsDialog({
             </TabsContent>
             <TabsContent value="calendar" className="mt-0 h-full">
               <BatchSessionsCalendar
-                sessions={sessions || []}
+                sessions={filteredSessions}
                 onEditSession={setViewingSession}
                 onDateClick={handleCreate}
               />
