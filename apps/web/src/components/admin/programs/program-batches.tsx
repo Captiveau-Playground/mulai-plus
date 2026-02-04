@@ -427,6 +427,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
   const [sessionsBatch, setSessionsBatch] = useState<{
     id: string;
     name: string;
+    durationWeeks: number;
   } | null>(null);
   const [attachmentsBatch, setAttachmentsBatch] = useState<{
     id: string;

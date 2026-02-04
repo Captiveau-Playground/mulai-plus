@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, gt, isNull, or } from "@mulai-plus/db";
+import { and, count, db, desc, eq, gt, isNull, ne, or } from "@mulai-plus/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   attachmentTypeEnum,
@@ -208,6 +208,21 @@ export const programActivitiesRouter = {
         }),
       )
       .handler(async ({ input, context }) => {
+        // Check for existing one-on-one session for this student in this week
+        const existingSession = await db.query.programSession.findFirst({
+          where: and(
+            eq(programSession.batchId, input.batchId),
+            eq(programSession.studentId, input.studentId),
+            eq(programSession.week, input.week),
+            eq(programSession.type, "one_on_one"),
+            ne(programSession.status, "cancelled"),
+          ),
+        });
+
+        if (existingSession) {
+          throw new Error("A one-on-one session already exists for this student in this week");
+        }
+
         const newId = randomUUID();
         await db.insert(programSession).values({
           id: newId,
@@ -339,6 +354,41 @@ export const programActivitiesRouter = {
       )
       .handler(async ({ input }) => {
         const { id, ...data } = input;
+
+        if (data.type === "one_on_one" && data.studentId) {
+          const conditions = [
+            eq(programSession.batchId, data.batchId),
+            eq(programSession.studentId, data.studentId),
+            eq(programSession.week, data.week),
+            eq(programSession.type, "one_on_one"),
+            ne(programSession.status, "cancelled"),
+          ];
+          if (id) conditions.push(ne(programSession.id, id));
+
+          const existing = await db.query.programSession.findFirst({
+            where: and(...conditions),
+          });
+
+          if (existing) {
+            throw new Error("A one-on-one session already exists for this student in this week");
+          }
+        } else if (data.type === "group_mentoring") {
+          const conditions = [
+            eq(programSession.batchId, data.batchId),
+            eq(programSession.week, data.week),
+            eq(programSession.type, "group_mentoring"),
+            ne(programSession.status, "cancelled"),
+          ];
+          if (id) conditions.push(ne(programSession.id, id));
+
+          const existing = await db.query.programSession.findFirst({
+            where: and(...conditions),
+          });
+
+          if (existing) {
+            throw new Error("A group mentoring session already exists for this week");
+          }
+        }
 
         if (id) {
           await db.update(programSession).set(data).where(eq(programSession.id, id));

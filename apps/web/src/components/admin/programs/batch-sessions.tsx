@@ -51,7 +51,7 @@ export function BatchSessionsDialog({
   open,
   onOpenChange,
 }: {
-  batch: { id: string; name: string };
+  batch: { id: string; name: string; durationWeeks: number };
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -163,6 +163,34 @@ export function BatchSessionsDialog({
     setIsFormOpen(true);
   };
 
+  const checkCollision = (week: number, type: "one_on_one" | "group_mentoring", studentId?: string) => {
+    if (!sessions) return false;
+
+    // If editing, exclude current session
+    const currentSessionId = editingSession?.id;
+
+    return sessions.some((s) => {
+      if (s.id === currentSessionId) return false; // Ignore self
+      if (s.status === "cancelled") return false;
+      if (s.week !== week) return false;
+
+      // Logic from backend:
+      // 1. One-on-one: Unique per student per week
+      if (type === "one_on_one") {
+        // Collision if existing session is 1-on-1 AND for same student
+        return s.type === "one_on_one" && s.studentId === studentId;
+      }
+
+      // 2. Group Mentoring: Unique per batch per week
+      if (type === "group_mentoring") {
+        // Collision if existing session is group_mentoring
+        return s.type === "group_mentoring";
+      }
+
+      return false;
+    });
+  };
+
   if (isFormOpen) {
     return (
       <Dialog open={true} onOpenChange={(open) => !open && setIsFormOpen(false)}>
@@ -179,15 +207,45 @@ export function BatchSessionsDialog({
                 <FormField
                   control={form.control}
                   name="week"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Week</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={1} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const currentType = form.watch("type");
+                    const currentStudentId = form.watch("studentId");
+                    const isCollision = checkCollision(Number(field.value), currentType, currentStudentId);
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Week</FormLabel>
+                        <Select onValueChange={(val) => field.onChange(Number(val))} value={field.value?.toString()}>
+                          <FormControl>
+                            <SelectTrigger className={isCollision ? "border-destructive text-destructive" : ""}>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Array.from({
+                              length: batch.durationWeeks || 20,
+                            }).map((_, i) => {
+                              const weekNum = i + 1;
+                              const isTaken = checkCollision(weekNum, currentType, currentStudentId);
+                              return (
+                                <SelectItem
+                                  key={weekNum}
+                                  value={weekNum.toString()}
+                                  className={isTaken ? "text-muted-foreground line-through" : ""}
+                                >
+                                  Week {weekNum} {isTaken ? "(Scheduled)" : ""}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        {isCollision && (
+                          <p className="mt-1 text-destructive text-sm">⚠️ Session already scheduled for this week</p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 <FormField
                   control={form.control}

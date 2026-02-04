@@ -45,9 +45,17 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId }: Sess
   const queryClient = useQueryClient();
 
   const { data: batches } = useQuery(orpc.programs.myBatches.queryOptions());
+  const selectedBatch = batches?.find((b) => b.id === selectedBatchId);
 
   const { data: students, isLoading: isLoadingStudents } = useQuery(
     orpc.programActivities.mentor.getBatchStudents.queryOptions({
+      input: { batchId: selectedBatchId! },
+      enabled: !!selectedBatchId,
+    }),
+  );
+
+  const { data: existingSessions } = useQuery(
+    orpc.programActivities.session.list.queryOptions({
       input: { batchId: selectedBatchId! },
       enabled: !!selectedBatchId,
     }),
@@ -79,6 +87,13 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId }: Sess
       onError: (err) => toast.error(err.message),
     }),
   );
+
+  const checkCollision = (week: number, studentId?: string) => {
+    if (!existingSessions || !studentId) return false;
+    return existingSessions.some(
+      (s) => s.week === week && s.studentId === studentId && s.type === "one_on_one" && s.status !== "cancelled",
+    );
+  };
 
   const onSubmit: SubmitHandler<CreateSessionFormValues> = (values) => {
     mutation.mutate({
@@ -167,15 +182,49 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId }: Sess
               <FormField
                 control={form.control}
                 name="week"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Week</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={1} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const currentStudentId = form.watch("studentId");
+                  const isCollision = checkCollision(Number(field.value), currentStudentId);
+
+                  return (
+                    <FormItem>
+                      <FormLabel>Week</FormLabel>
+                      <Select
+                        onValueChange={(val) => field.onChange(Number(val))}
+                        value={field.value?.toString()}
+                        disabled={!selectedBatchId}
+                      >
+                        <FormControl>
+                          <SelectTrigger className={isCollision ? "border-destructive text-destructive" : ""}>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Array.from({
+                            length: selectedBatch?.durationWeeks || 20,
+                          }).map((_, i) => {
+                            const weekNum = i + 1;
+                            const isTaken = checkCollision(weekNum, currentStudentId);
+                            return (
+                              <SelectItem
+                                key={weekNum}
+                                value={weekNum.toString()}
+                                disabled={isTaken}
+                                className={isTaken ? "text-muted-foreground line-through" : ""}
+                              >
+                                Week {weekNum} {isTaken ? "(Scheduled)" : ""}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      {isCollision && (
+                        <p className="mt-1 text-destructive text-sm">⚠️ Session already scheduled for this week</p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
