@@ -2,8 +2,19 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { Link as LinkIcon, Loader2, MoreHorizontal, Pencil, Plus, Trash, User, Users } from "lucide-react";
+import { addMinutes, format } from "date-fns";
+import {
+  Calendar as CalendarIcon,
+  Link as LinkIcon,
+  List,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash,
+  User,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -29,7 +40,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { orpc } from "@/utils/orpc";
+import { BatchSessionsCalendar, type CalendarSession } from "./batch-sessions-calendar";
 
 const sessionSchema = z.object({
   week: z.coerce.number().min(1, "Week is required"),
@@ -65,6 +78,8 @@ export function BatchSessionsDialog({
       input: { batchId: batch.id },
     }),
   );
+
+  const [viewingSession, setViewingSession] = useState<CalendarSession | null>(null);
 
   const { data: mentors } = useQuery(
     orpc.programs.admin.batches.getMentors.queryOptions({
@@ -134,7 +149,7 @@ export function BatchSessionsDialog({
     });
   };
 
-  const handleEdit = (session: any) => {
+  const handleEdit = (session: CalendarSession) => {
     const formattedSession = {
       ...session,
       startsAt: new Date(session.startsAt).toISOString().slice(0, 16), // Format for datetime-local
@@ -148,13 +163,13 @@ export function BatchSessionsDialog({
     setIsFormOpen(true);
   };
 
-  const handleCreate = () => {
+  const handleCreate = (date?: Date) => {
     setEditingSession(null);
     form.reset({
       week: 1,
       type: "group_mentoring",
       status: "scheduled",
-      startsAt: "",
+      startsAt: date ? format(date, "yyyy-MM-dd'T'HH:mm") : "",
       durationMinutes: 60,
       mentorId: "",
       meetingLink: "",
@@ -190,6 +205,112 @@ export function BatchSessionsDialog({
       return false;
     });
   };
+
+  if (viewingSession) {
+    const start = new Date(viewingSession.startsAt);
+    const end = addMinutes(start, viewingSession.durationMinutes);
+
+    return (
+      <Dialog open={true} onOpenChange={(open) => !open && setViewingSession(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Session Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="mb-1 block text-muted-foreground">Week</span>
+                <span className="font-medium">Week {viewingSession.week}</span>
+              </div>
+              <div>
+                <span className="mb-1 block text-muted-foreground">Status</span>
+                <Badge variant="outline" className="capitalize">
+                  {viewingSession.status}
+                </Badge>
+              </div>
+              <div>
+                <span className="mb-1 block text-muted-foreground">Type</span>
+                <div className="flex items-center">
+                  {viewingSession.type === "one_on_one" ? (
+                    <User className="mr-1 h-3 w-3 text-blue-500" />
+                  ) : (
+                    <Users className="mr-1 h-3 w-3 text-green-500" />
+                  )}
+                  <span className="capitalize">{viewingSession.type.replace(/_/g, " ")}</span>
+                </div>
+              </div>
+              <div>
+                <span className="mb-1 block text-muted-foreground">Date</span>
+                <span className="font-medium">{format(start, "MMM d, yyyy")}</span>
+              </div>
+              <div>
+                <span className="mb-1 block text-muted-foreground">Time</span>
+                <span className="font-medium">
+                  {format(start, "HH:mm")} - {format(end, "HH:mm")}
+                </span>
+              </div>
+              <div>
+                <span className="mb-1 block text-muted-foreground">Duration</span>
+                <span className="font-medium">{viewingSession.durationMinutes} mins</span>
+              </div>
+              <div className="col-span-2">
+                <span className="mb-1 block text-muted-foreground">Mentor</span>
+                <span className="font-medium">{viewingSession.mentor?.name}</span>
+              </div>
+              {viewingSession.type === "one_on_one" && (
+                <div className="col-span-2">
+                  <span className="mb-1 block text-muted-foreground">Student</span>
+                  <span className="font-medium">{viewingSession.student?.name || "-"}</span>
+                </div>
+              )}
+              {viewingSession.meetingLink && (
+                <div className="col-span-2">
+                  <span className="mb-1 block text-muted-foreground">Meeting Link</span>
+                  <a
+                    href={viewingSession.meetingLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center text-primary hover:underline"
+                  >
+                    <LinkIcon className="mr-1 h-3 w-3" />
+                    {viewingSession.meetingLink}
+                  </a>
+                </div>
+              )}
+              {viewingSession.notes && (
+                <div className="col-span-2">
+                  <span className="mb-1 block text-muted-foreground">Notes</span>
+                  <p className="whitespace-pre-wrap text-sm">{viewingSession.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (confirm("Are you sure you want to delete this session?")) {
+                    deleteMutation.mutate({ id: viewingSession.id });
+                    setViewingSession(null);
+                  }
+                }}
+              >
+                <Trash className="mr-2 h-4 w-4" /> Delete
+              </Button>
+              <Button
+                onClick={() => {
+                  handleEdit(viewingSession);
+                  setViewingSession(null);
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" /> Edit
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (isFormOpen) {
     return (
@@ -392,110 +513,139 @@ export function BatchSessionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="flex h-[90vh] min-w-7xl flex-col">
         <DialogHeader>
-          <DialogTitle>Sessions: {batch.name}</DialogTitle>
-          <DialogDescription>Manage schedule for 1-on-1s and group mentoring.</DialogDescription>
+          <div className="flex items-center justify-between pr-8">
+            <div>
+              <DialogTitle>Sessions: {batch.name}</DialogTitle>
+              <DialogDescription>Manage schedule for 1-on-1s and group mentoring.</DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="flex justify-end">
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" /> Add Session
-          </Button>
-        </div>
+        <Tabs defaultValue="table" className="flex flex-1 flex-col overflow-hidden">
+          <div className="mb-4 flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="table">
+                <List className="mr-2 h-4 w-4" />
+                Table
+              </TabsTrigger>
+              <TabsTrigger value="calendar">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Calendar
+              </TabsTrigger>
+            </TabsList>
+            <Button onClick={() => handleCreate()}>
+              <Plus className="mr-2 h-4 w-4" /> Add Session
+            </Button>
+          </div>
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Week</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Mentor</TableHead>
-                <TableHead>Student</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[50px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoadingSessions ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                  </TableCell>
-                </TableRow>
-              ) : sessions?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    No sessions scheduled.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                sessions?.map((session) => (
-                  <TableRow key={session.id}>
-                    <TableCell>Week {session.week}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col text-sm">
-                        <span className="font-medium">{format(new Date(session.startsAt), "MMM d, h:mm a")}</span>
-                        <span className="text-muted-foreground text-xs">{session.durationMinutes} min</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        {session.type === "one_on_one" ? (
-                          <User className="mr-2 h-4 w-4 text-blue-500" />
-                        ) : (
-                          <Users className="mr-2 h-4 w-4 text-green-500" />
-                        )}
-                        <span className="capitalize">{session.type.replace(/_/g, " ")}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{session.mentor.name}</TableCell>
-                    <TableCell>{session.student?.name || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {session.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuGroup>
-                          <DropdownMenuTrigger>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(session)}>
-                              <Pencil className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                            {session.meetingLink && (
-                              <DropdownMenuItem>
-                                <a href={session.meetingLink} target="_blank" rel="noreferrer">
-                                  <LinkIcon className="mr-2 h-4 w-4" /> Join Meeting
-                                </a>
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => {
-                                if (confirm("Are you sure?")) {
-                                  deleteMutation.mutate({ id: session.id });
-                                }
-                              }}
-                            >
-                              <Trash className="mr-2 h-4 w-4" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenuGroup>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+          <div className="flex-1 overflow-auto">
+            <TabsContent value="table" className="mt-0 h-full">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Week</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Mentor</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[50px]" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingSessions ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                        </TableCell>
+                      </TableRow>
+                    ) : sessions?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          No sessions scheduled.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      sessions?.map((session) => (
+                        <TableRow key={session.id}>
+                          <TableCell>Week {session.week}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col text-sm">
+                              <span className="font-medium">{format(new Date(session.startsAt), "MMM d, h:mm a")}</span>
+                              <span className="text-muted-foreground text-xs">{session.durationMinutes} min</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              {session.type === "one_on_one" ? (
+                                <User className="mr-2 h-4 w-4 text-blue-500" />
+                              ) : (
+                                <Users className="mr-2 h-4 w-4 text-green-500" />
+                              )}
+                              <span className="capitalize">{session.type.replace(/_/g, " ")}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{session.mentor.name}</TableCell>
+                          <TableCell>{session.student?.name || "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {session.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuGroup>
+                                <DropdownMenuTrigger>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEdit(session)}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                                  </DropdownMenuItem>
+                                  {session.meetingLink && (
+                                    <DropdownMenuItem>
+                                      <a href={session.meetingLink} target="_blank" rel="noreferrer">
+                                        <LinkIcon className="mr-2 h-4 w-4" /> Join Meeting
+                                      </a>
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem
+                                    className="text-red-600"
+                                    onClick={() => {
+                                      if (confirm("Are you sure?")) {
+                                        deleteMutation.mutate({
+                                          id: session.id,
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <Trash className="mr-2 h-4 w-4" /> Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenuGroup>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+            <TabsContent value="calendar" className="mt-0 h-full">
+              <BatchSessionsCalendar
+                sessions={sessions || []}
+                onEditSession={setViewingSession}
+                onDateClick={handleCreate}
+              />
+            </TabsContent>
+          </div>
+        </Tabs>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
