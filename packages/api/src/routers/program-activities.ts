@@ -88,6 +88,13 @@ export const programActivitiesRouter = {
 
         const batch = await db.query.programBatch.findFirst({
           where: eq(programBatch.id, input.batchId),
+          with: {
+            program: {
+              with: {
+                syllabus: true,
+              },
+            },
+          },
         });
 
         if (!batch) {
