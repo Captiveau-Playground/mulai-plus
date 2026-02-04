@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { CategoryList } from "@/components/admin/lms/category-list";
+import { PageState } from "@/components/ui/page-state";
 import { useAuthorizePage } from "@/lib/auth-client";
 
 export default function AdminCategoriesPage() {
@@ -9,25 +9,11 @@ export default function AdminCategoriesPage() {
     admin_dashboard: ["access"],
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <p className="text-muted-foreground">Unauthorized</p>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex-1 rounded-xl bg-muted/50 p-4 md:min-h-min">
-      <CategoryList />
+      <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
+        <CategoryList />
+      </PageState>
     </div>
   );
 }

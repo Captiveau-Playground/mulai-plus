@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { MentorBatchAttachments } from "@/components/mentor/batch-attachments";
 import { buttonVariants } from "@/components/ui/button";
+import { PageState } from "@/components/ui/page-state";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -27,47 +28,33 @@ export default function MentorBatchAttachmentsPage() {
     }),
   );
 
-  if (isAuthLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <p className="text-muted-foreground">Unauthorized</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <Link href={"/mentor/batches" as any} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <h1 className="font-semibold text-lg">{data?.batch?.name}</h1>
-      </div>
-
-      <Tabs defaultValue="attachments" className="w-full">
-        <TabsList className="grid w-full max-w-[400px] grid-cols-2">
-          <Link href={`/mentor/batches/${batchId}/attendance` as any}>
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
+    <PageState isLoading={isAuthLoading} isAuthorized={isAuthorized}>
+      <div className="flex flex-1 flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <Link href={"/mentor/batches" as any} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
+            <ArrowLeft className="h-4 w-4" />
           </Link>
-          <TabsTrigger value="attachments">Resources</TabsTrigger>
-        </TabsList>
-      </Tabs>
+          <h1 className="font-semibold text-lg">{data?.batch?.name}</h1>
+        </div>
 
-      <div className="mt-4">
-        {isLoading ? (
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        ) : (
-          data?.batch && <MentorBatchAttachments batch={data.batch} />
-        )}
+        <Tabs defaultValue="attachments" className="w-full">
+          <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+            <Link href={`/mentor/batches/${batchId}/attendance` as any}>
+              <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            </Link>
+            <TabsTrigger value="attachments">Resources</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="mt-4">
+          {isLoading ? (
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          ) : (
+            data?.batch && <MentorBatchAttachments batch={data.batch} />
+          )}
+        </div>
       </div>
-    </div>
+    </PageState>
   );
 }

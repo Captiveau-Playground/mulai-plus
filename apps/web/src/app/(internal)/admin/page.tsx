@@ -1,12 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Activity, AlertCircle, Ban, Key, Loader2, Shield, Users } from "lucide-react";
+import { Activity, AlertCircle, Ban, Key, Shield, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Label, Pie, PieChart, XAxis } from "recharts";
 
 import { RecentApplicationsWidget } from "@/components/admin/dashboard/recent-applications";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { PageState } from "@/components/ui/page-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
@@ -17,22 +18,6 @@ export default function AdminPage() {
   });
 
   const { data: stats, isLoading, isError } = useQuery(orpc.getAdminStats.queryOptions());
-
-  if (isAuthLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <p className="text-muted-foreground">Unauthorized</p>
-      </div>
-    );
-  }
 
   const chartConfig = {
     users: {
@@ -80,7 +65,7 @@ export default function AdminPage() {
   } satisfies ChartConfig;
 
   return (
-    <>
+    <PageState isLoading={isAuthLoading} isAuthorized={isAuthorized}>
       <div className="grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -271,6 +256,6 @@ export default function AdminPage() {
 
         <RecentApplicationsWidget />
       </div>
-    </>
+    </PageState>
   );
 }

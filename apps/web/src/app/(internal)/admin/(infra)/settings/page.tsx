@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageState } from "@/components/ui/page-state";
 import { Switch } from "@/components/ui/switch";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
@@ -86,24 +87,8 @@ export default function AdminSettingsPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-        <p className="text-muted-foreground">Unauthorized</p>
-      </div>
-    );
-  }
-
   return (
-    <>
+    <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
       <div className="mb-2 flex items-center gap-2">
         <Settings className="h-6 w-6 text-foreground" />
         <h1 className="font-bold text-2xl">Admin Settings</h1>
@@ -202,6 +187,6 @@ export default function AdminSettingsPage() {
           </div>
         </CardContent>
       </Card>
-    </>
+    </PageState>
   );
 }

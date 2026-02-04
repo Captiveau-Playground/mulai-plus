@@ -1,12 +1,22 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Banknote, CheckCircle, Clock, Loader2, ShoppingCart } from "lucide-react";
+import { Banknote, CheckCircle, Clock, ShoppingCart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageState } from "@/components/ui/page-state";
+import { useAuthorizePage } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 export default function LmsDashboardPage() {
-  const { data: stats, isLoading } = useQuery(orpc.lms.admin.orders.stats.queryOptions());
+  const { isAuthorized, isLoading: isAuthLoading } = useAuthorizePage({
+    admin_dashboard: ["access"],
+  });
+
+  const { data: stats, isLoading: isStatsLoading } = useQuery(
+    orpc.lms.admin.orders.stats.queryOptions({
+      enabled: !!isAuthorized,
+    }),
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -18,16 +28,12 @@ export default function LmsDashboardPage() {
 
   return (
     <div className="min-h-screen flex-1 rounded-xl bg-muted/50 p-4 md:min-h-min">
-      <div className="mb-6">
-        <h2 className="font-bold text-2xl tracking-tight">LMS Overview</h2>
-        <p className="text-muted-foreground">Summary of your course sales and performance</p>
-      </div>
-
-      {isLoading ? (
-        <div className="flex h-40 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <PageState isLoading={isAuthLoading} isAuthorized={isAuthorized}>
+        <div className="mb-6">
+          <h2 className="font-bold text-2xl tracking-tight">LMS Overview</h2>
+          <p className="text-muted-foreground">Summary of your course sales and performance</p>
         </div>
-      ) : (
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -70,7 +76,7 @@ export default function LmsDashboardPage() {
             </CardContent>
           </Card>
         </div>
-      )}
+      </PageState>
     </div>
   );
 }
