@@ -29,7 +29,7 @@ export default function MentorBatchAttachmentsPage() {
 
   if (isAuthLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -37,14 +37,14 @@ export default function MentorBatchAttachmentsPage() {
 
   if (!isAuthorized) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <p className="text-muted-foreground">Unauthorized</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center gap-2">
         <Link href={"/mentor/batches" as any} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
           <ArrowLeft className="h-4 w-4" />

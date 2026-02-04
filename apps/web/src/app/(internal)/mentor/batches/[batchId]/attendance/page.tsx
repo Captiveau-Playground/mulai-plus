@@ -94,7 +94,7 @@ export default function MentorBatchAttendancePage() {
   const weeks = data?.batch?.durationWeeks ? Array.from({ length: data.batch.durationWeeks }, (_, i) => i + 1) : [];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href={"/mentor/batches" as any} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>

@@ -72,7 +72,7 @@ function MentorSessionsContent() {
 
   if (isAuthLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -80,7 +80,7 @@ function MentorSessionsContent() {
 
   if (!isAuthorized) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <p className="text-muted-foreground">Unauthorized</p>
       </div>
     );
@@ -95,7 +95,7 @@ function MentorSessionsContent() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center justify-end">
         <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />

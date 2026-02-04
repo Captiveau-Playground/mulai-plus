@@ -24,7 +24,7 @@ export default function MentorDashboardPage() {
 
   if (isAuthLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -32,7 +32,7 @@ export default function MentorDashboardPage() {
 
   if (!isAuthorized) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <p className="text-muted-foreground">Unauthorized</p>
       </div>
     );
@@ -40,7 +40,7 @@ export default function MentorDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );

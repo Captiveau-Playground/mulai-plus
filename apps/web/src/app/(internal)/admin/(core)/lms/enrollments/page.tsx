@@ -5,8 +5,6 @@ import { format } from "date-fns";
 import { Loader2, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
-import { SiteHeader } from "@/components/admin/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +17,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
@@ -95,173 +92,157 @@ export default function EnrollmentsPage() {
   };
 
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "16rem",
-        } as React.CSSProperties
-      }
-    >
-      <AdminSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-4">
-          <div className="min-h-screen flex-1 rounded-xl bg-muted/50 p-4 md:min-h-min">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h2 className="font-bold text-2xl tracking-tight">Enrollments</h2>
-                <p className="text-muted-foreground">Manage student enrollments</p>
-              </div>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Manual Enrollment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Enroll User to Course</DialogTitle>
-                    <DialogDescription>
-                      Manually enroll a user into a course. This will grant them immediate access.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <label className="font-medium text-sm" htmlFor="user-select">
-                        Select User
-                      </label>
-                      <Select value={selectedUser} onValueChange={(val) => setSelectedUser(val || "")}>
-                        <SelectTrigger>
-                          {selectedUser ? (
-                            <SelectValue />
-                          ) : (
-                            <span className="text-muted-foreground">Select a user</span>
-                          )}
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users?.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.name} ({user.email})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <label className="font-medium text-sm" htmlFor="course-select">
-                        Select Course
-                      </label>
-                      <Select value={selectedCourse} onValueChange={(val) => setSelectedCourse(val || "")}>
-                        <SelectTrigger>
-                          {selectedCourse ? (
-                            <SelectValue />
-                          ) : (
-                            <span className="text-muted-foreground">Select a course</span>
-                          )}
-                        </SelectTrigger>
-                        <SelectContent>
-                          {courses?.map((course) => (
-                            <SelectItem key={course.id} value={course.id}>
-                              {course.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleEnroll} disabled={enrollMutation.isPending}>
-                      {enrollMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Enroll User
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="rounded-md border bg-white">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Progress</TableHead>
-                    <TableHead>Enrolled At</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                      </TableCell>
-                    </TableRow>
-                  ) : data?.data.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        No enrollments found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    data?.data.map((enrollment) => (
-                      <TableRow key={enrollment.id}>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{enrollment.user?.name || "Unknown"}</span>
-                            <span className="text-muted-foreground text-xs">{enrollment.user?.email}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{enrollment.course?.title}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(enrollment.status)} variant="outline">
-                            {enrollment.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-16 overflow-hidden rounded-full bg-secondary">
-                              <div className="h-full bg-primary" style={{ width: `${enrollment.progress}%` }} />
-                            </div>
-                            <span className="text-muted-foreground text-xs">{enrollment.progress}%</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{format(new Date(enrollment.enrolledAt), "dd MMM yyyy")}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1 || isLoading}
-              >
-                Previous
-              </Button>
-              <div className="text-sm">
-                Page {page} of {Math.ceil((data?.pagination.total || 0) / pageSize)}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= Math.ceil((data?.pagination.total || 0) / pageSize) || isLoading}
-              >
-                Next
-              </Button>
-            </div>
+    <div className="flex flex-1 flex-col gap-4 p-4 pt-4">
+      <div className="min-h-screen flex-1 rounded-xl bg-muted/50 p-4 md:min-h-min">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-2xl tracking-tight">Enrollments</h2>
+            <p className="text-muted-foreground">Manage student enrollments</p>
           </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Manual Enrollment
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Enroll User to Course</DialogTitle>
+                <DialogDescription>
+                  Manually enroll a user into a course. This will grant them immediate access.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <label className="font-medium text-sm" htmlFor="user-select">
+                    Select User
+                  </label>
+                  <Select value={selectedUser} onValueChange={(val) => setSelectedUser(val || "")}>
+                    <SelectTrigger>
+                      {selectedUser ? <SelectValue /> : <span className="text-muted-foreground">Select a user</span>}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users?.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name} ({user.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <label className="font-medium text-sm" htmlFor="course-select">
+                    Select Course
+                  </label>
+                  <Select value={selectedCourse} onValueChange={(val) => setSelectedCourse(val || "")}>
+                    <SelectTrigger>
+                      {selectedCourse ? (
+                        <SelectValue />
+                      ) : (
+                        <span className="text-muted-foreground">Select a course</span>
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses?.map((course) => (
+                        <SelectItem key={course.id} value={course.id}>
+                          {course.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleEnroll} disabled={enrollMutation.isPending}>
+                  {enrollMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Enroll User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+
+        <div className="rounded-md border bg-white">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student</TableHead>
+                <TableHead>Course</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Progress</TableHead>
+                <TableHead>Enrolled At</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                  </TableCell>
+                </TableRow>
+              ) : data?.data.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No enrollments found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data?.data.map((enrollment) => (
+                  <TableRow key={enrollment.id}>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{enrollment.user?.name || "Unknown"}</span>
+                        <span className="text-muted-foreground text-xs">{enrollment.user?.email}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{enrollment.course?.title}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(enrollment.status)} variant="outline">
+                        {enrollment.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-16 overflow-hidden rounded-full bg-secondary">
+                          <div className="h-full bg-primary" style={{ width: `${enrollment.progress}%` }} />
+                        </div>
+                        <span className="text-muted-foreground text-xs">{enrollment.progress}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{format(new Date(enrollment.enrolledAt), "dd MMM yyyy")}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || isLoading}
+          >
+            Previous
+          </Button>
+          <div className="text-sm">
+            Page {page} of {Math.ceil((data?.pagination.total || 0) / pageSize)}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page >= Math.ceil((data?.pagination.total || 0) / pageSize) || isLoading}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
