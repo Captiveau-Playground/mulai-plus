@@ -38,9 +38,10 @@ interface SessionCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultBatchId?: string | null;
+  defaultDate?: Date | null;
 }
 
-export function SessionCreateDialog({ open, onOpenChange, defaultBatchId }: SessionCreateDialogProps) {
+export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaultDate }: SessionCreateDialogProps) {
   const [selectedBatchId, setSelectedBatchId] = useState<string | undefined>(defaultBatchId || undefined);
   const queryClient = useQueryClient();
 
@@ -67,11 +68,19 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId }: Sess
       batchId: defaultBatchId || "",
       studentId: "",
       week: 1,
-      startsAt: "",
+      startsAt: defaultDate ? defaultDate.toISOString().slice(0, 16) : "",
       durationMinutes: 60,
       meetingLink: "",
       notes: "",
     },
+  });
+
+  // Reset form when defaultDate changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only reset on open/date change
+  useState(() => {
+    if (open && defaultDate) {
+      form.setValue("startsAt", defaultDate.toISOString().slice(0, 16));
+    }
   });
 
   const mutation = useMutation(
