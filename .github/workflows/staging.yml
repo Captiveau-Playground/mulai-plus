@@ -178,7 +178,7 @@ jobs:
             echo "=========================================================="
 
             # Pull image docker terbaru
-            docker compose -f docker-compose.staging.yml pull
+            docker compose -f docker-compose.staging.yml --env-file .env.staging pull
 
             # Restart container
             # Kita lakukan down dulu untuk memastikan container lama terhapus bersih
