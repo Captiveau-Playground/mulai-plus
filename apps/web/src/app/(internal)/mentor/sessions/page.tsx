@@ -66,12 +66,13 @@ function MentorSessionsContent() {
   const searchParams = useSearchParams();
   const batchId = searchParams.get("batchId");
   const queryClient = useQueryClient();
-  const { data: sessions, isLoading } = useQuery(
-    orpc.programActivities.session.mySessions.queryOptions({
+  const { data: sessions, isLoading } = useQuery({
+    ...orpc.programActivities.session.mySessions.queryOptions({
       input: { batchId: batchId || undefined },
       enabled: !!isAuthorized,
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
   const [editingSession, setEditingSession] = useState<any>(null);
   const [viewingSession, setViewingSession] = useState<CalendarSession | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);

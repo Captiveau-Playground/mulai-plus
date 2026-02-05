@@ -34,12 +34,13 @@ export default function MentorBatchAttendancePage() {
   });
 
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery(
-    orpc.programActivities.mentor.getBatchAttendance.queryOptions({
+  const { data, isLoading } = useQuery({
+    ...orpc.programActivities.mentor.getBatchAttendance.queryOptions({
       input: { batchId },
       enabled: !!isAuthorized && !!batchId,
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
   const updateMutation = useMutation(
     orpc.programActivities.mentor.updateBatchAttendance.mutationOptions({

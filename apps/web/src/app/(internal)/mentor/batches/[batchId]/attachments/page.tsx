@@ -21,12 +21,13 @@ export default function MentorBatchAttachmentsPage() {
     mentor_dashboard: ["access"],
   });
 
-  const { data, isLoading } = useQuery(
-    orpc.programActivities.mentor.getBatchAttendance.queryOptions({
+  const { data, isLoading } = useQuery({
+    ...orpc.programActivities.mentor.getBatchAttendance.queryOptions({
       input: { batchId },
       enabled: !!isAuthorized && !!batchId,
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   return (
     <PageState isLoading={isAuthLoading} isAuthorized={isAuthorized}>
