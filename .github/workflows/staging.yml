@@ -55,6 +55,8 @@ jobs:
             type=raw,value=staging
             type=raw,value=${{ needs.tag.outputs.new_tag }}
             type=sha
+          labels: |
+            project=mulai-plus
 
       - name: Create .env.staging for Web
         run: |
@@ -107,6 +109,8 @@ jobs:
             type=raw,value=staging
             type=raw,value=${{ needs.tag.outputs.new_tag }}
             type=sha
+          labels: |
+            project=mulai-plus
 
       - name: Build and push Server
         uses: docker/build-push-action@v5
@@ -185,3 +189,6 @@ jobs:
             # dan container baru dibuat ulang dengan image terbaru
             docker compose -f docker-compose.staging.yml --env-file .env.staging down
             docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --force-recreate
+
+            # Bersihkan image usang (dangling images) khusus untuk project ini
+            docker image prune -f --filter "label=project=mulai-plus"
