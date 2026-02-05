@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, FileText, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import { BookOpen, Computer, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -128,10 +128,21 @@ const data = {
   ],
   navSystem: [
     {
-      title: "Audit Logs",
-      url: "/admin/audit",
-      icon: FileText,
+      title: "Audit",
+      url: "#",
+      icon: Computer,
+      items: [
+        {
+          title: "Logs",
+          url: "/admin/audit",
+        },
+        {
+          title: "API",
+          url: "/admin/api-audit",
+        },
+      ],
     },
+
     {
       title: "Role Testing",
       url: "#",
