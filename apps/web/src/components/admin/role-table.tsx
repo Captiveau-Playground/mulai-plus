@@ -194,14 +194,14 @@ export function RoleTable() {
 
   return (
     <div className="w-full">
-      <div className="flex items-center py-4">
+      <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center">
         <Input
           placeholder="Filter roles..."
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
-          className="max-w-sm"
+          className="w-full max-w-sm"
         />
-        <div className="ml-auto flex gap-2">
+        <div className="flex items-center gap-2 sm:ml-auto">
           <CreateRoleDialog>
             <Button>
               <Plus className="mr-2 h-4 w-4" /> Create Role
@@ -237,7 +237,7 @@ export function RoleTable() {
           </DropdownMenu>
         </div>
       </div>
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

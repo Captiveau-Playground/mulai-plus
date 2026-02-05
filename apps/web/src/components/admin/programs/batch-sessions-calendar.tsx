@@ -65,7 +65,7 @@ export function BatchSessionsCalendar({ sessions, onEditSession, onDateClick }: 
 
   return (
     <div className="flex flex-col space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center space-x-2">
           <h2 className="font-semibold text-lg">{format(currentDate, "MMMM yyyy")}</h2>
           <div className="flex items-center rounded-md border bg-background shadow-sm">

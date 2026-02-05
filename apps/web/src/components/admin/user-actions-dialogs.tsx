@@ -332,7 +332,7 @@ export function DeleteUserDialog({ userId, open, onOpenChange, onSuccess }: Dele
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" /> Delete User

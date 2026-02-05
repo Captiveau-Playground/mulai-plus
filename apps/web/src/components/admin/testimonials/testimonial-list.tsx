@@ -120,7 +120,7 @@ export function TestimonialList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-bold text-2xl tracking-tight">Testimonials</h2>
           <p className="text-muted-foreground">Manage student testimonials.</p>
@@ -226,7 +226,7 @@ export function TestimonialList() {
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="min-w-7xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add Testimonial</DialogTitle>
             <DialogDescription>Create a new testimonial for a student.</DialogDescription>
@@ -245,7 +245,7 @@ export function TestimonialList() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editingTestimonial} onOpenChange={(open) => !open && setEditingTestimonial(null)}>
-        <DialogContent className="min-w-7xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Testimonial</DialogTitle>
             <DialogDescription>Update the testimonial details.</DialogDescription>
@@ -340,7 +340,7 @@ function TestimonialForm({
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
             name="education"
@@ -368,7 +368,7 @@ function TestimonialForm({
             )}
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
             name="rating"
