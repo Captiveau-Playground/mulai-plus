@@ -49,11 +49,12 @@ function BatchAttendanceDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { data, isLoading } = useQuery(
-    orpc.programs.admin.batches.attendance.list.queryOptions({
+  const { data, isLoading } = useQuery({
+    ...orpc.programs.admin.batches.attendance.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
   const [updates, setUpdates] = useState<Record<string, { status: "present" | "absent" | "excused"; notes?: string }>>(
     {},

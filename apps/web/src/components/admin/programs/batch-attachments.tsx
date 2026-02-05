@@ -48,23 +48,26 @@ export function BatchAttachmentsDialog({
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: attachments, isLoading } = useQuery(
-    orpc.programActivities.attachment.list.queryOptions({
+  const { data: attachments, isLoading } = useQuery({
+    ...orpc.programActivities.attachment.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: sessions } = useQuery(
-    orpc.programActivities.session.list.queryOptions({
+  const { data: sessions } = useQuery({
+    ...orpc.programActivities.session.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: requests, isLoading: isLoadingRequests } = useQuery(
-    orpc.programs.admin.attachmentRequests.list.queryOptions({
+  const { data: requests, isLoading: isLoadingRequests } = useQuery({
+    ...orpc.programs.admin.attachmentRequests.list.queryOptions({
       input: { batchId: batch.id, status: "pending" },
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
   // Mutations
   const approveMutation = useMutation(

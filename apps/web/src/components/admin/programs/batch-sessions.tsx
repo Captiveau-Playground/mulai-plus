@@ -74,25 +74,28 @@ export function BatchSessionsDialog({
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: sessions, isLoading: isLoadingSessions } = useQuery(
-    orpc.programActivities.session.list.queryOptions({
+  const { data: sessions, isLoading: isLoadingSessions } = useQuery({
+    ...orpc.programActivities.session.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const [viewingSession, setViewingSession] = useState<CalendarSession | null>(null);
 
-  const { data: mentors } = useQuery(
-    orpc.programs.admin.batches.getMentors.queryOptions({
+  const { data: mentors } = useQuery({
+    ...orpc.programs.admin.batches.getMentors.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: attendanceData } = useQuery(
-    orpc.programs.admin.batches.attendance.list.queryOptions({
+  const { data: attendanceData } = useQuery({
+    ...orpc.programs.admin.batches.attendance.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
   const participants = attendanceData?.participants || [];
 
   // Filtering & Sorting State

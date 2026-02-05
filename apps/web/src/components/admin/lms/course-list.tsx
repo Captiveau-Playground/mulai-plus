@@ -53,8 +53,14 @@ export function CourseList() {
   } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data: courses, isLoading } = useQuery(orpc.lms.course.list.queryOptions());
-  const { data: categories } = useQuery(orpc.lms.category.list.queryOptions());
+  const { data: courses, isLoading } = useQuery({
+    ...orpc.lms.course.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+  const { data: categories } = useQuery({
+    ...orpc.lms.category.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const createMutation = useMutation(
     orpc.lms.course.create.mutationOptions({

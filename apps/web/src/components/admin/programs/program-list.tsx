@@ -51,7 +51,10 @@ export function ProgramList() {
   } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery(orpc.programs.admin.list.queryOptions());
+  const { data, isLoading } = useQuery({
+    ...orpc.programs.admin.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
   const programs = data?.data || [];
 
   const createMutation = useMutation(

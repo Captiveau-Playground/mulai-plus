@@ -54,7 +54,14 @@ export function PermissionTable() {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
-  const { data: permissions, isLoading, isError } = useQuery(orpc.permission.list.queryOptions());
+  const {
+    data: permissions,
+    isLoading,
+    isError,
+  } = useQuery({
+    ...orpc.permission.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const queryClient = useQueryClient();
 

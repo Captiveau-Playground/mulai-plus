@@ -49,7 +49,10 @@ export function ProgramFaqs({ programId }: { programId: string }) {
   } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery(orpc.programs.admin.faqs.list.queryOptions({ input: { programId } }));
+  const { data, isLoading } = useQuery({
+    ...orpc.programs.admin.faqs.list.queryOptions({ input: { programId } }),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
   const faqs = data || [];
 
   const createMutation = useMutation(

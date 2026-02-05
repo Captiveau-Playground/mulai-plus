@@ -51,7 +51,14 @@ export function RoleTable() {
   const [roleToEdit, setRoleToEdit] = React.useState<Role | null>(null);
   const [roleToDelete, setRoleToDelete] = React.useState<Role | null>(null);
 
-  const { data: roles, isLoading, isError } = useQuery(orpc.role.list.queryOptions());
+  const {
+    data: roles,
+    isLoading,
+    isError,
+  } = useQuery({
+    ...orpc.role.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const columns: ColumnDef<Role>[] = [
     {

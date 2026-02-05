@@ -57,8 +57,14 @@ export function TestimonialList() {
   } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data: testimonials, isLoading } = useQuery(orpc.testimonials.list.queryOptions());
-  const { data: students } = useQuery(orpc.user.listStudents.queryOptions());
+  const { data: testimonials, isLoading } = useQuery({
+    ...orpc.testimonials.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+  const { data: students } = useQuery({
+    ...orpc.user.listStudents.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const createMutation = useMutation(
     orpc.testimonials.create.mutationOptions({

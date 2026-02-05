@@ -48,7 +48,10 @@ export function CategoryList() {
   } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data: categories, isLoading } = useQuery(orpc.lms.category.list.queryOptions());
+  const { data: categories, isLoading } = useQuery({
+    ...orpc.lms.category.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const createMutation = useMutation(
     orpc.lms.category.create.mutationOptions({
