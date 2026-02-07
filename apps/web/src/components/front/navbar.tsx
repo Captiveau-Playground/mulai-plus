@@ -44,7 +44,7 @@ export function Navbar() {
       </div>
 
       {/* Desktop Navigation Links */}
-      <div className="items-center justify-center gap-8 lg:flex lg:gap-12 lg:justify-self-center">
+      <div className="hidden items-center justify-center gap-8 lg:flex lg:gap-12 lg:justify-self-center">
         {navLinks.map((item) => (
           <Link
             key={item}
