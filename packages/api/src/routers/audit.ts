@@ -1,10 +1,42 @@
-import { and, asc, count, db, desc, eq, ilike, or } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, gt, ilike, max, or, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
 
 export const auditRouter = {
+  getApiTimeSeries: protectedProcedure.handler(async () => {
+    const dailyStats = await db
+      .select({
+        date: sql<string>`DATE(${auditLog.createdAt})`.as("date"),
+        count: count(),
+      })
+      .from(auditLog)
+      .where(and(eq(auditLog.resource, "api"), gt(auditLog.createdAt, sql`NOW() - INTERVAL '7 days'`)))
+      .groupBy(sql`DATE(${auditLog.createdAt})`)
+      .orderBy(sql`DATE(${auditLog.createdAt})`);
+
+    return dailyStats.map((stat) => ({
+      date: stat.date,
+      count: Number(stat.count),
+    }));
+  }),
+
+  getApiStats: protectedProcedure.handler(async () => {
+    const stats = await db
+      .select({
+        action: auditLog.action,
+        count: count(),
+        lastCalled: max(auditLog.createdAt),
+      })
+      .from(auditLog)
+      .where(eq(auditLog.resource, "api"))
+      .groupBy(auditLog.action)
+      .orderBy(desc(count()));
+
+    return stats;
+  }),
+
   list: protectedProcedure
     .input(
       z.object({

@@ -16,11 +16,12 @@ export default function MentorDashboardPage() {
     data: stats,
     isLoading,
     isError,
-  } = useQuery(
-    orpc.programActivities.mentor.getStats.queryOptions({
+  } = useQuery({
+    ...orpc.programActivities.mentor.getStats.queryOptions({
       enabled: !!isAuthorized,
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
   return (
     <PageState isLoading={isAuthLoading || isLoading} isAuthorized={isAuthorized}>

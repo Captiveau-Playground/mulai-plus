@@ -24,6 +24,17 @@ RUN bun install --no-progress
 # npm run build executes "next build" using the node executable
 # npm handles finding the binary in node_modules/.bin (including parent dirs)
 WORKDIR /app/apps/web
+
+# Add build arguments for Next.js public variables
+ARG NEXT_PUBLIC_SERVER_URL
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+
+# Make them available during build
+ENV NEXT_PUBLIC_SERVER_URL=$NEXT_PUBLIC_SERVER_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+
 RUN npm run build
 
 # Runner stage

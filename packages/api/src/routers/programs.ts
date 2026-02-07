@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, inArray, isNull, sql } from "@mulai-plus/db";
+import { and, count, db, desc, eq, inArray, isNotNull, isNull, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
@@ -261,6 +261,28 @@ export const programsRouter = {
   }),
 
   student: {
+    myPrograms: protectedProcedure.handler(async ({ context }) => {
+      const participations = await db.query.programParticipant.findMany({
+        where: and(eq(programParticipant.userId, context.session.user.id), isNotNull(programParticipant.batchId)),
+        with: {
+          batch: {
+            with: {
+              program: true,
+            },
+          },
+        },
+        orderBy: [desc(programParticipant.createdAt)],
+      });
+
+      return participations
+        .filter((p) => p.batch)
+        .map((p) => ({
+          ...p.batch?.program,
+          batch: p.batch!,
+          joinedAt: p.createdAt,
+        }));
+    }),
+
     checkApplication: protectedProcedure
       .input(z.object({ programId: z.string(), batchId: z.string() }))
       .handler(async ({ input, context }) => {

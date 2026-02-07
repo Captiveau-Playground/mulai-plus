@@ -45,22 +45,27 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
   const [selectedBatchId, setSelectedBatchId] = useState<string | undefined>(defaultBatchId || undefined);
   const queryClient = useQueryClient();
 
-  const { data: batches } = useQuery(orpc.programs.myBatches.queryOptions());
+  const { data: batches } = useQuery({
+    ...orpc.programs.myBatches.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
   const selectedBatch = batches?.find((b) => b.id === selectedBatchId);
 
-  const { data: students, isLoading: isLoadingStudents } = useQuery(
-    orpc.programActivities.mentor.getBatchStudents.queryOptions({
+  const { data: students, isLoading: isLoadingStudents } = useQuery({
+    ...orpc.programActivities.mentor.getBatchStudents.queryOptions({
       input: { batchId: selectedBatchId! },
       enabled: !!selectedBatchId,
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: existingSessions } = useQuery(
-    orpc.programActivities.session.list.queryOptions({
+  const { data: existingSessions } = useQuery({
+    ...orpc.programActivities.session.list.queryOptions({
       input: { batchId: selectedBatchId! },
       enabled: !!selectedBatchId,
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const form = useForm<CreateSessionFormValues>({
     resolver: zodResolver(createSessionSchema) as unknown as Resolver<CreateSessionFormValues>,

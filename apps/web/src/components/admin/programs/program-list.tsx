@@ -51,7 +51,10 @@ export function ProgramList() {
   } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery(orpc.programs.admin.list.queryOptions());
+  const { data, isLoading } = useQuery({
+    ...orpc.programs.admin.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
   const programs = data?.data || [];
 
   const createMutation = useMutation(
@@ -122,7 +125,7 @@ export function ProgramList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-bold text-2xl tracking-tight">Programs</h2>
           <p className="text-muted-foreground">Manage your mentoring programs.</p>
@@ -132,7 +135,7 @@ export function ProgramList() {
         </Button>
       </div>
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -217,7 +220,7 @@ export function ProgramList() {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="min-w-7xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Program</DialogTitle>
             <DialogDescription>Create a new mentoring program.</DialogDescription>
@@ -280,7 +283,7 @@ export function ProgramList() {
           if (!open) setEditingProgram(null);
         }}
       >
-        <DialogContent className="min-w-7xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Program</DialogTitle>
             <DialogDescription>Update program details.</DialogDescription>
