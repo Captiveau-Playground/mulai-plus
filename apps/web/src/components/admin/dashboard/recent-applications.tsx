@@ -26,11 +26,12 @@ interface RecentApplication {
 }
 
 export function RecentApplicationsWidget() {
-  const { data: applications, isLoading } = useQuery(
-    orpc.programs.admin.applications.recent.queryOptions({
+  const { data: applications, isLoading } = useQuery({
+    ...orpc.programs.admin.applications.recent.queryOptions({
       input: { limit: 5 },
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
   if (isLoading) {
     return (

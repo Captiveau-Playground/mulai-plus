@@ -16,11 +16,12 @@ export default function MentorBatchesPage() {
     mentor_dashboard: ["access"],
   });
 
-  const { data: batches, isLoading } = useQuery(
-    orpc.programs.myBatches.queryOptions({
+  const { data: batches, isLoading } = useQuery({
+    ...orpc.programs.myBatches.queryOptions({
       enabled: !!isAuthorized,
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   return (
     <PageState isLoading={isAuthLoading || isLoading} isAuthorized={isAuthorized}>

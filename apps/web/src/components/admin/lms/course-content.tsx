@@ -280,7 +280,9 @@ export function CourseContent({ courseId }: { courseId: string }) {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   // Forms
@@ -528,7 +530,7 @@ export function CourseContent({ courseId }: { courseId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-semibold text-lg">Course Content</h2>
         <Button onClick={openCreateSection} size="sm">
           <Plus className="mr-2 h-4 w-4" /> Add Section
@@ -594,7 +596,7 @@ export function CourseContent({ courseId }: { courseId: string }) {
 
       {/* Section Dialog */}
       <Dialog open={isSectionDialogOpen} onOpenChange={setIsSectionDialogOpen}>
-        <DialogContent className="min-w-7xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingSection ? "Edit Section" : "Create Section"}</DialogTitle>
             <DialogDescription>Sections help organize your course content.</DialogDescription>

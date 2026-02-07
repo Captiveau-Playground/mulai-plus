@@ -8,11 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { orpc } from "@/utils/orpc";
 
 export function BatchParticipants({ batchId }: { batchId: string }) {
-  const { data: students, isLoading } = useQuery(
-    orpc.programActivities.mentor.getBatchStudents.queryOptions({
+  const { data: students, isLoading } = useQuery({
+    ...orpc.programActivities.mentor.getBatchStudents.queryOptions({
       input: { batchId },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   return (
     <Card>

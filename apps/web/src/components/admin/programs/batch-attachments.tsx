@@ -48,23 +48,26 @@ export function BatchAttachmentsDialog({
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: attachments, isLoading } = useQuery(
-    orpc.programActivities.attachment.list.queryOptions({
+  const { data: attachments, isLoading } = useQuery({
+    ...orpc.programActivities.attachment.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: sessions } = useQuery(
-    orpc.programActivities.session.list.queryOptions({
+  const { data: sessions } = useQuery({
+    ...orpc.programActivities.session.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: requests, isLoading: isLoadingRequests } = useQuery(
-    orpc.programs.admin.attachmentRequests.list.queryOptions({
+  const { data: requests, isLoading: isLoadingRequests } = useQuery({
+    ...orpc.programs.admin.attachmentRequests.list.queryOptions({
       input: { batchId: batch.id, status: "pending" },
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
   // Mutations
   const approveMutation = useMutation(
@@ -360,14 +363,14 @@ export function BatchAttachmentsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Attachments: {batch.name}</DialogTitle>
           <DialogDescription>Manage resources and links.</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="active" className="w-full">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <TabsList>
               <TabsTrigger value="active">Active Attachments</TabsTrigger>
               <TabsTrigger value="requests">
@@ -464,7 +467,7 @@ export function BatchAttachmentsDialog({
           </TabsContent>
 
           <TabsContent value="requests">
-            <div className="rounded-md border">
+            <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>

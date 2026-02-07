@@ -12,11 +12,13 @@ import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
 import { testimonialsRouter } from "./testimonials";
+import { userRouter } from "./user";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
+  user: userRouter,
   settings: settingsRouter,
   testimonials: testimonialsRouter,
   lms: lmsRouter,
@@ -124,26 +126,6 @@ export const appRouter = {
     delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(role).where(eq(role.id, input.id));
       return { success: true };
-    }),
-  },
-  user: {
-    myPermissions: protectedProcedure.handler(async ({ context }) => {
-      if (!context.session?.user) return [];
-      const userRole = context.session.user.role || "student";
-      const [roleData] = await db.select().from(role).where(eq(role.id, userRole));
-      return roleData?.permissions || [];
-    }),
-    listStudents: protectedProcedure.handler(async () => {
-      const students = await db.query.user.findMany({
-        where: eq(user.role, "student"),
-        columns: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-        },
-      });
-      return students;
     }),
   },
   permission: {

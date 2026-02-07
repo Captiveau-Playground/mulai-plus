@@ -11,21 +11,19 @@ const auditMiddleware = o.middleware(async ({ context, next, path, ...rest }) =>
   const result = await next({});
   const input = (rest as { input?: unknown }).input;
 
-  if (context.session?.user) {
-    try {
-      await db.insert(schema.auditLog).values({
-        action: (path as string[]).join(".") || "unknown",
-        resource: "api",
-        userId: context.session.user.id,
-        details: {
-          input,
-        },
-        ipAddress: context.ip,
-        userAgent: context.userAgent,
-      });
-    } catch (e) {
-      console.error("Failed to log audit", e);
-    }
+  try {
+    await db.insert(schema.auditLog).values({
+      action: (path as string[]).join(".") || "unknown",
+      resource: "api",
+      userId: context.session?.user?.id || null,
+      details: {
+        input,
+      },
+      ipAddress: context.ip,
+      userAgent: context.userAgent,
+    });
+  } catch (e) {
+    console.error("Failed to log audit", e);
   }
 
   return result;

@@ -121,7 +121,7 @@ export function ProgramSyllabus({
           </div>
         ))}
 
-        <div className="flex items-center justify-between pt-4">
+        <div className="flex flex-col gap-2 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <Button variant="outline" onClick={handleAddWeek}>
             <Plus className="mr-2 h-4 w-4" /> Add Week
           </Button>

@@ -74,25 +74,28 @@ export function BatchSessionsDialog({
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: sessions, isLoading: isLoadingSessions } = useQuery(
-    orpc.programActivities.session.list.queryOptions({
+  const { data: sessions, isLoading: isLoadingSessions } = useQuery({
+    ...orpc.programActivities.session.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const [viewingSession, setViewingSession] = useState<CalendarSession | null>(null);
 
-  const { data: mentors } = useQuery(
-    orpc.programs.admin.batches.getMentors.queryOptions({
+  const { data: mentors } = useQuery({
+    ...orpc.programs.admin.batches.getMentors.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: attendanceData } = useQuery(
-    orpc.programs.admin.batches.attendance.list.queryOptions({
+  const { data: attendanceData } = useQuery({
+    ...orpc.programs.admin.batches.attendance.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
   const participants = attendanceData?.participants || [];
 
   // Filtering & Sorting State
@@ -370,7 +373,7 @@ export function BatchSessionsDialog({
   if (isFormOpen) {
     return (
       <Dialog open={true} onOpenChange={(open) => !open && setIsFormOpen(false)}>
-        <DialogContent className="min-w-7xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingSession ? "Edit Session" : "Create Session"}</DialogTitle>
             <DialogDescription>
@@ -568,7 +571,7 @@ export function BatchSessionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] min-w-7xl flex-col">
+      <DialogContent className="flex h-[90vh] w-full max-w-7xl flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between pr-8">
             <div>
@@ -579,7 +582,7 @@ export function BatchSessionsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="table" className="flex flex-1 flex-col overflow-hidden">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <TabsList>
               <TabsTrigger value="table">
                 <List className="mr-2 h-4 w-4" />
@@ -673,7 +676,7 @@ export function BatchSessionsDialog({
 
           <div className="flex-1 overflow-auto">
             <TabsContent value="table" className="mt-0 h-full">
-              <div className="rounded-md border">
+              <div className="overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>

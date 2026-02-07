@@ -183,7 +183,7 @@ export function ProgramApplications({ programId }: { programId: string }) {
                             View Answers
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="min-w-7xl">
+                        <DialogContent className="max-w-3xl">
                           <DialogHeader>
                             <DialogTitle>Reflective Answers</DialogTitle>
                             <DialogDescription>Submitted by {app.user?.name}</DialogDescription>
