@@ -1,7 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { orpc } from "@/utils/orpc";
 
 type Category = {
@@ -24,6 +23,7 @@ type Course = {
 };
 
 import { AboutUs } from "@/components/front/about-us";
+import { FeaturedPrograms } from "@/components/front/featured-programs";
 import { HeroSection } from "@/components/front/hero-section";
 import { Navbar } from "@/components/front/navbar";
 import { SocialProof } from "@/components/front/social-proof";
@@ -58,17 +58,7 @@ export default function LandingPage() {
       <HeroSection />
       <SocialProof />
       <AboutUs />
-      <section className="relative flex min-h-svh w-full flex-1 flex-col justify-between overflow-hidden bg-white">
-        <div className="relative z-10 mx-auto mt-20 flex max-w-[1052px] flex-col items-center gap-14 text-center">
-          <div className="flex flex-col items-center gap-6">
-            <h2 className="font-bold text-4xl text-[#1A1F6D]">Daftar Sekarang</h2>
-            <p className="text-[#666] text-lg">Daftar sekarang dan mulai belajar dengan mudah dan nyaman.</p>
-          </div>
-          <Button className="rounded-full bg-[#1A1F6D] font-bold font-inter text-base text-white hover:bg-[#1A1F6D]/90">
-            Daftar Sekarang
-          </Button>
-        </div>
-      </section>
+      <FeaturedPrograms />
     </div>
   );
 }

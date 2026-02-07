@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 const PARTNERS = [
   {
@@ -18,19 +19,19 @@ const PARTNERS = [
     name: "Spotify",
     width: 160,
     height: 48,
-    logo: "/partners/spotify.svg",
+    logo: "/partners/meta.svg",
   },
   {
     name: "Amazon",
     width: 140,
     height: 42,
-    logo: "/partners/amazon.svg",
+    logo: "/partners/discord.svg",
   },
   {
     name: "Adobe",
     width: 130,
     height: 38,
-    logo: "/partners/adobe.svg",
+    logo: "/partners/tokopedia.svg",
   },
 ];
 
@@ -40,13 +41,13 @@ export function SocialProof() {
       <div className="container mx-auto px-6 md:px-16">
         <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8 opacity-60 grayscale md:justify-between md:gap-x-16 lg:gap-x-24">
           {PARTNERS.map((partner) => (
-            <div
+            <Image
               key={partner.name}
-              className="flex items-center justify-center"
-              style={{ width: partner.width, height: partner.height }}
-            >
-              <span className="font-bold font-bricolage text-2xl text-[#B0B0B0] sm:text-3xl">{partner.name}</span>
-            </div>
+              src={partner.logo}
+              alt={partner.name}
+              width={partner.width}
+              height={partner.height}
+            />
           ))}
         </div>
       </div>
