@@ -59,7 +59,7 @@ export function MeetTheMentor() {
               className="group relative flex flex-col items-center overflow-hidden rounded-[24px] bg-[#F5F7FA] p-4 transition-all hover:-translate-y-1 hover:shadow-lg"
             >
               {/* Image Container */}
-              <div className="relative mb-4 aspect-[3/4] w-full overflow-hidden rounded-[20px] bg-white">
+              <div className="relative mb-4 aspect-3/4 w-full overflow-hidden rounded-[20px] bg-white">
                 <Image
                   src={mentor.image}
                   alt={mentor.name}
