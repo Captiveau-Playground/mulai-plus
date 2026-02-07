@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="relative h-[500px] w-full overflow-hidden bg-[#1A1F6D] py-16 lg:py-24">
+    <footer className="relative h-[400px] w-full overflow-hidden bg-[#1A1F6D] py-16 lg:py-24">
       {/* Background Decoration - "mulai+" text */}
       <div className="absolute top-10 bottom-0 left-0 w-full select-none overflow-hidden leading-none">
         <Image
@@ -17,7 +17,7 @@ export function Footer() {
         />
       </div>
 
-      <div className="container relative z-10 mx-auto px-6 md:px-16">
+      <div className="container relative z-10 min-w-full px-6 md:px-16">
         <div className="flex flex-col items-center justify-between gap-12 lg:flex-row lg:gap-0">
           {/* Logo */}
           <div className="shrink-0">
