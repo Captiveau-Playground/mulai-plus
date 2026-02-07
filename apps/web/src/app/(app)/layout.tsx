@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono, Manrope } from "next/font/google";
 
-import "../../index.css";
+import "../../globals-app.css";
+import { Footer } from "@/components/front/footer";
+import { Navbar } from "@/components/front/navbar";
 import Providers from "@/components/providers";
 
 const geistSans = Geist({
@@ -12,6 +14,16 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const bricolageGrotesque = Bricolage_Grotesque({
+  variable: "--font-bricolage",
+  subsets: ["latin"],
+});
+
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 
@@ -27,9 +39,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${bricolageGrotesque.variable} ${manrope.variable} antialiased`}
+      >
         <Providers>
-          <div className="grid h-svh grid-rows-[auto_1fr]">{children}</div>
+          <Navbar />
+          {children}
+          <Footer />
         </Providers>
       </body>
     </html>

@@ -55,16 +55,30 @@ export const programsRouter = {
         const limit = input?.limit ?? 50;
         const offset = input?.offset ?? 0;
 
+        console.log("Programs list input:", { limit, offset });
+
         // Show open and running programs for public
         const whereClause = isNull(program.deletedAt);
 
-        const items = await db
-          .select()
-          .from(program)
-          .where(whereClause)
-          .limit(limit)
-          .offset(offset)
-          .orderBy(desc(program.createdAt));
+        const items = await db.query.program.findMany({
+          where: whereClause,
+          limit,
+          offset,
+          orderBy: desc(program.createdAt),
+          with: {
+            batches: {
+              where: (batch, { isNull }) => isNull(batch.deletedAt),
+              orderBy: (batch, { desc }) => [desc(batch.startDate)],
+              limit: 2, // Get only the latest batch
+            },
+            benefits: {
+              orderBy: (benefit, { asc }) => [asc(benefit.order)],
+              limit: 3, // Get only top 3 benefits
+            },
+          },
+        });
+
+        console.log("Programs found:", items.length);
 
         const [total] = await db.select({ count: count() }).from(program).where(whereClause);
 
