@@ -21,7 +21,7 @@ export function ProgramAbout({ title, description, className }: ProgramAboutProp
         {description ? (
           <p className="font-inter font-normal text-[#888888] text-base leading-[1.2] md:text-lg">{description}</p>
         ) : (
-          <p className="font-inter font-normal text-base text-muted-foreground italic">Data belum tersedia</p>
+          <p className="font-inter font-normal text-[#888888] text-base italic">Data belum tersedia</p>
         )}
       </div>
     </section>

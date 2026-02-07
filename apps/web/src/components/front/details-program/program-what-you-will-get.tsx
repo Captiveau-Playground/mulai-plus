@@ -40,7 +40,7 @@ export function ProgramWhatYouWillGet({
               </div>
             ))
           ) : (
-            <p className="font-inter font-normal text-base text-muted-foreground italic">Data belum tersedia</p>
+            <p className="font-inter font-normal text-[#888888] text-base italic">Data belum tersedia</p>
           )}
         </div>
       </div>
