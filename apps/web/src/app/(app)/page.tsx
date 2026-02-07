@@ -26,10 +26,8 @@ import { AboutUs } from "@/components/front/about-us";
 import { CTASection } from "@/components/front/cta-section";
 import { FAQSection } from "@/components/front/faq-section";
 import { FeaturedPrograms } from "@/components/front/featured-programs";
-import { Footer } from "@/components/front/footer";
 import { HeroSection } from "@/components/front/hero-section";
 import { MeetTheMentor } from "@/components/front/meet-the-mentor";
-import { Navbar } from "@/components/front/navbar";
 import { SocialProof } from "@/components/front/social-proof";
 
 export default function LandingPage() {
@@ -58,7 +56,6 @@ export default function LandingPage() {
 
   return (
     <div className="flex w-full flex-col">
-      <Navbar />
       <HeroSection />
       <SocialProof />
       <AboutUs />
@@ -66,7 +63,6 @@ export default function LandingPage() {
       <MeetTheMentor />
       <FAQSection />
       <CTASection />
-      <Footer />
     </div>
   );
 }

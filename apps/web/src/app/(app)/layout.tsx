@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono, Manrope } from "next/font/google";
 
 import "../../globals-app.css";
+import { Footer } from "@/components/front/footer";
+import { Navbar } from "@/components/front/navbar";
 import Providers from "@/components/providers";
 
 const geistSans = Geist({
@@ -41,7 +43,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${bricolageGrotesque.variable} ${manrope.variable} antialiased`}
       >
         <Providers>
-          <div className="grid h-svh grid-rows-[auto_1fr]">{children}</div>
+          <Navbar />
+          {children}
+          <Footer />
         </Providers>
       </body>
     </html>

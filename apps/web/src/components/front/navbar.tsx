@@ -25,7 +25,7 @@ export function Navbar() {
   return (
     <nav
       className={cn(
-        "fixed top-0 right-0 left-0 z-50 flex w-full items-center justify-between px-6 transition-all duration-300 lg:grid lg:grid-cols-3 lg:px-16",
+        "fixed top-0 right-0 left-0 z-50 flex h-[8vh] w-full items-center justify-between px-6 transition-all duration-300 lg:grid lg:grid-cols-3 lg:px-16",
         isScrolled ? "bg-white/80 py-4 shadow-sm backdrop-blur-md" : "bg-transparent py-6 lg:py-4",
       )}
     >

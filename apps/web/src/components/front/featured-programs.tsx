@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import * as Icons from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -102,79 +103,81 @@ export function FeaturedPrograms() {
                   const buttonLabel = isScholarship ? "Gabung Beasiswa" : "Coming Soon";
 
                   return (
-                    <div
-                      key={batch.id}
-                      className={cn(
-                        "flex flex-col justify-between rounded-[24px] p-8 opacity-90 transition-transform duration-300",
-                        cardBg,
-                      )}
-                    >
-                      <div className="flex flex-col gap-6">
-                        {/* Upper Section */}
-                        <div className="flex flex-col gap-4">
-                          <div className="flex flex-col items-start gap-4">
-                            <div
-                              className={cn(
-                                "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-lg sm:h-14 sm:w-14",
-                                iconBgColor,
-                              )}
-                            >
-                              <Icons.GraduationCap className="h-6 w-6 sm:h-7 sm:w-7" />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <div className="flex flex-col flex-wrap items-start gap-3">
-                                <h3 className="font-bold font-bricolage text-lg text-white leading-tight sm:text-2xl">
-                                  {program.name}
-                                </h3>
-                                <span className="font-bold font-inter text-[#B9E1FE] text-xs tracking-widest">
-                                  {batch.name.toUpperCase()}
-                                </span>
+                    <Link href={`/programs/${program.slug}`} key={batch.id}>
+                      <div
+                        key={batch.id}
+                        className={cn(
+                          "flex flex-col justify-between rounded-[24px] p-8 opacity-90 transition-transform duration-300",
+                          cardBg,
+                        )}
+                      >
+                        <div className="flex flex-col gap-6">
+                          {/* Upper Section */}
+                          <div className="flex flex-col gap-4">
+                            <div className="flex flex-col items-start gap-4">
+                              <div
+                                className={cn(
+                                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-lg sm:h-14 sm:w-14",
+                                  iconBgColor,
+                                )}
+                              >
+                                <Icons.GraduationCap className="h-6 w-6 sm:h-7 sm:w-7" />
                               </div>
-                              <p className="line-clamp-2 font-inter text-[#B9E1FE]/80 text-xs leading-relaxed sm:text-sm">
-                                {program.description || "No description available."}
-                              </p>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex flex-col flex-wrap items-start gap-3">
+                                  <h3 className="font-bold font-bricolage text-lg text-white leading-tight sm:text-2xl">
+                                    {program.name}
+                                  </h3>
+                                  <span className="font-bold font-inter text-[#B9E1FE] text-xs tracking-widest">
+                                    {batch.name.toUpperCase()}
+                                  </span>
+                                </div>
+                                <p className="line-clamp-2 font-inter text-[#B9E1FE]/80 text-xs leading-relaxed sm:text-sm">
+                                  {program.description || "No description available."}
+                                </p>
+                              </div>
                             </div>
+                          </div>
+
+                          {/* Detail / Benefits */}
+                          <div className="flex flex-col gap-3 pt-2">
+                            {program.benefits?.map((benefit) => {
+                              const Icon = getIcon(benefit.icon);
+                              return (
+                                <div key={benefit.id} className="flex items-center gap-3">
+                                  <div
+                                    className={cn(
+                                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white",
+                                      isScholarship ? "bg-[#F93447]" : "bg-[#FE9114]",
+                                    )}
+                                  >
+                                    <Icon className="h-3 w-3" />
+                                  </div>
+                                  <span className="font-inter font-medium text-white text-xs sm:text-sm">
+                                    {benefit.title}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
 
-                        {/* Detail / Benefits */}
-                        <div className="flex flex-col gap-3 pt-2">
-                          {program.benefits?.map((benefit) => {
-                            const Icon = getIcon(benefit.icon);
-                            return (
-                              <div key={benefit.id} className="flex items-center gap-3">
-                                <div
-                                  className={cn(
-                                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white",
-                                    isScholarship ? "bg-[#F93447]" : "bg-[#FE9114]",
-                                  )}
-                                >
-                                  <Icon className="h-3 w-3" />
-                                </div>
-                                <span className="font-inter font-medium text-white text-xs sm:text-sm">
-                                  {benefit.title}
-                                </span>
-                              </div>
-                            );
-                          })}
+                        {/* Button */}
+                        <div className="mt-6">
+                          <Button
+                            className={cn(
+                              "w-full rounded-sm py-6 font-bold font-inter text-sm transition-all",
+                              isScholarship
+                                ? "bg-white text-[#1A1F6D] shadow-md hover:bg-gray-100"
+                                : "cursor-default bg-white/10 text-white hover:bg-white/5",
+                            )}
+                            disabled={!isScholarship}
+                          >
+                            {buttonLabel}
+                          </Button>
                         </div>
                       </div>
-
-                      {/* Button */}
-                      <div className="mt-6">
-                        <Button
-                          className={cn(
-                            "w-full rounded-sm py-6 font-bold font-inter text-sm transition-all",
-                            isScholarship
-                              ? "bg-white text-[#1A1F6D] shadow-md hover:bg-gray-100"
-                              : "cursor-default bg-white/10 text-white hover:bg-white/5",
-                          )}
-                          disabled={!isScholarship}
-                        >
-                          {buttonLabel}
-                        </Button>
-                      </div>
-                    </div>
+                    </Link>
                   );
                 })}
             </div>
