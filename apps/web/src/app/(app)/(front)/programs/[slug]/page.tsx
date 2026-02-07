@@ -42,10 +42,41 @@ export default function ProgramDetailPage() {
     );
   }
 
+  const batch = program.batches && program.batches.length > 0 ? program.batches[0] : null;
+
+  const timelineItems = batch
+    ? [
+        {
+          title: `Registration — ${format(new Date(batch.registrationStartDate), "dd MMM yyyy")}`,
+          description: "Open registration for new students.",
+        },
+        batch.verificationStartDate && {
+          title: `Verification — ${format(new Date(batch.verificationStartDate), "dd MMM yyyy")}`,
+          description: "Verification of submitted documents.",
+        },
+        batch.assessmentStartDate && {
+          title: `Assessment — ${format(new Date(batch.assessmentStartDate), "dd MMM yyyy")}`,
+          description: "Assessment test for applicants.",
+        },
+        batch.announcementDate && {
+          title: `Announcement — ${format(new Date(batch.announcementDate), "dd MMM yyyy")}`,
+          description: "Announcement of accepted students.",
+        },
+        batch.onboardingDate && {
+          title: `Onboarding — ${format(new Date(batch.onboardingDate), "dd MMM yyyy")}`,
+          description: "Onboarding session for new students.",
+        },
+        {
+          title: `Graduation — ${format(new Date(batch.endDate), "dd MMM yyyy")}`,
+          description: "Graduation ceremony.",
+        },
+      ].filter((item): item is { title: string; description: string } => Boolean(item))
+    : undefined;
+
   return (
     <div className="bg-white">
       <HeaderDetailsProgram
-        title={program.name + " Program " + new Date(program.batches[0].startDate).getFullYear()}
+        title={program.name + " Program " + (batch ? new Date(batch.startDate).getFullYear() : "")}
         batch={
           program.batches && program.batches.length > 0
             ? program.batches.map((b: { name: string }) => b.name).join(", ")
@@ -62,11 +93,11 @@ export default function ProgramDetailPage() {
           {/* Main Content */}
           <main className="top-[20vh] flex min-w-0 flex-1 flex-col gap-16 px-4">
             <ProgramNavigation />
-            <ProgramAbout description={program.description ?? undefined} />
-            <ProgramTimeline />
-            <ProgramWhatYouWillGet />
-            <ProgramSyllabus />
-            <ProgramFAQ />
+            <ProgramAbout title={program.name} description={program.description ?? undefined} />
+            <ProgramTimeline items={timelineItems} />
+            <ProgramWhatYouWillGet items={program.benefits} />
+            <ProgramSyllabus items={program.syllabus} />
+            <ProgramFAQ items={program.faqs} />
           </main>
 
           {/* Sidebar */}
