@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 export function CTASection() {
   return (
     <section className="w-full bg-white py-16 lg:pt-16 lg:pb-[108px]">
-      <div className="container mx-auto max-w-7xl">
+      <div className="container mx-auto">
         <div className="relative flex h-[500px] w-full flex-col justify-center overflow-hidden rounded-[48px] bg-[#F93447] px-8 py-12 md:h-[600px] md:px-16 lg:h-[700px] lg:justify-start lg:py-32">
           {/* Background Image */}
           <div className="absolute inset-0 z-0">
@@ -30,7 +30,7 @@ export function CTASection() {
 
           {/* Content */}
           <div className="relative z-20 flex max-w-4xl flex-col gap-12 lg:ml-16">
-            <h2 className="font-bold font-bricolage text-4xl text-white leading-tight md:text-6xl lg:text-[96px]">
+            <h2 className="font-bold font-bricolage text-3xl text-white leading-tight md:text-6xl lg:text-[96px]">
               Siap Mulai Langkah Pertamamu?
             </h2>
 

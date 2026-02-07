@@ -60,7 +60,7 @@ export function Navbar() {
       <div className="hidden items-center gap-2.5 font-manrope lg:flex lg:justify-self-end">
         <Button
           variant="ghost"
-          className="rounded-full px-6 py-3 font-bold font-inter text-[#333333] text-sm lg:px-9 lg:py-4 lg:text-base"
+          className="rounded-full px-6 py-4 font-bold font-inter text-[#333333] text-sm lg:px-9 lg:py-6 lg:text-base"
         >
           Login
         </Button>
