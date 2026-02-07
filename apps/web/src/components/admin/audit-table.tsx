@@ -55,8 +55,8 @@ export function AuditTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="relative max-w-sm flex-1">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full max-w-sm flex-1">
           <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search action, resource, user..."
@@ -65,12 +65,12 @@ export function AuditTable() {
               setSearch(e.target.value);
               setPage(0); // Reset page on search
             }}
-            className="pl-8"
+            className="w-full pl-8"
           />
         </div>
       </div>
 
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -139,7 +139,7 @@ export function AuditTable() {
                           <span className="sr-only">View details</span>
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-h-[80vh] min-w-7xl overflow-y-auto">
+                      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-3xl">
                         <DialogHeader>
                           <DialogTitle>Log Details</DialogTitle>
                           <DialogDescription>
@@ -170,7 +170,7 @@ export function AuditTable() {
         </Table>
       </div>
 
-      <div className="flex items-center justify-between px-2">
+      <div className="flex flex-col gap-4 px-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-muted-foreground text-sm">
           Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, data?.total || 0)} of {data?.total} entries
         </div>

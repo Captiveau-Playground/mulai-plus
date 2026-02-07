@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const role = pgTable("role", {
   id: text("id").primaryKey(),
@@ -35,6 +35,29 @@ export const user = pgTable("user", {
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const studentDetail = pgTable("student_detail", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+  address: text("address"),
+  phoneNumber: text("phone_number"),
+  school: text("school"),
+  educationLevel: text("education_level"),
+  socialMedia: jsonb("social_media").$type<{
+    instagram?: string;
+    tiktok?: string;
+    threads?: string;
+    linkedin?: string;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
     .notNull(),
 });
 
@@ -98,9 +121,17 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export const userRelations = relations(user, ({ many }) => ({
+export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),
+  studentDetail: one(studentDetail),
+}));
+
+export const studentDetailRelations = relations(studentDetail, ({ one }) => ({
+  user: one(user, {
+    fields: [studentDetail.userId],
+    references: [user.id],
+  }),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({

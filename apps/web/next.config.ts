@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   typedRoutes: true,
   reactCompiler: true,
+  images: {
+    domains: ["fastly.picsum.photos"],
+  },
 };
 
 export default nextConfig;

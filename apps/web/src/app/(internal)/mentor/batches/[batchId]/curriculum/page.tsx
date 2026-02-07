@@ -20,12 +20,13 @@ export default function MentorBatchCurriculumPage() {
     mentor_dashboard: ["access"],
   });
 
-  const { data, isLoading } = useQuery(
-    orpc.programActivities.mentor.getBatchAttendance.queryOptions({
+  const { data, isLoading } = useQuery({
+    ...orpc.programActivities.mentor.getBatchAttendance.queryOptions({
       input: { batchId },
       enabled: !!isAuthorized && !!batchId,
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const syllabus = data?.batch?.program?.syllabus?.sort((a, b) => a.week - b.week) || [];
 

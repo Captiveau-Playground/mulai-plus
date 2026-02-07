@@ -113,11 +113,6 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
       return;
     }
 
-    if (session.user.role === "admin") {
-      setIsAuthorized(true);
-      return;
-    }
-
     // Wait for permissions to load
     if (isPermsLoading && !userPermissions) return;
 

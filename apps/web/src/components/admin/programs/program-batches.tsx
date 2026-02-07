@@ -49,11 +49,12 @@ function BatchAttendanceDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { data, isLoading } = useQuery(
-    orpc.programs.admin.batches.attendance.list.queryOptions({
+  const { data, isLoading } = useQuery({
+    ...orpc.programs.admin.batches.attendance.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
   const [updates, setUpdates] = useState<Record<string, { status: "present" | "absent" | "excused"; notes?: string }>>(
     {},
@@ -95,7 +96,7 @@ function BatchAttendanceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-7xl">
         <DialogHeader>
           <DialogTitle>Batch Attendance: {batch.name}</DialogTitle>
           <DialogDescription>
@@ -214,7 +215,7 @@ function BatchMentorsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Manage Batch Mentors</DialogTitle>
           <DialogDescription>Select mentors for this batch.</DialogDescription>
@@ -337,7 +338,7 @@ function BatchTimelineDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Timeline: {batch.name}</DialogTitle>
           <DialogDescription>Chronological sequence of events for this batch.</DialogDescription>
@@ -522,7 +523,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-medium text-lg">Batches</h3>
           <p className="text-muted-foreground text-sm">Manage batches for this program.</p>
@@ -532,7 +533,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
         </Button>
       </div>
 
-      <div className="rounded-md border bg-card">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

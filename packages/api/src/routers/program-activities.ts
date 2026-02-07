@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, gt, isNull, ne, or } from "@mulai-plus/db";
+import { and, count, db, desc, eq, gt, inArray, isNull, ne, or } from "@mulai-plus/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   attachmentTypeEnum,
@@ -19,6 +19,41 @@ import { protectedProcedure } from "../index";
 import { sendNotification } from "../lib/notification";
 
 export const programActivitiesRouter = {
+  student: {
+    mySessions: protectedProcedure.handler(async ({ context }) => {
+      const userId = context.session.user.id;
+
+      // 1. Get user's batches
+      const participations = await db.query.programParticipant.findMany({
+        where: eq(programParticipant.userId, userId),
+        columns: { batchId: true },
+      });
+      const batchIds = participations.map((p) => p.batchId).filter((id): id is string => id !== null);
+
+      if (batchIds.length === 0) return [];
+
+      // 2. Find sessions
+      const sessions = await db.query.programSession.findMany({
+        where: and(
+          inArray(programSession.batchId, batchIds),
+          or(
+            eq(programSession.studentId, userId), // One-on-one
+            isNull(programSession.studentId), // Group session (implied for batch)
+          ),
+          ne(programSession.status, "cancelled"),
+        ),
+        with: {
+          mentor: true,
+          batch: {
+            with: { program: true },
+          },
+        },
+        orderBy: [desc(programSession.startsAt)],
+      });
+
+      return sessions;
+    }),
+  },
   mentor: {
     getStats: protectedProcedure.handler(async ({ context }) => {
       const userId = context.session.user.id;
