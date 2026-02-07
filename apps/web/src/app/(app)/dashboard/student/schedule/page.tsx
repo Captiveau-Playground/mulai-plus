@@ -2,11 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, Clock, Link as LinkIcon, Loader2, User } from "lucide-react";
+import { Calendar, Clock, Link as LinkIcon, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageState } from "@/components/ui/page-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -14,56 +15,50 @@ import { orpc } from "@/utils/orpc";
 export default function StudentSchedulePage() {
   const { data: sessions, isLoading } = useQuery(orpc.programActivities.student.mySessions.queryOptions());
 
-  if (isLoading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   const now = new Date();
   const upcomingSessions = sessions?.filter((s) => new Date(s.startsAt) > now) || [];
   const pastSessions = sessions?.filter((s) => new Date(s.startsAt) <= now) || [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-bold text-3xl tracking-tight">Schedule</h1>
-        <p className="text-muted-foreground">View your upcoming and past learning sessions.</p>
+    <PageState isLoading={isLoading}>
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-bold text-3xl tracking-tight">Schedule</h1>
+          <p className="text-muted-foreground">View your upcoming and past learning sessions.</p>
+        </div>
+
+        <Tabs defaultValue="upcoming" className="w-full">
+          <TabsList>
+            <TabsTrigger value="upcoming">Upcoming ({upcomingSessions.length})</TabsTrigger>
+            <TabsTrigger value="past">Past ({pastSessions.length})</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="upcoming" className="space-y-4 pt-4">
+            {upcomingSessions.length > 0 ? (
+              upcomingSessions.map((session) => <SessionCard key={session.id} session={session} isUpcoming />)
+            ) : (
+              <div className="flex min-h-[300px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+                <Calendar className="h-10 w-10 text-muted-foreground opacity-50" />
+                <h3 className="mt-4 font-semibold text-lg">No upcoming sessions</h3>
+                <p className="text-muted-foreground text-sm">You're all caught up!</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="past" className="space-y-4 pt-4">
+            {pastSessions.length > 0 ? (
+              pastSessions.map((session) => <SessionCard key={session.id} session={session} />)
+            ) : (
+              <div className="flex min-h-[300px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+                <Clock className="h-10 w-10 text-muted-foreground opacity-50" />
+                <h3 className="mt-4 font-semibold text-lg">No past sessions</h3>
+                <p className="text-muted-foreground text-sm">You haven't attended any sessions yet.</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue="upcoming" className="w-full">
-        <TabsList>
-          <TabsTrigger value="upcoming">Upcoming ({upcomingSessions.length})</TabsTrigger>
-          <TabsTrigger value="past">Past ({pastSessions.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="upcoming" className="space-y-4 pt-4">
-          {upcomingSessions.length > 0 ? (
-            upcomingSessions.map((session) => <SessionCard key={session.id} session={session} isUpcoming />)
-          ) : (
-            <div className="flex min-h-[300px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-              <Calendar className="h-10 w-10 text-muted-foreground opacity-50" />
-              <h3 className="mt-4 font-semibold text-lg">No upcoming sessions</h3>
-              <p className="text-muted-foreground text-sm">You're all caught up!</p>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="past" className="space-y-4 pt-4">
-          {pastSessions.length > 0 ? (
-            pastSessions.map((session) => <SessionCard key={session.id} session={session} />)
-          ) : (
-            <div className="flex min-h-[300px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-              <Clock className="h-10 w-10 text-muted-foreground opacity-50" />
-              <h3 className="mt-4 font-semibold text-lg">No past sessions</h3>
-              <p className="text-muted-foreground text-sm">You haven't attended any sessions yet.</p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+    </PageState>
   );
 }
 
