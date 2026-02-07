@@ -25,6 +25,7 @@ type Course = {
 import { AboutUs } from "@/components/front/about-us";
 import { FeaturedPrograms } from "@/components/front/featured-programs";
 import { HeroSection } from "@/components/front/hero-section";
+import { MeetTheMentor } from "@/components/front/meet-the-mentor";
 import { Navbar } from "@/components/front/navbar";
 import { SocialProof } from "@/components/front/social-proof";
 
@@ -59,6 +60,7 @@ export default function LandingPage() {
       <SocialProof />
       <AboutUs />
       <FeaturedPrograms />
+      <MeetTheMentor />
     </div>
   );
 }
