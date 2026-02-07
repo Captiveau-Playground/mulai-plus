@@ -23,8 +23,10 @@ type Course = {
 };
 
 import { AboutUs } from "@/components/front/about-us";
+import { CTASection } from "@/components/front/cta-section";
 import { FAQSection } from "@/components/front/faq-section";
 import { FeaturedPrograms } from "@/components/front/featured-programs";
+import { Footer } from "@/components/front/footer";
 import { HeroSection } from "@/components/front/hero-section";
 import { MeetTheMentor } from "@/components/front/meet-the-mentor";
 import { Navbar } from "@/components/front/navbar";
@@ -63,6 +65,8 @@ export default function LandingPage() {
       <FeaturedPrograms />
       <MeetTheMentor />
       <FAQSection />
+      <CTASection />
+      <Footer />
     </div>
   );
 }
