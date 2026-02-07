@@ -23,6 +23,7 @@ type Course = {
   price?: number | null;
 };
 
+import { AboutUs } from "@/components/front/about-us";
 import { HeroSection } from "@/components/front/hero-section";
 import { Navbar } from "@/components/front/navbar";
 import { SocialProof } from "@/components/front/social-proof";
@@ -56,6 +57,7 @@ export default function LandingPage() {
       <Navbar />
       <HeroSection />
       <SocialProof />
+      <AboutUs />
       <section className="relative flex min-h-svh w-full flex-1 flex-col justify-between overflow-hidden bg-white">
         <div className="relative z-10 mx-auto mt-20 flex max-w-[1052px] flex-col items-center gap-14 text-center">
           <div className="flex flex-col items-center gap-6">
