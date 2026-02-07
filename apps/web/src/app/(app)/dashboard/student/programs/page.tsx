@@ -32,7 +32,7 @@ export default function StudentProgramsPage() {
             <Card key={program.id} className="flex flex-col overflow-hidden">
               <div className="relative aspect-video w-full bg-muted">
                 {program.bannerUrl ? (
-                  <Image src={program.bannerUrl} alt={program.name} fill className="object-cover" />
+                  <Image src={program.bannerUrl} alt={program.name || "Program Banner"} fill className="object-cover" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-muted-foreground">No Thumbnail</div>
                 )}
