@@ -109,7 +109,7 @@ export function FeaturedPrograms() {
                         cardBg,
                       )}
                     >
-                      <div className="flex flex-col gap-6 sm:px-4">
+                      <div className="flex flex-col gap-6">
                         {/* Upper Section */}
                         <div className="flex flex-col gap-4">
                           <div className="flex flex-col items-start gap-4">
@@ -167,7 +167,7 @@ export function FeaturedPrograms() {
                             "w-full rounded-sm py-6 font-bold font-inter text-sm transition-all",
                             isScholarship
                               ? "bg-white text-[#1A1F6D] shadow-md hover:bg-gray-100"
-                              : "cursor-default bg-transparent text-white hover:bg-white/5",
+                              : "cursor-default bg-white/10 text-white hover:bg-white/5",
                           )}
                           disabled={!isScholarship}
                         >
