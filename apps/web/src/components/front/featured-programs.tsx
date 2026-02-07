@@ -48,10 +48,10 @@ export function FeaturedPrograms() {
       {/* Gradient Overlays */}
       <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-transparent via-[#1A1F6D]/20 to-[#1A1F6D]" />
 
-      <div className="container relative z-10 mx-auto max-w-7xl">
+      <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
         <div className="flex flex-col gap-12 lg:flex-row lg:items-center lg:gap-16">
           {/* Left Column: Image of Person */}
-          <div className="relative flex w-full shrink-0 flex-col items-center justify-center lg:w-[40%] lg:items-start">
+          <div className="relative hidden w-full shrink-0 flex-col items-center justify-center lg:flex lg:w-[40%] lg:items-start">
             <div className="relative aspect-3/4 w-full max-w-[400px] lg:max-w-none">
               {/* Decorative Gradient Behind Image */}
               <div className="absolute top-10 right-10 -z-10 h-full w-full rounded-full bg-[#FE9114]/20 blur-[80px]" />
@@ -79,7 +79,7 @@ export function FeaturedPrograms() {
             </div>
 
             {/* Cards Grid */}
-            <div className="grid gap-6 md:grid-cols-2 lg:gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-6">
               {programs
                 .flatMap((program) =>
                   (program.batches || []).map((batch) => ({
@@ -105,11 +105,11 @@ export function FeaturedPrograms() {
                     <div
                       key={batch.id}
                       className={cn(
-                        "flex flex-col justify-between rounded-[24px] p-6 opacity-80 transition-transform duration-300 sm:p-8",
+                        "flex flex-col justify-between rounded-[24px] p-8 opacity-90 transition-transform duration-300",
                         cardBg,
                       )}
                     >
-                      <div className="flex flex-col gap-6">
+                      <div className="flex flex-col gap-6 sm:px-4">
                         {/* Upper Section */}
                         <div className="flex flex-col gap-4">
                           <div className="flex flex-col items-start gap-4">
@@ -142,7 +142,7 @@ export function FeaturedPrograms() {
                           {program.benefits?.map((benefit) => {
                             const Icon = getIcon(benefit.icon);
                             return (
-                              <div key={benefit.id} className="flex items-start gap-3">
+                              <div key={benefit.id} className="flex items-center gap-3">
                                 <div
                                   className={cn(
                                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white",

@@ -39,7 +39,7 @@ const FAQS = [
 export function FAQSection() {
   return (
     <section className="w-full bg-white py-16 lg:py-24">
-      <div className="container mx-auto max-w-7xl">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
         <div className="flex flex-col gap-12 lg:flex-row lg:justify-between lg:gap-9">
           {/* Left Column: Header Content */}
           <div className="flex flex-col gap-9 lg:w-[40%] lg:max-w-[718px]">

@@ -38,8 +38,8 @@ const PARTNERS = [
 export function SocialProof() {
   return (
     <section className="w-full bg-white py-12 md:py-16 lg:py-20">
-      <div className="container mx-auto max-w-7xl">
-        <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8 opacity-60 grayscale md:justify-between md:gap-x-16 lg:gap-x-24">
+      <div className="container mx-auto max-w-7xl px-4 md:px-6 lg:px-0">
+        <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8 opacity-60 grayscale md:gap-x-16 lg:justify-between lg:gap-x-24">
           {PARTNERS.map((partner) => (
             <Image
               key={partner.name}

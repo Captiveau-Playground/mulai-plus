@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="relative h-[400px] w-full overflow-hidden bg-[#1A1F6D] py-16 lg:py-24">
+    <footer className="relative min-h-[400px] w-full overflow-hidden bg-[#1A1F6D] py-16 lg:py-24">
       {/* Background Decoration - "mulai+" text */}
       <div className="absolute top-10 bottom-0 left-0 w-full select-none overflow-hidden leading-none">
         <Image
