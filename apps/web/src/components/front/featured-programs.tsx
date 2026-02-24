@@ -88,6 +88,7 @@ export function FeaturedPrograms() {
                     program,
                   })),
                 )
+                .toReversed()
                 .map((batch, index) => {
                   const { program } = batch;
                   // Use index to enforce Figma design pattern: Left Card (Scholarship/Red), Right Card (Regular/Orange)
@@ -129,7 +130,7 @@ export function FeaturedPrograms() {
                                     {program.name}
                                   </h3>
                                   <span className="font-bold font-inter text-[#B9E1FE] text-xs tracking-widest">
-                                    {batch.name.toUpperCase()}
+                                    {batch.name.toUpperCase() === "BATCH 11" ? "FREE" : "PAID"}
                                   </span>
                                 </div>
                                 <p className="line-clamp-2 font-inter text-[#B9E1FE]/80 text-xs leading-relaxed sm:text-sm">

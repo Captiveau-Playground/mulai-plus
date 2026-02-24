@@ -6,33 +6,33 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 const FAQS = [
   {
     id: "item-1",
-    question: "Siapa aja yang bisa mendaftar?",
+    question: "Siapa aja yang bisa mendaftar MULAI+?",
     answer:
-      "Lorem ipsum dolor sit amet consectetur. Magna vulputate interdum semper enim mattis non. Sed mi fringilla sed dolor nisl vulputate tristique consequat scelerisque.",
+      "Program MULAI+ terbuka untuk siswa SMA/SMK/MA kelas 10–12 yang sedang mencari kejelasan arah jurusan, kampus, dan rencana masa depan. Baik kamu yang masih bingung total, sudah punya pilihan tapi belum yakin, atau ingin menyusun strategi masuk PTN dengan lebih terstruktur, MULAI+ dirancang untuk membantu proses tersebut.",
   },
   {
     id: "item-2",
     question: "Apakah program ini gratis?",
     answer:
-      "Program ini berbayar dengan opsi cicilan yang fleksibel. Kami juga menyediakan beasiswa terbatas untuk peserta yang memenuhi kriteria tertentu.",
+      "MULAI+ memiliki dua jenis program Regular Mentoring (berbayar) ⁠Beasiswa Mentoring (melalui proses seleksi) Program beasiswa tersedia bagi siswa terpilih yang memenuhi kriteria dan lolos tahap seleksi.",
   },
   {
     id: "item-3",
     question: "Bagaimana sistem seleksinya?",
     answer:
-      "Sistem seleksi terdiri dari dua tahap: seleksi administrasi (CV dan essay) dan wawancara online. Kami mencari kandidat dengan motivasi tinggi dan komitmen belajar.",
+      "Untuk program beasiswa, peserta akan melalui beberapa tahap berikut Pengisian formulir pendaftaran ⁠Menjawab pertanyaan reflektif (non-akademik) ⁠Seleksi berbasis kebutuhan dan komitmen ⁠Pengumuman peserta terpilih secara personal Persetujuan kontrak komitmen sederhana Kami menilai berdasarkan komitmen, kesiapan berkembang, dan kesesuaian dengan program.",
   },
   {
     id: "item-4",
     question: "Berapa lama program berlangsung?",
     answer:
-      "Program intensif berlangsung selama 12 minggu, dengan sesi mentoring mingguan dan pengerjaan proyek akhir di bulan terakhir.",
+      "Durasi program umumnya berlangsung selama kurang lebih 6 minggu, tergantung batch dan jenis program yang diikuti.Selama periode tersebut, peserta akan mengikuti sesi mentoring, refleksi, dan penyusunan strategi secara bertahap.",
   },
   {
     id: "item-5",
-    question: "Apa saja yang akan dipelajari?",
+    question: "Apakah program ini dilakukan online atau offline?",
     answer:
-      "Anda akan mempelajari fundamental karir, soft skills, technical skills sesuai jalur yang dipilih, serta persiapan personal branding dan interview kerja.",
+      "Seluruh sesi dalam program MULAI+ dilaksanakan secara online untuk memastikan akses yang fleksibel dan merata bagi peserta dari berbagai daerah..",
   },
 ];
 
