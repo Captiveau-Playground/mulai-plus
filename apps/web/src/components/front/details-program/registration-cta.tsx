@@ -1,3 +1,4 @@
+import { Calendar, Clock, Users } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -22,60 +23,90 @@ export function RegistrationCTA({
   registrationLink = "#",
   className,
 }: RegistrationCTAProps) {
+  const isClosed = status === "CLOSED";
+  const isComingSoon = status === "COMING SOON";
+
   return (
     <div
       className={cn(
-        "flex w-full flex-col gap-12 rounded-[20px] bg-white p-4 shadow-[0px_4px_40px_rgba(0,0,0,0.08)] md:p-6",
+        "flex w-full flex-col gap-8 rounded-[20px] bg-white p-6 shadow-[0px_4px_40px_rgba(0,0,0,0.08)]",
         className,
       )}
     >
-      {/* Content */}
+      {/* Header */}
       <div className="flex flex-col gap-6">
-        {/* Headline */}
         <div className="flex items-center justify-between">
           <h3 className="font-bold font-inter text-2xl text-[#1A1F6D] leading-[1.2]">{batchName}</h3>
-          <div className="flex items-center justify-center rounded-lg bg-[#FFF2F2] px-6 py-[10px]">
-            <span className="font-inter font-semibold text-[#F93447] text-base leading-[1.2]">{status}</span>
+          <div
+            className={cn(
+              "flex items-center justify-center rounded-lg px-4 py-2",
+              status === "OPEN"
+                ? "bg-[#E6F6E9] text-[#2E7D32]" // Green for Open
+                : status === "COMING SOON"
+                  ? "bg-[#FFF8E1] text-[#F57F17]" // Yellow for Coming Soon
+                  : "bg-[#FFF2F2] text-[#F93447]", // Red for Closed
+            )}
+          >
+            <span className="font-inter font-semibold text-sm leading-none tracking-wide">{status}</span>
           </div>
         </div>
 
-        {/* Detail Info */}
-        <div className="flex flex-col gap-4">
-          {/* Start */}
+        {/* Divider */}
+        <div className="h-px w-full bg-[#E0E0E0]" />
+
+        {/* Details */}
+        <div className="flex flex-col gap-5">
+          {/* Start Date */}
           <div className="flex items-center justify-between">
-            <span className="font-inter font-normal text-[#6D6D6D] text-base leading-[1.2]">Start</span>
-            <span className="text-right font-inter font-medium text-base text-black leading-[1.2]">{startDate}</span>
+            <div className="flex items-center gap-3 text-[#6D6D6D]">
+              <Calendar className="h-5 w-5" />
+              <span className="font-inter font-medium text-base">Mulai</span>
+            </div>
+            <span className="text-right font-inter font-semibold text-[#1A1F6D] text-base">{startDate}</span>
           </div>
 
-          {/* End */}
+          {/* End Date */}
           <div className="flex items-center justify-between">
-            <span className="font-inter font-normal text-[#6D6D6D] text-base leading-[1.2]">End</span>
-            <span className="text-right font-inter font-medium text-base text-black leading-[1.2]">{endDate}</span>
+            <div className="flex items-center gap-3 text-[#6D6D6D]">
+              <Clock className="h-5 w-5" />
+              <span className="font-inter font-medium text-base">Selesai</span>
+            </div>
+            <span className="text-right font-inter font-semibold text-[#1A1F6D] text-base">{endDate}</span>
           </div>
 
-          {/* Registration Date */}
+          {/* Registration Deadline */}
           <div className="flex items-center justify-between">
-            <span className="font-inter font-normal text-[#6D6D6D] text-base leading-[1.2]">Registration</span>
-            <span className="text-right font-inter font-medium text-base text-black leading-[1.2]">
-              {registrationDate}
-            </span>
+            <div className="flex items-center gap-3 text-[#6D6D6D]">
+              <Calendar className="h-5 w-5" />
+              <span className="font-inter font-medium text-base">Batas Daftar</span>
+            </div>
+            <span className="text-right font-inter font-semibold text-[#1A1F6D] text-base">{registrationDate}</span>
           </div>
 
           {/* Quota */}
           <div className="flex items-center justify-between">
-            <span className="font-inter font-normal text-[#6D6D6D] text-base leading-[1.2]">Quota</span>
-            <span className="text-right font-inter font-medium text-base text-black leading-[1.2]">{quota}</span>
+            <div className="flex items-center gap-3 text-[#6D6D6D]">
+              <Users className="h-5 w-5" />
+              <span className="font-inter font-medium text-base">Kuota</span>
+            </div>
+            <span className="text-right font-inter font-semibold text-[#1A1F6D] text-base">{quota} Siswa</span>
           </div>
         </div>
       </div>
 
       {/* Button */}
       <Link
-        href={registrationLink as any}
-        className="flex w-full items-center justify-center rounded-lg bg-[#1A1F6D] px-[10px] py-6 transition-colors hover:bg-[#1A1F6D]/90"
+        href={isClosed ? "#" : (registrationLink as any)}
+        className={cn(
+          "flex w-full items-center justify-center rounded-xl px-4 py-4 transition-all duration-300",
+          isClosed
+            ? "cursor-not-allowed bg-[#E0E0E0] text-[#888888]"
+            : "bg-[#FE9114] text-white hover:bg-[#FE9114]/90 hover:shadow-lg",
+        )}
+        onClick={(e) => isClosed && e.preventDefault()}
       >
-        <span className="font-inter font-semibold text-2xl text-white leading-[1.2] tracking-[-0.05em]">
-          Daftar Sekarang
+        <span className="font-bold font-inter text-lg leading-none tracking-wide">
+          {isClosed ? "Pendaftaran Tutup" : isComingSoon ? "Segera Hadir" : "Daftar Sekarang"}
         </span>
       </Link>
     </div>

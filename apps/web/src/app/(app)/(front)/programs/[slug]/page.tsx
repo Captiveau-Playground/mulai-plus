@@ -7,12 +7,12 @@ import { useParams } from "next/navigation";
 
 import { HeaderDetailsProgram } from "@/components/front/details-program/header-details-program";
 import { ProgramAbout } from "@/components/front/details-program/program-about";
-import { ProgramFAQ } from "@/components/front/details-program/program-faq";
 import { ProgramNavigation } from "@/components/front/details-program/program-navigation";
 import { ProgramSyllabus } from "@/components/front/details-program/program-syllabus";
 import { ProgramTimeline } from "@/components/front/details-program/program-timeline";
 import { ProgramWhatYouWillGet } from "@/components/front/details-program/program-what-you-will-get";
 import { RegistrationCTA } from "@/components/front/details-program/registration-cta";
+import { FAQSection } from "@/components/front/faq-section";
 import { orpc } from "@/utils/orpc";
 
 export default function ProgramDetailPage() {
@@ -47,28 +47,28 @@ export default function ProgramDetailPage() {
   const timelineItems = batch
     ? [
         {
-          title: `Registration — ${format(new Date(batch.registrationStartDate), "dd MMM yyyy")}`,
-          description: "Open registration for new students.",
+          title: "Registration",
+          description: `${format(new Date(batch.registrationEndDate), "dd MMM yyyy")}`,
         },
         batch.verificationStartDate && {
-          title: `Verification — ${format(new Date(batch.verificationStartDate), "dd MMM yyyy")}`,
-          description: "Verification of submitted documents.",
+          title: "Verification",
+          description: `${format(new Date(batch.verificationStartDate), "dd MMM yyyy")}`,
         },
         batch.assessmentStartDate && {
-          title: `Assessment — ${format(new Date(batch.assessmentStartDate), "dd MMM yyyy")}`,
-          description: "Assessment test for applicants.",
+          title: "Assessment",
+          description: `${format(new Date(batch.assessmentStartDate), "dd MMM yyyy")}`,
         },
         batch.announcementDate && {
-          title: `Announcement — ${format(new Date(batch.announcementDate), "dd MMM yyyy")}`,
-          description: "Announcement of accepted students.",
+          title: "Announcement",
+          description: `${format(new Date(batch.announcementDate), "dd MMM yyyy")}`,
         },
         batch.onboardingDate && {
-          title: `Onboarding — ${format(new Date(batch.onboardingDate), "dd MMM yyyy")}`,
-          description: "Onboarding session for new students.",
+          title: "Onboarding",
+          description: `${format(new Date(batch.onboardingDate), "dd MMM yyyy")}`,
         },
         {
-          title: `Graduation — ${format(new Date(batch.endDate), "dd MMM yyyy")}`,
-          description: "Graduation ceremony.",
+          title: "Graduation",
+          description: `${format(new Date(batch.endDate), "dd MMM yyyy")}`,
         },
       ].filter((item): item is { title: string; description: string } => Boolean(item))
     : undefined;
@@ -93,11 +93,16 @@ export default function ProgramDetailPage() {
           {/* Main Content */}
           <main className="top-[20vh] flex min-w-0 flex-1 flex-col gap-16 px-4">
             <ProgramNavigation />
-            <ProgramAbout title={program.name} description={program.description ?? undefined} />
+            <ProgramAbout
+              title={program.name}
+              description={program.description ?? undefined}
+              image={program.bannerUrl}
+            />
             <ProgramTimeline items={timelineItems} />
-            <ProgramWhatYouWillGet items={program.benefits} />
-            <ProgramSyllabus items={program.syllabus} />
-            <ProgramFAQ items={program.faqs} />
+            <ProgramWhatYouWillGet items={program.benefits} description={"Lebih dari Sekadar Sesi Mentoring"} />
+            <ProgramSyllabus items={program.syllabus} description={"Apa yang Akan Dipelajari?"} />
+            {/* <ProgramFAQ items={program.faqs} /> */}
+            <FAQSection type="back" />
           </main>
 
           {/* Sidebar */}
