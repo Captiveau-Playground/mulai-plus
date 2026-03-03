@@ -36,7 +36,7 @@ export function ProgramSyllabus({ title = "SYLLABUS", description, items = [], c
                 value={`item-${index}`}
                 className="rounded-lg border-none bg-white px-6 py-2 shadow-sm ring-1 ring-[#E7E7E7] data-[state=open]:ring-[#FE9114]"
               >
-                <AccordionTrigger className="hover:no-underline [&>svg]:hidden">
+                <AccordionTrigger className="cursor-pointer hover:no-underline [&>svg]:hidden">
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <div className="flex flex-col gap-1">
                       <span className="font-inter font-semibold text-[#99B8FF] text-sm uppercase tracking-[0.15em] md:text-base">
