@@ -98,6 +98,7 @@ export default function ProgramDetailPage() {
               description={program.description ?? undefined}
               image={program.bannerUrl}
             />
+
             <ProgramTimeline items={timelineItems} />
             <ProgramWhatYouWillGet items={program.benefits} description={"Lebih dari Sekadar Sesi Mentoring"} />
             <ProgramSyllabus items={program.syllabus} description={"Apa yang Akan Dipelajari?"} />

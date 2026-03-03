@@ -26,7 +26,12 @@ const getIconForTitle = (title: string) => {
   return Calendar;
 };
 
-export function ProgramTimeline({ title = "TIMELINE", description, items = [], className }: ProgramTimelineProps) {
+export function ProgramTimeline({
+  title = "TIMELINE",
+  description = "Step by Step Menuju Graduation",
+  items = [],
+  className,
+}: ProgramTimelineProps) {
   return (
     <section id="timeline" className={cn("flex w-full flex-col gap-9 py-8 sm:px-4 md:px-0", className)}>
       <div className="flex flex-col gap-9">
@@ -38,37 +43,32 @@ export function ProgramTimeline({ title = "TIMELINE", description, items = [], c
             </h3>
           )}
         </div>
-        <div className="flex w-full snap-x snap-mandatory gap-6 overflow-x-auto pb-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-full gap-2 pb-6">
           {items.length > 0 ? (
             items.map((item, index) => {
               const Icon = getIconForTitle(item.title);
+              const parts = item.title.split("—").map((s) => s.trim());
+              const label = parts[0] || item.title;
+              const dateText = parts[1] || "";
 
               return (
-                <div
-                  key={index}
-                  className="relative flex min-w-[280px] shrink-0 snap-center flex-col gap-6 rounded-2xl bg-[#FAFAFA] p-6 transition-all hover:bg-white hover:shadow-lg"
-                >
-                  {/* Step Number & Line */}
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FE9114] font-bold font-inter text-lg text-white">
-                      {index + 1}
-                    </div>
-                    <div className="h-[2px] w-full bg-[#E0E0E9]" />
+                <div key={index} className="flex w-full snap-center flex-col justify-between gap-6">
+                  <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#ECF3FF]">
+                    <Icon className="h-7 w-7 text-[#1A1F6D]" />
                   </div>
-
-                  {/* Icon & Content */}
-                  <div className="flex flex-col gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E0E0E9]">
-                      <Icon className="h-6 w-6 text-[#1A1F6D]" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <h4 className="font-inter font-semibold text-[#1A1F6D] text-lg leading-[1.2] md:text-xl">
-                        {item.title}
-                      </h4>
-                      <p className="font-inter font-normal text-[#888888] text-base leading-[1.5]">
+                  <div className="flex flex-col gap-2">
+                    <h4 className="font-inter font-semibold text-[#333333] text-base leading-[1.2] tracking-[-0.05em]">
+                      {label}
+                    </h4>
+                    {dateText ? (
+                      <span className="font-inter font-medium text-[#708FFF] text-base leading-[1.2] tracking-[-0.05em]">
+                        {dateText}
+                      </span>
+                    ) : (
+                      <span className="font-inter font-medium text-[#708FFF] text-base leading-[1.2] tracking-[-0.05em]">
                         {item.description}
-                      </p>
-                    </div>
+                      </span>
+                    )}
                   </div>
                 </div>
               );

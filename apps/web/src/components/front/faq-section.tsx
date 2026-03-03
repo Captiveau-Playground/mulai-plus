@@ -38,7 +38,7 @@ const FAQS = [
 
 export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
   return (
-    <section className={`w-full bg-white py-16 ${type === "front" ? "lg:py-24" : "lg:py-16"}`}>
+    <section className={`w-full bg-white py-16 ${type === "front" ? "lg:py-24" : "lg:py-8"}`} id="faq">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
         {type === "front" ? (
           <div
