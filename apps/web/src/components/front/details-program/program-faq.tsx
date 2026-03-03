@@ -46,7 +46,7 @@ export function ProgramFAQ({ title = "FAQ", description, items = [], className }
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <p className="pt-2 font-inter font-normal text-[#888888] text-base leading-[1.5]">{item.answer}</p>
+                  <p className="pt-2 font-inter font-normal text-[#888888] text-base leading-normal">{item.answer}</p>
                 </AccordionContent>
               </AccordionItem>
             ))}
