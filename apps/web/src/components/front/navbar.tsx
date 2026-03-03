@@ -25,12 +25,12 @@ export function Navbar() {
   return (
     <nav
       className={cn(
-        "fixed top-0 right-0 left-0 z-50 flex h-[8vh] w-full items-center justify-between px-6 transition-all duration-300 lg:grid lg:grid-cols-3 lg:px-16",
-        isScrolled ? "bg-white/80 py-4 shadow-sm backdrop-blur-md" : "bg-transparent py-6 lg:py-4",
+        "fixed top-0 right-0 left-0 z-50 flex h-[8vh] w-full items-center justify-between px-6 transition-all duration-300 lg:grid lg:grid-cols-5 lg:px-16",
+        isScrolled ? "bg-white py-4 shadow-sm backdrop-blur-md" : "py-6 lg:py-4",
       )}
     >
       {/* Logo */}
-      <div className="flex items-center lg:justify-self-start">
+      <div className="flex items-center lg:col-span-1 lg:justify-self-start">
         <Link href="/">
           <Image
             src="/letter-icon-logo.svg"
@@ -44,7 +44,7 @@ export function Navbar() {
       </div>
 
       {/* Desktop Navigation Links */}
-      <div className="hidden items-center justify-center gap-8 lg:flex lg:gap-12 lg:justify-self-center">
+      <div className="hidden w-full items-center justify-center gap-8 lg:col-span-3 lg:flex lg:gap-12 lg:justify-self-center">
         {navLinks.map((item) => (
           <Link
             key={item}

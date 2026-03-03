@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 export function CTASection() {
   return (
     <section className="w-full bg-white py-16 lg:pt-16 lg:pb-[108px]">
-      <div className="container mx-auto">
-        <div className="relative flex h-[500px] w-full flex-col justify-center overflow-hidden rounded-none bg-[#F93447] px-8 py-12 md:h-[600px] md:rounded-[48px] md:px-16 lg:h-[700px] lg:justify-start lg:py-32">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+        <div className="relative flex h-[500px] w-full flex-col justify-center overflow-hidden rounded-none bg-[#F93447] px-8 py-12 md:h-[600px] md:rounded-[48px] md:px-4 lg:h-[700px] lg:justify-start lg:py-32">
           {/* Background Image */}
           <div className="absolute inset-0 z-0">
             <Image
