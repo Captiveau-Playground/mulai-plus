@@ -76,7 +76,7 @@ export default function ProgramDetailPage() {
   return (
     <div className="bg-white">
       <HeaderDetailsProgram
-        title={program.name + " Program " + (batch ? new Date(batch.startDate).getFullYear() : "")}
+        title={`${program.name} Program ${batch ? new Date(batch.startDate).getFullYear() : ""}`}
         batch={
           program.batches && program.batches.length > 0
             ? program.batches.map((b: { name: string }) => b.name).join(", ")
@@ -107,7 +107,7 @@ export default function ProgramDetailPage() {
           </main>
 
           {/* Sidebar */}
-          <aside className="w-full shrink-0 px-4 pt-8 lg:w-[420px]">
+          <aside className="w-full shrink-0 px-4 pt-0 lg:w-[420px]">
             <div className="sticky top-[10vh]">
               {program.batches && program.batches.length > 0 ? (
                 <RegistrationCTA

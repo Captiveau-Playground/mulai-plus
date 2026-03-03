@@ -36,7 +36,10 @@ export function FeaturedPrograms() {
 
   return (
     <div className="bg-white">
-      <section className="relative w-full overflow-hidden rounded-t-[50px] bg-[#1A1F6D] py-20 lg:rounded-t-[108px] lg:py-24">
+      <section
+        className="relative w-full overflow-hidden rounded-t-[50px] bg-[#1A1F6D] py-20 lg:rounded-t-[108px] lg:py-24"
+        id="featured-programs"
+      >
         {/* Background Grid Pattern (Simulated) */}
         <div
           className="absolute inset-0 z-0 opacity-10"
@@ -175,7 +178,7 @@ export function FeaturedPrograms() {
                           <div className="mt-6">
                             <Button
                               className={cn(
-                                "w-full rounded-sm py-6 font-bold font-inter text-sm transition-all",
+                                "w-full cursor-pointer rounded-sm py-6 font-bold font-inter text-sm transition-all",
                                 isScholarship
                                   ? "bg-white text-[#1A1F6D] shadow-md hover:bg-gray-100"
                                   : "cursor-default bg-white/10 text-white hover:bg-white/5",

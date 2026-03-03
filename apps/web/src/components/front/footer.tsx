@@ -28,7 +28,7 @@ export function Footer() {
           <nav className="flex flex-col items-center gap-6 text-center sm:flex-row sm:gap-12 lg:text-left">
             {[
               { label: "About Us", href: "#about" },
-              { label: "Featured Programs", href: "#programs" },
+              { label: "Featured Programs", href: "#featured-programs" },
               { label: "Meet The Mentors", href: "#mentors" },
               { label: "FAQ", href: "#faq" },
             ].map((link) => (
@@ -43,8 +43,10 @@ export function Footer() {
           </nav>
         </div>
         <div className="flex flex-col items-center justify-between gap-12 lg:flex-row lg:gap-0">
-          <p className="text-center text-[#BFD6FF] text-lg lg:text-2xl">&copy; 2024 mulai+. All rights reserved.</p>
-          <p className="text-center text-[#BFD6FF] text-lg italic lg:text-2xl">
+          <p className="text-center font-manrope text-[#BFD6FF] text-lg lg:text-2xl">
+            &copy; 2024 mulai+. All rights reserved.
+          </p>
+          <p className="text-center font-manrope text-lg text-white/60 italic lg:text-xl">
             Powered by <b>Captiveau | Creative Tech Studio</b>
           </p>
         </div>

@@ -4,7 +4,7 @@ import Image from "next/image";
 
 export function AboutUs() {
   return (
-    <section className="w-full bg-white py-16 lg:pb-32">
+    <section className="w-full bg-white py-16 lg:pb-32" id="about">
       <div className="container mx-auto max-w-7xl px-4 md:px-6 lg:px-0">
         <div className="flex flex-col gap-16 lg:flex-row lg:items-center lg:gap-20">
           {/* Left Content */}

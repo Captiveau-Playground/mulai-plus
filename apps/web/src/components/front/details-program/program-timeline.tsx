@@ -52,7 +52,7 @@ export function ProgramTimeline({
               const dateText = parts[1] || "";
 
               return (
-                <div key={index} className="flex w-full snap-center flex-col justify-between gap-6">
+                <div key={index} className="flex min-w-[120px] max-w-full snap-center flex-col justify-between gap-6">
                   <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#ECF3FF]">
                     <Icon className="h-7 w-7 text-[#1A1F6D]" />
                   </div>

@@ -68,7 +68,7 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
                     value={faq.id}
                     className="rounded-[8px] border-none bg-[#1A1F6D] px-6 py-6 shadow-sm"
                   >
-                    <AccordionTrigger className="flex items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden">
+                    <AccordionTrigger className="flex cursor-pointer items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden">
                       <span className="min-w-0 flex-1 text-left font-inter font-semibold text-lg text-white leading-snug tracking-[-0.05em] lg:text-2xl">
                         {faq.question}
                       </span>
@@ -110,7 +110,7 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
                     value={faq.id}
                     className="rounded-[8px] border-none bg-[#1A1F6D] px-6 py-6 shadow-sm"
                   >
-                    <AccordionTrigger className="flex items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden">
+                    <AccordionTrigger className="flex cursor-pointer items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden">
                       <span className="min-w-0 flex-1 text-left font-inter font-semibold text-lg text-white leading-snug tracking-[-0.05em] lg:text-2xl">
                         {faq.question}
                       </span>

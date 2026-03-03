@@ -56,7 +56,7 @@ const MENTORS = [
 
 export function MeetTheMentor() {
   return (
-    <section className="w-full overflow-hidden bg-[#1A1F6D] py-16 lg:py-24">
+    <section className="w-full overflow-hidden bg-[#1A1F6D] py-16 lg:py-24" id="mentors">
       <div className="container mx-auto max-w-7xl px-4">
         {/* Section Header */}
         <div className="mb-12 flex flex-col items-center gap-4 text-center md:mb-16">
