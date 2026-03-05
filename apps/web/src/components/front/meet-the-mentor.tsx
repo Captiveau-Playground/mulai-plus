@@ -74,7 +74,7 @@ export function MeetTheMentor() {
               <div
                 key={`${mentor.id}-${index}`}
                 aria-hidden={index >= MENTORS.length}
-                className="group relative h-112 w-48 shrink-0 overflow-hidden rounded-[16px]"
+                className="group relative h-112 w-48 shrink-0 overflow-hidden rounded-2xl"
               >
                 <Image
                   src={mentor.image}
@@ -85,7 +85,7 @@ export function MeetTheMentor() {
 
                 <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-55% via-[#1A1F6D]/0 to-[#1A1F6D]" />
 
-                <div className="absolute right-4 bottom-[30px] left-4 z-10 flex flex-col items-start text-left">
+                <div className="absolute right-4 bottom-7.5 left-4 z-10 flex flex-col items-start text-left">
                   <h3 className="font-inter font-semibold text-2xl text-white leading-[1.2]">{mentor.name}</h3>
                   <span className="mt-1 font-[0.75rem] font-inter text-white/75 italic">{mentor.role}</span>
                 </div>

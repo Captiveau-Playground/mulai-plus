@@ -30,7 +30,7 @@ export function HeaderDetailsProgram({
       </div>
 
       {/* Content */}
-      <div className="container relative z-20 mx-auto flex h-full flex-col px-4 pt-32 pb-16 md:px-8 lg:pt-[128px]">
+      <div className="container relative z-20 mx-auto flex h-full flex-col px-4 pt-32 pb-16 md:px-8 lg:pt-32">
         {/* Top Section: Welcome & Title */}
         <div className="flex flex-col items-start gap-4">
           <p className="font-manrope font-normal text-lg text-white tracking-[0.15em] md:text-2xl lg:text-4xl">
