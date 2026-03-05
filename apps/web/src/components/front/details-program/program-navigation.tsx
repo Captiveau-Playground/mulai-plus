@@ -7,7 +7,7 @@ const navItems = [
   { label: "Timeline", href: "#timeline" },
   { label: "What You Will Get", href: "#benefits" },
   { label: "Syllabus", href: "#syllabus" },
-  { label: "Meet The Mentors", href: "#mentors" },
+  // { label: "Meet The Mentors", href: "#mentors" },
   { label: "FAQ", href: "#faq" },
 ];
 
@@ -20,13 +20,18 @@ export function ProgramNavigation() {
             <Link
               key={item.label}
               href={item.href as any}
-              className="whitespace-nowrap font-inter font-normal text-[#333333] text-base transition-colors hover:text-[#1A1F6D]"
+              className="whitespace-nowrap font-manrope font-normal text-[#333333] text-base transition-colors hover:text-[#1A1F6D]"
               onClick={(e) => {
                 e.preventDefault();
-                const element = document.querySelector(item.href);
-                if (element) {
-                  element.scrollIntoView({ behavior: "smooth" });
-                }
+                const element = document.querySelector(item.href) as HTMLElement | null;
+                if (!element) return;
+                const rect = element.getBoundingClientRect();
+                const absoluteY = rect.top + window.scrollY;
+                const extraOffset = item.href === "#about" ? 180 : 180;
+                window.scrollTo({
+                  top: absoluteY - extraOffset,
+                  behavior: "smooth",
+                });
               }}
             >
               {item.label}

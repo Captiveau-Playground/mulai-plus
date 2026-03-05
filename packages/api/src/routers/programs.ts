@@ -73,7 +73,7 @@ export const programsRouter = {
             },
             benefits: {
               orderBy: (benefit, { asc }) => [asc(benefit.order)],
-              limit: 3, // Get only top 3 benefits
+              limit: 5, // Get only top 3 benefits
             },
           },
         });
