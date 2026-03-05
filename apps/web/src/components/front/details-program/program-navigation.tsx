@@ -14,7 +14,7 @@ const navItems = [
 export function ProgramNavigation() {
   return (
     <div className="sticky top-[8vh] z-40 w-full bg-white transition-all">
-      <div className="mx-auto flex h-[108px] max-w-7xl items-center justify-center">
+      <div className="mx-auto flex h-27 max-w-7xl items-center justify-center">
         <div className="no-scrollbar flex w-full items-center justify-between gap-8 overflow-x-auto">
           {navItems.map((item) => (
             <Link

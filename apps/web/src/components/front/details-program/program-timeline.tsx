@@ -43,7 +43,7 @@ export function ProgramTimeline({
             </h3>
           )}
         </div>
-        <div className="flex w-full gap-2 pb-6">
+        <div className="flex w-full flex-wrap gap-4 pb-6">
           {items.length > 0 ? (
             items.map((item, index) => {
               const Icon = getIconForTitle(item.title);
@@ -52,11 +52,11 @@ export function ProgramTimeline({
               const dateText = parts[1] || "";
 
               return (
-                <div key={index} className="flex min-w-[120px] max-w-full snap-center flex-col justify-between gap-6">
-                  <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#ECF3FF]">
+                <div key={index} className="flex min-w-30 max-w-full snap-center flex-col justify-between gap-6">
+                  <div className="flex h-18 w-18 items-center justify-center rounded-full bg-[#ECF3FF]">
                     <Icon className="h-7 w-7 text-[#1A1F6D]" />
                   </div>
-                  <div className="flex flex-col gap-2">
+                  <div className="gap- flex flex-col">
                     <h4 className="font-inter font-semibold text-[#333333] text-base leading-[1.2] tracking-[-0.05em]">
                       {label}
                     </h4>
