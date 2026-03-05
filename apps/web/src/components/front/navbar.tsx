@@ -3,13 +3,18 @@
 import { Menu } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
+  const pathname = usePathname();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,38 +25,106 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navLinks = ["About Us", "Featured Programs", "Meet The Mentors", "FAQ"];
+  // Different nav items based on current page and screen size
+  const getNavItems = () => {
+    // For homepage (/) and root path
+    if (pathname === "/" || pathname === "") {
+      return [
+        { label: "About", href: "#about" },
+        { label: "Featured Programs", href: "#featured-programs" },
+        { label: "Meet The Mentors", href: "#mentors" },
+        { label: "FAQ", href: "#faq" },
+      ];
+    }
 
+    // For programs pages - use default for desktop, special for mobile
+    if (pathname.startsWith("/programs")) {
+      if (isMobile) {
+        return [
+          { label: "About", href: "#about" },
+          { label: "Timeline", href: "#timeline" },
+          { label: "What You Will Get", href: "#benefits" },
+          { label: "Syallabus", href: "#syllabus" },
+          { label: "FAQ", href: "#faq" },
+        ];
+      }
+      // Desktop uses default navigation
+      return [
+        { label: "About", href: "/#about" },
+        { label: "Programs", href: "/programs" },
+        { label: "Mentors", href: "/#mentors" },
+        { label: "FAQ", href: "/#faq" },
+      ];
+    }
+
+    // Default fallback
+    return [
+      { label: "About", href: "/#about" },
+      { label: "Programs", href: "/programs" },
+      { label: "Mentors", href: "/#mentors" },
+      { label: "FAQ", href: "/#faq" },
+    ];
+  };
+
+  const navItems = getNavItems();
   return (
     <nav
+      ref={navRef}
       className={cn(
-        "fixed top-0 right-0 left-0 z-50 flex h-[8vh] w-full items-center justify-between px-6 transition-all duration-300 lg:grid lg:grid-cols-3 lg:px-16",
-        isScrolled ? "bg-white/80 py-4 shadow-sm backdrop-blur-md" : "bg-transparent py-6 lg:py-4",
+        "fixed top-0 right-0 left-0 z-50 flex h-[8vh] w-full items-center justify-between px-6 transition-all duration-300 lg:grid lg:grid-cols-5 lg:px-16",
+        isScrolled ? "bg-white py-4 shadow-sm backdrop-blur-md" : "py-6 lg:py-4",
       )}
     >
       {/* Logo */}
-      <div className="flex items-center lg:justify-self-start">
+      <div className="flex items-center lg:col-span-1 lg:justify-self-start">
         <Link href="/">
           <Image
             src="/letter-icon-logo.svg"
             alt="Mulai Plus Logo"
             width={150}
             height={38}
-            className="w-[120px] md:w-[192px]"
+            className="w-30 md:w-48"
             priority
           />
         </Link>
       </div>
 
       {/* Desktop Navigation Links */}
-      <div className="hidden items-center justify-center gap-8 lg:flex lg:gap-12 lg:justify-self-center">
-        {navLinks.map((item) => (
+      <div className="hidden w-full items-center justify-center gap-8 lg:col-span-3 lg:flex lg:gap-12 lg:justify-self-center">
+        {navItems.map((item) => (
           <Link
-            key={item}
-            href="#"
+            key={item.href}
+            href={item.href as any}
             className="font-manrope text-[#333333] text-sm transition-colors hover:text-[#FE9114] lg:text-base"
+            onClick={(e) => {
+              // Handle anchor links on the same page
+              if (item.href.startsWith("#")) {
+                const element = document.querySelector(item.href) as HTMLElement | null;
+                if (!element) return;
+                e.preventDefault();
+                const navHeight = navRef.current?.offsetHeight ?? 0;
+                const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                const top = Math.max(0, absoluteY - navHeight - 100);
+                window.history.replaceState(null, "", item.href);
+                window.scrollTo({ top, behavior: "smooth" });
+              }
+              // Handle links to homepage with anchors
+              else if (item.href.includes("/#")) {
+                const [path, anchor] = item.href.split("#");
+                if (pathname === path) {
+                  e.preventDefault();
+                  const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
+                  if (!element) return;
+                  const navHeight = navRef.current?.offsetHeight ?? 0;
+                  const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                  const top = Math.max(0, absoluteY - navHeight - 16);
+                  window.history.replaceState(null, "", item.href);
+                  window.scrollTo({ top, behavior: "smooth" });
+                }
+              }
+            }}
           >
-            {item}
+            {item.label}
           </Link>
         ))}
       </div>
@@ -60,11 +133,11 @@ export function Navbar() {
       <div className="hidden items-center gap-2.5 font-manrope lg:flex lg:justify-self-end">
         <Button
           variant="ghost"
-          className="rounded-full px-6 py-4 font-bold font-inter text-[#333333] text-sm lg:px-9 lg:py-6 lg:text-base"
+          className="cursor-pointer rounded-full px-6 py-4 font-bold font-inter text-[#333333] text-sm lg:px-9 lg:py-6 lg:text-base"
         >
           Login
         </Button>
-        <Button className="rounded-full bg-[#1A1F6D] px-6 py-4 font-bold font-inter text-sm text-white hover:bg-[#1A1F6D]/90 lg:px-9 lg:py-6 lg:text-base">
+        <Button className="cursor-pointer rounded-full bg-[#1A1F6D] px-6 py-4 font-bold font-inter text-sm text-white hover:bg-[#1A1F6D]/90 lg:px-9 lg:py-6 lg:text-base">
           Daftar Sekarang
         </Button>
       </div>
@@ -78,7 +151,7 @@ export function Navbar() {
               <span className="sr-only">Toggle menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" showCloseButton={false} className="w-full border-none bg-white p-0 sm:w-[400px]">
+          <SheetContent side="right" showCloseButton={false} className="w-full border-none bg-white p-0 sm:w-100">
             <div className="mb-8 flex h-full flex-col p-6">
               {/* Custom Header */}
               <div className="flex items-center justify-between">
@@ -117,13 +190,40 @@ export function Navbar() {
               {/* Menu Links */}
               <div className="mt-12 flex flex-1 flex-col gap-8 pt-12">
                 <div className="flex flex-col gap-6">
-                  {navLinks.map((item) => (
+                  {navItems.map((item) => (
                     <Link
-                      key={item}
-                      href="#"
+                      key={item.href}
+                      href={item.href as any}
                       className="font-bricolage font-semibold text-2xl text-[#333333] transition-colors hover:text-[#FE9114]"
+                      onClick={(e) => {
+                        // Handle anchor links on the same page
+                        if (item.href.startsWith("#")) {
+                          const element = document.querySelector(item.href) as HTMLElement | null;
+                          if (!element) return;
+                          e.preventDefault();
+                          const navHeight = navRef.current?.offsetHeight ?? 0;
+                          const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                          const top = Math.max(0, absoluteY - navHeight - 90);
+                          window.history.replaceState(null, "", item.href);
+                          window.scrollTo({ top, behavior: "smooth" });
+                        }
+                        // Handle links to homepage with anchors
+                        else if (item.href.includes("/#")) {
+                          const [path, anchor] = item.href.split("#");
+                          if (pathname === path) {
+                            e.preventDefault();
+                            const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
+                            if (!element) return;
+                            const navHeight = navRef.current?.offsetHeight ?? 0;
+                            const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                            const top = Math.max(0, absoluteY - navHeight - 90);
+                            window.history.replaceState(null, "", item.href);
+                            window.scrollTo({ top, behavior: "smooth" });
+                          }
+                        }
+                      }}
                     >
-                      {item}
+                      {item.label}
                     </Link>
                   ))}
                 </div>

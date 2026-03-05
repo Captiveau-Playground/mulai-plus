@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   web:
-    image: ghcr.io/${GITHUB_REPOSITORY}/web:staging
+    image: ghcr.io/${GITHUB_REPOSITORY}/web:production
     container_name: mulai-plus-web
     expose:
       - "3000"
@@ -15,7 +15,7 @@ services:
       - shared_proxy
 
   server:
-    image: ghcr.io/${GITHUB_REPOSITORY}/server:staging
+    image: ghcr.io/${GITHUB_REPOSITORY}/server:production
     container_name: mulai-plus-server
     expose:
       - "3000"
@@ -24,7 +24,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL}
-      - CORS_ORIGIN=https://staging.mulaiplus.id
+      - CORS_ORIGIN=https://mulaiplus.id
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - PAYMENT_API_URL=${PAYMENT_API_URL}
