@@ -57,7 +57,7 @@ export function FeaturedPrograms() {
           <div className="flex flex-col gap-12 lg:flex-row lg:items-end lg:gap-16">
             {/* Left Column: Image of Person */}
             <div className="relative hidden h-full w-full shrink-0 flex-col items-center justify-center lg:flex lg:w-[35%] lg:items-start">
-              <div className="relative aspect-3/4 w-full max-w-[400px] lg:max-w-none">
+              <div className="relative aspect-3/4 w-full max-w-100 lg:max-w-none">
                 {/* Decorative Gradient Behind Image */}
                 <div className="absolute top-10 right-10 -z-10 h-full w-full rounded-full bg-[#FE9114]/20 blur-[80px]" />
 
@@ -119,7 +119,7 @@ export function FeaturedPrograms() {
                         <div
                           key={batch.id}
                           className={cn(
-                            "flex flex-col justify-between rounded-[24px] p-8 opacity-90 transition-transform duration-300",
+                            "flex flex-col justify-between rounded-3xl p-8 opacity-90 transition-transform duration-300",
                             cardBg,
                           )}
                         >
@@ -144,7 +144,7 @@ export function FeaturedPrograms() {
                                       {batch.name.toUpperCase() === "BATCH 11" ? "FREE" : "PAID"}
                                     </span>
                                   </div>
-                                  <p className="line-clamp-2 font-inter text-[#B9E1FE]/80 text-xs leading-relaxed sm:text-sm">
+                                  <p className="line-clamp-2 font-manrope text-[#B9E1FE]/80 text-xs leading-relaxed sm:text-sm">
                                     {program.description || "No description available."}
                                   </p>
                                 </div>
@@ -165,7 +165,7 @@ export function FeaturedPrograms() {
                                     >
                                       <Icon className="h-3 w-3" />
                                     </div>
-                                    <span className="font-inter font-medium text-white text-xs sm:text-sm">
+                                    <span className="font-bricolage font-medium text-white text-xs sm:text-sm">
                                       {benefit.title}
                                     </span>
                                   </div>

@@ -45,7 +45,7 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
             className={`flex w-full flex-col ${type === "front" ? "lg:flex-row" : ""} gap-12 lg:justify-between lg:gap-9`}
           >
             {/* Left Column: Header Content */}
-            <div className="flex flex-col gap-9 lg:w-[40%] lg:max-w-[718px]">
+            <div className="flex flex-col gap-9 lg:w-[40%] lg:max-w-179.5">
               <div className="flex flex-col gap-4">
                 <span className="font-inter font-semibold text-2xl text-[#FE9114] tracking-[0.25em]">FAQ</span>
                 <h2 className="font-bold font-bricolage text-4xl text-[#1A1F6D] leading-tight md:text-5xl lg:text-[64px]">
@@ -60,13 +60,13 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
             </div>
 
             {/* Right Column: Accordion List */}
-            <div className="w-full lg:w-[60%] lg:max-w-[858px]">
+            <div className="w-full lg:w-[60%] lg:max-w-214.5">
               <Accordion className="flex flex-col gap-6">
                 {FAQS.map((faq) => (
                   <AccordionItem
                     key={faq.id}
                     value={faq.id}
-                    className="rounded-[8px] border-none bg-[#1A1F6D] px-6 py-6 shadow-sm"
+                    className="rounded-xl border-none bg-[#1A1F6D] px-6 py-6 shadow-sm"
                   >
                     <AccordionTrigger className="flex cursor-pointer items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden">
                       <span className="min-w-0 flex-1 text-left font-inter font-semibold text-lg text-white leading-snug tracking-[-0.05em] lg:text-2xl">
@@ -108,7 +108,7 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
                   <AccordionItem
                     key={faq.id}
                     value={faq.id}
-                    className="rounded-[8px] border-none bg-[#1A1F6D] px-6 py-6 shadow-sm"
+                    className="rounded-xl border-none bg-[#1A1F6D] px-6 py-6 shadow-sm"
                   >
                     <AccordionTrigger className="flex cursor-pointer items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden">
                       <span className="min-w-0 flex-1 text-left font-inter font-semibold text-lg text-white leading-snug tracking-[-0.05em] lg:text-2xl">

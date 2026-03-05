@@ -3,14 +3,18 @@
 import { Menu } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
+  const pathname = usePathname();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,12 +25,48 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navItems = [
-    { label: "About", href: "#about" },
-    { label: "Featured Programs", href: "#featured-programs" },
-    { label: "Meet The Mentors", href: "#mentors" },
-    { label: "FAQ", href: "#faq" },
-  ];
+  // Different nav items based on current page and screen size
+  const getNavItems = () => {
+    // For homepage (/) and root path
+    if (pathname === "/" || pathname === "") {
+      return [
+        { label: "About", href: "#about" },
+        { label: "Featured Programs", href: "#featured-programs" },
+        { label: "Meet The Mentors", href: "#mentors" },
+        { label: "FAQ", href: "#faq" },
+      ];
+    }
+
+    // For programs pages - use default for desktop, special for mobile
+    if (pathname.startsWith("/programs")) {
+      if (isMobile) {
+        return [
+          { label: "About", href: "#about" },
+          { label: "Timeline", href: "#timeline" },
+          { label: "What You Will Get", href: "#benefits" },
+          { label: "Syallabus", href: "#syllabus" },
+          { label: "FAQ", href: "#faq" },
+        ];
+      }
+      // Desktop uses default navigation
+      return [
+        { label: "About", href: "/#about" },
+        { label: "Programs", href: "/programs" },
+        { label: "Mentors", href: "/#mentors" },
+        { label: "FAQ", href: "/#faq" },
+      ];
+    }
+
+    // Default fallback
+    return [
+      { label: "About", href: "/#about" },
+      { label: "Programs", href: "/programs" },
+      { label: "Mentors", href: "/#mentors" },
+      { label: "FAQ", href: "/#faq" },
+    ];
+  };
+
+  const navItems = getNavItems();
   return (
     <nav
       ref={navRef}
@@ -43,7 +83,7 @@ export function Navbar() {
             alt="Mulai Plus Logo"
             width={150}
             height={38}
-            className="w-[120px] md:w-[192px]"
+            className="w-30 md:w-48"
             priority
           />
         </Link>
@@ -57,15 +97,31 @@ export function Navbar() {
             href={item.href as any}
             className="font-manrope text-[#333333] text-sm transition-colors hover:text-[#FE9114] lg:text-base"
             onClick={(e) => {
-              if (!item.href.startsWith("#")) return;
-              const element = document.querySelector(item.href) as HTMLElement | null;
-              if (!element) return;
-              e.preventDefault();
-              const navHeight = navRef.current?.offsetHeight ?? 0;
-              const absoluteY = element.getBoundingClientRect().top + window.scrollY;
-              const top = Math.max(0, absoluteY - navHeight - 16);
-              window.history.replaceState(null, "", item.href);
-              window.scrollTo({ top, behavior: "smooth" });
+              // Handle anchor links on the same page
+              if (item.href.startsWith("#")) {
+                const element = document.querySelector(item.href) as HTMLElement | null;
+                if (!element) return;
+                e.preventDefault();
+                const navHeight = navRef.current?.offsetHeight ?? 0;
+                const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                const top = Math.max(0, absoluteY - navHeight - 100);
+                window.history.replaceState(null, "", item.href);
+                window.scrollTo({ top, behavior: "smooth" });
+              }
+              // Handle links to homepage with anchors
+              else if (item.href.includes("/#")) {
+                const [path, anchor] = item.href.split("#");
+                if (pathname === path) {
+                  e.preventDefault();
+                  const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
+                  if (!element) return;
+                  const navHeight = navRef.current?.offsetHeight ?? 0;
+                  const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                  const top = Math.max(0, absoluteY - navHeight - 16);
+                  window.history.replaceState(null, "", item.href);
+                  window.scrollTo({ top, behavior: "smooth" });
+                }
+              }
             }}
           >
             {item.label}
@@ -95,7 +151,7 @@ export function Navbar() {
               <span className="sr-only">Toggle menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" showCloseButton={false} className="w-full border-none bg-white p-0 sm:w-[400px]">
+          <SheetContent side="right" showCloseButton={false} className="w-full border-none bg-white p-0 sm:w-100">
             <div className="mb-8 flex h-full flex-col p-6">
               {/* Custom Header */}
               <div className="flex items-center justify-between">
@@ -140,15 +196,31 @@ export function Navbar() {
                       href={item.href as any}
                       className="font-bricolage font-semibold text-2xl text-[#333333] transition-colors hover:text-[#FE9114]"
                       onClick={(e) => {
-                        if (!item.href.startsWith("#")) return;
-                        const element = document.querySelector(item.href) as HTMLElement | null;
-                        if (!element) return;
-                        e.preventDefault();
-                        const navHeight = navRef.current?.offsetHeight ?? 0;
-                        const absoluteY = element.getBoundingClientRect().top + window.scrollY;
-                        const top = Math.max(0, absoluteY - navHeight - 16);
-                        window.history.replaceState(null, "", item.href);
-                        window.scrollTo({ top, behavior: "smooth" });
+                        // Handle anchor links on the same page
+                        if (item.href.startsWith("#")) {
+                          const element = document.querySelector(item.href) as HTMLElement | null;
+                          if (!element) return;
+                          e.preventDefault();
+                          const navHeight = navRef.current?.offsetHeight ?? 0;
+                          const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                          const top = Math.max(0, absoluteY - navHeight - 90);
+                          window.history.replaceState(null, "", item.href);
+                          window.scrollTo({ top, behavior: "smooth" });
+                        }
+                        // Handle links to homepage with anchors
+                        else if (item.href.includes("/#")) {
+                          const [path, anchor] = item.href.split("#");
+                          if (pathname === path) {
+                            e.preventDefault();
+                            const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
+                            if (!element) return;
+                            const navHeight = navRef.current?.offsetHeight ?? 0;
+                            const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                            const top = Math.max(0, absoluteY - navHeight - 90);
+                            window.history.replaceState(null, "", item.href);
+                            window.scrollTo({ top, behavior: "smooth" });
+                          }
+                        }
                       }}
                     >
                       {item.label}
