@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="relative min-h-[400px] w-full overflow-hidden bg-[#1A1F6D] py-16 lg:pt-24 lg:pb-12">
+    <footer className="relative min-h-100 w-full overflow-hidden bg-[#1A1F6D] py-16 lg:pt-24 lg:pb-12">
       {/* Background Decoration - "mulai+" text */}
       <div className="absolute top-10 bottom-0 left-0 w-full select-none overflow-hidden leading-none">
         <Image
@@ -42,12 +42,14 @@ export function Footer() {
             ))}
           </nav>
         </div>
-        <div className="flex flex-col items-center justify-between gap-12 lg:flex-row lg:gap-0">
-          <p className="text-center font-manrope text-[#BFD6FF] text-lg lg:text-2xl">
+        <div className="flex flex-col items-center justify-between gap-4 lg:flex-row lg:gap-0">
+          <p className="text-center font-manrope text-[#BFD6FF] text-lg lg:text-xl">
             &copy; 2024 mulai+. All rights reserved.
           </p>
-          <p className="text-center font-manrope text-lg text-white/60 italic lg:text-xl">
-            Powered by <b>Captiveau | Creative Tech Studio</b>
+          <p className="text-center font-manrope text-[#BFD6FF] text-lg lg:text-xl">
+            <Link href={"https://captiveau.fun"} target="_blank">
+              Powered by <b>Captiveau | Creative Tech Studio</b>
+            </Link>
           </p>
         </div>
       </div>

@@ -8,49 +8,49 @@ const MENTORS = [
     id: 1,
     name: "Nimitta",
     role: "Universitas Brawijaya",
-    image: "/mentors/nimitta.jpg",
+    image: "/mentors/nimitta.webp",
   },
   {
     id: 2,
     name: "Andhani",
     role: "Universitas Brawijaya",
-    image: "/mentors/andani.jpg",
+    image: "/mentors/andani.webp",
   },
   {
     id: 3,
     name: "Billy",
     role: "Universitas Airlangga",
-    image: "/mentors/billy.jpg",
+    image: "/mentors/billy.webp",
   },
   {
     id: 4,
     name: "Salma",
     role: "Universitas Gajah Mada",
-    image: "/mentors/salma.jpg",
+    image: "/mentors/salma.webp",
   },
   {
     id: 5,
     name: "Nailir",
     role: "Universitas Negeri Semarang",
-    image: "/mentors/nelly.jpg",
+    image: "/mentors/nelly.webp",
   },
   {
     id: 6,
     name: "Hariz",
     role: "PENS",
-    image: "/mentors/haris.jpg",
+    image: "/mentors/haris.webp",
   },
   {
     id: 7,
     name: "Febby",
     role: "UPN Veteran Jatim",
-    image: "/mentors/febby.jpg",
+    image: "/mentors/febby.webp",
   },
   {
     id: 8,
     name: "Addina",
     role: "Universitas Airlangga",
-    image: "/mentors/addina.jpg",
+    image: "/mentors/addina.webp",
   },
 ];
 
@@ -74,7 +74,7 @@ export function MeetTheMentor() {
               <div
                 key={`${mentor.id}-${index}`}
                 aria-hidden={index >= MENTORS.length}
-                className="group relative h-112 w-48 shrink-0 overflow-hidden rounded-[16px]"
+                className="group relative h-112 w-48 shrink-0 overflow-hidden rounded-2xl"
               >
                 <Image
                   src={mentor.image}
@@ -85,7 +85,7 @@ export function MeetTheMentor() {
 
                 <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-55% via-[#1A1F6D]/0 to-[#1A1F6D]" />
 
-                <div className="absolute right-4 bottom-[30px] left-4 z-10 flex flex-col items-start text-left">
+                <div className="absolute right-4 bottom-7.5 left-4 z-10 flex flex-col items-start text-left">
                   <h3 className="font-inter font-semibold text-2xl text-white leading-[1.2]">{mentor.name}</h3>
                   <span className="mt-1 font-[0.75rem] font-inter text-white/75 italic">{mentor.role}</span>
                 </div>
