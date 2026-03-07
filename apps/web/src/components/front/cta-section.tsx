@@ -34,7 +34,7 @@ export function CTASection() {
               Siap Mulai Langkah Pertamamu?
             </h2>
 
-            <Link href="/programs">
+            <Link href="#featured-programs">
               <Button
                 size="lg"
                 className="h-auto rounded-full bg-white px-8 py-4 text-xl hover:bg-gray-100 md:px-12 md:py-6 md:text-2xl lg:text-4xl"

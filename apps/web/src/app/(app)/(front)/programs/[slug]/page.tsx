@@ -107,7 +107,7 @@ export default function ProgramDetailPage() {
           </main>
 
           {/* Sidebar */}
-          <aside className="w-full shrink-0 px-4 pt-0 lg:w-[420px]">
+          <aside className="w-full shrink-0 px-4 pt-0 lg:w-105">
             <div className="sticky top-[10vh] mb-8">
               {program.batches && program.batches.length > 0 ? (
                 <RegistrationCTA
