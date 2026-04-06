@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono, Manrope } from "next/font/google";
 
 import "../../style/globals-app.css";
+import { env } from "@mulai-plus/env/web";
 import { Footer } from "@/components/front/footer";
 import { Navbar } from "@/components/front/navbar";
 import Providers from "@/components/providers";
@@ -30,6 +31,8 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "Mulai Plus",
   description: "Mulai Plus Apps",
+  robots:
+    env.NEXT_PUBLIC_SERVER_URL === "https://api.staging.mulaiplus.id" ? { index: false, follow: false } : undefined,
   viewport: {
     width: "device-width",
     initialScale: 1,

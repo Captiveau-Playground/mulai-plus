@@ -20,7 +20,7 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY}/server:production
     container_name: mulai-plus-server-production
     ports:
-      - "${PORT_SERVER:-3003}:3000"
+      - "${PORT_SERVER:-3004}:3000"
     expose:
       - "3000"
     environment:

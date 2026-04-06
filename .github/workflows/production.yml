@@ -169,7 +169,7 @@ jobs:
                 image: ghcr.io/${GITHUB_REPOSITORY}/server:production
                 container_name: mulai-plus-server-production
                 ports:
-                  - "${PORT_SERVER:-3003}:3000"
+                  - "${PORT_SERVER:-3004}:3000"
                 expose:
                   - "3000"
                 environment:
@@ -208,3 +208,5 @@ jobs:
             docker compose -p mulaiplus-production -f docker-compose.production.yml --env-file .env.production pull
             docker compose -p mulaiplus-production -f docker-compose.production.yml --env-file .env.production down
             docker compose -p mulaiplus-production -f docker-compose.production.yml --env-file .env.production up -d --force-recreate
+
+            docker image prune -f --filter "label=project=mulai-plus"
