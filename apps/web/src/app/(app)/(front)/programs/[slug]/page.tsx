@@ -2,18 +2,25 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { BookOpen, CheckCircle2, HelpCircle, Loader2, Users } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { ProgramRegistration } from "@/components/front/program-registration";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import Script from "next/script";
+
+import { HeaderDetailsProgram } from "@/components/front/details-program/header-details-program";
+import { ProgramAbout } from "@/components/front/details-program/program-about";
+import { ProgramNavigation } from "@/components/front/details-program/program-navigation";
+import { ProgramSyllabus } from "@/components/front/details-program/program-syllabus";
+import { ProgramTimeline } from "@/components/front/details-program/program-timeline";
+import { ProgramWhatYouWillGet } from "@/components/front/details-program/program-what-you-will-get";
+import { RegistrationCTA } from "@/components/front/details-program/registration-cta";
+import { FAQSection } from "@/components/front/faq-section";
 import { orpc } from "@/utils/orpc";
 
 export default function ProgramDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
+  const pageUrl = `${siteUrl}/programs/${slug}`;
 
   const { data: program, isLoading } = useQuery(
     orpc.programs.public.get.queryOptions({
@@ -38,203 +45,191 @@ export default function ProgramDetailPage() {
     );
   }
 
+  const batch = program.batches && program.batches.length > 0 ? program.batches[0] : null;
+
+  const toAbsoluteUrl = (url: string | null | undefined) => {
+    if (!url) return undefined;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    if (url.startsWith("/")) return `${siteUrl}${url}`;
+    return `${siteUrl}/${url}`;
+  };
+
+  const bannerUrl = toAbsoluteUrl(program.bannerUrl);
+
+  const faqEntities =
+    (program.faqs ?? []).length > 0
+      ? {
+          "@type": "FAQPage",
+          "@id": `${pageUrl}#faq`,
+          mainEntity: (program.faqs ?? []).map((f: { question: string; answer: string }) => ({
+            "@type": "Question",
+            name: f.question,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: f.answer,
+            },
+          })),
+        }
+      : null;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
+        name: "MULAI+",
+        url: siteUrl,
+        logo: {
+          "@type": "ImageObject",
+          url: `${siteUrl}/letter-icon-logo.svg`,
+        },
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        url: siteUrl,
+        name: "MULAI+",
+        publisher: { "@id": `${siteUrl}/#organization` },
+        inLanguage: "id-ID",
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${pageUrl}#webpage`,
+        url: pageUrl,
+        name: program.name,
+        isPartOf: { "@id": `${siteUrl}/#website` },
+        about: { "@id": `${siteUrl}/#organization` },
+        inLanguage: "id-ID",
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${pageUrl}#breadcrumbs`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: `${siteUrl}/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Programs",
+            item: `${siteUrl}/programs`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: program.name,
+            item: pageUrl,
+          },
+        ],
+      },
+      {
+        "@type": "Course",
+        "@id": `${pageUrl}#course`,
+        name: program.name,
+        description: program.description ?? undefined,
+        url: pageUrl,
+        image: bannerUrl ? [bannerUrl] : undefined,
+        inLanguage: "id-ID",
+        provider: { "@id": `${siteUrl}/#organization` },
+      },
+      ...(faqEntities ? [faqEntities] : []),
+    ],
+  };
+
+  const timelineItems = batch
+    ? [
+        {
+          title: "Registration",
+          description: `${format(new Date(batch.registrationEndDate), "dd MMM yyyy")}`,
+        },
+        batch.verificationStartDate && {
+          title: "Verification",
+          description: `${format(new Date(batch.verificationStartDate), "dd MMM yyyy")}`,
+        },
+        batch.assessmentStartDate && {
+          title: "Assessment",
+          description: `${format(new Date(batch.assessmentStartDate), "dd MMM yyyy")}`,
+        },
+        batch.announcementDate && {
+          title: "Announcement",
+          description: `${format(new Date(batch.announcementDate), "dd MMM yyyy")}`,
+        },
+        batch.onboardingDate && {
+          title: "Onboarding",
+          description: `${format(new Date(batch.onboardingDate), "dd MMM yyyy")}`,
+        },
+        {
+          title: "Graduation",
+          description: `${format(new Date(batch.endDate), "dd MMM yyyy")}`,
+        },
+      ].filter((item): item is { title: string; description: string } => Boolean(item))
+    : undefined;
+
   return (
-    <div className="container py-10">
-      {/* Header Section */}
-      <div className="mb-10 space-y-4">
-        <h1 className="font-extrabold text-4xl tracking-tight sm:text-5xl">{program.name}</h1>
-        <p className="max-w-3xl text-lg text-muted-foreground">{program.description}</p>
-        <div className="flex items-center gap-4 text-muted-foreground text-sm">{/* Duration moved to batches */}</div>
-      </div>
+    <div className="bg-white">
+      <Script id={`jsonld-program-${slug}`} type="application/ld+json">
+        {JSON.stringify(jsonLd)}
+      </Script>
+      <HeaderDetailsProgram
+        title={`${program.name} Program ${batch ? new Date(batch.startDate).getFullYear() : ""}`}
+        batch={
+          program.batches && program.batches.length > 0
+            ? program.batches.map((b: { name: string }) => b.name).join(", ")
+            : "Batch 1"
+        }
+        startDate={
+          program.batches && program.batches.length > 0
+            ? format(new Date(program.batches[0].startDate), "dd MMMM yyyy")
+            : "Coming Soon"
+        }
+      />
+      <div className="mx-auto w-full max-w-7xl sm:px-4 md:px-8 lg:px-0">
+        <div className="relative flex flex-col gap-12 lg:flex-row">
+          {/* Main Content */}
+          <main className="top-[20vh] flex min-w-0 flex-1 flex-col gap-16 px-4">
+            <ProgramNavigation />
+            <ProgramAbout
+              title={program.name}
+              description={program.description ?? undefined}
+              image={program.bannerUrl}
+            />
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Main Content */}
-        <div className="space-y-10 lg:col-span-2">
-          {/* Benefits */}
-          {program.benefits.length > 0 && (
-            <section>
-              <h2 className="mb-6 flex items-center gap-2 font-bold text-2xl">
-                <CheckCircle2 className="h-6 w-6 text-primary" /> What You'll Get
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {program.benefits.map((benefit) => (
-                  <Card key={benefit.id}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">{benefit.title}</CardTitle>
-                    </CardHeader>
-                    {benefit.description && (
-                      <CardContent>
-                        <p className="text-muted-foreground text-sm">{benefit.description}</p>
-                      </CardContent>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            </section>
-          )}
+            <ProgramTimeline items={timelineItems} />
+            <ProgramWhatYouWillGet items={program.benefits} description={"Lebih dari Sekadar Sesi Mentoring"} />
+            <ProgramSyllabus items={program.syllabus} description={"Apa yang Akan Dipelajari?"} />
+            {/* <ProgramFAQ items={program.faqs} /> */}
+            <FAQSection type="back" />
+          </main>
 
-          {/* Syllabus */}
-          {program.syllabus.length > 0 && (
-            <section>
-              <h2 className="mb-6 flex items-center gap-2 font-bold text-2xl">
-                <BookOpen className="h-6 w-6 text-primary" /> Syllabus
-              </h2>
-              <Accordion className="w-full">
-                {program.syllabus.map((item) => (
-                  <AccordionItem key={item.id} value={item.id}>
-                    <AccordionTrigger>
-                      <span className="text-left">
-                        <span className="mr-2 font-semibold text-primary">Week {item.week}:</span>
-                        {item.title}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">
-                      {item.outcome || "No detailed outcome provided."}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </section>
-          )}
-
-          {/* Mentors */}
-          {program.mentors.length > 0 && (
-            <section>
-              <h2 className="mb-6 flex items-center gap-2 font-bold text-2xl">
-                <Users className="h-6 w-6 text-primary" /> Meet Your Mentors
-              </h2>
-              <div className="grid gap-6 sm:grid-cols-2">
-                {program.mentors.map((mentor) => (
-                  <Card key={mentor.user.id} className="overflow-hidden">
-                    <CardContent className="flex items-center gap-4 p-6">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={mentor.user.image || ""} />
-                        <AvatarFallback>{mentor.user.name?.charAt(0) || "M"}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold text-lg">{mentor.user.name}</h3>
-                        <p className="text-muted-foreground text-sm">{mentor.user.email}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* FAQs */}
-          {program.faqs.length > 0 && (
-            <section>
-              <h2 className="mb-6 flex items-center gap-2 font-bold text-2xl">
-                <HelpCircle className="h-6 w-6 text-primary" /> FAQ
-              </h2>
-              <Accordion className="w-full">
-                {program.faqs.map((faq) => (
-                  <AccordionItem key={faq.id} value={faq.id}>
-                    <AccordionTrigger className="text-left font-medium">{faq.question}</AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">{faq.answer}</AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </section>
-          )}
-        </div>
-
-        {/* Sidebar / Batches */}
-        <div className="space-y-6">
-          <div className="sticky top-20">
-            <Card className="border-2 border-primary/10 bg-secondary/5">
-              <CardHeader>
-                <CardTitle>Available Batches</CardTitle>
-                <CardDescription>Choose a batch that fits your schedule.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {program.batches.length === 0 ? (
-                  <p className="py-4 text-center text-muted-foreground text-sm">No batches available at the moment.</p>
-                ) : (
-                  program.batches.map((batch) => (
-                    <div key={batch.id} className="space-y-3 rounded-lg border bg-card p-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold">{batch.name}</h4>
-                        <Badge
-                          variant={
-                            batch.status === "open"
-                              ? "default"
-                              : batch.status === "closed"
-                                ? "destructive"
-                                : "secondary"
-                          }
-                        >
-                          {batch.status}
-                        </Badge>
-                      </div>
-                      <div className="space-y-1 text-muted-foreground text-sm">
-                        <div className="flex items-center justify-between">
-                          <span>Start:</span>
-                          <span className="font-medium text-foreground">
-                            {format(new Date(batch.startDate), "MMM d, yyyy")}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>End:</span>
-                          <span className="font-medium text-foreground">
-                            {format(new Date(batch.endDate), "MMM d, yyyy")}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Registration:</span>
-                          <span className="font-medium text-foreground">
-                            {format(new Date(batch.registrationEndDate), "MMM d, yyyy")}
-                          </span>
-                        </div>
-                        {/* Timeline Highlights */}
-                        {(batch.verificationStartDate ||
-                          batch.assessmentStartDate ||
-                          batch.announcementDate ||
-                          batch.onboardingDate) && (
-                          <div className="mt-3 space-y-1 border-t pt-2">
-                            <p className="font-semibold text-foreground text-xs">Timeline Highlights</p>
-                            {batch.verificationStartDate && (
-                              <div className="flex items-center justify-between text-xs">
-                                <span>Verification:</span>
-                                <span>{format(new Date(batch.verificationStartDate), "MMM d")}</span>
-                              </div>
-                            )}
-                            {batch.assessmentStartDate && (
-                              <div className="flex items-center justify-between text-xs">
-                                <span>Assessment:</span>
-                                <span>{format(new Date(batch.assessmentStartDate), "MMM d")}</span>
-                              </div>
-                            )}
-                            {batch.announcementDate && (
-                              <div className="flex items-center justify-between text-xs">
-                                <span>Announcement:</span>
-                                <span>{format(new Date(batch.announcementDate), "MMM d")}</span>
-                              </div>
-                            )}
-                            {batch.onboardingDate && (
-                              <div className="flex items-center justify-between text-xs">
-                                <span>Onboarding:</span>
-                                <span>{format(new Date(batch.onboardingDate), "MMM d")}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {/* Quota display if needed */}
-                        {batch.quota > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span>Quota:</span>
-                            <span className="font-medium text-foreground">{batch.quota}</span>
-                          </div>
-                        )}
-                      </div>
-                      <ProgramRegistration programId={program.id} batch={batch} />
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          {/* Sidebar */}
+          <aside className="w-full shrink-0 px-4 pt-0 lg:w-105">
+            <div className="sticky top-[10vh] mb-8">
+              {program.batches && program.batches.length > 0 ? (
+                <RegistrationCTA
+                  batchName={program.batches[0].name}
+                  status={
+                    program.batches[0].status === "open"
+                      ? "OPEN"
+                      : program.batches[0].status === "upcoming"
+                        ? "COMING SOON"
+                        : "CLOSED"
+                  }
+                  startDate={format(new Date(program.batches[0].startDate), "dd MMM yyyy")}
+                  endDate={format(new Date(program.batches[0].endDate), "dd MMM yyyy")}
+                  registrationDate={format(new Date(program.batches[0].registrationStartDate), "dd MMM yyyy")}
+                  quota={program.batches[0].quota}
+                />
+              ) : (
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <p className="text-muted-foreground">No active batches available.</p>
+                </div>
+              )}
+            </div>
+          </aside>
         </div>
       </div>
     </div>

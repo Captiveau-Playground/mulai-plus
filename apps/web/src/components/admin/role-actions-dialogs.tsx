@@ -72,7 +72,7 @@ export function CreateRoleDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger render={children as React.ReactElement} />
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create Role</DialogTitle>
           <DialogDescription>Add a new role to the system.</DialogDescription>
@@ -197,7 +197,7 @@ export function EditRoleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1200px]">
+      <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Edit Role</DialogTitle>
           <DialogDescription>Make changes to the role here. Permissions are saved automatically.</DialogDescription>
@@ -271,7 +271,7 @@ export function DeleteRoleDialog({ role, open, onOpenChange }: DeleteRoleDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Delete Role</DialogTitle>
           <DialogDescription>

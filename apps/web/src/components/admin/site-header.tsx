@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
+import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import {
   Breadcrumb,
@@ -19,7 +20,7 @@ export function SiteHeader() {
   const segments = pathname.split("/").filter(Boolean);
 
   return (
-    <header className="sticky top-0 right-0 left-0 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+    <header className="sticky top-0 right-0 left-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <Breadcrumb>
@@ -44,7 +45,8 @@ export function SiteHeader() {
           })}
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
+        <ModeToggle />
         <NotificationBell />
       </div>
     </header>

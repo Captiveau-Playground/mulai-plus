@@ -48,7 +48,10 @@ export function CategoryList() {
   } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data: categories, isLoading } = useQuery(orpc.lms.category.list.queryOptions());
+  const { data: categories, isLoading } = useQuery({
+    ...orpc.lms.category.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const createMutation = useMutation(
     orpc.lms.category.create.mutationOptions({
@@ -126,13 +129,13 @@ export function CategoryList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-bold text-2xl tracking-tight">Categories</h2>
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Add Category
         </Button>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent className="min-w-7xl">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Create Category</DialogTitle>
               <DialogDescription>Add a new category for your courses.</DialogDescription>

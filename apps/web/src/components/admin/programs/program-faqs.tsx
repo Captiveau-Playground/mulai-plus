@@ -49,7 +49,10 @@ export function ProgramFaqs({ programId }: { programId: string }) {
   } | null>(null);
 
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery(orpc.programs.admin.faqs.list.queryOptions({ input: { programId } }));
+  const { data, isLoading } = useQuery({
+    ...orpc.programs.admin.faqs.list.queryOptions({ input: { programId } }),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
   const faqs = data || [];
 
   const createMutation = useMutation(
@@ -206,7 +209,7 @@ export function ProgramFaqs({ programId }: { programId: string }) {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="min-w-7xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add FAQ</DialogTitle>
             <DialogDescription>Add a new question and answer.</DialogDescription>
@@ -309,7 +312,7 @@ function EditFaqDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit FAQ</DialogTitle>
           <DialogDescription>Update the question and answer.</DialogDescription>

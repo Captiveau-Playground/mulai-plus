@@ -33,23 +33,26 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: attachments, isLoading } = useQuery(
-    orpc.programActivities.attachment.list.queryOptions({
+  const { data: attachments, isLoading } = useQuery({
+    ...orpc.programActivities.attachment.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: sessions } = useQuery(
-    orpc.programActivities.session.list.queryOptions({
+  const { data: sessions } = useQuery({
+    ...orpc.programActivities.session.list.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const { data: myRequests, isLoading: isLoadingRequests } = useQuery(
-    orpc.programActivities.attachment.myRequests.queryOptions({
+  const { data: myRequests, isLoading: isLoadingRequests } = useQuery({
+    ...orpc.programActivities.attachment.myRequests.queryOptions({
       input: { batchId: batch.id },
     }),
-  );
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
   // Mutations
   const createMutation = useMutation(

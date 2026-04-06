@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, LayoutDashboard, ShoppingCart } from "lucide-react";
+import { Award, BookOpen, Calendar, GraduationCap, LayoutDashboard, Settings, ShoppingCart } from "lucide-react";
 import type * as React from "react";
 
 import { NavMain } from "@/components/nav-main";
@@ -18,8 +18,8 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
-      logo: BookOpen,
+      name: "Student Portal",
+      logo: GraduationCap,
       plan: "Student",
     },
   ],
@@ -31,9 +31,34 @@ const data = {
       isActive: true,
     },
     {
+      title: "My Programs",
+      url: "/dashboard/student/programs",
+      icon: GraduationCap,
+    },
+    {
+      title: "My Courses",
+      url: "/dashboard/student/courses",
+      icon: BookOpen,
+    },
+    {
+      title: "Schedule",
+      url: "/dashboard/student/schedule",
+      icon: Calendar,
+    },
+    {
       title: "My Orders",
       url: "/dashboard/student/orders",
       icon: ShoppingCart,
+    },
+    {
+      title: "Certificates",
+      url: "/dashboard/student/certificates",
+      icon: Award,
+    },
+    {
+      title: "Settings",
+      url: "/dashboard/student/settings",
+      icon: Settings,
     },
   ],
 };

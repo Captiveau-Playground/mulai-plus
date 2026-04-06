@@ -1,26 +1,38 @@
+version: "3.9"
+
 services:
   web:
     image: ghcr.io/${GITHUB_REPOSITORY}/web:staging
-    ports:
-      - "${PORT_WEB}:3000"
+    container_name: mulai-plus-web
+    expose:
+      - "3000"
     environment:
       - PORT=3000
-      - NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
+      - NEXT_PUBLIC_SERVER_URL=http://mulai-plus-server:3000
       - DATABASE_URL=${DATABASE_URL}
     restart: always
+    networks:
+      - shared_proxy
 
   server:
     image: ghcr.io/${GITHUB_REPOSITORY}/server:staging
-    ports:
-      - "${PORT_SERVER}:3000"
+    container_name: mulai-plus-server
+    expose:
+      - "3000"
     environment:
       - PORT=3000
       - DATABASE_URL=${DATABASE_URL}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL}
-      - CORS_ORIGIN=${CORS_ORIGIN}
+      - CORS_ORIGIN=https://staging.mulaiplus.id
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - PAYMENT_API_URL=${PAYMENT_API_URL}
       - PAYMENT_API_KEY=${PAYMENT_API_KEY}
     restart: always
+    networks:
+      - shared_proxy
+
+networks:
+  shared_proxy:
+    external: true

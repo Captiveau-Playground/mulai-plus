@@ -54,7 +54,14 @@ export function PermissionTable() {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
-  const { data: permissions, isLoading, isError } = useQuery(orpc.permission.list.queryOptions());
+  const {
+    data: permissions,
+    isLoading,
+    isError,
+  } = useQuery({
+    ...orpc.permission.list.queryOptions(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const queryClient = useQueryClient();
 
@@ -184,14 +191,14 @@ export function PermissionTable() {
 
   return (
     <div className="w-full">
-      <div className="flex items-center py-4">
+      <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center">
         <Input
           placeholder="Filter permissions..."
           value={(table.getColumn("id")?.getFilterValue() as string) ?? ""}
           onChange={(event) => table.getColumn("id")?.setFilterValue(event.target.value)}
-          className="max-w-sm"
+          className="w-full max-w-sm"
         />
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
           <CreatePermissionDialog>
             <Button>
               <Plus className="mr-2 h-4 w-4" /> Add Permission
@@ -227,7 +234,7 @@ export function PermissionTable() {
           </DropdownMenu>
         </div>
       </div>
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -261,12 +268,12 @@ export function PermissionTable() {
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-muted-foreground text-sm">
+      <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-muted-foreground text-sm">
           {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s)
           selected.
         </div>
-        <div className="space-x-2">
+        <div className="flex items-center space-x-2">
           <Button
             variant="outline"
             size="sm"
@@ -314,7 +321,7 @@ function CreatePermissionDialog({ children }: { children: React.ReactNode }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={children as React.ReactElement} />
-      <DialogContent className="min-w-7xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create Permission</DialogTitle>
           <DialogDescription>Add a new permission to the master list. Format: action:resource</DialogDescription>

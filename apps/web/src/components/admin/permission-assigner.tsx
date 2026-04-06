@@ -172,7 +172,7 @@ export function PermissionAssigner({ assigned, onChange }: PermissionAssignerPro
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-      <div className="grid h-fit grid-cols-2 gap-4">
+      <div className="grid h-fit grid-cols-1 gap-4 md:grid-cols-2">
         <DroppableContainer id="available" title="Available Permissions" items={items.available} />
         <DroppableContainer id="assigned" title="Assigned Permissions" items={items.assigned} />
       </div>

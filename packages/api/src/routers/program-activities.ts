@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, gt } from "@mulai-plus/db";
+import { and, count, db, desc, eq, gt, inArray, isNull, ne, or } from "@mulai-plus/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   attachmentTypeEnum,
@@ -19,6 +19,41 @@ import { protectedProcedure } from "../index";
 import { sendNotification } from "../lib/notification";
 
 export const programActivitiesRouter = {
+  student: {
+    mySessions: protectedProcedure.handler(async ({ context }) => {
+      const userId = context.session.user.id;
+
+      // 1. Get user's batches
+      const participations = await db.query.programParticipant.findMany({
+        where: eq(programParticipant.userId, userId),
+        columns: { batchId: true },
+      });
+      const batchIds = participations.map((p) => p.batchId).filter((id): id is string => id !== null);
+
+      if (batchIds.length === 0) return [];
+
+      // 2. Find sessions
+      const sessions = await db.query.programSession.findMany({
+        where: and(
+          inArray(programSession.batchId, batchIds),
+          or(
+            eq(programSession.studentId, userId), // One-on-one
+            isNull(programSession.studentId), // Group session (implied for batch)
+          ),
+          ne(programSession.status, "cancelled"),
+        ),
+        with: {
+          mentor: true,
+          batch: {
+            with: { program: true },
+          },
+        },
+        orderBy: [desc(programSession.startsAt)],
+      });
+
+      return sessions;
+    }),
+  },
   mentor: {
     getStats: protectedProcedure.handler(async ({ context }) => {
       const userId = context.session.user.id;
@@ -88,6 +123,13 @@ export const programActivitiesRouter = {
 
         const batch = await db.query.programBatch.findFirst({
           where: eq(programBatch.id, input.batchId),
+          with: {
+            program: {
+              with: {
+                syllabus: true,
+              },
+            },
+          },
         });
 
         if (!batch) {
@@ -105,10 +147,20 @@ export const programActivitiesRouter = {
           where: eq(programAttendance.batchId, input.batchId),
         });
 
+        const mySessions = await db.query.programSession.findMany({
+          where: and(eq(programSession.batchId, input.batchId), eq(programSession.mentorId, userId)),
+          columns: {
+            week: true,
+            studentId: true,
+            startsAt: true,
+          },
+        });
+
         return {
           batch,
           participants: participants.map((p) => p.user),
           attendance,
+          mySessions,
         };
       }),
 
@@ -132,6 +184,20 @@ export const programActivitiesRouter = {
 
         if (!assignment) {
           throw new Error("Unauthorized: You are not assigned to this batch");
+        }
+
+        // Verify session ownership
+        const session = await db.query.programSession.findFirst({
+          where: and(
+            eq(programSession.batchId, input.batchId),
+            eq(programSession.mentorId, mentorId),
+            eq(programSession.week, input.week),
+            or(isNull(programSession.studentId), eq(programSession.studentId, input.userId)),
+          ),
+        });
+
+        if (!session) {
+          throw new Error("Unauthorized: You are not assigned to this session week for this student");
         }
 
         const existing = await db.query.programAttendance.findFirst({
@@ -177,6 +243,21 @@ export const programActivitiesRouter = {
         }),
       )
       .handler(async ({ input, context }) => {
+        // Check for existing one-on-one session for this student in this week
+        const existingSession = await db.query.programSession.findFirst({
+          where: and(
+            eq(programSession.batchId, input.batchId),
+            eq(programSession.studentId, input.studentId),
+            eq(programSession.week, input.week),
+            eq(programSession.type, "one_on_one"),
+            ne(programSession.status, "cancelled"),
+          ),
+        });
+
+        if (existingSession) {
+          throw new Error("A one-on-one session already exists for this student in this week");
+        }
+
         const newId = randomUUID();
         await db.insert(programSession).values({
           id: newId,
@@ -308,6 +389,41 @@ export const programActivitiesRouter = {
       )
       .handler(async ({ input }) => {
         const { id, ...data } = input;
+
+        if (data.type === "one_on_one" && data.studentId) {
+          const conditions = [
+            eq(programSession.batchId, data.batchId),
+            eq(programSession.studentId, data.studentId),
+            eq(programSession.week, data.week),
+            eq(programSession.type, "one_on_one"),
+            ne(programSession.status, "cancelled"),
+          ];
+          if (id) conditions.push(ne(programSession.id, id));
+
+          const existing = await db.query.programSession.findFirst({
+            where: and(...conditions),
+          });
+
+          if (existing) {
+            throw new Error("A one-on-one session already exists for this student in this week");
+          }
+        } else if (data.type === "group_mentoring") {
+          const conditions = [
+            eq(programSession.batchId, data.batchId),
+            eq(programSession.week, data.week),
+            eq(programSession.type, "group_mentoring"),
+            ne(programSession.status, "cancelled"),
+          ];
+          if (id) conditions.push(ne(programSession.id, id));
+
+          const existing = await db.query.programSession.findFirst({
+            where: and(...conditions),
+          });
+
+          if (existing) {
+            throw new Error("A group mentoring session already exists for this week");
+          }
+        }
 
         if (id) {
           await db.update(programSession).set(data).where(eq(programSession.id, id));
