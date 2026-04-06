@@ -141,7 +141,8 @@ jobs:
             mkdir -p "${{ secrets.VPS_PROJECT_PATH }}"
             cd "${{ secrets.VPS_PROJECT_PATH }}"
 
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            # Samakan dengan staging: pakai GITHUB_TOKEN dari workflow untuk login GHCR (tanpa secret tambahan)
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
