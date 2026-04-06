@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
+import Script from "next/script";
 
 import { HeaderDetailsProgram } from "@/components/front/details-program/header-details-program";
 import { ProgramAbout } from "@/components/front/details-program/program-about";
@@ -18,6 +19,8 @@ import { orpc } from "@/utils/orpc";
 export default function ProgramDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
+  const pageUrl = `${siteUrl}/programs/${slug}`;
 
   const { data: program, isLoading } = useQuery(
     orpc.programs.public.get.queryOptions({
@@ -43,6 +46,99 @@ export default function ProgramDetailPage() {
   }
 
   const batch = program.batches && program.batches.length > 0 ? program.batches[0] : null;
+
+  const toAbsoluteUrl = (url: string | null | undefined) => {
+    if (!url) return undefined;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    if (url.startsWith("/")) return `${siteUrl}${url}`;
+    return `${siteUrl}/${url}`;
+  };
+
+  const bannerUrl = toAbsoluteUrl(program.bannerUrl);
+
+  const faqEntities =
+    (program.faqs ?? []).length > 0
+      ? {
+          "@type": "FAQPage",
+          "@id": `${pageUrl}#faq`,
+          mainEntity: (program.faqs ?? []).map((f: { question: string; answer: string }) => ({
+            "@type": "Question",
+            name: f.question,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: f.answer,
+            },
+          })),
+        }
+      : null;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
+        name: "MULAI+",
+        url: siteUrl,
+        logo: {
+          "@type": "ImageObject",
+          url: `${siteUrl}/letter-icon-logo.svg`,
+        },
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        url: siteUrl,
+        name: "MULAI+",
+        publisher: { "@id": `${siteUrl}/#organization` },
+        inLanguage: "id-ID",
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${pageUrl}#webpage`,
+        url: pageUrl,
+        name: program.name,
+        isPartOf: { "@id": `${siteUrl}/#website` },
+        about: { "@id": `${siteUrl}/#organization` },
+        inLanguage: "id-ID",
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${pageUrl}#breadcrumbs`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: `${siteUrl}/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Programs",
+            item: `${siteUrl}/programs`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: program.name,
+            item: pageUrl,
+          },
+        ],
+      },
+      {
+        "@type": "Course",
+        "@id": `${pageUrl}#course`,
+        name: program.name,
+        description: program.description ?? undefined,
+        url: pageUrl,
+        image: bannerUrl ? [bannerUrl] : undefined,
+        inLanguage: "id-ID",
+        provider: { "@id": `${siteUrl}/#organization` },
+      },
+      ...(faqEntities ? [faqEntities] : []),
+    ],
+  };
 
   const timelineItems = batch
     ? [
@@ -75,6 +171,9 @@ export default function ProgramDetailPage() {
 
   return (
     <div className="bg-white">
+      <Script id={`jsonld-program-${slug}`} type="application/ld+json">
+        {JSON.stringify(jsonLd)}
+      </Script>
       <HeaderDetailsProgram
         title={`${program.name} Program ${batch ? new Date(batch.startDate).getFullYear() : ""}`}
         batch={
