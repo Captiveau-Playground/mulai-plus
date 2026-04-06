@@ -3,12 +3,14 @@ version: "3.9"
 services:
   web:
     image: ghcr.io/${GITHUB_REPOSITORY}/web:staging
-    container_name: mulai-plus-web
+    container_name: mulai-plus-web-staging
+    ports:
+      - "${PORT_WEB:-3001}:3000"
     expose:
       - "3000"
     environment:
       - PORT=3000
-      - NEXT_PUBLIC_SERVER_URL=http://mulai-plus-server:3000
+      - NEXT_PUBLIC_SERVER_URL=http://server:3000
       - DATABASE_URL=${DATABASE_URL}
     restart: always
     networks:
@@ -16,7 +18,9 @@ services:
 
   server:
     image: ghcr.io/${GITHUB_REPOSITORY}/server:staging
-    container_name: mulai-plus-server
+    container_name: mulai-plus-server-staging
+    ports:
+      - "${PORT_SERVER:-3000}:3000"
     expose:
       - "3000"
     environment:
