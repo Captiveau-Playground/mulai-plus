@@ -1,7 +1,9 @@
 "use client";
 
+import { env } from "@mulai-plus/env/web";
 import Image from "next/image";
 import Link from "next/link";
+import { Badge } from "../ui/badge";
 
 export function Footer() {
   return (
@@ -43,8 +45,15 @@ export function Footer() {
           </nav>
         </div>
         <div className="flex flex-col items-center justify-between gap-4 lg:flex-row lg:gap-0">
-          <p className="text-center font-manrope text-[#BFD6FF] text-lg lg:text-xl">
-            &copy; 2026 mulai+. All rights reserved.
+          <p className="flex items-center gap-2 text-center font-manrope text-[#BFD6FF] text-lg lg:text-xl">
+            <Badge>
+              {env.NEXT_PUBLIC_SERVER_URL === "http://localhost:3000"
+                ? "development"
+                : env.NEXT_PUBLIC_SERVER_URL === "https://staging.mulaiplus.id"
+                  ? "staging"
+                  : "production"}
+            </Badge>
+            &copy; 2026 mulai+. All rights reserved.{" "}
           </p>
           <p className="text-center font-manrope text-[#BFD6FF] text-lg lg:text-xl">
             <Link href={"https://captiveau.fun"} target="_blank">
