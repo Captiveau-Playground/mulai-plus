@@ -182,13 +182,13 @@ jobs:
             echo "=========================================================="
 
             # Pull image docker terbaru
-            docker compose -f docker-compose.staging.yml --env-file .env.staging pull
+            docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging pull
 
             # Restart container
             # Kita lakukan down dulu untuk memastikan container lama terhapus bersih
             # dan container baru dibuat ulang dengan image terbaru
-            docker compose -f docker-compose.staging.yml --env-file .env.staging down
-            docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --force-recreate
+            docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging down
+            docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging up -d --force-recreate
 
             # Bersihkan image usang (dangling images) khusus untuk project ini
             docker image prune -f --filter "label=project=mulai-plus"
