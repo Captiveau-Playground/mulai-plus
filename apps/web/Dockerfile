@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y curl unzip && \
 # Copy the entire monorepo
 COPY . .
 
-# Use staging env for build
-COPY apps/web/.env.staging apps/web/.env.production
+# Ensure Next.js env file exists for build (no secrets)
+COPY apps/web/.env.example apps/web/.env.production
 
 # Install dependencies using Bun
 # We need to ensure we use the same lockfile format
