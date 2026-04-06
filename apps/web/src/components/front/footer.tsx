@@ -44,7 +44,7 @@ export function Footer() {
         </div>
         <div className="flex flex-col items-center justify-between gap-4 lg:flex-row lg:gap-0">
           <p className="text-center font-manrope text-[#BFD6FF] text-lg lg:text-xl">
-            &copy; 2024 mulai+. All rights reserved.
+            &copy; 2026 mulai+. All rights reserved.
           </p>
           <p className="text-center font-manrope text-[#BFD6FF] text-lg lg:text-xl">
             <Link href={"https://captiveau.fun"} target="_blank">
