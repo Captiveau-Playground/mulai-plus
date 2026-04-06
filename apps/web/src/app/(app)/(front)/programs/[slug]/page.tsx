@@ -76,24 +76,6 @@ export default function ProgramDetailPage() {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "Organization",
-        "@id": `${siteUrl}/#organization`,
-        name: "MULAI+",
-        url: siteUrl,
-        logo: {
-          "@type": "ImageObject",
-          url: `${siteUrl}/letter-icon-logo.svg`,
-        },
-      },
-      {
-        "@type": "WebSite",
-        "@id": `${siteUrl}/#website`,
-        url: siteUrl,
-        name: "MULAI+",
-        publisher: { "@id": `${siteUrl}/#organization` },
-        inLanguage: "id-ID",
-      },
-      {
         "@type": "WebPage",
         "@id": `${pageUrl}#webpage`,
         url: pageUrl,
