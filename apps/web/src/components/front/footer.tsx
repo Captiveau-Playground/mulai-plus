@@ -49,7 +49,7 @@ export function Footer() {
             <Badge>
               {env.NEXT_PUBLIC_SERVER_URL === "http://localhost:3000"
                 ? "development"
-                : env.NEXT_PUBLIC_SERVER_URL === "https://staging.mulaiplus.id"
+                : env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id"
                   ? "staging"
                   : "production"}
             </Badge>
