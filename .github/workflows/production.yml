@@ -195,7 +195,7 @@ jobs:
             GITHUB_REPOSITORY=$REPO_LOWER
             NODE_ENV=production
             PORT_WEB=3002
-            PORT_SERVER=3003
+            PORT_SERVER=3004
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
             BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}
