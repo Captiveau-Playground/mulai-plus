@@ -33,6 +33,7 @@ jobs:
   build-web:
     needs: tag
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - uses: actions/checkout@v4
 
@@ -87,6 +88,7 @@ jobs:
   build-server:
     needs: tag
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - uses: actions/checkout@v4
 
@@ -126,6 +128,7 @@ jobs:
   deploy:
     needs: [build-web, build-server]
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - name: Deploy to VPS
         uses: appleboy/ssh-action@master
@@ -148,8 +151,8 @@ jobs:
               git pull origin staging
             fi
 
-            # Login ke GHCR
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # Login ke GHCR pakai token bawaan workflow (tanpa repo/env secret tambahan)
+            echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             # Convert repository name to lowercase
             REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
