@@ -52,6 +52,18 @@ const MENTORS = [
     role: "Universitas Airlangga",
     image: "/mentors/addina.webp",
   },
+  {
+    id: 9,
+    name: "Dita",
+    role: "UPN Veteran Jatim",
+    image: "/mentors/dita.webp",
+  },
+  {
+    id: 10,
+    name: "Naily",
+    role: "Universitas Gajah Mada",
+    image: "/mentors/naily.webp",
+  },
 ];
 
 export function MeetTheMentor() {
