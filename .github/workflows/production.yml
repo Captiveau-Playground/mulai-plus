@@ -35,6 +35,7 @@ jobs:
   build-web:
     needs: tag
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -87,6 +88,7 @@ jobs:
   build-server:
     needs: tag
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -141,8 +143,8 @@ jobs:
             mkdir -p "${{ secrets.VPS_PROJECT_PATH }}"
             cd "${{ secrets.VPS_PROJECT_PATH }}"
 
-            # Samakan dengan staging: pakai GITHUB_TOKEN dari workflow untuk login GHCR (tanpa secret tambahan)
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            # Pakai token bawaan workflow (tanpa repo/env secret tambahan)
+            echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
