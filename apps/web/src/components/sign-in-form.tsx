@@ -34,6 +34,8 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
               router.push("/admin");
             } else if (role === "mentor") {
               router.push("/mentor");
+            } else if (role === "program_manager") {
+              router.push("/program-manager");
             } else {
               router.push("/dashboard/student");
             }
@@ -60,7 +62,21 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         callbackURL: `${window.location.origin}/dashboard`,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          const session = await authClient.getSession();
+          const role = session.data?.user.role;
+
+          console.log(role);
+
+          if (role === "admin") {
+            router.push("/admin");
+          } else if (role === "mentor") {
+            router.push("/mentor");
+          } else if (role === "program_manager") {
+            router.push("/program-manager");
+          } else {
+            router.push("/dashboard/student");
+          }
           toast.success("Sign in successful");
         },
         onError: (error) => {

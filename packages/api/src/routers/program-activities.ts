@@ -15,7 +15,7 @@ import {
   sessionTypeEnum,
 } from "@mulai-plus/db/schema/programs";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { adminOrProgramManagerProcedure, protectedProcedure } from "../index";
 import { sendNotification } from "../lib/notification";
 
 export const programActivitiesRouter = {
@@ -322,7 +322,7 @@ export const programActivitiesRouter = {
     }),
   },
   session: {
-    list: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+    list: adminOrProgramManagerProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
       const items = await db.query.programSession.findMany({
         where: eq(programSession.batchId, input.batchId),
         with: {
@@ -335,7 +335,7 @@ export const programActivitiesRouter = {
       return items;
     }),
 
-    mySessions: protectedProcedure
+    mySessions: adminOrProgramManagerProcedure
       .input(
         z.object({
           batchId: z.string().optional(),
@@ -370,7 +370,7 @@ export const programActivitiesRouter = {
         return items;
       }),
 
-    upsert: protectedProcedure
+    upsert: adminOrProgramManagerProcedure
       .input(
         z.object({
           id: z.string().optional(),
@@ -437,14 +437,14 @@ export const programActivitiesRouter = {
         return { id: newId };
       }),
 
-    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(programSession).where(eq(programSession.id, input.id));
       return { success: true };
     }),
   },
 
   attachment: {
-    list: protectedProcedure
+    list: adminOrProgramManagerProcedure
       .input(
         z.object({
           batchId: z.string(),
@@ -468,7 +468,7 @@ export const programActivitiesRouter = {
         return items;
       }),
 
-    create: protectedProcedure
+    create: adminOrProgramManagerProcedure
       .input(
         z.object({
           batchId: z.string(),
@@ -507,7 +507,7 @@ export const programActivitiesRouter = {
         return { requestId, status: "pending" };
       }),
 
-    update: protectedProcedure
+    update: adminOrProgramManagerProcedure
       .input(
         z.object({
           id: z.string(),
@@ -557,7 +557,7 @@ export const programActivitiesRouter = {
         return { requestId, status: "pending" };
       }),
 
-    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
+    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
       const existing = await db.query.programAttachment.findFirst({
         where: eq(programAttachment.id, input.id),
       });
@@ -594,17 +594,19 @@ export const programActivitiesRouter = {
       return { requestId, status: "pending" };
     }),
 
-    myRequests: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input, context }) => {
-      return await db.query.programAttachmentRequest.findMany({
-        where: and(
-          eq(programAttachmentRequest.batchId, input.batchId),
-          eq(programAttachmentRequest.requestedBy, context.session.user.id),
-        ),
-        orderBy: [desc(programAttachmentRequest.createdAt)],
-        with: {
-          attachment: true,
-        },
-      });
-    }),
+    myRequests: adminOrProgramManagerProcedure
+      .input(z.object({ batchId: z.string() }))
+      .handler(async ({ input, context }) => {
+        return await db.query.programAttachmentRequest.findMany({
+          where: and(
+            eq(programAttachmentRequest.batchId, input.batchId),
+            eq(programAttachmentRequest.requestedBy, context.session.user.id),
+          ),
+          orderBy: [desc(programAttachmentRequest.createdAt)],
+          with: {
+            attachment: true,
+          },
+        });
+      }),
   },
 };

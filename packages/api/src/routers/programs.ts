@@ -18,7 +18,7 @@ import {
 } from "@mulai-plus/db/schema/programs";
 import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
-import { protectedProcedure, publicProcedure } from "../index";
+import { adminOrProgramManagerProcedure, publicProcedure } from "../index";
 import {
   getApplicationAcceptedEmailHtml,
   getApplicationRejectedEmailHtml,
@@ -136,7 +136,7 @@ export const programsRouter = {
     }),
   },
 
-  apply: protectedProcedure
+  apply: adminOrProgramManagerProcedure
     .input(
       z.object({
         programId: z.string(),
@@ -216,7 +216,7 @@ export const programsRouter = {
         const emailConfig = await db.query.systemSettings.findFirst({
           where: eq(systemSettings.key, "email_config"),
         });
-        const isEmailEnabled = (emailConfig?.value as any)?.enabled ?? true;
+        const isEmailEnabled = (emailConfig?.value as { enabled?: boolean })?.enabled ?? true;
 
         if (isEmailEnabled) {
           const emailHtml = getRegistrationEmailHtml({
@@ -259,7 +259,7 @@ export const programsRouter = {
       return { success: true, id };
     }),
 
-  myBatches: protectedProcedure.handler(async ({ context }) => {
+  myBatches: adminOrProgramManagerProcedure.handler(async ({ context }) => {
     const batchMentors = await db.query.programBatchMentor.findMany({
       where: eq(programBatchMentor.userId, context.session.user.id),
       with: {
@@ -275,7 +275,7 @@ export const programsRouter = {
   }),
 
   student: {
-    myPrograms: protectedProcedure.handler(async ({ context }) => {
+    myPrograms: adminOrProgramManagerProcedure.handler(async ({ context }) => {
       const participations = await db.query.programParticipant.findMany({
         where: and(eq(programParticipant.userId, context.session.user.id), isNotNull(programParticipant.batchId)),
         with: {
@@ -297,7 +297,7 @@ export const programsRouter = {
         }));
     }),
 
-    checkApplication: protectedProcedure
+    checkApplication: adminOrProgramManagerProcedure
       .input(z.object({ programId: z.string(), batchId: z.string() }))
       .handler(async ({ input, context }) => {
         const application = await db.query.programApplication.findFirst({
@@ -316,7 +316,7 @@ export const programsRouter = {
   },
 
   admin: {
-    analytics: protectedProcedure.handler(async () => {
+    analytics: adminOrProgramManagerProcedure.handler(async () => {
       const [totalPrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
       const [activePrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
 
@@ -364,7 +364,7 @@ export const programsRouter = {
       };
     }),
 
-    list: protectedProcedure
+    list: adminOrProgramManagerProcedure
       .input(
         z
           .object({
@@ -401,7 +401,7 @@ export const programsRouter = {
         };
       }),
 
-    get: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    get: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       const item = await db.query.program.findFirst({
         where: eq(program.id, input.id),
         with: {
@@ -434,7 +434,7 @@ export const programsRouter = {
       };
     }),
 
-    create: protectedProcedure
+    create: adminOrProgramManagerProcedure
       .input(
         z.object({
           name: z.string().min(1),
@@ -463,7 +463,7 @@ export const programsRouter = {
         return { id };
       }),
 
-    update: protectedProcedure
+    update: adminOrProgramManagerProcedure
       .input(
         z.object({
           id: z.string(),
@@ -503,21 +503,21 @@ export const programsRouter = {
         return { success: true };
       }),
 
-    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       // Soft delete
       await db.update(program).set({ deletedAt: new Date() }).where(eq(program.id, input.id));
       return { success: true };
     }),
 
     batches: {
-      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+      list: adminOrProgramManagerProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
         return await db
           .select()
           .from(programBatch)
           .where(and(eq(programBatch.programId, input.programId), isNull(programBatch.deletedAt)))
           .orderBy(desc(programBatch.startDate));
       }),
-      create: protectedProcedure
+      create: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -540,7 +540,7 @@ export const programsRouter = {
           });
           return { id };
         }),
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             id: z.string(),
@@ -612,12 +612,12 @@ export const programsRouter = {
           await db.update(programBatch).set(data).where(eq(programBatch.id, id));
           return { success: true };
         }),
-      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
         await db.update(programBatch).set({ deletedAt: new Date() }).where(eq(programBatch.id, input.id));
         return { success: true };
       }),
 
-      assignMentors: protectedProcedure
+      assignMentors: adminOrProgramManagerProcedure
         .input(
           z.object({
             batchId: z.string(),
@@ -641,7 +641,7 @@ export const programsRouter = {
           return { success: true };
         }),
 
-      getMentors: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+      getMentors: adminOrProgramManagerProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
         const mentors = await db.query.programBatchMentor.findMany({
           where: eq(programBatchMentor.batchId, input.batchId),
           with: {
@@ -652,7 +652,7 @@ export const programsRouter = {
       }),
 
       attendance: {
-        list: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+        list: adminOrProgramManagerProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
           const participants = await db.query.programApplication.findMany({
             where: and(eq(programApplication.batchId, input.batchId), eq(programApplication.status, "accepted")),
             with: {
@@ -670,7 +670,7 @@ export const programsRouter = {
           };
         }),
 
-        update: protectedProcedure
+        update: adminOrProgramManagerProcedure
           .input(
             z.object({
               batchId: z.string(),
@@ -732,14 +732,14 @@ export const programsRouter = {
     },
 
     faqs: {
-      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+      list: adminOrProgramManagerProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
         return await db
           .select()
           .from(programFaq)
           .where(eq(programFaq.programId, input.programId))
           .orderBy(programFaq.order);
       }),
-      create: protectedProcedure
+      create: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -756,7 +756,7 @@ export const programsRouter = {
           });
           return { id };
         }),
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             id: z.string(),
@@ -770,21 +770,21 @@ export const programsRouter = {
           await db.update(programFaq).set(data).where(eq(programFaq.id, id));
           return { success: true };
         }),
-      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
         await db.delete(programFaq).where(eq(programFaq.id, input.id));
         return { success: true };
       }),
     },
 
     benefits: {
-      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+      list: adminOrProgramManagerProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
         return await db
           .select()
           .from(programBenefit)
           .where(eq(programBenefit.programId, input.programId))
           .orderBy(programBenefit.order);
       }),
-      create: protectedProcedure
+      create: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -802,7 +802,7 @@ export const programsRouter = {
           });
           return { id };
         }),
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             id: z.string(),
@@ -817,14 +817,14 @@ export const programsRouter = {
           await db.update(programBenefit).set(data).where(eq(programBenefit.id, id));
           return { success: true };
         }),
-      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
         await db.delete(programBenefit).where(eq(programBenefit.id, input.id));
         return { success: true };
       }),
     },
 
     syllabus: {
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -875,14 +875,14 @@ export const programsRouter = {
           return { success: true };
         }),
 
-      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
         await db.delete(programSyllabus).where(eq(programSyllabus.id, input.id));
         return { success: true };
       }),
     },
 
     mentors: {
-      assign: protectedProcedure
+      assign: adminOrProgramManagerProcedure
         .input(
           z.object({
             batchId: z.string(),
@@ -907,7 +907,7 @@ export const programsRouter = {
     },
 
     applications: {
-      list: protectedProcedure
+      list: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -958,7 +958,7 @@ export const programsRouter = {
           };
         }),
 
-      recent: protectedProcedure
+      recent: adminOrProgramManagerProcedure
         .input(
           z.object({
             limit: z.number().default(5),
@@ -990,7 +990,7 @@ export const programsRouter = {
           return items;
         }),
 
-      bulkUpdateStatus: protectedProcedure
+      bulkUpdateStatus: adminOrProgramManagerProcedure
         .input(
           z.object({
             ids: z.array(z.string()),
@@ -1034,7 +1034,7 @@ export const programsRouter = {
           return { success: true };
         }),
 
-      updateStatus: protectedProcedure
+      updateStatus: adminOrProgramManagerProcedure
         .input(
           z.object({
             id: z.string(),
@@ -1063,7 +1063,7 @@ export const programsRouter = {
             const emailConfig = await tx.query.systemSettings.findFirst({
               where: eq(systemSettings.key, "email_config"),
             });
-            const isEmailEnabled = (emailConfig?.value as any)?.enabled ?? true;
+            const isEmailEnabled = (emailConfig?.value as { enabled?: boolean })?.enabled ?? true;
 
             if (input.status === "accepted") {
               // Check if already a participant in this program (and batch if applicable)
@@ -1184,7 +1184,7 @@ export const programsRouter = {
     },
 
     participants: {
-      list: protectedProcedure
+      list: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -1237,7 +1237,7 @@ export const programsRouter = {
     },
 
     attendance: {
-      list: protectedProcedure
+      list: adminOrProgramManagerProcedure
         .input(
           z.object({
             batchId: z.string(),
@@ -1271,7 +1271,7 @@ export const programsRouter = {
           return records;
         }),
 
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             batchId: z.string(),
@@ -1331,7 +1331,7 @@ export const programsRouter = {
     },
 
     attachmentRequests: {
-      list: protectedProcedure
+      list: adminOrProgramManagerProcedure
         .input(
           z.object({
             limit: z.number().default(50),
@@ -1376,54 +1376,56 @@ export const programsRouter = {
           };
         }),
 
-      approve: protectedProcedure.input(z.object({ requestId: z.string() })).handler(async ({ input, context }) => {
-        const request = await db.query.programAttachmentRequest.findFirst({
-          where: eq(programAttachmentRequest.id, input.requestId),
-        });
+      approve: adminOrProgramManagerProcedure
+        .input(z.object({ requestId: z.string() }))
+        .handler(async ({ input, context }) => {
+          const request = await db.query.programAttachmentRequest.findFirst({
+            where: eq(programAttachmentRequest.id, input.requestId),
+          });
 
-        if (!request) throw new Error("Request not found");
-        if (request.status !== "pending") throw new Error("Request is not pending");
+          if (!request) throw new Error("Request not found");
+          if (request.status !== "pending") throw new Error("Request is not pending");
 
-        await db.transaction(async (tx) => {
-          const data = request.data as any;
+          await db.transaction(async (tx) => {
+            const data = request.data as Record<string, unknown>;
 
-          if (request.action === "create") {
-            await tx.insert(programAttachment).values({
-              id: randomUUID(),
-              batchId: request.batchId,
-              ...data,
-            });
-          } else if (request.action === "update") {
-            if (!request.attachmentId) throw new Error("Attachment ID missing for update");
-            await tx.update(programAttachment).set(data).where(eq(programAttachment.id, request.attachmentId));
-          } else if (request.action === "delete") {
-            if (!request.attachmentId) throw new Error("Attachment ID missing for delete");
-            await tx.delete(programAttachment).where(eq(programAttachment.id, request.attachmentId));
-          }
+            if (request.action === "create") {
+              await tx.insert(programAttachment).values({
+                id: randomUUID(),
+                batchId: request.batchId,
+                ...data,
+              });
+            } else if (request.action === "update") {
+              if (!request.attachmentId) throw new Error("Attachment ID missing for update");
+              await tx.update(programAttachment).set(data).where(eq(programAttachment.id, request.attachmentId));
+            } else if (request.action === "delete") {
+              if (!request.attachmentId) throw new Error("Attachment ID missing for delete");
+              await tx.delete(programAttachment).where(eq(programAttachment.id, request.attachmentId));
+            }
 
-          await tx
-            .update(programAttachmentRequest)
-            .set({
-              status: "approved",
-              reviewedBy: context.session.user.id,
-              updatedAt: new Date(),
-            })
-            .where(eq(programAttachmentRequest.id, input.requestId));
-        });
+            await tx
+              .update(programAttachmentRequest)
+              .set({
+                status: "approved",
+                reviewedBy: context.session.user.id,
+                updatedAt: new Date(),
+              })
+              .where(eq(programAttachmentRequest.id, input.requestId));
+          });
 
-        // Notify Mentor
-        await sendNotification({
-          userId: request.requestedBy,
-          title: "Attachment Request Approved",
-          message: `Your request to ${request.action} attachment has been approved.`,
-          type: "success",
-          link: `/mentor/batches/${request.batchId}/attachments`,
-        });
+          // Notify Mentor
+          await sendNotification({
+            userId: request.requestedBy,
+            title: "Attachment Request Approved",
+            message: `Your request to ${request.action} attachment has been approved.`,
+            type: "success",
+            link: `/mentor/batches/${request.batchId}/attachments`,
+          });
 
-        return { success: true };
-      }),
+          return { success: true };
+        }),
 
-      reject: protectedProcedure
+      reject: adminOrProgramManagerProcedure
         .input(z.object({ requestId: z.string(), reason: z.string().optional() }))
         .handler(async ({ input, context }) => {
           const request = await db.query.programAttachmentRequest.findFirst({

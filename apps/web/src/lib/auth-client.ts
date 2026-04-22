@@ -5,7 +5,7 @@ import { adminClient, usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ac, admin, mentor, student } from "./permissions";
+import { ac, admin, mentor, program_manager, student } from "./permissions";
 
 export const authClient = createAuthClient({
   baseURL: env.NEXT_PUBLIC_SERVER_URL,
@@ -16,6 +16,7 @@ export const authClient = createAuthClient({
         admin,
         student,
         mentor,
+        program_manager,
       },
     }),
     usernameClient(),
@@ -117,7 +118,8 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
     if (isPermsLoading && !userPermissions) return;
 
     // Use fetched permissions if available, fallback to session permissions, then empty
-    const permsToCheck = userPermissions || ((session.user as any).permissions as string[]) || [];
+    const permsToCheck =
+      userPermissions || ((session.user as { permissions?: string[] }).permissions as string[]) || [];
 
     let allAuthorized = true;
     for (const [resource, actions] of Object.entries(permission)) {

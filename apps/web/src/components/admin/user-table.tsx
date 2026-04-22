@@ -229,13 +229,14 @@ export function UserTable() {
         const user = row.original;
         return (
           <Select defaultValue={user.role || "user"} onValueChange={(val) => val && handleRoleChange(user.id, val)}>
-            <SelectTrigger className="h-8 w-[110px]">
+            <SelectTrigger className="w-27.5] h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="student">Student</SelectItem>
               <SelectItem value="mentor">Mentor</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="program_manager">Program Manager</SelectItem>
             </SelectContent>
           </Select>
         );
