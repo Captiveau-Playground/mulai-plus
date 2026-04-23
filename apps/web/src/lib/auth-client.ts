@@ -71,7 +71,7 @@ export const usePermission = () => {
 
     // 2. Fallback to server check (Native Better Auth)
     const { data, error } = await authClient.admin.hasPermission({
-      permission: {
+      permissions: {
         [resource]: [action],
       },
     });

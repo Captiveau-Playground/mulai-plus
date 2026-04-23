@@ -187,13 +187,15 @@ export const programsRouter = {
       if (now > batchItem.registrationEndDate) {
         throw new Error("Registration has ended");
       }
+      const userId = context?.session?.user?.id;
+      if (!userId) throw new Error("Unauthorized");
 
       // 3. Check if already applied
       const existingApplication = await db.query.programApplication.findFirst({
         where: and(
           eq(programApplication.programId, input.programId),
           eq(programApplication.batchId, input.batchId),
-          eq(programApplication.userId, context.session.user.id),
+          eq(programApplication.userId, userId),
         ),
       });
 
@@ -207,7 +209,7 @@ export const programsRouter = {
         id,
         programId: input.programId,
         batchId: input.batchId,
-        userId: context.session.user.id,
+        userId: userId,
         status: "applied",
         reflectiveAnswers: input.answers,
       });
@@ -277,8 +279,11 @@ export const programsRouter = {
 
   student: {
     myPrograms: publicProcedure.handler(async ({ context }) => {
+      const userId = context?.session?.user?.id;
+      if (!userId) throw new Error("Unauthorized");
+
       const participations = await db.query.programParticipant.findMany({
-        where: and(eq(programParticipant.userId, context.session.user.id), isNotNull(programParticipant.batchId)),
+        where: and(eq(programParticipant.userId, userId), isNotNull(programParticipant.batchId)),
         with: {
           batch: {
             with: {
@@ -301,11 +306,14 @@ export const programsRouter = {
     checkApplication: publicProcedure
       .input(z.object({ programId: z.string(), batchId: z.string() }))
       .handler(async ({ input, context }) => {
+        const userId = context?.session?.user?.id;
+        if (!userId) throw new Error("Unauthorized");
+
         const application = await db.query.programApplication.findFirst({
           where: and(
             eq(programApplication.programId, input.programId),
             eq(programApplication.batchId, input.batchId),
-            eq(programApplication.userId, context.session.user.id),
+            eq(programApplication.userId, userId),
           ),
         });
 

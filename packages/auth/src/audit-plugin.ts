@@ -8,7 +8,7 @@ export const auditPlugin = (): BetterAuthPlugin => {
       after: [
         {
           matcher: (context) => {
-            return ["sign-in", "sign-up", "sign-out"].some((path) => context.path.endsWith(path));
+            return ["sign-in", "sign-up", "sign-out"].some((path) => context?.path?.endsWith(path));
           },
           handler: async (c) => {
             const ctx = c as any;

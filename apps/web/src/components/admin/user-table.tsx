@@ -128,7 +128,12 @@ export function UserTable() {
     toast.promise(
       authClient.admin.setRole({
         userId,
-        role: newRole as "user" | "admin", // Adjust types based on your schema
+        role: newRole as
+          | "admin"
+          | "student"
+          | "mentor"
+          | "program_manager"
+          | ("admin" | "student" | "mentor" | "program_manager")[], // Adjust types based on your schema
       }),
       {
         loading: "Updating role...",
