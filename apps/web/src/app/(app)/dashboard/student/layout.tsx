@@ -1,10 +1,8 @@
 "use client";
 
 import { StudentSidebar } from "@/components/student-sidebar";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { PageState } from "@/components/ui/page-state";
-import { Separator } from "@/components/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useAuthorizePage } from "@/lib/auth-client";
 
 export default function StudentDashboardLayout({ children }: { children: React.ReactNode }) {
@@ -17,24 +15,13 @@ export default function StudentDashboardLayout({ children }: { children: React.R
       <SidebarProvider
         style={
           {
-            "--sidebar-width": "16rem",
+            "--sidebar-width": "280px",
           } as React.CSSProperties
         }
       >
-        <StudentSidebar variant="inset" />
+        <StudentSidebar />
         <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/dashboard/student">Student Dashboard</BreadcrumbLink>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </header>
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>
+          <div className="min-h-screen bg-bg-light">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </PageState>

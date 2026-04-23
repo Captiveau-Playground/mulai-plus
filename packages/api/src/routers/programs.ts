@@ -137,7 +137,7 @@ export const programsRouter = {
     }),
   },
 
-  apply: adminOrProgramManagerProcedure
+  apply: publicProcedure
     .input(
       z.object({
         programId: z.string(),
@@ -276,7 +276,7 @@ export const programsRouter = {
   }),
 
   student: {
-    myPrograms: adminOrProgramManagerProcedure.handler(async ({ context }) => {
+    myPrograms: publicProcedure.handler(async ({ context }) => {
       const participations = await db.query.programParticipant.findMany({
         where: and(eq(programParticipant.userId, context.session.user.id), isNotNull(programParticipant.batchId)),
         with: {
@@ -298,7 +298,7 @@ export const programsRouter = {
         }));
     }),
 
-    checkApplication: adminOrProgramManagerProcedure
+    checkApplication: publicProcedure
       .input(z.object({ programId: z.string(), batchId: z.string() }))
       .handler(async ({ input, context }) => {
         const application = await db.query.programApplication.findFirst({
