@@ -55,6 +55,9 @@
       "suspicious": {
         "noArrayIndexKey": "off"
       },
+      "a11y": {
+        "noSvgWithoutTitle": "off"
+      },
       "style": {
         "noParameterAssign": "error",
         "useAsConstAssertion": "error",

@@ -1,7 +1,7 @@
 import { db, desc, eq } from "@mulai-plus/db";
 import { testimonial } from "@mulai-plus/db/schema/testimonials";
 import { z } from "zod";
-import { protectedProcedure, publicProcedure } from "../index";
+import { adminOrProgramManagerProcedure, protectedProcedure, publicProcedure } from "../index";
 
 export const testimonialsRouter = {
   list: protectedProcedure.handler(async () => {
@@ -32,7 +32,7 @@ export const testimonialsRouter = {
     return testimonials;
   }),
 
-  create: protectedProcedure
+  create: adminOrProgramManagerProcedure
     .input(
       z.object({
         userId: z.string().min(1),
@@ -52,7 +52,7 @@ export const testimonialsRouter = {
       return { id };
     }),
 
-  update: protectedProcedure
+  update: adminOrProgramManagerProcedure
     .input(
       z.object({
         id: z.string().min(1),
@@ -70,7 +70,7 @@ export const testimonialsRouter = {
       return { success: true };
     }),
 
-  delete: protectedProcedure
+  delete: adminOrProgramManagerProcedure
     .input(
       z.object({
         id: z.string().min(1),

@@ -47,7 +47,12 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSuccess }: Edit
     try {
       const { error } = await authClient.admin.setRole({
         userId: user.id,
-        role: selectedRole as "user" | "admin",
+        role: selectedRole as
+          | "admin"
+          | "student"
+          | "mentor"
+          | "program_manager"
+          | ("admin" | "student" | "mentor" | "program_manager")[],
       });
 
       if (error) {

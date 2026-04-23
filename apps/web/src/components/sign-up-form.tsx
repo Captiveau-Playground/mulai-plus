@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
-import { Button } from "./ui/button";
 
 export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
   const _router = useRouter();
@@ -32,15 +31,21 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   }
 
   return (
-    <div className="mx-auto mt-10 w-full max-w-md p-6">
-      <h1 className="mb-6 text-center font-bold text-3xl">Create Account</h1>
-      <p className="mb-6 text-center text-muted-foreground text-sm">
-        Join us to start learning. Students can sign up with Google.
-      </p>
+    <div className="w-full">
+      <div className="mb-8 text-center">
+        <h1 className="font-bold font-bricolage text-4xl text-[#1A1F6D]">Create Account</h1>
+        <p className="mt-3 font-manrope text-[#888888] text-lg">
+          Join us to start learning. Students can sign up with Google.
+        </p>
+      </div>
 
-      <div className="space-y-4">
-        <Button onClick={handleGoogleSignUp} className="w-full" variant="outline">
-          <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-label="Google logo">
+      <div className="space-y-5">
+        <button
+          type="button"
+          onClick={handleGoogleSignUp}
+          className="group flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-[#E0E0E9] bg-white px-6 py-4 font-manrope font-semibold text-[#333333] transition-all hover:border-[#1A1F6D] hover:bg-[#1A1F6D] hover:text-white"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" aria-label="Google logo">
             <title>Google logo</title>
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -59,14 +64,21 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
               fill="#EA4335"
             />
           </svg>
-          Sign up with Google
-        </Button>
+          Continue with Google
+        </button>
       </div>
 
       <div className="mt-8 text-center">
-        <Button variant="link" onClick={onSwitchToSignIn} className="text-indigo-600 hover:text-indigo-800">
-          Already have an account? Sign In
-        </Button>
+        <p className="font-manrope text-[#888888]">
+          Already have an account?{" "}
+          <button
+            type="button"
+            onClick={onSwitchToSignIn}
+            className="font-semibold text-[#1A1F6D] hover:text-[#FE9114] hover:underline"
+          >
+            Sign In
+          </button>
+        </p>
       </div>
     </div>
   );

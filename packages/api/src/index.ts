@@ -40,7 +40,33 @@ const requireAuth = o.middleware(async ({ context, next }) => {
   });
 });
 
+const requireRole = (allowedRoles: string[]) =>
+  o.middleware(async ({ context, next }) => {
+    if (!context.session?.user) {
+      throw new ORPCError("UNAUTHORIZED");
+    }
+
+    const userRole = context.session.user.role;
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      throw new ORPCError("FORBIDDEN", {
+        message: `Role '${userRole || "unknown"}' is not allowed to access this resource. Required roles: ${allowedRoles.join(", ")}`,
+      });
+    }
+
+    return next({
+      context: {
+        session: context.session,
+      },
+    });
+  });
+
 export const protectedProcedure = publicProcedure.use(requireAuth).use(auditMiddleware);
+
+export const adminProcedure = protectedProcedure.use(requireRole(["admin"]));
+
+export const programManagerProcedure = protectedProcedure.use(requireRole(["program_manager"]));
+
+export const adminOrProgramManagerProcedure = protectedProcedure.use(requireRole(["admin", "program_manager"]));
 
 export * from "./lib/email-templates";
 export * from "./lib/unosend";
