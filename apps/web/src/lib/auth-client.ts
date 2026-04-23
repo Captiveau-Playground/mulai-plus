@@ -23,6 +23,10 @@ export const authClient = createAuthClient({
   ],
 });
 
+export const isAdmin = (session: { user: { role?: string | null } } | null) => {
+  return session?.user?.role === "admin";
+};
+
 export const usePermission = () => {
   const { data: session, isPending } = authClient.useSession();
 

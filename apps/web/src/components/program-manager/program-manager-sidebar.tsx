@@ -9,7 +9,7 @@ import { TeamSwitcher } from "@/components/team-switcher";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 
-export function CvgLogo(props: React.ComponentProps<"img">) {
+export function CvgLogo(props: Omit<React.ComponentProps<typeof Image>, "src" | "alt" | "width" | "height">) {
   return <Image src="/main-icon-logo.svg" alt="Logo" width={32} height={32} {...props} />;
 }
 

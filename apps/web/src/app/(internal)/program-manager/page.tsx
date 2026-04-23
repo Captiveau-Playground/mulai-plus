@@ -66,7 +66,7 @@ export default async function ProgramManagerPage() {
               {stats.recentApplications.map((app) => (
                 <div key={app.id} className="flex items-center">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={app.user?.image ?? null} alt="Avatar" />
+                    <AvatarImage src={app.user?.image ?? ""} alt="Avatar" />
                     <AvatarFallback>{app.user?.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="ml-4 space-y-1">
