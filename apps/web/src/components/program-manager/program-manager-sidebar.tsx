@@ -45,6 +45,10 @@ const data = {
           url: "/program-manager/programs",
         },
         {
+          title: "Mentor",
+          url: "/program-manager/programs/mentors",
+        },
+        {
           title: "Analytics",
           url: "/program-manager/programs/analytics",
         },

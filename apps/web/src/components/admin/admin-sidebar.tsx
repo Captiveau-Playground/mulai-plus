@@ -110,16 +110,20 @@ const data = {
       icon: BookOpen,
       items: [
         {
-          title: "Analytics",
-          url: "/admin/programs/analytics",
-        },
-        {
           title: "Programs",
           url: "/admin/programs",
         },
         {
+          title: "Mentors",
+          url: "/admin/programs/mentors",
+        },
+        {
+          title: "Analytics",
+          url: "/admin/programs/analytics",
+        },
+        {
           title: "Testimonials",
-          url: "/admin/testimonials",
+          url: "/admin/programs/testimonials",
         },
       ],
     },
