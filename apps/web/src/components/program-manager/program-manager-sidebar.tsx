@@ -48,6 +48,10 @@ const data = {
           title: "Analytics",
           url: "/program-manager/programs/analytics",
         },
+        {
+          title: "Testimonial",
+          url: "/program-manager/programs/testimonials",
+        },
       ],
     },
   ],
@@ -85,7 +89,6 @@ export function ProgramManagerSidebar({ ...props }: React.ComponentProps<typeof 
       <SidebarContent>
         <NavMain items={data.navMain} />
         <NavMain label="Programs" items={data.navPrograms} />
-        <NavMain label="Content" items={data.navContent} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
