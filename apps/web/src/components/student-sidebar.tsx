@@ -1,10 +1,28 @@
 "use client";
 
-import { Award, BookOpen, Calendar, GraduationCap, LayoutDashboard, Settings, ShoppingCart } from "lucide-react";
+import {
+  Award,
+  BookOpen,
+  Calendar,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  ShoppingCart,
+} from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type * as React from "react";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
@@ -21,6 +39,7 @@ const navItems = [
 ];
 
 export function StudentSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter();
   const { data: session } = authClient.useSession();
 
   const user = session?.user
@@ -30,6 +49,18 @@ export function StudentSidebar({ ...props }: React.ComponentProps<typeof Sidebar
         avatar: session.user.image || "",
       }
     : { name: "Student", email: "student@example.com", avatar: "" };
+
+  const handleLogout = async () => {
+    try {
+      await authClient.signOut();
+      toast.success("Logged out successfully");
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      toast.error("Failed to logout");
+      console.error(error);
+    }
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0 bg-brand-navy pt-4" {...props}>
@@ -65,31 +96,56 @@ export function StudentSidebar({ ...props }: React.ComponentProps<typeof Sidebar
       </SidebarContent>
 
       <SidebarFooter className="border-white/10 border-t px-4 py-4">
-        {user.avatar ? (
-          <div className="flex items-center gap-3 rounded-xl bg-white/10 p-3">
-            <Image
-              src={user.avatar}
-              alt={user.name || ""}
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-full object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
-              <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <div className="flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left transition-all hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20">
+              {user.avatar ? (
+                <>
+                  <Image
+                    src={user.avatar}
+                    alt={user.name || ""}
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
+                    <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-orange">
+                    <span className="font-semibold text-white">{user.name?.charAt(0) || "S"}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
+                    <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 rounded-xl bg-white/10 p-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-orange">
-              <span className="font-semibold text-white">{user.name?.charAt(0) || "S"}</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-56 rounded-xl border-0 bg-white shadow-lg"
+            align="end"
+            side="right"
+            sideOffset={8}
+          >
+            <div className="px-3 py-2">
+              <p className="font-manrope font-medium text-sm text-text-main">{user.name}</p>
+              <p className="font-manrope text-text-muted-custom text-xs">{user.email}</p>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
-              <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
-            </div>
-          </div>
-        )}
+            <DropdownMenuSeparator className="bg-gray-100" />
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="cursor-pointer font-manrope text-red-600 text-sm hover:bg-red-50 focus:bg-red-50"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
 
       <SidebarRail />

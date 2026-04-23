@@ -87,17 +87,11 @@ export default function StudentSchedulePage() {
           <CardHeader className="border-gray-100 border-b bg-white pb-4">
             <Tabs defaultValue="upcoming" className="w-full">
               <TabsList className="h-auto gap-2 bg-transparent p-0">
-                <TabsTrigger
-                  value="upcoming"
-                  className="rounded-full px-4 py-2 font-inter text-sm text-text-muted-custom data-[state=active]:bg-brand-navy data-[state=active]:text-white"
-                >
+                <TabsTrigger value="upcoming" className="rounded-full px-4 py-2 font-inter text-brand-navy text-sm">
                   <Calendar className="mr-2 h-4 w-4" />
                   Upcoming ({upcomingSessions.length})
                 </TabsTrigger>
-                <TabsTrigger
-                  value="past"
-                  className="rounded-full px-4 py-2 font-inter text-sm text-text-muted-custom data-[state=active]:bg-brand-navy data-[state=active]:text-white"
-                >
+                <TabsTrigger value="past" className="rounded-full px-4 py-2 font-inter text-brand-navy text-sm">
                   <Clock className="mr-2 h-4 w-4" />
                   Past ({pastSessions.length})
                 </TabsTrigger>
