@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, inArray, isNotNull, isNull, sql } from "@mulai-plus/db";
+import { and, count, db, desc, eq, gt, inArray, isNotNull, isNull, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
@@ -13,6 +13,7 @@ import {
   programBenefit,
   programFaq,
   programParticipant,
+  programSession,
   programSyllabus,
   requestStatusEnum,
 } from "@mulai-plus/db/schema/programs";
@@ -904,6 +905,252 @@ export const programsRouter = {
           });
           return { success: true };
         }),
+
+      list: adminOrProgramManagerProcedure
+        .input(
+          z
+            .object({
+              programId: z.string().optional(),
+              limit: z.number().default(50),
+              offset: z.number().default(0),
+            })
+            .optional(),
+        )
+        .handler(async ({ input }) => {
+          const limit = input?.limit ?? 50;
+          const offset = input?.offset ?? 0;
+
+          let mentors: { userId: string; name: string | null; email: string | null; image: string | null }[];
+          if (input?.programId) {
+            const result = await db
+              .selectDistinct({
+                userId: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+              })
+              .from(programBatchMentor)
+              .innerJoin(user, eq(programBatchMentor.userId, user.id))
+              .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
+              .where(eq(programBatch.programId, input.programId));
+            mentors = result;
+          } else {
+            const result = await db
+              .selectDistinct({
+                userId: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+              })
+              .from(programBatchMentor)
+              .innerJoin(user, eq(programBatchMentor.userId, user.id));
+            mentors = result;
+          }
+
+          const userIds = mentors.map((m) => m.userId);
+
+          if (userIds.length === 0) {
+            return {
+              data: [],
+              pagination: { total: 0, limit, offset },
+            };
+          }
+
+          const sessionCounts = await db
+            .select({
+              mentorId: programSession.mentorId,
+              totalSessions: count(),
+            })
+            .from(programSession)
+            .where(inArray(programSession.mentorId, userIds))
+            .groupBy(programSession.mentorId);
+
+          const batchCounts = await db
+            .select({
+              mentorId: programBatchMentor.userId,
+              totalBatches: count(),
+            })
+            .from(programBatchMentor)
+            .where(inArray(programBatchMentor.userId, userIds))
+            .groupBy(programBatchMentor.userId);
+
+          const sessionCountMap = Object.fromEntries(sessionCounts.map((s) => [s.mentorId, s.totalSessions]));
+          const batchCountMap = Object.fromEntries(batchCounts.map((b) => [b.mentorId, b.totalBatches]));
+
+          const mentorsWithStats = mentors.map((m) => ({
+            id: m.userId,
+            name: m.name,
+            email: m.email,
+            image: m.image,
+            totalSessions: sessionCountMap[m.userId] ?? 0,
+            assignedBatches: batchCountMap[m.userId] ?? 0,
+          }));
+
+          return {
+            data: mentorsWithStats,
+            pagination: {
+              total: mentorsWithStats.length,
+              limit,
+              offset,
+            },
+          };
+        }),
+
+      get: adminOrProgramManagerProcedure.input(z.object({ mentorId: z.string() })).handler(async ({ input }) => {
+        const mentor = await db.query.user.findFirst({
+          where: eq(user.id, input.mentorId),
+        });
+
+        if (!mentor) {
+          throw new Error("Mentor not found");
+        }
+
+        const totalSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(eq(programSession.mentorId, input.mentorId));
+
+        const completedSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(and(eq(programSession.mentorId, input.mentorId), eq(programSession.status, "completed")));
+
+        const upcomingSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(
+            and(
+              eq(programSession.mentorId, input.mentorId),
+              eq(programSession.status, "scheduled"),
+              gt(programSession.startsAt, new Date()),
+            ),
+          );
+
+        const missedSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(and(eq(programSession.mentorId, input.mentorId), eq(programSession.status, "missed")));
+
+        const cancelledSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(and(eq(programSession.mentorId, input.mentorId), eq(programSession.status, "cancelled")));
+
+        const assignedBatches = await db.query.programBatchMentor.findMany({
+          where: eq(programBatchMentor.userId, input.mentorId),
+          with: {
+            batch: {
+              with: {
+                program: true,
+              },
+            },
+          },
+        });
+
+        const allSessions = await db.query.programSession.findMany({
+          where: eq(programSession.mentorId, input.mentorId),
+          with: {
+            student: true,
+            batch: {
+              with: {
+                program: true,
+              },
+            },
+          },
+          orderBy: [desc(programSession.startsAt)],
+        });
+
+        const studentsMap = new Map<
+          string,
+          {
+            id: string;
+            name: string;
+            email: string;
+            image: string | null;
+            sessionCount: number;
+            sessions: {
+              id: string;
+              week: number;
+              type: string;
+              status: string;
+              startsAt: Date;
+              durationMinutes: number;
+              batchName: string;
+              programName: string;
+              meetingLink: string | null;
+            }[];
+          }
+        >();
+
+        for (const session of allSessions) {
+          if (!session.studentId) continue;
+          const studentId = session.studentId;
+
+          if (!studentsMap.has(studentId)) {
+            studentsMap.set(studentId, {
+              id: studentId,
+              name: session.student?.name || "Unknown",
+              email: session.student?.email || "",
+              image: session.student?.image || null,
+              sessionCount: 0,
+              sessions: [],
+            });
+          }
+
+          const studentData = studentsMap.get(studentId);
+          if (!studentData) continue;
+          studentData.sessionCount++;
+          studentData.sessions.push({
+            id: session.id,
+            week: session.week,
+            type: session.type,
+            status: session.status,
+            startsAt: session.startsAt,
+            durationMinutes: session.durationMinutes,
+            batchName: session.batch?.name || "Unknown Batch",
+            programName: session.batch?.program?.name || "Unknown Program",
+            meetingLink: session.meetingLink,
+          });
+        }
+
+        const students = Array.from(studentsMap.values()).sort((a, b) => b.sessions.length - a.sessions.length);
+
+        const recentSessions = allSessions.slice(0, 10).map((s) => ({
+          id: s.id,
+          week: s.week,
+          type: s.type,
+          status: s.status,
+          startsAt: s.startsAt,
+          durationMinutes: s.durationMinutes,
+          studentName: s.student?.name || null,
+          studentId: s.studentId,
+          batchName: s.batch?.name || "Unknown Batch",
+          programName: s.batch?.program?.name || "Unknown Program",
+          meetingLink: s.meetingLink,
+        }));
+
+        return {
+          id: mentor.id,
+          name: mentor.name,
+          email: mentor.email,
+          image: mentor.image,
+          stats: {
+            total: totalSessions[0]?.count ?? 0,
+            completed: completedSessions[0]?.count ?? 0,
+            upcoming: upcomingSessions[0]?.count ?? 0,
+            missed: missedSessions[0]?.count ?? 0,
+            cancelled: cancelledSessions[0]?.count ?? 0,
+          },
+          assignedBatches: assignedBatches.map((ab) => ({
+            id: ab.batch.id,
+            name: ab.batch.name,
+            programName: ab.batch.program.name,
+            assignedAt: ab.assignedAt,
+          })),
+          students,
+          recentSessions,
+        };
+      }),
     },
 
     applications: {
@@ -1390,10 +1637,13 @@ export const programsRouter = {
             const data = request.data as Record<string, unknown>;
 
             if (request.action === "create") {
+              const typedData = data as { name: string; type: "file" | "video" | "link" | "tool"; url: string };
               await tx.insert(programAttachment).values({
                 id: randomUUID(),
                 batchId: request.batchId,
-                ...data,
+                name: typedData.name,
+                type: typedData.type,
+                url: typedData.url,
               });
             } else if (request.action === "update") {
               if (!request.attachmentId) throw new Error("Attachment ID missing for update");
