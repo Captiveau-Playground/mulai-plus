@@ -1,20 +1,34 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu, User } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
   const isMobile = useIsMobile();
+  const { data: session } = authClient.useSession();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,6 +38,20 @@ export function Navbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const getDashboardLink = () => {
+    if (!session?.user) return "/dashboard/student";
+    const role = session.user.role;
+    if (role === "admin") return "/admin";
+    if (role === "mentor") return "/mentor";
+    if (role === "program_manager") return "/program-manager";
+    return "/dashboard/student";
+  };
+
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    router.push("/");
+  };
 
   // Different nav items based on current page and screen size
   const getNavItems = () => {
@@ -94,7 +122,7 @@ export function Navbar() {
         {navItems.map((item) => (
           <Link
             key={item.href}
-            href={item.href as any}
+            href={item.href as Route}
             className="font-manrope text-[#333333] text-sm transition-colors hover:text-[#FE9114] lg:text-base"
             onClick={(e) => {
               // Handle anchor links on the same page
@@ -129,17 +157,102 @@ export function Navbar() {
         ))}
       </div>
 
-      {/* Desktop Auth Buttons */}
+      {/* Desktop Auth Section */}
       <div className="hidden items-center gap-2.5 font-manrope lg:flex lg:justify-self-end">
-        <Button
-          variant="ghost"
-          className="cursor-pointer rounded-full px-6 py-4 font-bold font-inter text-[#333333] text-sm lg:px-9 lg:py-6 lg:text-base"
-        >
-          Login
-        </Button>
-        <Button className="cursor-pointer rounded-full bg-[#1A1F6D] px-6 py-4 font-bold font-inter text-sm text-white hover:bg-[#1A1F6D]/90 lg:px-9 lg:py-6 lg:text-base">
-          Daftar Sekarang
-        </Button>
+        {session?.user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button
+                variant="ghost"
+                className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full p-0"
+              >
+                <Avatar className="h-10 w-10 border-2 border-brand-navy">
+                  <AvatarImage src={session.user.image || undefined} alt={session.user.name || "User"} />
+                  <AvatarFallback className="bg-brand-navy text-white">
+                    {session.user.name?.charAt(0).toUpperCase() || <User className="h-5 w-5" />}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72 rounded-2xl border border-gray-100 bg-white p-3 shadow-xl">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="p-3 font-normal">
+                  <div className="flex flex-col gap-1">
+                    <p className="font-bold font-bricolage text-[#1A1F6D] text-base">{session.user.name}</p>
+                    <p className="font-manrope text-[#888888] text-sm">{session.user.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-gray-100" />
+                <DropdownMenuItem className={"hover:bg-[#1A1F6D] hover:text-white"}>
+                  <Link
+                    href={getDashboardLink()}
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 font-manrope text-[#333333] text-sm transition-colors"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A1F6D]/10">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect width="7" height="9" x="3" y="3" rx="1" />
+                        <rect width="7" height="5" x="14" y="3" rx="1" />
+                        <rect width="7" height="9" x="14" y="12" rx="1" />
+                        <rect width="7" height="5" x="3" y="16" rx="1" />
+                      </svg>
+                    </div>
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-gray-100" />
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 font-manrope text-[#F93447] text-sm transition-colors hover:bg-[#F93447] hover:text-white"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F93447]/10">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" x2="9" y1="12" y2="12" />
+                    </svg>
+                  </div>
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <>
+            <Link href="/login">
+              <Button
+                variant="ghost"
+                className="cursor-pointer rounded-full px-6 py-4 font-bold text-[#333333] text-sm lg:px-9 lg:py-6 lg:text-base"
+              >
+                Login
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button className="cursor-pointer rounded-full bg-[#1A1F6D] px-6 py-4 font-bold text-sm text-white hover:bg-[#1A1F6D]/90 lg:px-9 lg:py-6 lg:text-base">
+                Daftar Sekarang
+              </Button>
+            </Link>
+          </>
+        )}
       </div>
 
       {/* Mobile Menu */}
@@ -193,7 +306,7 @@ export function Navbar() {
                   {navItems.map((item) => (
                     <Link
                       key={item.href}
-                      href={item.href as any}
+                      href={item.href as Route}
                       className="font-bricolage font-semibold text-2xl text-[#333333] transition-colors hover:text-[#FE9114]"
                       onClick={(e) => {
                         // Handle anchor links on the same page
@@ -231,15 +344,39 @@ export function Navbar() {
 
               {/* Footer Actions */}
               <div className="mt-auto flex flex-col gap-4 pb-8">
-                <Button
-                  variant="outline"
-                  className="h-12 w-full rounded-full border-2 border-[#333333] font-bold font-inter text-[#333333] text-base hover:bg-[#333333] hover:text-white"
-                >
-                  Login
-                </Button>
-                <Button className="h-12 w-full rounded-full bg-[#1A1F6D] font-bold font-inter text-base text-white hover:bg-[#1A1F6D]/90">
-                  Daftar Sekarang
-                </Button>
+                {session?.user ? (
+                  <>
+                    <Link href={getDashboardLink()}>
+                      <Button className="h-12 w-full rounded-full bg-brand-navy font-bold text-base text-white hover:bg-brand-navy/90">
+                        Dashboard
+                      </Button>
+                    </Link>
+                    <Button
+                      type="button"
+                      onClick={handleSignOut}
+                      variant="outline"
+                      className="h-12 w-full rounded-full border-2 border-brand-red font-bold text-base text-brand-red hover:bg-brand-red hover:text-white"
+                    >
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login">
+                      <Button
+                        variant="outline"
+                        className="h-12 w-full rounded-full border-2 border-[#333333] font-bold text-[#333333] text-base hover:bg-[#333333] hover:text-white"
+                      >
+                        Login
+                      </Button>
+                    </Link>
+                    <Link href="/login">
+                      <Button className="h-12 w-full rounded-full bg-[#1A1F6D] font-bold text-base text-white hover:bg-[#1A1F6D]/90">
+                        Daftar Sekarang
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </SheetContent>

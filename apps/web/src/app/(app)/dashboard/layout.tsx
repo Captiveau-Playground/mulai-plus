@@ -2,10 +2,8 @@ import type { Metadata } from "next";
 
 import { Bricolage_Grotesque, Geist, Geist_Mono, Manrope } from "next/font/google";
 
-import "../../style/globals-app.css";
+import "../../../style/globals-app.css";
 import { env } from "@mulai-plus/env/web";
-import { Footer } from "@/components/front/footer";
-import { Navbar } from "@/components/front/navbar";
 import Providers from "@/components/providers";
 
 const geistSans = Geist({
@@ -39,10 +37,6 @@ export const metadata: Metadata = {
     maximumScale: 5,
     userScalable: true,
   },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -79,11 +73,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${bricolageGrotesque.variable} ${manrope.variable} scroll-smooth antialiased`}
       >
-        <Providers>
-          <Navbar />
-          {children}
-          <Footer />
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

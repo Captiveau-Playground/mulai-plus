@@ -212,7 +212,7 @@ export function PermissionTable() {
                 </Button>
               }
             />
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className={"w-full"}>
               <DropdownMenuGroup>
                 {table
                   .getAllColumns()

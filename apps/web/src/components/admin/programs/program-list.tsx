@@ -31,6 +31,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { authClient, isAdmin } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 const programSchema = z.object({
@@ -42,6 +43,7 @@ const programSchema = z.object({
 type ProgramFormValues = z.infer<typeof programSchema>;
 
 export function ProgramList() {
+  const { data: session } = authClient.useSession();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProgram, setEditingProgram] = useState<{
     id: string;
@@ -181,8 +183,13 @@ export function ProgramList() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem>
-                            {/* biome-ignore lint/suspicious/noExplicitAny: typed routes issue */}
-                            <Link href={`/admin/programs/${program.id}` as any}>
+                            <Link
+                              href={
+                                isAdmin(session)
+                                  ? `/admin/programs/${program.id}`
+                                  : `/program-manager/programs/${program.id}`
+                              }
+                            >
                               <BookOpen className="mr-2 h-4 w-4" /> View Details
                             </Link>
                           </DropdownMenuItem>
