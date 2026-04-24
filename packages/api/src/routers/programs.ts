@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, gt, inArray, isNotNull, isNull, or, sql } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, gt, inArray, isNotNull, isNull, ne, or, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@mulai-plus/db/schema/programs";
 import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
-import { adminOrProgramManagerProcedure, publicProcedure } from "../index";
+import { adminOrProgramManagerProcedure, protectedProcedure, publicProcedure } from "../index";
 import {
   getApplicationAcceptedEmailHtml,
   getApplicationRejectedEmailHtml,
@@ -278,6 +278,21 @@ export const programsRouter = {
   }),
 
   student: {
+    myApplications: protectedProcedure.handler(async ({ context }) => {
+      const userId = context.session.user.id;
+
+      const applications = await db.query.programApplication.findMany({
+        where: eq(programApplication.userId, userId),
+        with: {
+          program: true,
+          batch: true,
+        },
+        orderBy: [desc(programApplication.createdAt)],
+      });
+
+      return applications;
+    }),
+
     myPrograms: publicProcedure.handler(async ({ context }) => {
       const userId = context?.session?.user?.id;
       if (!userId) throw new Error("Unauthorized");
