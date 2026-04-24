@@ -70,7 +70,7 @@ export function StudentSidebar({
 }: React.ComponentProps<typeof Sidebar> & { onNavigate?: () => void }) {
   const router = useRouter();
   const { data: session } = authClient.useSession();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [_isDropdownOpen] = useState(false);
 
   const user = session?.user
     ? {
@@ -136,15 +136,13 @@ export function StudentSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-white/10 border-t px-3 py-4">
-        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-          <DropdownMenuTrigger>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="hidden w-full md:flex">
             <button
               type="button"
               className={cn(
                 "flex w-full items-center gap-3 rounded-xl bg-white/10 p-2.5 text-left transition-all hover:translate-y-[-1px] hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 active:translate-y-0 sm:p-3",
               )}
-              aria-haspopup="menu"
-              aria-expanded={isDropdownOpen}
             >
               {user.avatar ? (
                 <>
@@ -195,6 +193,20 @@ export function StudentSidebar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-xl bg-white/10 p-2.5 text-left transition-all hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 md:hidden"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-orange ring-2 ring-white/20">
+            <LogOut className="h-4 w-4 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-manrope font-medium text-sm text-white">Logout</p>
+            <p className="truncate font-manrope text-white/60 text-xs">Sign out of your account</p>
+          </div>
+        </button>
       </SidebarFooter>
 
       <SidebarRail className="!bg-brand-navy" />
