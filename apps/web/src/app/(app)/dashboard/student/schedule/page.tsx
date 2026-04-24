@@ -260,7 +260,7 @@ function SessionCard({ session, isUpcoming }: { session: any; isUpcoming?: boole
             {session.notes && (
               <p className="mr-4 line-clamp-1 font-manrope text-sm text-text-muted-custom">{session.notes}</p>
             )}
-            {isUpcoming && session.meetingLink && (
+            {session.meetingLink && session.status === "scheduled" && (
               <a href={session.meetingLink} target="_blank" rel="noopener noreferrer">
                 <Button size="sm" className="btn-brand-red gap-2 rounded-full">
                   <Video className="h-4 w-4" />

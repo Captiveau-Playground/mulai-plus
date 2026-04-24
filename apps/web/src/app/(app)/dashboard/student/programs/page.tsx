@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Award, BookOpen, Calendar, GraduationCap } from "lucide-react";
+import { AlertCircle, Award, BookOpen, Calendar, CheckCircle2, Clock, GraduationCap, XCircle } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,7 +14,11 @@ import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
 export default function StudentProgramsPage() {
-  const { data: programs, isLoading } = useQuery(orpc.programs.student.myPrograms.queryOptions());
+  const { data: programs, isLoading: programsLoading } = useQuery(orpc.programs.student.myPrograms.queryOptions());
+  const { data: applications, isLoading: applicationsLoading } = useQuery(
+    orpc.programs.student.myApplications.queryOptions(),
+  );
+  const isLoading = programsLoading || applicationsLoading;
 
   return (
     <PageState isLoading={isLoading}>
@@ -67,6 +71,41 @@ export default function StudentProgramsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Application History */}
+        {applications && applications.length > 0 && (
+          <details className="group rounded-lg border border-gray-200 bg-white">
+            <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-manrope text-sm text-text-muted-custom hover:text-text-main">
+              <Clock className="h-4 w-4" />
+              Application History ({applications.length})
+            </summary>
+            <div className="border-gray-100 border-t px-4 py-3">
+              <div className="space-y-2">
+                {applications.map((app) => {
+                  const statusConfig = {
+                    applied: { bg: "bg-blue-50", text: "text-blue-600", icon: Clock, label: "Pending" },
+                    accepted: { bg: "bg-green-50", text: "text-green-600", icon: CheckCircle2, label: "Accepted" },
+                    rejected: { bg: "bg-red-50", text: "text-red-600", icon: XCircle, label: "Rejected" },
+                    waitlisted: { bg: "bg-orange-50", text: "text-orange-600", icon: AlertCircle, label: "Waitlisted" },
+                  };
+                  const config = statusConfig[app.status as keyof typeof statusConfig] || statusConfig.applied;
+                  const Icon = config.icon;
+
+                  return (
+                    <div key={app.id} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <Icon className={cn("h-4 w-4", config.text)} />
+                        <span className="font-manrope text-sm text-text-main">{app.program?.name}</span>
+                        <span className="font-manrope text-sm text-text-muted-custom">• {app.batch?.name}</span>
+                      </div>
+                      <span className={cn("font-manrope text-xs", config.text)}>{config.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </details>
+        )}
 
         {/* Programs Grid */}
         {programs && programs.length > 0 ? (
@@ -147,9 +186,14 @@ export default function StudentProgramsPage() {
                       <span className="font-manrope text-text-muted-custom text-xs">
                         Joined {format(new Date(program.joinedAt), "MMM d, yyyy")}
                       </span>
-                      <Button size="sm" className="btn-brand-navy rounded-full">
-                        View Details
-                      </Button>
+                      <Link
+                        href={`/dashboard/student/programs/${program.id}`}
+                        as={`/dashboard/student/programs/${program.id}` as Route}
+                      >
+                        <Button size="sm" className="btn-brand-navy rounded-full">
+                          View Details
+                        </Button>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>

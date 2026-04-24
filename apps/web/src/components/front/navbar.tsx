@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, User } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -121,7 +122,7 @@ export function Navbar() {
         {navItems.map((item) => (
           <Link
             key={item.href}
-            href={item.href as string}
+            href={item.href as Route}
             className="font-manrope text-[#333333] text-sm transition-colors hover:text-[#FE9114] lg:text-base"
             onClick={(e) => {
               // Handle anchor links on the same page
@@ -305,7 +306,7 @@ export function Navbar() {
                   {navItems.map((item) => (
                     <Link
                       key={item.href}
-                      href={item.href as string}
+                      href={item.href as Route}
                       className="font-bricolage font-semibold text-2xl text-[#333333] transition-colors hover:text-[#FE9114]"
                       onClick={(e) => {
                         // Handle anchor links on the same page
