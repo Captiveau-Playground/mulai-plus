@@ -189,7 +189,7 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
     return (
       <div className="w-full rounded-2xl border border-brand-navy/20 bg-brand-navy/5 p-4">
         <div className="mb-3 flex items-center justify-center">
-          <StatusBadge status={applicationStatus.status} />
+          <StatusBadge status={applicationStatus.status ?? ""} />
         </div>
         <p className="text-center font-manrope text-sm text-text-muted-custom">Kamu sudah terdaftar di batch ini</p>
       </div>
