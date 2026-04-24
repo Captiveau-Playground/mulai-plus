@@ -147,9 +147,14 @@ export default function StudentProgramsPage() {
                       <span className="font-manrope text-text-muted-custom text-xs">
                         Joined {format(new Date(program.joinedAt), "MMM d, yyyy")}
                       </span>
-                      <Button size="sm" className="btn-brand-navy rounded-full">
-                        View Details
-                      </Button>
+                      <Link
+                        href={`/dashboard/student/programs/${program.id}`}
+                        as={`/dashboard/student/programs/${program.id}` as Route}
+                      >
+                        <Button size="sm" className="btn-brand-navy rounded-full">
+                          View Details
+                        </Button>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>

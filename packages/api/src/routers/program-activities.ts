@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, gt, inArray, isNull, ne, or } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, gt, inArray, isNull, ne, or } from "@mulai-plus/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   attachmentTypeEnum,
@@ -48,7 +48,7 @@ export const programActivitiesRouter = {
             with: { program: true },
           },
         },
-        orderBy: [desc(programSession.startsAt)],
+        orderBy: [asc(programSession.startsAt)],
       });
 
       return sessions;

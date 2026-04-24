@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Award,
-  BookOpen,
-  Calendar,
-  GraduationCap,
-  LayoutDashboard,
-  LogOut,
-  Settings,
-  ShoppingCart,
-} from "lucide-react";
+import { Award, Calendar, GraduationCap, LayoutDashboard, LogOut, Settings } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -58,8 +49,8 @@ const navItems = [
   { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard },
   { title: "My Programs", url: "/dashboard/student/programs", icon: GraduationCap },
   { title: "Schedule", url: "/dashboard/student/schedule", icon: Calendar },
-  { title: "My Courses", url: "/dashboard/student/courses", icon: BookOpen },
-  { title: "My Orders", url: "/dashboard/student/orders", icon: ShoppingCart },
+  // { title: "My Courses", url: "/dashboard/student/courses", icon: BookOpen },
+  // { title: "My Orders", url: "/dashboard/student/orders", icon: ShoppingCart },
   { title: "Certificates", url: "/dashboard/student/certificates", icon: Award },
   { title: "Settings", url: "/dashboard/student/settings", icon: Settings },
 ];
