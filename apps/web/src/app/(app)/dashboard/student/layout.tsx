@@ -4,8 +4,29 @@ import DashboardFooter from "@/components/dashboard-footer";
 import DashboardHeader from "@/components/dashboard-header";
 import { StudentSidebar } from "@/components/student-sidebar";
 import { PageState } from "@/components/ui/page-state";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { useAuthorizePage } from "@/lib/auth-client";
+
+function StudentDashboardContent({ children }: { children: React.ReactNode }) {
+  const { setOpenMobile, toggleSidebar } = useSidebar();
+
+  const handleNavigate = () => {
+    setOpenMobile(false);
+  };
+
+  return (
+    <>
+      <StudentSidebar onNavigate={handleNavigate} />
+      <SidebarInset className="!bg-bg-light">
+        <div className="flex min-h-screen flex-col">
+          <DashboardHeader onMenuClick={toggleSidebar} />
+          <div className="flex-1">{children}</div>
+          <DashboardFooter />
+        </div>
+      </SidebarInset>
+    </>
+  );
+}
 
 export default function StudentDashboardLayout({ children }: { children: React.ReactNode }) {
   const { isAuthorized, isLoading } = useAuthorizePage({
@@ -21,14 +42,7 @@ export default function StudentDashboardLayout({ children }: { children: React.R
           } as React.CSSProperties
         }
       >
-        <StudentSidebar />
-        <SidebarInset>
-          <div className="flex min-h-screen flex-col bg-bg-light">
-            <DashboardHeader />
-            <div className="flex-1">{children}</div>
-            <DashboardFooter />
-          </div>
-        </SidebarInset>
+        <StudentDashboardContent>{children}</StudentDashboardContent>
       </SidebarProvider>
     </PageState>
   );
