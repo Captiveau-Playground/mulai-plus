@@ -1,5 +1,7 @@
 "use client";
 
+import DashboardFooter from "@/components/dashboard-footer";
+import DashboardHeader from "@/components/dashboard-header";
 import { StudentSidebar } from "@/components/student-sidebar";
 import { PageState } from "@/components/ui/page-state";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -21,7 +23,11 @@ export default function StudentDashboardLayout({ children }: { children: React.R
       >
         <StudentSidebar />
         <SidebarInset>
-          <div className="min-h-screen bg-bg-light">{children}</div>
+          <div className="flex min-h-screen flex-col bg-bg-light">
+            <DashboardHeader />
+            <div className="flex-1">{children}</div>
+            <DashboardFooter />
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </PageState>

@@ -87,22 +87,22 @@ export function NotificationBell() {
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuGroup>
         <DropdownMenuTrigger>
-          <Button variant="ghost" size="icon" className="relative">
+          <Button variant="ghost" size="icon" className="relative text-gray-700 hover:bg-gray-100">
             <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-600 ring-2 ring-white" />
-            )}
+            {unreadCount > 0 && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500" />}
             <span className="sr-only">Notifications</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
-          <div className="flex items-center justify-between p-2">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+        <DropdownMenuContent align="end" className="w-80 rounded-xl border-0 bg-white shadow-lg">
+          <div className="flex items-center justify-between px-4 py-3">
+            <DropdownMenuLabel className="font-bold font-bricolage text-base text-brand-navy">
+              Notifications
+            </DropdownMenuLabel>
             {unreadCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-auto text-muted-foreground text-xs"
+                className="h-auto text-brand-orange text-xs hover:text-brand-orange/80"
                 onClick={() => markAllAsRead(undefined)}
               >
                 Mark all as read
@@ -112,28 +112,26 @@ export function NotificationBell() {
           <DropdownMenuSeparator />
           <ScrollArea className="h-[300px]">
             {notificationsData?.length === 0 ? (
-              <div className="flex h-20 items-center justify-center text-muted-foreground text-sm">
-                No notifications
-              </div>
+              <div className="flex h-20 items-center justify-center text-gray-400 text-sm">No notifications</div>
             ) : (
               notificationsData?.map((notification) => (
                 <DropdownMenuItem
                   key={notification.id}
                   className={cn(
-                    "flex flex-col items-start gap-1 p-3 focus:bg-accent",
-                    !notification.read && "bg-accent/50",
+                    "flex cursor-pointer flex-col items-start gap-1 px-4 py-3 focus:bg-gray-50",
+                    !notification.read && "bg-brand-orange/5",
                   )}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex w-full items-center justify-between gap-2">
-                    <span className="font-medium text-sm">{notification.title}</span>
-                    <span className="text-muted-foreground text-xs">
+                    <span className="font-semibold text-gray-900 text-sm">{notification.title}</span>
+                    <span className="text-gray-400 text-xs">
                       {formatDistanceToNow(new Date(notification.createdAt), {
                         addSuffix: true,
                       })}
                     </span>
                   </div>
-                  <p className="line-clamp-2 text-muted-foreground text-xs">{notification.message}</p>
+                  <p className="line-clamp-2 text-gray-500 text-xs">{notification.message}</p>
                 </DropdownMenuItem>
               ))
             )}
