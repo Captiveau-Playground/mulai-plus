@@ -190,20 +190,18 @@ export default function ProgramDetailPage() {
           {/* Sidebar */}
           <aside className="w-full shrink-0 px-4 pt-0 lg:w-105">
             <div className="sticky top-[10vh] mb-8">
-              {program.batches && program.batches.length > 0 ? (
+              {batch ? (
                 <RegistrationCTA
-                  batchName={program.batches[0].name}
-                  status={
-                    program.batches[0].status === "open"
-                      ? "OPEN"
-                      : program.batches[0].status === "upcoming"
-                        ? "COMING SOON"
-                        : "CLOSED"
-                  }
-                  startDate={format(new Date(program.batches[0].startDate), "dd MMM yyyy")}
-                  endDate={format(new Date(program.batches[0].endDate), "dd MMM yyyy")}
-                  registrationDate={format(new Date(program.batches[0].registrationStartDate), "dd MMM yyyy")}
-                  quota={program.batches[0].quota}
+                  programId={program.id}
+                  batch={{
+                    id: batch.id,
+                    name: batch.name,
+                    status: batch.status,
+                    registrationStartDate: batch.registrationStartDate,
+                    registrationEndDate: batch.registrationEndDate,
+                    quota: batch.quota,
+                  }}
+                  className=""
                 />
               ) : (
                 <div className="rounded-lg border border-dashed p-8 text-center">
