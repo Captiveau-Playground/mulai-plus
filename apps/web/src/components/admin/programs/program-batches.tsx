@@ -166,15 +166,16 @@ function BatchAttendanceDialog({
                                 </SelectContent>
                               </Select>
                               <Popover>
-                                <PopoverTrigger asChild>
+                                <PopoverTrigger>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     className="h-6 w-[100px] text-muted-foreground text-xs hover:text-primary"
                                   >
-                                    {getProgressNote(student.id, week)
-                                      ? `📝 ${getProgressNote(student.id, week).slice(0, 12)}...`
-                                      : "+ Progress note"}
+                                    {(() => {
+                                      const note = getProgressNote(student.id, week);
+                                      return note ? `📝 ${note.slice(0, 12)}...` : "+ Progress note";
+                                    })()}
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-64" align="start">
@@ -1083,6 +1084,7 @@ function EditBatchDialog({
     quota: number;
     durationWeeks: number;
     bannerUrl?: string | null;
+    communityLink?: string | null;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   };
   open: boolean;

@@ -238,15 +238,16 @@ export default function MentorBatchAttendancePage() {
                               </Select>
                               {canEdit(student.id, week) ? (
                                 <Popover>
-                                  <PopoverTrigger asChild>
+                                  <PopoverTrigger>
                                     <Button
                                       variant="ghost"
                                       size="sm"
                                       className="h-6 w-[110px] text-muted-foreground text-xs hover:text-primary"
                                     >
-                                      {getProgressNote(student.id, week)
-                                        ? `📝 ${getProgressNote(student.id, week).slice(0, 15)}...`
-                                        : "+ Add progress note"}
+                                      {(() => {
+                                        const note = getProgressNote(student.id, week);
+                                        return note ? `📝 ${note.slice(0, 15)}...` : "+ Add progress note";
+                                      })()}
                                     </Button>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-64" align="start">

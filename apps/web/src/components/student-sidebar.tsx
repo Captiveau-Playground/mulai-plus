@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, Calendar, GraduationCap, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import { Award, Calendar, GraduationCap, LayoutDashboard, Loader2, LogOut, Settings } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
