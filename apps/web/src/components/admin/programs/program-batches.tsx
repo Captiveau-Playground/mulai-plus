@@ -427,6 +427,7 @@ const batchSchema = z.object({
   quota: z.coerce.number().min(0).default(0),
   durationWeeks: z.coerce.number().min(0).default(0),
   bannerUrl: z.string().optional(),
+  communityLink: z.string().optional(),
   status: z.enum(["upcoming", "open", "closed", "running", "completed"] as const),
 });
 
@@ -548,6 +549,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
       quota: 0,
       durationWeeks: 0,
       bannerUrl: "",
+      communityLink: "",
       status: "upcoming",
     },
   });
@@ -956,6 +958,19 @@ export function ProgramBatches({ programId }: { programId: string }) {
               />
               <FormField
                 control={form.control}
+                name="communityLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Community Link (WhatsApp)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://chat.whatsapp.com/..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="status"
                 render={({ field }) => (
                   <FormItem>
@@ -1093,6 +1108,7 @@ function EditBatchDialog({
       quota: batch.quota,
       durationWeeks: batch.durationWeeks,
       bannerUrl: batch.bannerUrl || "",
+      communityLink: batch.communityLink || "",
       status: batch.status,
     },
   });
@@ -1324,6 +1340,19 @@ function EditBatchDialog({
                     <FormLabel>Banner Image</FormLabel>
                     <FormControl>
                       <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="communityLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Community Link (WhatsApp)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://chat.whatsapp.com/..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

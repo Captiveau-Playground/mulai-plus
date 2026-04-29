@@ -677,6 +677,7 @@ export const programsRouter = {
             quota: z.number().min(0).optional(),
             durationWeeks: z.number().min(1).optional(),
             bannerUrl: z.string().optional(),
+            communityLink: z.string().url().optional().or(z.literal("")),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
           }),
         )

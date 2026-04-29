@@ -432,10 +432,10 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                             </FormLabel>
                             <Select
                               onValueChange={(value) => {
-                                field.onChange(value);
-                                setRegencies([]);
-                                form.setValue("city", "");
-                                if (value) {
+                                if (typeof value === "string" && value) {
+                                  field.onChange(value);
+                                  setRegencies([]);
+                                  form.setValue("city", "");
                                   loadRegencies(value);
                                 }
                               }}
@@ -612,7 +612,7 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                       </p>
                     </div>
 
-                    <div className="space-y-4 rounded-xl bg-gradient-to-br from-brand-orange/5 to-amber-50 p-4">
+                    <div className="max-h-[calc(100vh-350px)] space-y-4 overflow-y-auto rounded-xl bg-gradient-to-br from-brand-orange/5 to-amber-50 p-4 sm:max-h-none sm:overflow-visible">
                       <FormField
                         control={form.control}
                         name="reflectionIdealSelf"

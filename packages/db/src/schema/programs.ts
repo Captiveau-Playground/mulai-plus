@@ -31,6 +31,7 @@ export const programBatch = pgTable("program_batch", {
     .references(() => program.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // e.g. "Batch 1 - Jan 2024"
   bannerUrl: text("banner_url"),
+  communityLink: text("community_link"), // WhatsApp group link
   durationWeeks: integer("duration_weeks").default(0).notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
