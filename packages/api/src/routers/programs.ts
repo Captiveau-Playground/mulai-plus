@@ -262,7 +262,7 @@ export const programsRouter = {
       return { success: true, id };
     }),
 
-  myBatches: adminOrProgramManagerProcedure.handler(async ({ context }) => {
+  myBatches: protectedProcedure.handler(async ({ context }) => {
     const batchMentors = await db.query.programBatchMentor.findMany({
       where: eq(programBatchMentor.userId, context.session.user.id),
       with: {

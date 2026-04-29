@@ -236,39 +236,42 @@ export default function MentorBatchAttendancePage() {
                                   <SelectItem value="excused">Excused</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-[110px] text-muted-foreground text-xs hover:text-primary"
-                                    disabled={!canEdit(student.id, week)}
-                                  >
-                                    {getProgressNote(student.id, week)
-                                      ? `📝 ${getProgressNote(student.id, week).slice(0, 15)}...`
-                                      : "+ Add progress note"}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-64" align="start">
-                                  <div className="grid gap-2">
-                                    <p className="font-medium text-sm">Weekly Progress Note</p>
-                                    <Textarea
-                                      placeholder="E.g., Student shows good understanding of the material..."
-                                      value={getProgressNote(student.id, week)}
-                                      onChange={(e) => {
-                                        setUpdates((prev) => ({
-                                          ...prev,
-                                          [`${student.id}-${week}`]: {
-                                            ...prev[`${student.id}-${week}`],
-                                            progressNote: e.target.value,
-                                          },
-                                        }));
-                                      }}
-                                      rows={3}
-                                    />
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
+                              {canEdit(student.id, week) ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-[110px] text-muted-foreground text-xs hover:text-primary"
+                                    >
+                                      {getProgressNote(student.id, week)
+                                        ? `📝 ${getProgressNote(student.id, week).slice(0, 15)}...`
+                                        : "+ Add progress note"}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-64" align="start">
+                                    <div className="grid gap-2">
+                                      <p className="font-medium text-sm">Weekly Progress Note</p>
+                                      <Textarea
+                                        placeholder="E.g., Student shows good understanding of the material..."
+                                        value={getProgressNote(student.id, week)}
+                                        onChange={(e) => {
+                                          setUpdates((prev) => ({
+                                            ...prev,
+                                            [`${student.id}-${week}`]: {
+                                              ...prev[`${student.id}-${week}`],
+                                              progressNote: e.target.value,
+                                            },
+                                          }));
+                                        }}
+                                        rows={3}
+                                      />
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              ) : (
+                                <div className="h-6 w-[110px]" />
+                              )}
                             </div>
                           </TableCell>
                         ))}
