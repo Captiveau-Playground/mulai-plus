@@ -2,33 +2,53 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarCheck, CheckCircle, Clock, Loader2, MapPin, Phone, School, XCircle } from "lucide-react";
+import {
+  CalendarCheck,
+  Check,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Loader2,
+  MapPin,
+  Phone,
+  School,
+  XCircle,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
+const minWords = (min: number, msg: string) =>
+  z.string().refine((val) => val.trim().split(/\s+/).filter(Boolean).length >= min, msg);
+
+const phoneRegex = /^(\+62|62|0)[0-9]{9,12}$/;
+
 const registrationSchema = z.object({
   name: z.string().min(1, "Nama lengkap wajib diisi"),
-  class: z.string().min(1, "Kelas wajib diisi"),
+  class: z.enum(["10", "11", "12"], { message: "Pilih kelas" }),
   school: z.string().min(1, "Sekolah wajib diisi"),
   major: z.string().min(1, "Jurusan wajib dipilih"),
-  domicile: z.string().min(1, "Kota domisili wajib diisi"),
-  reason: z.string().min(1, "Alasan mengikuti program wajib diisi"),
-  phone: z.string().min(1, "Nomor WhatsApp wajib diisi"),
+  province: z.string().min(1, "Provinsi wajib dipilih"),
+  city: z.string().min(1, "Kota/Kabupaten wajib dipilih"),
+  reason: minWords(10, "Motivasi minimal 10 kata"),
+  phone: z.string().regex(phoneRegex, "Nomor WhatsApp tidak valid (contoh: 08123456789)"),
   email: z.string().email("Alamat email tidak valid"),
+  reflectionIdealSelf: minWords(10, "Jawaban minimal 10 kata"),
+  reflectionExpectation: minWords(10, "Jawaban minimal 10 kata"),
+  reflectionFuture: minWords(10, "Jawaban minimal 10 kata"),
 });
 
 type RegistrationFormValues = z.infer<typeof registrationSchema>;
@@ -70,10 +90,20 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const STEPS = [
+  { id: 1, title: "Data Diri", icon: CalendarCheck },
+  { id: 2, title: "Sekolah", icon: School },
+  { id: 3, title: "Motivasi", icon: CalendarCheck },
+  { id: 4, title: "Refleksi", icon: CheckCircle },
+];
+
 export function ProgramRegistration({ programId, batch }: ProgramRegistrationProps) {
   const router = useRouter();
   const session = authClient.useSession();
   const [isOpen, setIsOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [provinces, setProvinces] = useState<{ id: string; name: string }[]>([]);
+  const [regencies, setRegencies] = useState<{ id: string; name: string }[]>([]);
 
   const { data: applicationStatus, isLoading: isLoadingStatus } = useQuery(
     orpc.programs.student.checkApplication.queryOptions({
@@ -90,6 +120,7 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
       onSuccess: () => {
         toast.success("Pendaftaran berhasil submitted!");
         setIsOpen(false);
+        setCurrentStep(1);
         router.push("/dashboard/student/programs");
       },
       onError: (error) => {
@@ -103,14 +134,21 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
     defaultValues: {
       name: session.data?.user.name || "",
       email: session.data?.user.email || "",
-      class: "",
+      class: "10",
       school: "",
       major: "",
-      domicile: "",
+      province: "",
+      city: "",
       reason: "",
       phone: "",
+      reflectionIdealSelf: "",
+      reflectionExpectation: "",
+      reflectionFuture: "",
     },
+    mode: "onChange",
   });
+
+  const watchedFields = form.watch();
 
   const handleLoginRedirect = () => {
     const callbackUrl = encodeURIComponent(window.location.pathname);
@@ -123,6 +161,29 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
       return;
     }
     setIsOpen(true);
+    setCurrentStep(1);
+  };
+
+  const [regionData, setRegionData] = useState<any>(null);
+
+  useEffect(() => {
+    if (isOpen && !regionData) {
+      import("../../data/indonesia-regions.json").then((data) => {
+        setRegionData(data);
+        setProvinces(data.provinces);
+      });
+    }
+  }, [isOpen, regionData]);
+
+  const loadRegencies = (provinceName: string) => {
+    if (!regionData) return;
+    // Find province ID from name
+    const province = regionData.provinces.find((p: { name: string }) => p.name === provinceName);
+    if (province && regionData.regencies[province.id]) {
+      setRegencies(regionData.regencies[province.id]);
+    } else {
+      setRegencies([]);
+    }
   };
 
   const onSubmit = (values: RegistrationFormValues) => {
@@ -131,6 +192,41 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
       batchId: batch.id,
       answers: values,
     });
+  };
+
+  const nextStep = () => {
+    if (currentStep < STEPS.length) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const canProceed = () => {
+    const fields = getFieldsForStep(currentStep);
+    return fields.every((field) => {
+      const value = watchedFields[field as keyof RegistrationFormValues];
+      return value?.toString().trim() !== "";
+    });
+  };
+
+  const getFieldsForStep = (step: number): string[] => {
+    switch (step) {
+      case 1:
+        return ["name", "email", "phone", "province", "city"];
+      case 2:
+        return ["school", "class", "major"];
+      case 3:
+        return ["reason"];
+      case 4:
+        return ["reflectionIdealSelf", "reflectionExpectation", "reflectionFuture"];
+      default:
+        return [];
+    }
   };
 
   const isRegistrationOpen =
@@ -212,33 +308,73 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto p-0 sm:max-w-[600px]">
-          <Card className="student-card border-0 shadow-none">
-            <CardHeader className="bg-white px-6 pt-6">
-              <div className="flex items-center gap-3">
-                <div className="icon-box-navy">
-                  <CalendarCheck className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="font-bricolage text-lg text-text-main">
-                    Pendaftaran Batch {batch.name}
-                  </CardTitle>
-                  <CardDescription className="font-manrope text-sm text-text-muted-custom">
-                    Lengkapi data di bawah untuk mengajukan pendaftaran program.
-                  </CardDescription>
-                </div>
+        <DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-[640px]">
+          <div className="gradient-brand-navy px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="font-bricolage text-brand-orange text-xl">Pendaftaran {batch.name}</CardTitle>
+                <CardDescription className="mt-1 font-manrope text-sm text-white/70">
+                  Lengkapi data di bawah untuk mengajukan pendaftaran
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent className="bg-white px-6 pt-0 pb-6">
-              <Separator className="mb-6" />
+            </div>
 
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="space-y-4">
-                    <h4 className="flex items-center gap-2 font-inter font-semibold text-sm text-text-main">
-                      <CalendarCheck className="h-4 w-4 text-brand-navy" />
-                      Data Diri
-                    </h4>
+            <div className="mt-6 flex items-center justify-between">
+              {STEPS.map((step, index) => {
+                const isCompleted = currentStep > step.id;
+                const isCurrent = currentStep === step.id;
+                const Icon = step.icon;
+
+                return (
+                  <div key={step.id} className="flex flex-1 items-center">
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all",
+                          isCompleted && "border-white bg-white",
+                          isCurrent && "border-brand-orange bg-brand-orange",
+                          !isCompleted && !isCurrent && "border-white/30 bg-transparent",
+                        )}
+                      >
+                        {isCompleted ? (
+                          <Check className="h-5 w-5 text-brand-navy" />
+                        ) : (
+                          <Icon className={cn("h-5 w-5", isCurrent ? "text-white" : "text-white/50")} />
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          "mt-2 font-medium text-xs",
+                          isCurrent ? "text-white" : isCompleted ? "text-white/80" : "text-white/40",
+                        )}
+                      >
+                        {step.title}
+                      </span>
+                    </div>
+                    {index < STEPS.length - 1 && (
+                      <div
+                        className={cn(
+                          "mx-2 h-0.5 flex-1 rounded-full",
+                          currentStep > step.id ? "bg-white" : "bg-white/30",
+                        )}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <CardContent className="bg-white px-6 py-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                {currentStep === 1 && (
+                  <div className="fade-in slide-in-from-right-4 animate-in space-y-4 duration-300">
+                    <h4 className="font-bricolage font-semibold text-base text-brand-navy">Informasi Personal</h4>
+                    <p className="font-manrope text-sm text-text-muted-custom">
+                      Silakan masukkan data diri Anda dengan lengkap
+                    </p>
+
                     <div className="grid gap-4 md:grid-cols-2">
                       <FormField
                         control={form.control}
@@ -247,7 +383,7 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                           <FormItem>
                             <FormLabel className="font-manrope text-sm text-text-main">Nama Lengkap</FormLabel>
                             <FormControl>
-                              <Input placeholder="John Doe" className="bg-white font-manrope" {...field} />
+                              <Input placeholder="Masukkan nama lengkap" className="student-input" {...field} />
                             </FormControl>
                             <FormMessage className="font-manrope text-xs" />
                           </FormItem>
@@ -260,7 +396,7 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                           <FormItem>
                             <FormLabel className="font-manrope text-sm text-text-main">Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="email@contoh.com" className="bg-white font-manrope" {...field} />
+                              <Input placeholder="email@contoh.com" className="student-input" {...field} />
                             </FormControl>
                             <FormMessage className="font-manrope text-xs" />
                           </FormItem>
@@ -279,7 +415,7 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                               No. WhatsApp
                             </FormLabel>
                             <FormControl>
-                              <Input placeholder="08123456789" className="bg-white font-manrope" {...field} />
+                              <Input placeholder="08123456789" className="student-input" {...field} />
                             </FormControl>
                             <FormMessage className="font-manrope text-xs" />
                           </FormItem>
@@ -287,30 +423,82 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                       />
                       <FormField
                         control={form.control}
-                        name="domicile"
+                        name="province"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center gap-1 font-manrope text-sm text-text-main">
                               <MapPin className="h-3 w-3 text-text-muted-custom" />
-                              Kota Domisili
+                              Provinsi
                             </FormLabel>
-                            <FormControl>
-                              <Input placeholder="Jakarta" className="bg-white font-manrope" {...field} />
-                            </FormControl>
+                            <Select
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                setRegencies([]);
+                                form.setValue("city", "");
+                                if (value) {
+                                  loadRegencies(value);
+                                }
+                              }}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="student-input">
+                                  <SelectValue placeholder="Pilih provinsi" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {provinces.map((p) => (
+                                  <SelectItem key={p.id} value={p.name} className="font-manrope text-sm">
+                                    {p.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage className="font-manrope text-xs" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-manrope text-sm text-text-main">Kota/Kabupaten</FormLabel>
+                            <Select onValueChange={field.onChange} disabled={!watchedFields.province}>
+                              <FormControl>
+                                <SelectTrigger className="student-input">
+                                  <SelectValue
+                                    placeholder={
+                                      !watchedFields.province ? "Pilih provinsi dulu" : "Pilih kota/kabupaten"
+                                    }
+                                  />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {regencies.map((r) => (
+                                  <SelectItem key={r.id} value={r.name} className="font-manrope text-sm">
+                                    {r.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage className="font-manrope text-xs" />
                           </FormItem>
                         )}
                       />
                     </div>
                   </div>
+                )}
 
-                  <Separator />
+                {currentStep === 2 && (
+                  <div className="fade-in slide-in-from-right-4 animate-in space-y-4 duration-300">
+                    <h4 className="font-bricolage font-semibold text-base text-brand-navy">Informasi Sekolah</h4>
+                    <p className="font-manrope text-sm text-text-muted-custom">
+                      Berikan informasi tentang sekolah dan jenjang pendidikan Anda
+                    </p>
 
-                  <div className="space-y-4">
-                    <h4 className="flex items-center gap-2 font-inter font-semibold text-sm text-text-main">
-                      <School className="h-4 w-4 text-brand-navy" />
-                      Informasi Sekolah
-                    </h4>
                     <div className="grid gap-4 md:grid-cols-2">
                       <FormField
                         control={form.control}
@@ -319,7 +507,7 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                           <FormItem>
                             <FormLabel className="font-manrope text-sm text-text-main">Sekolah</FormLabel>
                             <FormControl>
-                              <Input placeholder="SMA Negeri 1 Jakarta" className="bg-white font-manrope" {...field} />
+                              <Input placeholder="SMA Negeri 1 Jakarta" className="student-input" {...field} />
                             </FormControl>
                             <FormMessage className="font-manrope text-xs" />
                           </FormItem>
@@ -331,9 +519,24 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="font-manrope text-sm text-text-main">Kelas</FormLabel>
-                            <FormControl>
-                              <Input placeholder="12" className="bg-white font-manrope" {...field} />
-                            </FormControl>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="student-input">
+                                  <SelectValue placeholder="Pilih kelas" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="10" className="font-manrope text-sm">
+                                  Kelas 10
+                                </SelectItem>
+                                <SelectItem value="11" className="font-manrope text-sm">
+                                  Kelas 11
+                                </SelectItem>
+                                <SelectItem value="12" className="font-manrope text-sm">
+                                  Kelas 12
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                             <FormMessage className="font-manrope text-xs" />
                           </FormItem>
                         )}
@@ -348,8 +551,8 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                           <FormLabel className="font-manrope text-sm text-text-main">Jurusan</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-white font-manrope">
-                                <SelectValue placeholder="Pilih jurusan" />
+                              <SelectTrigger className="student-input">
+                                <SelectValue placeholder="Pilihjurusan" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -369,14 +572,15 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                       )}
                     />
                   </div>
+                )}
 
-                  <Separator />
+                {currentStep === 3 && (
+                  <div className="fade-in slide-in-from-right-4 animate-in space-y-4 duration-300">
+                    <h4 className="font-bricolage font-semibold text-base text-brand-navy">Motivasi</h4>
+                    <p className="font-manrope text-sm text-text-muted-custom">
+                      Ceritakan mengapa Anda tertarik mengikuti program ini
+                    </p>
 
-                  <div className="space-y-4">
-                    <h4 className="flex items-center gap-2 font-inter font-semibold text-sm text-text-main">
-                      <CalendarCheck className="h-4 w-4 text-brand-navy" />
-                      Motivasi
-                    </h4>
                     <FormField
                       control={form.control}
                       name="reason"
@@ -387,8 +591,8 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                           </FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Ceritakan mengapa kamu ingin mengikuti program ini..."
-                              className="min-h-[100px] bg-white font-manrope"
+                              placeholder="Jelaskan motivasi dan harapan Anda mengikuti program MULAI+..."
+                              className="student-textarea min-h-[150px]"
                               {...field}
                             />
                           </FormControl>
@@ -397,29 +601,121 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
                       )}
                     />
                   </div>
+                )}
 
-                  <div className="flex items-center gap-4 pt-2">
+                {currentStep === 4 && (
+                  <div className="fade-in slide-in-from-right-4 animate-in space-y-5 duration-300">
+                    <div>
+                      <h4 className="font-bricolage font-semibold text-base text-brand-navy">Refleksi & Komitmen</h4>
+                      <p className="font-manrope text-sm text-text-muted-custom">
+                        Jawab dengan jujur dan mendalam untuk membantu kami memahami Anda lebih baik
+                      </p>
+                    </div>
+
+                    <div className="space-y-4 rounded-xl bg-gradient-to-br from-brand-orange/5 to-amber-50 p-4">
+                      <FormField
+                        control={form.control}
+                        name="reflectionIdealSelf"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-manrope text-sm text-text-main">
+                              <span className="mr-1 font-semibold text-brand-orange">1.</span>
+                              Kalau dunia nggak nuntut apapun dari kamu, kamu pengen jadi orang yang kayak gimana?
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Pikirkan tentang nilai, karakter, dan hal-hal yang ingin kamu wujudkan tanpa tekanan eksternal..."
+                                className="student-textarea min-h-[100px]"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage className="font-manrope text-xs" />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="reflectionExpectation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-manrope text-sm text-text-main">
+                              <span className="mr-1 font-semibold text-brand-orange">2.</span>
+                              Apa yang kamu harapkan dari pendampingan seperti MULAI+?
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Tuliskan harapan, tujuan, atau hal spesifik yang ingin kamu dapat dari program ini..."
+                                className="student-textarea min-h-[100px]"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage className="font-manrope text-xs" />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="reflectionFuture"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-manrope text-sm text-text-main">
+                              <span className="mr-1 font-semibold text-brand-orange">3.</span>
+                              Sejauh apa/apa saja rencana masa depan yang sudah kamu obrolin bareng orang lain?
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Ceritakan tentang mimpi, rencana pendidikan, atau tujuan hidup..."
+                                className="student-textarea min-h-[100px]"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage className="font-manrope text-xs" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 pt-4">
+                  {currentStep > 1 && (
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setIsOpen(false)}
-                      className="flex-1 rounded-full"
+                      onClick={prevStep}
+                      className="flex items-center gap-2 rounded-full border-gray-200 px-5 font-manrope"
                     >
-                      Batal
+                      <ChevronLeft className="h-4 w-4" />
+                      Kembali
                     </Button>
+                  )}
+                  <div className="flex-1" />
+                  {currentStep < STEPS.length ? (
+                    <Button
+                      type="button"
+                      onClick={nextStep}
+                      disabled={!canProceed()}
+                      className="btn-brand-navy flex items-center gap-2 rounded-full px-6 font-manrope"
+                    >
+                      Lanjut
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  ) : (
                     <Button
                       type="submit"
                       disabled={applyMutation.isPending}
-                      className="btn-brand-navy flex-1 rounded-full"
+                      className="btn-brand-navy flex items-center gap-2 rounded-full px-6 font-manrope"
                     >
                       {applyMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Kirim Pendaftaran
                     </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                  )}
+                </div>
+              </form>
+            </Form>
+          </CardContent>
         </DialogContent>
       </Dialog>
     </>
