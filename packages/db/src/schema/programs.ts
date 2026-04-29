@@ -243,6 +243,7 @@ export const programAttendance = pgTable(
     week: integer("week").notNull(),
     status: attendanceStatusEnum("status").notNull(),
     notes: text("notes"),
+    progressNote: text("progress_note"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

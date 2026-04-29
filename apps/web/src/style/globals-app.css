@@ -55,13 +55,13 @@
   --tracking-normal: normal;
 
   /* Brand Colors - Navy */
-  --brand-navy: #1A1F6D;
-  --brand-navy-light: #272C75;
+  --brand-navy: #1a1f6d;
+  --brand-navy-light: #272c75;
 
   /* Brand Colors - Accent */
-  --brand-orange: #FE9114;
-  --brand-red: #F93447;
-  --brand-red-orange: #FB632E;
+  --brand-orange: #fe9114;
+  --brand-red: #f93447;
+  --brand-red-orange: #fb632e;
 
   /* Text Colors */
   --text-main: #333333;
@@ -73,7 +73,7 @@
   --bg-beige: #f7ede1;
   --bg-pink: #f6e2e5;
   --bg-light-blue: #e0e0e9;
-  --bg-light: #F8F9FC;
+  --bg-light: #f8f9fc;
 }
 
 .dark {
@@ -263,15 +263,15 @@ body {
 
 /* Typography Utilities */
 .font-bricolage {
-  font-family: var(--font-bricolage), 'Bricolage Grotesque', system-ui, sans-serif;
+  font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
 }
 
 .font-manrope {
-  font-family: var(--font-manrope), 'Manrope', system-ui, sans-serif;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif;
 }
 
 .font-inters {
-  font-family: var(--font-sans), 'Inter', system-ui, sans-serif;
+  font-family: var(--font-sans), "Inter", system-ui, sans-serif;
 }
 
 /* Student Dashboard Specific Styles */

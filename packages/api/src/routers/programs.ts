@@ -747,6 +747,14 @@ export const programsRouter = {
 
           const attendance = await db.query.programAttendance.findMany({
             where: eq(programAttendance.batchId, input.batchId),
+            columns: {
+              id: true,
+              userId: true,
+              week: true,
+              status: true,
+              notes: true,
+              progressNote: true,
+            },
           });
 
           return {
@@ -765,6 +773,7 @@ export const programsRouter = {
                   week: z.number(),
                   status: z.enum(["present", "absent", "excused"]),
                   notes: z.string().optional(),
+                  progressNote: z.string().optional(),
                 }),
               ),
             }),
@@ -797,6 +806,7 @@ export const programsRouter = {
                     .set({
                       status: update.status,
                       notes: update.notes,
+                      progressNote: update.progressNote,
                     })
                     .where(eq(programAttendance.id, existing.id));
                 } else {
@@ -807,6 +817,7 @@ export const programsRouter = {
                     week: update.week,
                     status: update.status,
                     notes: update.notes,
+                    progressNote: update.progressNote,
                   });
                 }
               }
@@ -1589,6 +1600,7 @@ export const programsRouter = {
               week: programAttendance.week,
               status: programAttendance.status,
               notes: programAttendance.notes,
+              progressNote: programAttendance.progressNote,
               user: {
                 id: user.id,
                 name: user.name,
@@ -1612,6 +1624,7 @@ export const programsRouter = {
                 week: z.number(),
                 status: z.enum(["present", "absent", "excused"]),
                 notes: z.string().optional(),
+                progressNote: z.string().optional(),
               }),
             ),
           }),
@@ -1643,6 +1656,7 @@ export const programsRouter = {
                   .set({
                     status: record.status,
                     notes: record.notes,
+                    progressNote: record.progressNote,
                   })
                   .where(eq(programAttendance.id, existing.id));
               } else {
@@ -1653,6 +1667,7 @@ export const programsRouter = {
                   week: record.week,
                   status: record.status,
                   notes: record.notes,
+                  progressNote: record.progressNote,
                 });
               }
             }
