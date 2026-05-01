@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, User } from "lucide-react";
+import { Loader2, Menu, User } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,9 +48,18 @@ export function Navbar() {
     return "/dashboard/student";
   };
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const handleSignOut = async () => {
-    await authClient.signOut();
-    router.push("/");
+    setIsLoggingOut(true);
+    try {
+      await authClient.signOut();
+      await router.push("/login");
+      window.location.reload();
+    } catch (error) {
+      setIsLoggingOut(false);
+      console.error(error);
+    }
   };
 
   // Different nav items based on current page and screen size
@@ -212,24 +221,29 @@ export function Navbar() {
                 <DropdownMenuSeparator className="bg-gray-100" />
                 <DropdownMenuItem
                   onClick={handleSignOut}
-                  className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 font-manrope text-[#F93447] text-sm transition-colors hover:bg-[#F93447] hover:text-white"
+                  disabled={isLoggingOut}
+                  className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 font-manrope text-[#F93447] text-sm transition-colors hover:bg-[#F93447] hover:text-white disabled:opacity-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F93447]/10">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" x2="9" y1="12" y2="12" />
-                    </svg>
+                    {isLoggingOut ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" x2="9" y1="12" y2="12" />
+                      </svg>
+                    )}
                   </div>
                   Sign Out
                 </DropdownMenuItem>
@@ -354,10 +368,18 @@ export function Navbar() {
                     <Button
                       type="button"
                       onClick={handleSignOut}
+                      disabled={isLoggingOut}
                       variant="outline"
-                      className="h-12 w-full rounded-full border-2 border-brand-red font-bold text-base text-brand-red hover:bg-brand-red hover:text-white"
+                      className="h-12 w-full rounded-full border-2 border-brand-red font-bold text-base text-brand-red hover:bg-brand-red hover:text-white disabled:opacity-50"
                     >
-                      Sign Out
+                      {isLoggingOut ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Signing out...
+                        </>
+                      ) : (
+                        "Sign Out"
+                      )}
                     </Button>
                   </>
                 ) : (

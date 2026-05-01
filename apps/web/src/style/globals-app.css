@@ -55,13 +55,13 @@
   --tracking-normal: normal;
 
   /* Brand Colors - Navy */
-  --brand-navy: #1A1F6D;
-  --brand-navy-light: #272C75;
+  --brand-navy: #1a1f6d;
+  --brand-navy-light: #272c75;
 
   /* Brand Colors - Accent */
-  --brand-orange: #FE9114;
-  --brand-red: #F93447;
-  --brand-red-orange: #FB632E;
+  --brand-orange: #fe9114;
+  --brand-red: #f93447;
+  --brand-red-orange: #fb632e;
 
   /* Text Colors */
   --text-main: #333333;
@@ -73,7 +73,7 @@
   --bg-beige: #f7ede1;
   --bg-pink: #f6e2e5;
   --bg-light-blue: #e0e0e9;
-  --bg-light: #F8F9FC;
+  --bg-light: #f8f9fc;
 }
 
 .dark {
@@ -263,15 +263,15 @@ body {
 
 /* Typography Utilities */
 .font-bricolage {
-  font-family: var(--font-bricolage), 'Bricolage Grotesque', system-ui, sans-serif;
+  font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
 }
 
 .font-manrope {
-  font-family: var(--font-manrope), 'Manrope', system-ui, sans-serif;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif;
 }
 
 .font-inters {
-  font-family: var(--font-sans), 'Inter', system-ui, sans-serif;
+  font-family: var(--font-sans), "Inter", system-ui, sans-serif;
 }
 
 /* Student Dashboard Specific Styles */
@@ -423,4 +423,29 @@ body {
   .student-dashboard-content {
     @apply p-4 md:p-6;
   }
+}
+
+/* Student Form Inputs */
+.student-input {
+  @apply rounded-xl border border-gray-200 bg-white px-4 py-3 font-manrope text-sm text-text-main transition-all placeholder:text-gray-400 focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-navy/10;
+}
+
+.student-textarea {
+  @apply rounded-xl border border-gray-200 bg-white px-4 py-3 font-manrope text-sm text-text-main transition-all placeholder:text-gray-400 focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-navy/10;
+}
+
+/* Step indicator animation */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-in {
+  animation: fadeInSlide 0.3s ease-out forwards;
 }

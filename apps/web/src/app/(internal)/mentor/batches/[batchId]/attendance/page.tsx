@@ -19,8 +19,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { PageState } from "@/components/ui/page-state";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -48,9 +50,9 @@ export default function MentorBatchAttendancePage() {
     }),
   );
 
-  const [updates, setUpdates] = useState<Record<string, { status: "present" | "absent" | "excused"; notes?: string }>>(
-    {},
-  );
+  const [updates, setUpdates] = useState<
+    Record<string, { status: "present" | "absent" | "excused"; notes?: string; progressNote?: string }>
+  >({});
   const [showConfirm, setShowConfirm] = useState(false);
 
   const getStatus = (userId: string, week: number) => {
@@ -59,6 +61,14 @@ export default function MentorBatchAttendancePage() {
     }
     const existing = data?.attendance.find((a) => a.userId === userId && a.week === week);
     return existing?.status || "";
+  };
+
+  const getProgressNote = (userId: string, week: number) => {
+    if (updates[`${userId}-${week}`]?.progressNote !== undefined) {
+      return updates[`${userId}-${week}`].progressNote;
+    }
+    const existing = data?.attendance.find((a) => a.userId === userId && a.week === week);
+    return existing?.progressNote || "";
   };
 
   const saveUpdates = async () => {
@@ -71,6 +81,7 @@ export default function MentorBatchAttendancePage() {
         week,
         status: value.status,
         notes: value.notes,
+        progressNote: value.progressNote,
       });
     });
 
@@ -192,37 +203,77 @@ export default function MentorBatchAttendancePage() {
                         </TableCell>
                         {weeks.map((week) => (
                           <TableCell key={week}>
-                            <Select
-                              disabled={!canEdit(student.id, week)}
-                              value={getStatus(student.id, week)}
-                              onValueChange={(val) => {
-                                setUpdates((prev) => ({
-                                  ...prev,
-                                  [`${student.id}-${week}`]: {
-                                    status: val as "present" | "absent" | "excused",
-                                  },
-                                }));
-                              }}
-                            >
-                              <SelectTrigger
-                                className={cn(
-                                  "h-8 w-[110px]",
-                                  getStatus(student.id, week) === "present" &&
-                                    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                  getStatus(student.id, week) === "absent" &&
-                                    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                  getStatus(student.id, week) === "excused" &&
-                                    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                                )}
+                            <div className="flex flex-col gap-1">
+                              <Select
+                                disabled={!canEdit(student.id, week)}
+                                value={getStatus(student.id, week)}
+                                onValueChange={(val) => {
+                                  setUpdates((prev) => ({
+                                    ...prev,
+                                    [`${student.id}-${week}`]: {
+                                      ...prev[`${student.id}-${week}`],
+                                      status: val as "present" | "absent" | "excused",
+                                    },
+                                  }));
+                                }}
                               >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="present">Present</SelectItem>
-                                <SelectItem value="absent">Absent</SelectItem>
-                                <SelectItem value="excused">Excused</SelectItem>
-                              </SelectContent>
-                            </Select>
+                                <SelectTrigger
+                                  className={cn(
+                                    "h-8 w-[110px]",
+                                    getStatus(student.id, week) === "present" &&
+                                      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                    getStatus(student.id, week) === "absent" &&
+                                      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                                    getStatus(student.id, week) === "excused" &&
+                                      "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                                  )}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="present">Present</SelectItem>
+                                  <SelectItem value="absent">Absent</SelectItem>
+                                  <SelectItem value="excused">Excused</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {canEdit(student.id, week) ? (
+                                <Popover>
+                                  <PopoverTrigger>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-[110px] text-muted-foreground text-xs hover:text-primary"
+                                    >
+                                      {(() => {
+                                        const note = getProgressNote(student.id, week);
+                                        return note ? `📝 ${note.slice(0, 15)}...` : "+ Add progress note";
+                                      })()}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-64" align="start">
+                                    <div className="grid gap-2">
+                                      <p className="font-medium text-sm">Weekly Progress Note</p>
+                                      <Textarea
+                                        placeholder="E.g., Student shows good understanding of the material..."
+                                        value={getProgressNote(student.id, week)}
+                                        onChange={(e) => {
+                                          setUpdates((prev) => ({
+                                            ...prev,
+                                            [`${student.id}-${week}`]: {
+                                              ...prev[`${student.id}-${week}`],
+                                              progressNote: e.target.value,
+                                            },
+                                          }));
+                                        }}
+                                        rows={3}
+                                      />
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              ) : (
+                                <div className="h-6 w-[110px]" />
+                              )}
+                            </div>
                           </TableCell>
                         ))}
                       </TableRow>

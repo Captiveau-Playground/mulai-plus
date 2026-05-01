@@ -57,6 +57,21 @@ export default function MentorBatchesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {batch.communityLink && (
+                          <a
+                            href={batch.communityLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(
+                              buttonVariants({
+                                variant: "outline",
+                                size: "sm",
+                              }),
+                            )}
+                          >
+                            Community
+                          </a>
+                        )}
                         <Link
                           href={`/mentor/sessions?batchId=${batch.id}` as any}
                           className={cn(
@@ -66,7 +81,7 @@ export default function MentorBatchesPage() {
                             }),
                           )}
                         >
-                          View Sessions
+                          Sessions
                         </Link>
                         <Link
                           href={`/mentor/batches/${batch.id}/attendance` as any}
