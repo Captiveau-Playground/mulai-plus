@@ -145,6 +145,14 @@ export const programActivitiesRouter = {
 
         const attendance = await db.query.programAttendance.findMany({
           where: eq(programAttendance.batchId, input.batchId),
+          columns: {
+            id: true,
+            userId: true,
+            week: true,
+            status: true,
+            notes: true,
+            progressNote: true,
+          },
         });
 
         const mySessions = await db.query.programSession.findMany({
@@ -172,6 +180,7 @@ export const programActivitiesRouter = {
           week: z.number(),
           status: z.enum(attendanceStatusEnum.enumValues),
           notes: z.string().optional(),
+          progressNote: z.string().optional(),
         }),
       )
       .handler(async ({ input, context }) => {
@@ -214,6 +223,7 @@ export const programActivitiesRouter = {
             .set({
               status: input.status,
               notes: input.notes,
+              progressNote: input.progressNote,
             })
             .where(eq(programAttendance.id, existing.id));
         } else {
@@ -224,6 +234,7 @@ export const programActivitiesRouter = {
             week: input.week,
             status: input.status,
             notes: input.notes,
+            progressNote: input.progressNote,
           });
         }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, Calendar, GraduationCap, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import { Award, Calendar, GraduationCap, LayoutDashboard, Loader2, LogOut, Settings } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -71,13 +71,16 @@ export function StudentSidebar({
       }
     : { name: "Student", email: "student@example.com", avatar: "" };
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const handleLogout = async () => {
+    setIsLoggingOut(true);
     try {
       await authClient.signOut();
-      toast.success("Logged out successfully");
-      router.push("/");
-      router.refresh();
+      await router.push("/login");
+      window.location.reload();
     } catch (error) {
+      setIsLoggingOut(false);
       toast.error("Failed to logout");
       console.error(error);
     }
@@ -176,11 +179,16 @@ export function StudentSidebar({
             <DropdownMenuSeparator className="bg-gray-100" role="separator" />
             <DropdownMenuItem
               onClick={handleLogout}
+              disabled={isLoggingOut}
               className="cursor-pointer font-manrope text-red-600 text-sm hover:bg-red-50 focus:bg-red-50 focus:outline-none"
               role="menuitem"
             >
-              <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
-              Logout
+              {isLoggingOut ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
+              )}
+              {isLoggingOut ? "Logging out..." : "Logout"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -188,14 +196,23 @@ export function StudentSidebar({
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-xl bg-white/10 p-2.5 text-left transition-all hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 md:hidden"
+          disabled={isLoggingOut}
+          className="flex w-full items-center gap-3 rounded-xl bg-white/10 p-2.5 text-left transition-all hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-50 md:hidden"
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-orange ring-2 ring-white/20">
-            <LogOut className="h-4 w-4 text-white" />
+            {isLoggingOut ? (
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
+            ) : (
+              <LogOut className="h-4 w-4 text-white" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-manrope font-medium text-sm text-white">Logout</p>
-            <p className="truncate font-manrope text-white/60 text-xs">Sign out of your account</p>
+            <p className="truncate font-manrope font-medium text-sm text-white">
+              {isLoggingOut ? "Logging out..." : "Logout"}
+            </p>
+            <p className="truncate font-manrope text-white/60 text-xs">
+              {isLoggingOut ? "Please wait..." : "Sign out of your account"}
+            </p>
           </div>
         </button>
       </SidebarFooter>

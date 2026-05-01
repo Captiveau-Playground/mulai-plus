@@ -32,9 +32,11 @@ import { FileUpload } from "@/components/ui/file-upload";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { orpc } from "@/utils/orpc";
 
 import { BatchAttachmentsDialog } from "./batch-attachments";
@@ -56,9 +58,9 @@ function BatchAttendanceDialog({
     staleTime: 1000 * 60 * 1, // 1 minute
   });
 
-  const [updates, setUpdates] = useState<Record<string, { status: "present" | "absent" | "excused"; notes?: string }>>(
-    {},
-  );
+  const [updates, setUpdates] = useState<
+    Record<string, { status: "present" | "absent" | "excused"; notes?: string; progressNote?: string }>
+  >({});
 
   const mutation = useMutation(
     orpc.programs.admin.batches.attendance.update.mutationOptions({
@@ -79,6 +81,7 @@ function BatchAttendanceDialog({
         week: Number.parseInt(weekStr, 10),
         status: value.status,
         notes: value.notes,
+        progressNote: value.progressNote,
       };
     });
     mutation.mutate({ batchId: batch.id, updates: updateList });
@@ -90,6 +93,14 @@ function BatchAttendanceDialog({
     }
     const existing = data?.attendance.find((a) => a.userId === userId && a.week === week);
     return existing?.status || "";
+  };
+
+  const getProgressNote = (userId: string, week: number) => {
+    if (updates[`${userId}-${week}`]?.progressNote !== undefined) {
+      return updates[`${userId}-${week}`].progressNote;
+    }
+    const existing = data?.attendance.find((a) => a.userId === userId && a.week === week);
+    return existing?.progressNote || "";
   };
 
   const weeks = Array.from({ length: batch.durationWeeks }, (_, i) => i + 1);
@@ -132,26 +143,62 @@ function BatchAttendanceDialog({
                         <TableCell className="sticky left-0 z-10 bg-background font-medium">{student.name}</TableCell>
                         {weeks.map((week) => (
                           <TableCell key={week}>
-                            <Select
-                              value={getStatus(student.id, week)}
-                              onValueChange={(val) => {
-                                setUpdates((prev) => ({
-                                  ...prev,
-                                  [`${student.id}-${week}`]: {
-                                    status: val as "present" | "absent" | "excused",
-                                  },
-                                }));
-                              }}
-                            >
-                              <SelectTrigger className="h-8 w-[100px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="present">Present</SelectItem>
-                                <SelectItem value="absent">Absent</SelectItem>
-                                <SelectItem value="excused">Excused</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="flex flex-col gap-1">
+                              <Select
+                                value={getStatus(student.id, week)}
+                                onValueChange={(val) => {
+                                  setUpdates((prev) => ({
+                                    ...prev,
+                                    [`${student.id}-${week}`]: {
+                                      ...prev[`${student.id}-${week}`],
+                                      status: val as "present" | "absent" | "excused",
+                                    },
+                                  }));
+                                }}
+                              >
+                                <SelectTrigger className="h-8 w-[100px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="present">Present</SelectItem>
+                                  <SelectItem value="absent">Absent</SelectItem>
+                                  <SelectItem value="excused">Excused</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Popover>
+                                <PopoverTrigger>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-[100px] text-muted-foreground text-xs hover:text-primary"
+                                  >
+                                    {(() => {
+                                      const note = getProgressNote(student.id, week);
+                                      return note ? `📝 ${note.slice(0, 12)}...` : "+ Progress note";
+                                    })()}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-64" align="start">
+                                  <div className="grid gap-2">
+                                    <p className="font-medium text-sm">Weekly Progress Note</p>
+                                    <Textarea
+                                      placeholder="E.g., Student shows good understanding..."
+                                      value={getProgressNote(student.id, week)}
+                                      onChange={(e) => {
+                                        setUpdates((prev) => ({
+                                          ...prev,
+                                          [`${student.id}-${week}`]: {
+                                            ...prev[`${student.id}-${week}`],
+                                            progressNote: e.target.value,
+                                          },
+                                        }));
+                                      }}
+                                      rows={3}
+                                    />
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
                           </TableCell>
                         ))}
                       </TableRow>
@@ -381,6 +428,7 @@ const batchSchema = z.object({
   quota: z.coerce.number().min(0).default(0),
   durationWeeks: z.coerce.number().min(0).default(0),
   bannerUrl: z.string().optional(),
+  communityLink: z.string().optional(),
   status: z.enum(["upcoming", "open", "closed", "running", "completed"] as const),
 });
 
@@ -502,6 +550,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
       quota: 0,
       durationWeeks: 0,
       bannerUrl: "",
+      communityLink: "",
       status: "upcoming",
     },
   });
@@ -910,6 +959,19 @@ export function ProgramBatches({ programId }: { programId: string }) {
               />
               <FormField
                 control={form.control}
+                name="communityLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Community Link (WhatsApp)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://chat.whatsapp.com/..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="status"
                 render={({ field }) => (
                   <FormItem>
@@ -1022,6 +1084,7 @@ function EditBatchDialog({
     quota: number;
     durationWeeks: number;
     bannerUrl?: string | null;
+    communityLink?: string | null;
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   };
   open: boolean;
@@ -1047,6 +1110,7 @@ function EditBatchDialog({
       quota: batch.quota,
       durationWeeks: batch.durationWeeks,
       bannerUrl: batch.bannerUrl || "",
+      communityLink: batch.communityLink || "",
       status: batch.status,
     },
   });
@@ -1278,6 +1342,19 @@ function EditBatchDialog({
                     <FormLabel>Banner Image</FormLabel>
                     <FormControl>
                       <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="communityLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Community Link (WhatsApp)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://chat.whatsapp.com/..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

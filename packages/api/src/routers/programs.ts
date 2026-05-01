@@ -147,10 +147,14 @@ export const programsRouter = {
           class: z.string().min(1),
           school: z.string().min(1),
           major: z.string().min(1),
-          domicile: z.string().min(1),
+          province: z.string().min(1),
+          city: z.string().min(1),
           reason: z.string().min(1),
           phone: z.string().min(1),
           email: z.string().email(),
+          reflectionIdealSelf: z.string().min(1),
+          reflectionExpectation: z.string().min(1),
+          reflectionFuture: z.string().min(1),
         }),
       }),
     )
@@ -262,7 +266,7 @@ export const programsRouter = {
       return { success: true, id };
     }),
 
-  myBatches: adminOrProgramManagerProcedure.handler(async ({ context }) => {
+  myBatches: protectedProcedure.handler(async ({ context }) => {
     const batchMentors = await db.query.programBatchMentor.findMany({
       where: eq(programBatchMentor.userId, context.session.user.id),
       with: {
@@ -673,6 +677,7 @@ export const programsRouter = {
             quota: z.number().min(0).optional(),
             durationWeeks: z.number().min(1).optional(),
             bannerUrl: z.string().optional(),
+            communityLink: z.string().url().optional().or(z.literal("")),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
           }),
         )
@@ -747,6 +752,14 @@ export const programsRouter = {
 
           const attendance = await db.query.programAttendance.findMany({
             where: eq(programAttendance.batchId, input.batchId),
+            columns: {
+              id: true,
+              userId: true,
+              week: true,
+              status: true,
+              notes: true,
+              progressNote: true,
+            },
           });
 
           return {
@@ -765,6 +778,7 @@ export const programsRouter = {
                   week: z.number(),
                   status: z.enum(["present", "absent", "excused"]),
                   notes: z.string().optional(),
+                  progressNote: z.string().optional(),
                 }),
               ),
             }),
@@ -797,6 +811,7 @@ export const programsRouter = {
                     .set({
                       status: update.status,
                       notes: update.notes,
+                      progressNote: update.progressNote,
                     })
                     .where(eq(programAttendance.id, existing.id));
                 } else {
@@ -807,6 +822,7 @@ export const programsRouter = {
                     week: update.week,
                     status: update.status,
                     notes: update.notes,
+                    progressNote: update.progressNote,
                   });
                 }
               }
@@ -1589,6 +1605,7 @@ export const programsRouter = {
               week: programAttendance.week,
               status: programAttendance.status,
               notes: programAttendance.notes,
+              progressNote: programAttendance.progressNote,
               user: {
                 id: user.id,
                 name: user.name,
@@ -1612,6 +1629,7 @@ export const programsRouter = {
                 week: z.number(),
                 status: z.enum(["present", "absent", "excused"]),
                 notes: z.string().optional(),
+                progressNote: z.string().optional(),
               }),
             ),
           }),
@@ -1643,6 +1661,7 @@ export const programsRouter = {
                   .set({
                     status: record.status,
                     notes: record.notes,
+                    progressNote: record.progressNote,
                   })
                   .where(eq(programAttendance.id, existing.id));
               } else {
@@ -1653,6 +1672,7 @@ export const programsRouter = {
                   week: record.week,
                   status: record.status,
                   notes: record.notes,
+                  progressNote: record.progressNote,
                 });
               }
             }
