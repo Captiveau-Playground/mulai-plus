@@ -67,8 +67,8 @@ export function BatchSessionsCalendar({ sessions, onEditSession, onDateClick }: 
     <div className="flex flex-col space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center space-x-2">
-          <h2 className="font-semibold text-lg">{format(currentDate, "MMMM yyyy")}</h2>
-          <div className="flex items-center rounded-md border bg-background shadow-sm">
+          <h2 className="font-bold font-bricolage text-brand-navy text-xl">{format(currentDate, "MMMM yyyy")}</h2>
+          <div className="flex items-center rounded-lg border border-gray-200 bg-white shadow-sm">
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-l-md" onClick={prevMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -83,11 +83,14 @@ export function BatchSessionsCalendar({ sessions, onEditSession, onDateClick }: 
         </Button>
       </div>
 
-      <div className="rounded-md border bg-card text-card-foreground shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         {/* Days Header */}
-        <div className="grid grid-cols-7 border-b bg-muted/50">
+        <div className="grid grid-cols-7 border-gray-100 border-b bg-bg-light">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="py-2 text-center font-medium text-muted-foreground text-xs">
+            <div
+              key={day}
+              className="py-2.5 text-center font-manrope font-semibold text-text-muted-custom text-xs uppercase tracking-wider"
+            >
               {day}
             </div>
           ))}
@@ -104,8 +107,8 @@ export function BatchSessionsCalendar({ sessions, onEditSession, onDateClick }: 
               <div
                 key={day.toString()}
                 className={cn(
-                  "group relative min-h-[120px] border-r border-b transition-colors hover:bg-muted/20",
-                  !isCurrentMonth && "bg-muted/10 text-muted-foreground",
+                  "group relative min-h-[130px] border-gray-100 border-r border-b transition-colors hover:bg-brand-navy/[0.03]",
+                  !isCurrentMonth && "bg-gray-50/50 text-text-muted-custom",
                   dayIdx % 7 === 6 && "border-r-0",
                 )}
               >
@@ -119,15 +122,15 @@ export function BatchSessionsCalendar({ sessions, onEditSession, onDateClick }: 
                   <div className="mb-1 flex items-center justify-between">
                     <span
                       className={cn(
-                        "flex h-6 w-6 items-center justify-center rounded-full font-medium text-xs",
-                        isToday ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                        "flex h-7 w-7 items-center justify-center rounded-full font-bold text-xs",
+                        isToday ? "bg-mentor-teal text-white shadow-sm" : "text-text-muted-custom hover:text-text-main",
                       )}
                     >
                       {format(day, "d")}
                     </span>
                     {daySessions.length > 0 && (
-                      <span className="font-medium text-[10px] text-muted-foreground">
-                        {daySessions.length} sessions
+                      <span className="font-bold font-bricolage text-[10px] text-text-muted-custom">
+                        {daySessions.length}
                       </span>
                     )}
                   </div>
@@ -142,12 +145,12 @@ export function BatchSessionsCalendar({ sessions, onEditSession, onDateClick }: 
                           onEditSession(session);
                         }}
                         className={cn(
-                          "pointer-events-auto w-full rounded-md border p-1.5 text-left text-xs transition-all hover:scale-[1.02] active:scale-[0.98]",
+                          "pointer-events-auto w-full rounded-lg border p-1.5 text-left text-xs transition-all hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]",
                           session.status === "cancelled"
-                            ? "border-destructive/20 bg-destructive/10 line-through opacity-70"
+                            ? "border-red-200 bg-red-50/50 line-through opacity-70"
                             : session.status === "completed"
-                              ? "border-green-500/20 bg-green-500/10"
-                              : "border-border bg-background hover:border-primary/50",
+                              ? "border-green-200 bg-green-50"
+                              : "border-gray-200 bg-white hover:border-mentor-teal/40 hover:bg-mentor-teal/5",
                         )}
                       >
                         <div className="mb-0.5 flex items-center gap-1.5">
@@ -158,7 +161,7 @@ export function BatchSessionsCalendar({ sessions, onEditSession, onDateClick }: 
                           )}
                           <span className="truncate font-semibold">{format(new Date(session.startsAt), "HH:mm")}</span>
                         </div>
-                        <div className="truncate pl-4.5 text-[10px] text-muted-foreground">
+                        <div className="truncate pl-4.5 text-[10px] text-text-muted-custom">
                           {session.type === "one_on_one" ? session.student?.name || "Unknown Student" : "Group Session"}
                         </div>
                       </button>
@@ -169,7 +172,7 @@ export function BatchSessionsCalendar({ sessions, onEditSession, onDateClick }: 
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                        className="h-6 w-6 rounded-full bg-mentor-teal/10 text-mentor-teal hover:bg-mentor-teal/20"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDateClick?.(day);

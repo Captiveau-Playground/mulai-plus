@@ -1,0 +1,21 @@
+{
+  "files": {
+    "src/routers/program-activities.ts": {
+      "modifiedRanges": [
+        {
+          "start": 198,
+          "end": 205
+        },
+        {
+          "start": 208,
+          "end": 209
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T13:22:37.834Z"
+    }
+  },
+  "turnCycles": 0,
+  "maxCycles": 3,
+  "lastUpdated": "2026-05-03T13:22:37.834Z"
+}

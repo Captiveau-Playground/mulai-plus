@@ -66,7 +66,9 @@ export const adminProcedure = protectedProcedure.use(requireRole(["admin"]));
 
 export const programManagerProcedure = protectedProcedure.use(requireRole(["program_manager"]));
 
-export const adminOrProgramManagerProcedure = protectedProcedure.use(requireRole(["admin", "program_manager"]));
+export const adminOrProgramManagerProcedure = protectedProcedure.use(
+  requireRole(["admin", "program_manager", "mentor"]),
+);
 
 export * from "./lib/email-templates";
 export * from "./lib/unosend";

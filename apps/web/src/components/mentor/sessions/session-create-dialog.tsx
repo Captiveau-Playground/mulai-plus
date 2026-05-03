@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
 const createSessionSchema = z.object({
@@ -118,13 +119,15 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="mentor-section sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Create 1-on-1 Session</DialogTitle>
-          <DialogDescription>Schedule a new 1-on-1 mentoring session.</DialogDescription>
+          <DialogTitle className="font-bold font-bricolage text-brand-navy text-xl">Create 1-on-1 Session</DialogTitle>
+          <DialogDescription className="font-manrope text-text-muted-custom">
+            Schedule a new 1-on-1 mentoring session.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <FormField
               control={form.control}
               name="batchId"
@@ -140,8 +143,17 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger>
-                        {field.value ? <SelectValue /> : <span className="text-muted-foreground">Select batch</span>}
+                      <SelectTrigger className="rounded-xl border-gray-200 text-text-main">
+                        {field.value && batches ? (
+                          <span className="font-medium text-text-main">
+                            {(() => {
+                              const b = batches.find((x) => x.id === field.value);
+                              return b ? `${b.name} (${b.program?.name || ""})` : field.value;
+                            })()}
+                          </span>
+                        ) : (
+                          <span className="text-text-muted-custom">Select batch</span>
+                        )}
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -169,11 +181,16 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
                     disabled={!selectedBatchId || isLoadingStudents}
                   >
                     <FormControl>
-                      <SelectTrigger>
-                        {field.value ? (
-                          <SelectValue />
+                      <SelectTrigger className="rounded-xl border-gray-200 text-text-main">
+                        {field.value && students ? (
+                          <span className="font-medium text-text-main">
+                            {(() => {
+                              const s = students.find((x) => x.id === field.value);
+                              return s ? `${s.name} (${s.email || ""})` : field.value;
+                            })()}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground">
+                          <span className="text-text-muted-custom">
                             {isLoadingStudents ? "Loading students..." : "Select student"}
                           </span>
                         )}
@@ -192,7 +209,7 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-5">
               <FormField
                 control={form.control}
                 name="week"
@@ -209,8 +226,17 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
                         disabled={!selectedBatchId}
                       >
                         <FormControl>
-                          <SelectTrigger className={isCollision ? "border-destructive text-destructive" : ""}>
-                            <SelectValue />
+                          <SelectTrigger
+                            className={cn(
+                              "rounded-xl border-gray-200 text-text-main",
+                              isCollision ? "!border-red-400 !text-red-600" : "",
+                            )}
+                          >
+                            {field.value ? (
+                              <span className="font-medium text-text-main">Week {field.value}</span>
+                            ) : (
+                              <span className="text-text-muted-custom">Select week</span>
+                            )}
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -224,7 +250,7 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
                                 key={weekNum}
                                 value={weekNum.toString()}
                                 disabled={isTaken}
-                                className={isTaken ? "text-muted-foreground line-through" : ""}
+                                className={isTaken ? "text-text-muted-custom line-through" : ""}
                               >
                                 Week {weekNum} {isTaken ? "(Scheduled)" : ""}
                               </SelectItem>
@@ -233,7 +259,7 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
                         </SelectContent>
                       </Select>
                       {isCollision && (
-                        <p className="mt-1 text-destructive text-sm">⚠️ Session already scheduled for this week</p>
+                        <p className="mt-1 text-red-500 text-sm">⚠️ Session already scheduled for this week</p>
                       )}
                       <FormMessage />
                     </FormItem>
@@ -277,7 +303,7 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
                 <FormItem>
                   <FormLabel>Meeting Link</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://..." {...field} />
+                    <Input placeholder="https://..." className="text-text-main" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -299,10 +325,15 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="rounded-xl border-gray-200"
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending} className="btn-mentor rounded-xl">
                 {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Session
               </Button>

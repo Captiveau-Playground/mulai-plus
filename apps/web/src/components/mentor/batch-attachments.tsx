@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { orpc } from "@/utils/orpc";
@@ -157,21 +157,29 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
   const weeks = Array.from({ length: batch.durationWeeks }, (_, i) => i + 1);
 
   return (
-    <div className="space-y-4">
+    <div className="mentor-section space-y-4">
       <Tabs defaultValue="active" className="w-full">
-        <div className="mb-4 flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="active">Active Resources</TabsTrigger>
-            <TabsTrigger value="requests">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="rounded-xl bg-white p-1 shadow-sm">
+            <TabsTrigger
+              value="active"
+              className="rounded-lg data-[state=active]:bg-brand-navy data-[state=active]:text-white"
+            >
+              Active Resources
+            </TabsTrigger>
+            <TabsTrigger
+              value="requests"
+              className="rounded-lg data-[state=active]:bg-brand-navy data-[state=active]:text-white"
+            >
               My Requests
               {myRequests && myRequests.length > 0 && (
-                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px]">
+                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-mentor-teal text-[10px] text-white">
                   {myRequests.length}
                 </span>
               )}
             </TabsTrigger>
           </TabsList>
-          <Button onClick={handleCreate}>
+          <Button onClick={handleCreate} className="btn-mentor rounded-full shadow-sm">
             <Plus className="mr-2 h-4 w-4" /> Request New
           </Button>
         </div>
@@ -203,13 +211,13 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                   </TableRow>
                 ) : (
                   attachments?.map((attachment) => (
-                    <TableRow key={attachment.id}>
+                    <TableRow key={attachment.id} className="border-gray-100 transition-colors hover:bg-bg-light">
                       <TableCell>
                         <a
                           href={attachment.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center font-medium hover:underline"
+                          className="flex items-center font-manrope font-medium text-text-main hover:text-mentor-teal"
                         >
                           {attachment.type === "video" ? (
                             <Video className="mr-2 h-4 w-4" />
@@ -231,13 +239,18 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(attachment)} className="mr-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(attachment)}
+                          className="mr-1 text-text-muted-custom hover:text-mentor-teal"
+                        >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600"
+                          className="text-red-400 hover:bg-red-50 hover:text-red-500"
                           onClick={() => {
                             if (confirm("Are you sure?")) {
                               deleteMutation.mutate({ id: attachment.id });
@@ -323,13 +336,15 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="min-w-7xl">
           <DialogHeader>
-            <DialogTitle>{editingAttachment ? "Edit Attachment Request" : "Request New Attachment"}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="font-bold font-bricolage text-brand-navy text-xl">
+              {editingAttachment ? "Edit Attachment Request" : "Request New Attachment"}
+            </DialogTitle>
+            <DialogDescription className="font-manrope text-text-muted-custom">
               Submit a request to {editingAttachment ? "update" : "add"} a resource. Admin approval required.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField
                 control={form.control}
                 name="name"
@@ -344,7 +359,7 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-5">
                 <FormField
                   control={form.control}
                   name="type"
@@ -353,8 +368,12 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                       <FormLabel>Type</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
+                          <SelectTrigger className="text-text-main">
+                            {field.value ? (
+                              <span className="text-text-main capitalize">{field.value}</span>
+                            ) : (
+                              <span className="text-text-muted-custom">Select type</span>
+                            )}
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -375,12 +394,22 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                     <FormItem>
                       <FormLabel>Week (Optional)</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value ? String(field.value) : undefined}
+                        onValueChange={(val) => field.onChange(val === "0" ? 0 : Number(val))}
+                        defaultValue={
+                          field.value !== undefined && field.value !== null ? String(field.value) : undefined
+                        }
                       >
                         <FormControl>
-                          <SelectTrigger>
-                            {field.value ? <SelectValue /> : <span className="text-muted-foreground">All Weeks</span>}
+                          <SelectTrigger className="text-text-main">
+                            {field.value !== undefined && field.value !== null ? (
+                              field.value === 0 ? (
+                                <span className="text-text-main">All Weeks</span>
+                              ) : (
+                                <span className="text-text-main">Week {field.value}</span>
+                              )
+                            ) : (
+                              <span className="text-text-muted-custom">All Weeks</span>
+                            )}
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -406,11 +435,17 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                     <FormLabel>Link to Session (Optional)</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
-                          {field.value && field.value !== "none" ? (
-                            <SelectValue />
+                        <SelectTrigger className="text-text-main">
+                          {field.value && field.value !== "none" && sessions ? (
+                            <span className="text-text-main">
+                              {(() => {
+                                const s = sessions.find((x) => x.id === field.value);
+                                if (!s) return field.value;
+                                return `Week ${s.week} - ${s.type.replace("_", " ")} (${format(new Date(s.startsAt), "MMM d")})`;
+                              })()}
+                            </span>
                           ) : (
-                            <span className="text-muted-foreground">None</span>
+                            <span className="text-text-muted-custom">None</span>
                           )}
                         </SelectTrigger>
                       </FormControl>
@@ -450,10 +485,15 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                     setIsFormOpen(false);
                     setEditingAttachment(null);
                   }}
+                  className="rounded-xl border-gray-200"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                <Button
+                  type="submit"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  className="btn-mentor rounded-xl"
+                >
                   {(createMutation.isPending || updateMutation.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}

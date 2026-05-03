@@ -1,0 +1,469 @@
+{
+  "files": {
+    "src/app/(internal)/mentor/layout.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 50
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:25:59.209Z"
+    },
+    "src/components/mentor/mentor-sidebar.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 228
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:26:36.019Z"
+    },
+    "src/app/(internal)/mentor/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 364
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:28:36.848Z"
+    },
+    "src/app/(internal)/mentor/batches/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 251
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T13:09:01.363Z"
+    },
+    "src/app/(internal)/mentor/sessions/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 164,
+          "end": 174
+        },
+        {
+          "start": 177,
+          "end": 178
+        },
+        {
+          "start": 182,
+          "end": 182
+        },
+        {
+          "start": 187,
+          "end": 187
+        },
+        {
+          "start": 242,
+          "end": 242
+        },
+        {
+          "start": 252,
+          "end": 259
+        },
+        {
+          "start": 263,
+          "end": 263
+        },
+        {
+          "start": 265,
+          "end": 266
+        },
+        {
+          "start": 271,
+          "end": 272
+        },
+        {
+          "start": 274,
+          "end": 285
+        },
+        {
+          "start": 289,
+          "end": 290
+        },
+        {
+          "start": 292,
+          "end": 293
+        },
+        {
+          "start": 296,
+          "end": 310
+        },
+        {
+          "start": 316,
+          "end": 316
+        },
+        {
+          "start": 319,
+          "end": 319
+        },
+        {
+          "start": 323,
+          "end": 323
+        },
+        {
+          "start": 326,
+          "end": 326
+        },
+        {
+          "start": 333,
+          "end": 333
+        },
+        {
+          "start": 337,
+          "end": 337
+        },
+        {
+          "start": 343,
+          "end": 343
+        },
+        {
+          "start": 350,
+          "end": 350
+        },
+        {
+          "start": 400,
+          "end": 400
+        },
+        {
+          "start": 402,
+          "end": 402
+        },
+        {
+          "start": 459,
+          "end": 460
+        },
+        {
+          "start": 528,
+          "end": 528
+        },
+        {
+          "start": 546,
+          "end": 573
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T11:57:04.045Z"
+    },
+    "src/components/mentor/mentor-batch-tabs.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 44
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:31:44.091Z"
+    },
+    "src/app/(internal)/mentor/batches/[batchId]/attendance/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 353
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T13:30:20.482Z"
+    },
+    "src/app/(internal)/mentor/batches/[batchId]/participants/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 118
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:32:56.973Z"
+    },
+    "src/app/(internal)/mentor/batches/[batchId]/curriculum/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 143
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:33:24.167Z"
+    },
+    "src/app/(internal)/mentor/batches/[batchId]/attachments/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 64
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:33:45.573Z"
+    },
+    "src/components/admin/programs/batch-sessions-calendar.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 70,
+          "end": 71
+        },
+        {
+          "start": 86,
+          "end": 86
+        },
+        {
+          "start": 88,
+          "end": 88
+        },
+        {
+          "start": 90,
+          "end": 90
+        },
+        {
+          "start": 107,
+          "end": 108
+        },
+        {
+          "start": 122,
+          "end": 123
+        },
+        {
+          "start": 129,
+          "end": 130
+        },
+        {
+          "start": 145,
+          "end": 145
+        },
+        {
+          "start": 147,
+          "end": 147
+        },
+        {
+          "start": 149,
+          "end": 150
+        },
+        {
+          "start": 161,
+          "end": 161
+        },
+        {
+          "start": 172,
+          "end": 172
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T11:55:19.642Z"
+    },
+    "src/components/mentor/sessions/session-create-dialog.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 10,
+          "end": 10
+        },
+        {
+          "start": 121,
+          "end": 124
+        },
+        {
+          "start": 130,
+          "end": 130
+        },
+        {
+          "start": 143,
+          "end": 144
+        },
+        {
+          "start": 146,
+          "end": 156
+        },
+        {
+          "start": 172,
+          "end": 172
+        },
+        {
+          "start": 175,
+          "end": 177
+        },
+        {
+          "start": 185,
+          "end": 191
+        },
+        {
+          "start": 198,
+          "end": 198
+        },
+        {
+          "start": 212,
+          "end": 212
+        },
+        {
+          "start": 217,
+          "end": 218
+        },
+        {
+          "start": 221,
+          "end": 221
+        },
+        {
+          "start": 227,
+          "end": 227
+        },
+        {
+          "start": 235,
+          "end": 239
+        },
+        {
+          "start": 244,
+          "end": 244
+        },
+        {
+          "start": 302,
+          "end": 302
+        },
+        {
+          "start": 305,
+          "end": 306
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T12:41:23.659Z"
+    },
+    "src/components/mentor/sessions/session-update-dialog.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 124,
+          "end": 124
+        },
+        {
+          "start": 126,
+          "end": 127
+        },
+        {
+          "start": 132,
+          "end": 133
+        },
+        {
+          "start": 170,
+          "end": 175
+        },
+        {
+          "start": 196,
+          "end": 196
+        },
+        {
+          "start": 209,
+          "end": 209
+        },
+        {
+          "start": 223,
+          "end": 223
+        },
+        {
+          "start": 225,
+          "end": 232
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T12:41:45.912Z"
+    },
+    "src/components/mentor/batch-participants.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 64
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:45:47.791Z"
+    },
+    "src/components/mentor/batch-attachments.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 160,
+          "end": 160
+        },
+        {
+          "start": 162,
+          "end": 165
+        },
+        {
+          "start": 168,
+          "end": 168
+        },
+        {
+          "start": 174,
+          "end": 174
+        },
+        {
+          "start": 206,
+          "end": 206
+        },
+        {
+          "start": 212,
+          "end": 212
+        },
+        {
+          "start": 234,
+          "end": 234
+        },
+        {
+          "start": 240,
+          "end": 240
+        },
+        {
+          "start": 326,
+          "end": 327
+        },
+        {
+          "start": 347,
+          "end": 347
+        },
+        {
+          "start": 362,
+          "end": 362
+        },
+        {
+          "start": 371,
+          "end": 376
+        },
+        {
+          "start": 397,
+          "end": 398
+        },
+        {
+          "start": 401,
+          "end": 410
+        },
+        {
+          "start": 424,
+          "end": 426
+        },
+        {
+          "start": 428,
+          "end": 428
+        },
+        {
+          "start": 436,
+          "end": 444
+        },
+        {
+          "start": 446,
+          "end": 446
+        },
+        {
+          "start": 468,
+          "end": 468
+        },
+        {
+          "start": 471,
+          "end": 472
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T12:32:44.801Z"
+    }
+  },
+  "turnCycles": 0,
+  "maxCycles": 3,
+  "lastUpdated": "2026-05-03T13:30:20.483Z"
+}
