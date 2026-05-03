@@ -18,26 +18,52 @@ export function MentorBatchTabs({ batchId }: { batchId: string }) {
   const currentTab = segments[segments.length - 1];
 
   return (
-    <div className="flex gap-1 rounded-xl bg-white p-1 shadow-sm">
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = currentTab === tab.value;
-        return (
-          <Link
-            key={tab.value}
-            href={`/mentor/batches/${batchId}/${tab.value}` as any}
-            className={cn(
-              "flex items-center gap-2 rounded-lg px-4 py-2 font-manrope font-medium text-sm transition-all",
-              isActive
-                ? "bg-brand-navy text-white shadow-sm"
-                : "text-text-muted-custom hover:bg-gray-100 hover:text-text-main",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {tab.label}
-          </Link>
-        );
-      })}
-    </div>
+    <>
+      {/* Desktop: horizontal tabs */}
+      <div className="hidden gap-1 rounded-xl bg-white p-1 shadow-sm sm:flex">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = currentTab === tab.value;
+          return (
+            <Link
+              key={tab.value}
+              href={`/mentor/batches/${batchId}/${tab.value}` as any}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-2 font-manrope font-medium text-sm transition-all",
+                isActive
+                  ? "bg-brand-navy text-white shadow-sm"
+                  : "text-text-muted-custom hover:bg-gray-100 hover:text-text-main",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Mobile: card grid */}
+      <div className="grid grid-cols-2 gap-3 sm:hidden">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = currentTab === tab.value;
+          return (
+            <Link
+              key={tab.value}
+              href={`/mentor/batches/${batchId}/${tab.value}` as any}
+              className={cn(
+                "flex flex-col items-center gap-2 rounded-2xl border p-4 font-manrope font-medium text-sm transition-all",
+                isActive
+                  ? "border-mentor-teal/30 bg-mentor-teal/5 text-mentor-teal shadow-sm"
+                  : "border-gray-200 bg-white text-text-muted-custom shadow-sm hover:border-gray-300 hover:text-text-main",
+              )}
+            >
+              <Icon className="h-6 w-6" />
+              <span className="text-center text-xs">{tab.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }

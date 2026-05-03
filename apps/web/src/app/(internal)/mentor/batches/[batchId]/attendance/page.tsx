@@ -138,7 +138,10 @@ export default function MentorBatchAttendancePage() {
       <div className="mentor-section flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link href="/mentor/batches" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0")}>
+          <Link
+            href="/mentor/batches"
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0 text-gray-700")}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
@@ -155,7 +158,7 @@ export default function MentorBatchAttendancePage() {
         <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="flex items-center gap-3">
             <span className="font-manrope font-medium text-sm text-text-main">Week</span>
-            <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
               {weeks.map((w) => (
                 <button
                   key={w}

@@ -37,7 +37,10 @@ export default function MentorBatchCurriculumPage() {
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link href="/mentor/batches" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0")}>
+          <Link
+            href="/mentor/batches"
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0 text-gray-700")}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>

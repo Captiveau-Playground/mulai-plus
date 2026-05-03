@@ -99,7 +99,7 @@ export function MentorSidebar({
       {...props}
     >
       <SidebarHeader className="px-3 sm:px-4">
-        <div className="flex items-center gap-3">
+        <Link href="/mentor" onClick={onNavigate} className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1.5">
             <Image
               src="/letter-icon-logo.svg"
@@ -113,7 +113,7 @@ export function MentorSidebar({
             <span className="truncate font-bold font-bricolage text-lg text-white">Mentor</span>
             <span className="truncate font-manrope text-white/60 text-xs">Mitra Program</span>
           </div>
-        </div>
+        </Link>
       </SidebarHeader>
 
       <Separator className="my-4 bg-white/10" />

@@ -185,7 +185,8 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
         </div>
 
         <TabsContent value="active">
-          <div className="rounded-md border">
+          {/* Table - desktop */}
+          <div className="hidden rounded-md border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -266,10 +267,83 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
               </TableBody>
             </Table>
           </div>
+
+          {/* Cards - mobile */}
+          <div className="space-y-3 md:hidden">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-text-muted-custom" />
+              </div>
+            ) : attachments?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-gray-200 border-dashed bg-white py-16">
+                <p className="font-manrope text-sm text-text-muted-custom">No attachments found.</p>
+              </div>
+            ) : (
+              attachments?.map((attachment) => (
+                <div key={attachment.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 font-manrope font-medium text-text-main hover:text-mentor-teal"
+                    >
+                      {attachment.type === "video" ? (
+                        <Video className="h-4 w-4 shrink-0 text-mentor-teal" />
+                      ) : attachment.type === "file" ? (
+                        <File className="h-4 w-4 shrink-0 text-mentor-teal" />
+                      ) : (
+                        <LinkIcon className="h-4 w-4 shrink-0 text-mentor-teal" />
+                      )}
+                      <span className="break-words">{attachment.name}</span>
+                    </a>
+                    <span className="shrink-0 rounded-lg border px-2 py-0.5 font-manrope text-[10px] text-text-muted-custom capitalize">
+                      {attachment.type}
+                    </span>
+                  </div>
+
+                  <div className="mb-3 flex items-center gap-4 text-text-muted-custom text-xs">
+                    <span>{attachment.week ? `Week ${attachment.week}` : "All Weeks"}</span>
+                    {attachment.sessionId && (
+                      <span className="flex items-center gap-1">
+                        <LinkIcon className="h-3 w-3" />
+                        Linked
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-1.5 border-gray-100 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(attachment)}
+                      className="rounded-lg border-gray-200 text-xs"
+                    >
+                      <Pencil className="mr-1 h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-400 hover:bg-red-50 hover:text-red-500"
+                      onClick={() => {
+                        if (confirm("Are you sure?")) {
+                          deleteMutation.mutate({ id: attachment.id });
+                        }
+                      }}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="requests">
-          <div className="rounded-md border">
+          {/* Table - desktop */}
+          <div className="hidden rounded-md border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -330,11 +404,69 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
               </TableBody>
             </Table>
           </div>
+
+          {/* Cards - mobile */}
+          <div className="space-y-3 md:hidden">
+            {isLoadingRequests ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-text-muted-custom" />
+              </div>
+            ) : myRequests?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-gray-200 border-dashed bg-white py-16">
+                <p className="font-manrope text-sm text-text-muted-custom">No requests found.</p>
+              </div>
+            ) : (
+              myRequests?.map((req) => (
+                <div key={req.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <span className="rounded-lg bg-brand-navy/5 px-2.5 py-1 font-manrope font-medium text-brand-navy text-xs capitalize">
+                      {req.action}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2.5 py-0.5 font-manrope font-semibold text-[10px] text-white",
+                        req.status === "pending"
+                          ? "bg-yellow-500"
+                          : req.status === "approved"
+                            ? "bg-green-500"
+                            : "bg-red-500",
+                      )}
+                    >
+                      {req.status}
+                    </span>
+                  </div>
+
+                  <div className="mb-2 text-sm">
+                    {req.action === "create" || req.action === "update" ? (
+                      <>
+                        <p className="font-manrope font-medium text-text-main">{(req.data as any).name}</p>
+                        <p className="font-manrope text-text-muted-custom text-xs capitalize">
+                          {(req.data as any).type}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="font-manrope text-text-muted-custom text-xs">Attachment ID: {req.attachmentId}</p>
+                    )}
+                  </div>
+
+                  <div className="font-manrope text-text-muted-custom text-xs">
+                    {format(new Date(req.createdAt), "MMM d, yyyy")}
+                  </div>
+
+                  {req.rejectionReason && (
+                    <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 font-manrope text-red-600 text-xs">
+                      {req.rejectionReason}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="min-w-7xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="font-bold font-bricolage text-brand-navy text-xl">
               {editingAttachment ? "Edit Attachment Request" : "Request New Attachment"}

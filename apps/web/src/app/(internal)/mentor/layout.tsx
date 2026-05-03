@@ -8,7 +8,7 @@ import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sideb
 import { useAuthorizePage } from "@/lib/auth-client";
 
 function MentorDashboardContent({ children }: { children: React.ReactNode }) {
-  const { setOpenMobile, toggleSidebar } = useSidebar();
+  const { setOpenMobile } = useSidebar();
 
   const handleNavigate = () => {
     setOpenMobile(false);
@@ -17,10 +17,10 @@ function MentorDashboardContent({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MentorSidebar onNavigate={handleNavigate} />
-      <SidebarInset className="mentor-page-bg">
-        <div className="flex min-h-screen flex-col">
-          <DashboardHeader onMenuClick={toggleSidebar} />
-          <div className="flex-1">{children}</div>
+      <SidebarInset className="mentor-page-bg overflow-x-hidden">
+        <div className="flex min-h-screen min-w-0 flex-col">
+          <DashboardHeader />
+          <div className="min-w-0 flex-1">{children}</div>
           <DashboardFooter />
         </div>
       </SidebarInset>

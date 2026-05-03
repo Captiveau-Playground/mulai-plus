@@ -41,7 +41,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${bricolageGrotesque.variable} ${manrope.variable} antialiased`}
       >
         <Providers>
-          <div className="grid h-svh grid-rows-[auto_1fr]">{children}</div>
+          <div className="grid h-svh grid-rows-[auto_1fr] overflow-x-hidden">{children}</div>
         </Providers>
       </body>
     </html>

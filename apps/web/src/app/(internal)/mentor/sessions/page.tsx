@@ -170,7 +170,7 @@ function MentorSessionsContent() {
           </p>
         </div>
 
-        <Tabs defaultValue="table" className="flex flex-1 flex-col">
+        <Tabs defaultValue="table" className="flex min-w-0 flex-1 flex-col">
           <div className="mb-4 flex items-center justify-between">
             <TabsList className="rounded-xl bg-white p-1 shadow-sm">
               <TabsTrigger
@@ -251,7 +251,7 @@ function MentorSessionsContent() {
             )}
           </div>
 
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <TabsContent value="table" className="mt-0">
               {/* Mini Stats */}
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -272,7 +272,8 @@ function MentorSessionsContent() {
                   color="bg-brand-red"
                 />
               </div>
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              {/* Table - desktop only */}
+              <div className="hidden max-w-full overflow-x-scroll rounded-2xl border border-gray-200 bg-white shadow-sm md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -364,6 +365,7 @@ function MentorSessionsContent() {
                                 onClick={() => handleEdit(session)}
                                 className="rounded-lg border-gray-200 text-xs hover:border-mentor-teal/30 hover:bg-mentor-teal/5 hover:text-mentor-teal"
                               >
+                                <Pencil className="mr-1 h-3.5 w-3.5" />
                                 Edit
                               </Button>
                               {session.type === "one_on_one" && (
@@ -383,6 +385,104 @@ function MentorSessionsContent() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Cards - mobile only */}
+              <div className="block space-y-3 md:hidden">
+                {filteredSessions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">
+                      <CalendarIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <p className="font-manrope font-medium text-sm text-text-muted-custom">No sessions found</p>
+                    <p className="font-manrope text-text-muted-custom text-xs">
+                      Try adjusting your filters or schedule a new session.
+                    </p>
+                  </div>
+                ) : (
+                  filteredSessions.map((session) => (
+                    <div key={session.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                      {/* Header: Week + Status */}
+                      <div className="mb-3 flex items-start justify-between">
+                        <div>
+                          <div className="font-manrope font-medium text-text-main">Week {session.week}</div>
+                          <div className="font-manrope text-text-muted-custom text-xs capitalize">
+                            {session.type.replace("_", " ")}
+                          </div>
+                        </div>
+                        <SessionStatusBadge status={session.status} />
+                      </div>
+
+                      {/* Program / Batch */}
+                      <div className="mb-2">
+                        <div className="font-manrope font-medium text-sm text-text-main">
+                          {session.batch?.program?.name}
+                        </div>
+                        <div className="font-manrope text-text-muted-custom text-xs">{session.batch?.name}</div>
+                      </div>
+
+                      {/* Schedule */}
+                      <div className="mb-1 flex items-center gap-1.5">
+                        <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-text-muted-custom" />
+                        <span className="font-manrope text-sm text-text-main">
+                          {format(new Date(session.startsAt), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                      <div className="mb-1 flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-text-muted-custom" />
+                        <span className="font-manrope text-text-muted-custom text-xs">
+                          {format(new Date(session.startsAt), "h:mm a")} ({session.durationMinutes} min)
+                        </span>
+                      </div>
+
+                      {/* Student */}
+                      {session.student && (
+                        <div className="mb-1 flex items-center gap-1.5">
+                          <User className="h-3.5 w-3.5 shrink-0 text-text-muted-custom" />
+                          <span className="font-manrope text-sm text-text-main">{session.student.name}</span>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="mt-4 flex items-center justify-end gap-2 border-gray-100 border-t pt-3">
+                        {session.meetingLink && (
+                          <a
+                            href={session.meetingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(
+                              buttonVariants({
+                                variant: "ghost",
+                                size: "icon",
+                              }),
+                              "text-mentor-teal hover:bg-mentor-teal/5 hover:text-mentor-teal-dark",
+                            )}
+                          >
+                            <Video className="h-4 w-4" />
+                          </a>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(session)}
+                          className="text-accent text-xs hover:border-mentor-teal/30 hover:bg-mentor-teal/5 hover:text-mentor-teal"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {session.type === "one_on_one" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-400 hover:bg-red-50 hover:text-red-500"
+                            onClick={() => setDeleteSessionId(session.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </TabsContent>
             <TabsContent value="calendar" className="mt-0">
