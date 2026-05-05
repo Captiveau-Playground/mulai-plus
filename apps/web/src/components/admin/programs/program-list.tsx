@@ -129,15 +129,15 @@ export function ProgramList() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-bold text-2xl tracking-tight">Programs</h2>
-          <p className="text-muted-foreground">Manage your mentoring programs.</p>
+          <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Programs</h2>
+          <p className="font-manrope text-text-muted-custom">Manage your mentoring programs.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button onClick={() => setIsCreateOpen(true)} className="btn-mentor rounded-full">
           <Plus className="mr-2 h-4 w-4" /> Create Program
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-md border bg-card">
+      <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>

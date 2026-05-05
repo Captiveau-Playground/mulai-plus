@@ -15,7 +15,7 @@ export default function AdminProgramDetailPage() {
 
   return (
     <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
-      <div className="flex-1 rounded-xl bg-muted/50 p-4">
+      <div className="mentor-page-bg flex-1 rounded-xl bg-bg-light p-4">
         <ProgramDetail programId={programId} />
       </div>
     </PageState>

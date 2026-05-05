@@ -74,9 +74,15 @@ class UnosendClient {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error(`Unosend API Error [${endpoint}]:`, errorData);
-        return { success: false, error: errorData };
+        const responseText = await response.text().catch(() => "");
+        let errorData: any = {};
+        try {
+          errorData = responseText ? JSON.parse(responseText) : { raw: responseText };
+        } catch {
+          errorData = { raw: responseText };
+        }
+        console.error(`Unosend API Error [${endpoint}] Status: ${response.status} ${response.statusText}:`, errorData);
+        return { success: false, error: { status: response.status, ...errorData } };
       }
 
       const data = await response.json();

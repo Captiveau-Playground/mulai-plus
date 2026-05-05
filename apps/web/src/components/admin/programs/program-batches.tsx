@@ -122,7 +122,7 @@ function BatchAttendanceDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky left-0 z-10 w-[200px] min-w-[200px] bg-background">Student</TableHead>
+                    <TableHead className="sticky left-0 z-10 w-[200px] min-w-[200px] bg-white">Student</TableHead>
                     {weeks.map((week) => (
                       <TableHead key={week} className="min-w-[120px]">
                         Week {week}
@@ -140,7 +140,7 @@ function BatchAttendanceDialog({
                   ) : (
                     data?.participants.map((student) => (
                       <TableRow key={student.id}>
-                        <TableCell className="sticky left-0 z-10 bg-background font-medium">{student.name}</TableCell>
+                        <TableCell className="sticky left-0 z-10 bg-white font-medium">{student.name}</TableCell>
                         {weeks.map((week) => (
                           <TableCell key={week}>
                             <div className="flex flex-col gap-1">

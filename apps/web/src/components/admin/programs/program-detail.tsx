@@ -18,7 +18,7 @@ export function ProgramDetail({ programId }: { programId: string }) {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-mentor-teal" />
       </div>
     );
   }
@@ -26,7 +26,7 @@ export function ProgramDetail({ programId }: { programId: string }) {
   if (!program) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <p className="text-muted-foreground">Program not found</p>
+        <p className="font-manrope text-text-muted-custom">Program not found</p>
       </div>
     );
   }
@@ -35,8 +35,8 @@ export function ProgramDetail({ programId }: { programId: string }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-3xl tracking-tight">{program.name}</h2>
-          <p className="text-muted-foreground">{program.description}</p>
+          <h2 className="font-bold font-bricolage text-3xl text-brand-navy tracking-tight">{program.name}</h2>
+          <p className="font-manrope text-text-muted-custom">{program.description}</p>
         </div>
       </div>
 

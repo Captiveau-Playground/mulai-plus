@@ -757,3 +757,317 @@
 [data-slot="alert-dialog-action"] {
   @apply rounded-xl bg-mentor-teal text-white hover:bg-mentor-teal-dark;
 }
+
+/* ─── Sidebar Design System ─── */
+/* Target ALL internal sidebars (admin, program-manager) */
+
+/* Sidebar wrapper */
+[data-slot="sidebar-wrapper"] {
+  --sidebar: #1a1f6d;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #0d9488;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(255, 255, 255, 0.1);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #0d9488;
+}
+
+/* Sidebar background */
+[data-slot="sidebar"] {
+  background-color: var(--brand-navy) !important;
+  color: white !important;
+}
+
+/* Sidebar header/footer backgrounds */
+[data-slot="sidebar-header"],
+[data-slot="sidebar-footer"] {
+  background-color: var(--brand-navy) !important;
+}
+
+/* Sidebar group label */
+[data-slot="sidebar-group"] [data-slot="sidebar-group-label"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-size: 0.6875rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  padding: 0.5rem 0.75rem 0.25rem !important;
+}
+
+/* Sidebar menu button - default */
+[data-slot="sidebar-menu-button"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-slot="sidebar-menu-button"]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: white !important;
+}
+
+/* Sidebar menu button - active state */
+/* Sidebar menu button - active state */
+/* data-active is set by isActive prop on SidebarMenuButton */
+[data-slot="sidebar-menu-button"][data-active],
+[data-slot="sidebar-menu-button"][aria-current="page"] {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+/* Chevron icon in collapsible */
+[data-slot="sidebar-menu-button"] svg {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+[data-slot="sidebar-menu-button"]:hover svg {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Sidebar menu sub items */
+[data-slot="sidebar-menu-sub"] {
+  padding-left: 0.5rem !important;
+}
+
+[data-slot="sidebar-menu-sub-button"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-size: 0.8125rem !important;
+  font-weight: 450 !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+  border-radius: 0.375rem !important;
+  padding: 0.375rem 0.75rem !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-slot="sidebar-menu-sub-button"]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: white !important;
+}
+
+/* Active sub item */
+[data-slot="sidebar-menu-sub-button"][data-active],
+[data-slot="sidebar-menu-sub-button"][aria-current="page"] {
+  background-color: rgba(13, 148, 136, 0.25) !important;
+  color: white !important;
+  font-weight: 500 !important;
+}
+
+/* Sidebar menu badge */
+[data-slot="sidebar-menu-badge"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+}
+
+/* Team Switcher in sidebar */
+[data-slot="sidebar"] [data-slot="sidebar-menu-button"] .flex.aspect-square.items-center.justify-center.rounded-lg,
+[data-slot="sidebar"] [class*="aspect-square"] {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+}
+
+[data-slot="sidebar"] .truncate.font-semibold {
+  color: white !important;
+}
+
+[data-slot="sidebar"] .truncate.text-xs {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Sidebar separator */
+[data-slot="sidebar-separator"] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Sidebar rail — hidden, no vertical line */
+[data-slot="sidebar-rail"] {
+  display: none !important;
+}
+
+/* Sidebar input (search) */
+[data-slot="sidebar-input"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: white !important;
+  border-radius: 0.5rem !important;
+}
+
+[data-slot="sidebar-input"]::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Sidebar trigger inside the SiteHeader (white bg) — use dark icon */
+[data-slot="sidebar-inset"] header [data-slot="sidebar-trigger"] {
+  color: var(--text-muted-custom) !important;
+  border-radius: 0.5rem !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="sidebar-trigger"]:hover {
+  color: var(--text-main) !important;
+  background-color: #f3f4f6 !important;
+}
+
+/* ─── Site Header Design System ─── */
+
+/* Header separator */
+[data-slot="sidebar-inset"] header [data-slot="separator"] {
+  background-color: #e5e7eb !important;
+}
+
+/* Breadcrumb text colors in site header */
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-item"] a,
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-link"] {
+  color: var(--text-muted-custom) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  transition: color 0.15s ease !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-link"]:hover {
+  color: var(--brand-navy) !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-page"] {
+  color: var(--text-main) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-separator"] {
+  color: #d1d5db !important;
+}
+
+/* Mode toggle in header */
+[data-slot="sidebar-inset"] header button[data-slot="button"]:where([data-variant="outline"]) {
+  border-color: #e5e7eb !important;
+  color: var(--text-main) !important;
+  background-color: white !important;
+}
+
+[data-slot="sidebar-inset"] header button[data-slot="button"]:where([data-variant="outline"]):hover {
+  background-color: #f9fafb !important;
+  border-color: #d1d5db !important;
+}
+
+/* Notification bell in header */
+[data-slot="sidebar-inset"] header [data-slot="button"]:where([data-variant="ghost"]) {
+  color: var(--text-muted-custom) !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="button"]:where([data-variant="ghost"]):hover {
+  color: var(--text-main) !important;
+  background-color: #f3f4f6 !important;
+}
+
+/* ─── Page Content Area ─── */
+/* These target all content inside sidebar-inset (internal pages) */
+
+/* Ensure all page text uses design system colors */
+[data-slot="sidebar-inset"] h1,
+[data-slot="sidebar-inset"] h2:not(.text-brand-navy),
+[data-slot="sidebar-inset"] h3:not(.text-text-main):not(.text-brand-navy) {
+  color: var(--text-main);
+}
+
+[data-slot="sidebar-inset"] p {
+  color: var(--text-main);
+}
+
+/* ─── Dialog Override (portal) ─── */
+/* Already covered above */
+
+/* ─── Ensure shadcn base elements use brand colors in internal pages ─── */
+
+/* Force white backgrounds on all base elements inside mentor page context */
+.mentor-page-bg [data-slot="card"] {
+  background-color: white !important;
+}
+
+.mentor-page-bg [data-slot="card-content"] {
+  background-color: white !important;
+}
+
+.mentor-page-bg [data-slot="table"] {
+  --table-color: var(--text-main);
+}
+
+/* Force proper text colors on all form labels inside mentor pages */
+.mentor-page-bg [data-slot="form-label"] {
+  color: var(--text-main) !important;
+}
+
+/* Ensure all inputs have proper text color */
+.mentor-page-bg input,
+.mentor-page-bg textarea,
+.mentor-page-bg select {
+  color: var(--text-main) !important;
+}
+
+.mentor-page-bg input::placeholder,
+.mentor-page-bg textarea::placeholder {
+  color: var(--text-muted-custom) !important;
+}
+
+/* ─── Disable dark mode for internal pages ─── */
+/* Override dark mode to use light design system colors */
+.dark [data-slot="sidebar-wrapper"],
+.dark [data-slot="sidebar-inset"] {
+  --background: oklch(1 0 0) !important;
+  --foreground: #333333 !important;
+  --card: white !important;
+  --card-foreground: #333333 !important;
+  --muted: oklch(0.97 0 0) !important;
+  --muted-foreground: #888888 !important;
+  --border: oklch(0.922 0 0) !important;
+  --input: oklch(0.922 0 0) !important;
+}
+
+.dark [data-slot="sidebar-inset"] {
+  background-color: var(--bg-light) !important;
+}
+
+.dark .mentor-page-bg {
+  background-color: var(--bg-light) !important;
+}
+
+.dark .mentor-page-bg [data-slot="card"] {
+  background-color: white !important;
+}
+
+.dark .mentor-page-bg [data-slot="card-title"],
+.dark .mentor-page-bg [data-slot="card-description"],
+.dark .mentor-page-bg [data-slot="card-content"] {
+  color: var(--text-main) !important;
+}
+
+/* ─── Separator styling ─── */
+.mentor-page-bg [data-slot="separator"] {
+  background-color: #e5e7eb !important;
+}
+
+/* ─── Full-height layout fix ─── */
+/* Override shadcn's h-fit so SidebarInset fills the viewport */
+[data-slot="sidebar-inset"] {
+  min-height: 100dvh !important;
+  height: auto !important;
+}
+
+/* Page wrapper inside layout should not be taller than its flex container */
+.mentor-page-bg[class*="min-h-screen"],
+.mentor-page-bg {
+  min-height: 0 !important;
+}
+
+/* The SiteHeader separator needs to stay visible */
+[data-slot="sidebar-inset"] header {
+  flex-shrink: 0;
+}

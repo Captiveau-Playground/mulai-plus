@@ -32,7 +32,6 @@ const data = {
       title: "Dashboard",
       url: "/admin",
       icon: LayoutDashboard,
-      isActive: true,
     },
   ],
   navAuth: [
