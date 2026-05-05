@@ -127,89 +127,91 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            <FormField
-              control={form.control}
-              name="batchId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Batch</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      setSelectedBatchId(value || undefined);
-                      form.setValue("studentId", ""); // Reset student when batch changes
-                    }}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="rounded-xl border-gray-200 text-text-main">
-                        {field.value && batches ? (
-                          <span className="font-medium text-text-main">
-                            {(() => {
-                              const b = batches.find((x) => x.id === field.value);
-                              return b ? `${b.name} (${b.program?.name || ""})` : field.value;
-                            })()}
-                          </span>
-                        ) : (
-                          <span className="text-text-muted-custom">Select batch</span>
-                        )}
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {batches?.map((batch) => (
-                        <SelectItem key={batch.id} value={batch.id}>
-                          {batch.name} ({batch.program?.name})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
+            <div className="grid w-full grid-rows-2 gap-2">
+              <FormField
+                control={form.control}
+                name="batchId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Batch</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedBatchId(value || undefined);
+                        form.setValue("studentId", ""); // Reset student when batch changes
+                      }}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="rounded-xl border-gray-200 text-text-main">
+                          {field.value && batches ? (
+                            <span className="font-medium text-text-main">
+                              {(() => {
+                                const b = batches.find((x) => x.id === field.value);
+                                return b ? `${b.name} (${b.program?.name || ""})` : field.value;
+                              })()}
+                            </span>
+                          ) : (
+                            <span className="text-text-muted-custom">Select batch</span>
+                          )}
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {batches?.map((batch) => (
+                          <SelectItem key={batch.id} value={batch.id}>
+                            {batch.name} ({batch.program?.name})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="studentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Student</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={!selectedBatchId || isLoadingStudents}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="rounded-xl border-gray-200 text-text-main">
-                        {field.value && students ? (
-                          <span className="font-medium text-text-main">
-                            {(() => {
-                              const s = students.find((x) => x.id === field.value);
-                              return s ? `${s.name} (${s.email || ""})` : field.value;
-                            })()}
-                          </span>
-                        ) : (
-                          <span className="text-text-muted-custom">
-                            {isLoadingStudents ? "Loading students..." : "Select student"}
-                          </span>
-                        )}
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {students?.map((student) => (
-                        <SelectItem key={student.id} value={student.id}>
-                          {student.name} ({student.email})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="studentId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Student</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={!selectedBatchId || isLoadingStudents}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="rounded-xl border-gray-200 text-text-main">
+                          {field.value && students ? (
+                            <span className="font-medium text-text-main">
+                              {(() => {
+                                const s = students.find((x) => x.id === field.value);
+                                return s ? `${s.name} (${s.email || ""})` : field.value;
+                              })()}
+                            </span>
+                          ) : (
+                            <span className="text-text-muted-custom">
+                              {isLoadingStudents ? "Loading students..." : "Select student"}
+                            </span>
+                          )}
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {students?.map((student) => (
+                          <SelectItem key={student.id} value={student.id}>
+                            {student.name} ({student.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-2 gap-2">
               <FormField
                 control={form.control}
                 name="week"
@@ -281,48 +283,49 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
                 )}
               />
             </div>
+            <div className="grid gap-2">
+              <FormField
+                control={form.control}
+                name="startsAt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date & Time</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="startsAt"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date & Time</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="meetingLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Meeting Link</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://..." className="text-text-main" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="meetingLink"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Meeting Link</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." className="text-text-main" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Session agenda or notes..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Session agenda or notes..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <DialogFooter>
               <Button

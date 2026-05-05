@@ -465,7 +465,7 @@ function MentorSessionsContent() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(session)}
-                          className="text-accent text-xs hover:border-mentor-teal/30 hover:bg-mentor-teal/5 hover:text-mentor-teal"
+                          className="text-text-muted-custom hover:bg-mentor-teal/5 hover:text-mentor-teal"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>

@@ -491,7 +491,7 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-2 gap-5 pt-3">
                 <FormField
                   control={form.control}
                   name="type"
@@ -559,55 +559,57 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="sessionId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link to Session (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="text-text-main">
-                          {field.value && field.value !== "none" && sessions ? (
-                            <span className="text-text-main">
-                              {(() => {
-                                const s = sessions.find((x) => x.id === field.value);
-                                if (!s) return field.value;
-                                return `Week ${s.week} - ${s.type.replace("_", " ")} (${format(new Date(s.startsAt), "MMM d")})`;
-                              })()}
-                            </span>
-                          ) : (
-                            <span className="text-text-muted-custom">None</span>
-                          )}
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {sessions?.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            Week {s.week} - {s.type} ({format(new Date(s.startsAt), "MMM d")})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-rows-2 gap-5">
+                <FormField
+                  control={form.control}
+                  name="sessionId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Link to Session (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="text-text-main">
+                            {field.value && field.value !== "none" && sessions ? (
+                              <span className="text-text-main">
+                                {(() => {
+                                  const s = sessions.find((x) => x.id === field.value);
+                                  if (!s) return field.value;
+                                  return `Week ${s.week} - ${s.type.replace("_", " ")} (${format(new Date(s.startsAt), "MMM d")})`;
+                                })()}
+                              </span>
+                            ) : (
+                              <span className="text-text-muted-custom">None</span>
+                            )}
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {sessions?.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              Week {s.week} - {s.type} ({format(new Date(s.startsAt), "MMM d")})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="flex justify-end space-x-2">
                 <Button
