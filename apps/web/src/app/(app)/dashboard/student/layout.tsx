@@ -8,7 +8,7 @@ import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sideb
 import { useAuthorizePage } from "@/lib/auth-client";
 
 function StudentDashboardContent({ children }: { children: React.ReactNode }) {
-  const { setOpenMobile, toggleSidebar } = useSidebar();
+  const { setOpenMobile } = useSidebar();
 
   const handleNavigate = () => {
     setOpenMobile(false);
@@ -19,7 +19,7 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
       <StudentSidebar onNavigate={handleNavigate} />
       <SidebarInset className="!bg-bg-light">
         <div className="flex min-h-screen flex-col">
-          <DashboardHeader onMenuClick={toggleSidebar} />
+          <DashboardHeader />
           <div className="flex-1">{children}</div>
           <DashboardFooter />
         </div>

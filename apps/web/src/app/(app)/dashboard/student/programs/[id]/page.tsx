@@ -348,7 +348,7 @@ export default function StudentProgramDetailPage() {
 
                                   if (canJoin) {
                                     return (
-                                      <a href={session.meetingLink} target="_blank" rel="noopener noreferrer">
+                                      <a href={session.meetingLink!} target="_blank" rel="noopener noreferrer">
                                         <Button
                                           size="sm"
                                           className="btn-brand-red gap-2 rounded-full shadow-md hover:shadow-lg"

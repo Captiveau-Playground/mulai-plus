@@ -39,7 +39,7 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [role, setRole] = React.useState("student");
+  const [role, setRole] = React.useState<string>("student");
   const [isPending, setIsPending] = React.useState(false);
   const [error, setError] = React.useState("");
 
@@ -55,7 +55,7 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
         name,
         email,
         password,
-        role,
+        role: role as "student" | "mentor" | "admin" | "program_manager",
       });
 
       if (error) throw new Error(error.message || error.statusText);
