@@ -50,9 +50,55 @@ export const ac = createAccessControl(statement);
  * Fetch roles from the database and convert them to Better Auth Role objects.
  * This ensures the application permissions match the database state.
  */
+const DEFAULT_ROLES: Record<string, Record<string, string[]>> = {
+  admin: {
+    admin: ["access"],
+    dashboard: ["access"],
+    admin_dashboard: ["access"],
+    program_manager_dashboard: ["access"],
+    "*": ["*"],
+  },
+  program_manager: {
+    program_manager_dashboard: ["access"],
+    program: ["create", "read", "update", "delete"],
+    batch: ["create", "read", "update", "delete"],
+    application: ["read", "approve", "reject"],
+    participant: ["read", "update"],
+    attendance: ["read", "update"],
+    session: ["create", "read", "update", "delete"],
+    attachment: ["create", "read", "update", "delete"],
+    testimonial: ["create", "read", "update", "delete"],
+    analytics: ["read"],
+  },
+  mentor: {
+    mentor_dashboard: ["access"],
+    attendance: ["read", "update"],
+    session: ["create", "read", "update", "delete"],
+    attachment: ["read"],
+  },
+  student: {
+    student_dashboard: ["access"],
+  },
+};
+
+function buildRoleMap(roles: typeof DEFAULT_ROLES) {
+  const roleMap: Record<string, unknown> = {};
+  for (const [id, permissions] of Object.entries(roles)) {
+    roleMap[id] = ac.newRole(permissions as any);
+  }
+  return roleMap;
+}
+
 export const getRoles = async () => {
   try {
     const roles = await db.select().from(schema.role);
+
+    // If DB is empty (first deploy), use defaults
+    if (roles.length === 0) {
+      console.warn("⚠️ Role table is empty — using default roles. Run db:seed to customize permissions.");
+      return buildRoleMap(DEFAULT_ROLES) as any;
+    }
+
     const roleMap: Record<string, unknown> = {};
 
     for (const r of roles) {
@@ -92,15 +138,8 @@ export const getRoles = async () => {
     return roleMap as any;
   } catch (error) {
     console.error("Failed to load roles from DB:", error);
-    // Fallback to default admin role if DB fails to prevent startup crash
-    return {
-      admin: ac.newRole({
-        admin: ["access"],
-        dashboard: ["access"],
-        admin_dashboard: ["access"],
-        "*": ["*"],
-      }),
-    };
+    // Fallback if DB is unreachable
+    return buildRoleMap(DEFAULT_ROLES) as any;
   }
 };
 
