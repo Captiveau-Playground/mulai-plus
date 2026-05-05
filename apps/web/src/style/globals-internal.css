@@ -1181,13 +1181,14 @@
 /* These target all content inside sidebar-inset (internal pages) */
 
 /* Ensure all page text uses design system colors */
-[data-slot="sidebar-inset"] h1,
-[data-slot="sidebar-inset"] h2:not(.text-brand-navy),
-[data-slot="sidebar-inset"] h3:not(.text-text-main):not(.text-brand-navy) {
+/* Only apply to elements WITHOUT an explicit Tailwind text-* color class */
+[data-slot="sidebar-inset"] h1:not([class*="text-"]),
+[data-slot="sidebar-inset"] h2:not([class*="text-"]),
+[data-slot="sidebar-inset"] h3:not([class*="text-"]) {
   color: var(--text-main);
 }
 
-[data-slot="sidebar-inset"] p {
+[data-slot="sidebar-inset"] p:not([class*="text-"]) {
   color: var(--text-main);
 }
 

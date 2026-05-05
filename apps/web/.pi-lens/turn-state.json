@@ -1041,9 +1041,149 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-05T07:34:51.071Z"
+    },
+    "src/app/(app)/dashboard/student/schedule/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 85,
+          "end": 85
+        },
+        {
+          "start": 87,
+          "end": 94
+        },
+        {
+          "start": 97,
+          "end": 102
+        },
+        {
+          "start": 105,
+          "end": 106
+        },
+        {
+          "start": 130,
+          "end": 131
+        },
+        {
+          "start": 134,
+          "end": 135
+        },
+        {
+          "start": 139,
+          "end": 139
+        },
+        {
+          "start": 142,
+          "end": 142
+        },
+        {
+          "start": 144,
+          "end": 149
+        },
+        {
+          "start": 153,
+          "end": 155
+        },
+        {
+          "start": 170,
+          "end": 170
+        },
+        {
+          "start": 182,
+          "end": 182
+        },
+        {
+          "start": 189,
+          "end": 192
+        },
+        {
+          "start": 220,
+          "end": 220
+        },
+        {
+          "start": 222,
+          "end": 223
+        },
+        {
+          "start": 230,
+          "end": 230
+        },
+        {
+          "start": 232,
+          "end": 233
+        },
+        {
+          "start": 263,
+          "end": 263
+        },
+        {
+          "start": 265,
+          "end": 265
+        },
+        {
+          "start": 270,
+          "end": 270
+        },
+        {
+          "start": 273,
+          "end": 273
+        },
+        {
+          "start": 275,
+          "end": 275
+        },
+        {
+          "start": 280,
+          "end": 288
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T08:01:13.118Z"
+    },
+    "src/app/(app)/dashboard/student/programs/[id]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 12,
+          "end": 12
+        },
+        {
+          "start": 70,
+          "end": 75
+        },
+        {
+          "start": 209,
+          "end": 209
+        },
+        {
+          "start": 211,
+          "end": 214
+        },
+        {
+          "start": 216,
+          "end": 217
+        },
+        {
+          "start": 243,
+          "end": 243
+        },
+        {
+          "start": 247,
+          "end": 249
+        },
+        {
+          "start": 288,
+          "end": 300
+        },
+        {
+          "start": 329,
+          "end": 360
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T08:04:32.452Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-05T07:34:51.072Z"
+  "lastUpdated": "2026-05-05T08:04:32.452Z"
 }

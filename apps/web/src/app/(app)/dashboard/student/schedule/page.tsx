@@ -82,24 +82,28 @@ export default function StudentSchedulePage() {
           </Card>
         </div>
 
-        {/* Sessions Tabs */}
+        {/* Sessions Tabs — single Tabs component wrapping both trigger + content */}
         <Card className="student-card">
-          <CardHeader className="border-gray-100 border-b bg-white pb-4">
-            <Tabs defaultValue="upcoming" className="w-full">
-              <TabsList className="h-auto gap-2 bg-transparent p-0">
-                <TabsTrigger value="upcoming" className="rounded-full px-4 py-2 font-inter text-brand-navy text-sm">
+          <Tabs defaultValue="upcoming" className="w-full">
+            <CardHeader className="border-gray-100 border-b bg-white pb-4">
+              <TabsList className="flex h-auto gap-2 bg-transparent p-0">
+                <TabsTrigger
+                  value="upcoming"
+                  className="rounded-full px-5 py-2 font-inter text-sm transition-all data-[state=active]:bg-brand-navy data-[state=active]:text-white data-[state=inactive]:text-text-muted-custom data-[state=inactive]:hover:bg-gray-100 data-[state=inactive]:hover:text-text-main"
+                >
                   <Calendar className="mr-2 h-4 w-4" />
                   Upcoming ({upcomingSessions.length})
                 </TabsTrigger>
-                <TabsTrigger value="past" className="rounded-full px-4 py-2 font-inter text-brand-navy text-sm">
+                <TabsTrigger
+                  value="past"
+                  className="rounded-full px-5 py-2 font-inter text-sm transition-all data-[state=active]:bg-brand-navy data-[state=active]:text-white data-[state=inactive]:text-text-muted-custom data-[state=inactive]:hover:bg-gray-100 data-[state=inactive]:hover:text-text-main"
+                >
                   <Clock className="mr-2 h-4 w-4" />
                   Past ({pastSessions.length})
                 </TabsTrigger>
               </TabsList>
-            </Tabs>
-          </CardHeader>
-          <CardContent className="bg-white p-4 md:p-6">
-            <Tabs defaultValue="upcoming" className="w-full">
+            </CardHeader>
+            <CardContent className="bg-white p-4 md:p-6">
               <TabsContent value="upcoming" className="mt-0 space-y-4">
                 {upcomingSessions.length > 0 ? (
                   upcomingSessions.map((session) => <SessionCard key={session.id} session={session} isUpcoming />)
@@ -127,8 +131,8 @@ export default function StudentSchedulePage() {
                   </div>
                 )}
               </TabsContent>
-            </Tabs>
-          </CardContent>
+            </CardContent>
+          </Tabs>
         </Card>
       </div>
     </PageState>
@@ -136,17 +140,23 @@ export default function StudentSchedulePage() {
 }
 
 function SessionCard({ session, isUpcoming }: { session: any; isUpcoming?: boolean }) {
+  const now = new Date();
   const sessionDate = new Date(session.startsAt);
   const endTime = new Date(sessionDate.getTime() + (session.durationMinutes || 60) * 60000);
+  const joinWindowStart = new Date(sessionDate.getTime() - 15 * 60 * 1000); // H-15
+
+  const canJoin = session.meetingLink && now >= joinWindowStart && now < endTime;
+  const isInProgress = now >= joinWindowStart && now < endTime;
+  const displayStatus = session.status === "scheduled" && isInProgress ? "In Progress" : session.status;
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
         return "bg-green-100 text-green-700 border-green-200";
       case "scheduled":
-        return isPast(sessionDate)
-          ? "bg-brand-orange/10 text-brand-orange border-brand-orange/20"
-          : "bg-blue-100 text-blue-700 border-blue-200";
+        if (isInProgress) return "bg-brand-orange/10 text-brand-orange border-brand-orange/20";
+        if (isPast(sessionDate)) return "bg-brand-orange/10 text-brand-orange border-brand-orange/20";
+        return "bg-blue-100 text-blue-700 border-blue-200";
       case "missed":
         return "bg-red-100 text-red-700 border-red-200";
       case "cancelled":
@@ -161,6 +171,7 @@ function SessionCard({ session, isUpcoming }: { session: any; isUpcoming?: boole
       case "completed":
         return <CheckCircle2 className="h-4 w-4" />;
       case "scheduled":
+        if (isInProgress) return <Video className="h-4 w-4" />;
         return <Clock className="h-4 w-4" />;
       case "missed":
         return <XCircle className="h-4 w-4" />;
@@ -179,7 +190,10 @@ function SessionCard({ session, isUpcoming }: { session: any; isUpcoming?: boole
 
   return (
     <Card
-      className={cn("student-card-hover border-gray-200 border-l-4 bg-white", isUpcoming && "border-l-brand-orange")}
+      className={cn(
+        "student-card-hover border-gray-200 border-l-4 bg-white",
+        isInProgress ? "border-l-brand-orange" : isUpcoming && "border-l-brand-orange",
+      )}
     >
       <CardHeader className="bg-white pb-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -216,11 +230,9 @@ function SessionCard({ session, isUpcoming }: { session: any; isUpcoming?: boole
           </div>
 
           <div className="flex items-center gap-2">
-            <Badge
-              className={cn("flex items-center gap-1.5 border font-inter text-xs", getStatusColor(session.status))}
-            >
-              {getStatusIcon(session.status)}
-              {session.status === "scheduled" && isPast(sessionDate) ? "In Progress" : session.status}
+            <Badge className={cn("flex items-center gap-1.5 border font-inter text-xs", getStatusColor(displayStatus))}>
+              {getStatusIcon(displayStatus)}
+              {displayStatus}
             </Badge>
           </div>
         </div>
@@ -260,14 +272,22 @@ function SessionCard({ session, isUpcoming }: { session: any; isUpcoming?: boole
             {session.notes && (
               <p className="mr-4 line-clamp-1 font-manrope text-sm text-text-muted-custom">{session.notes}</p>
             )}
-            {session.meetingLink && session.status === "scheduled" && (
+            {canJoin ? (
               <a href={session.meetingLink} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" className="btn-brand-red gap-2 rounded-full">
+                <Button size="sm" className="btn-brand-red gap-2 rounded-full shadow-md hover:shadow-lg">
                   <Video className="h-4 w-4" />
                   Join Meeting
                 </Button>
               </a>
-            )}
+            ) : session.status === "scheduled" && session.meetingLink && now < joinWindowStart ? (
+              <Button size="sm" variant="outline" className="gap-2 rounded-full border-gray-200" disabled>
+                <Clock className="h-4 w-4" />
+                Join available{" "}
+                {isToday(joinWindowStart)
+                  ? format(joinWindowStart, "'at' h:mm a")
+                  : format(joinWindowStart, "MMM d 'at' h:mm a")}
+              </Button>
+            ) : null}
           </div>
         </div>
       </CardContent>
