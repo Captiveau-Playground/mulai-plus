@@ -71,13 +71,6 @@
       "when": 1769933590782,
       "tag": "0009_heavy_wild_child",
       "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1769933637128,
-      "tag": "0010_curious_roxanne_simpson",
-      "breakpoints": true
     }
   ]
 }
