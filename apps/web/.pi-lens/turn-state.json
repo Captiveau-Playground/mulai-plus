@@ -901,10 +901,30 @@
         {
           "start": 143,
           "end": 143
+        },
+        {
+          "start": 729,
+          "end": 729
+        },
+        {
+          "start": 997,
+          "end": 997
+        },
+        {
+          "start": 1009,
+          "end": 1057
+        },
+        {
+          "start": 1119,
+          "end": 1120
+        },
+        {
+          "start": 1337,
+          "end": 1387
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-05T06:52:18.591Z"
+      "lastEdit": "2026-05-05T07:18:13.918Z"
     },
     "src/app/(internal)/admin/(core)/programs/testimonials/page.tsx": {
       "modifiedRanges": [
@@ -983,9 +1003,47 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-05T07:08:31.721Z"
+    },
+    "src/components/admin/programs/program-syllabus.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 89,
+          "end": 94
+        },
+        {
+          "start": 96,
+          "end": 103
+        },
+        {
+          "start": 109,
+          "end": 109
+        },
+        {
+          "start": 111,
+          "end": 111
+        },
+        {
+          "start": 118,
+          "end": 121
+        },
+        {
+          "start": 125,
+          "end": 125
+        },
+        {
+          "start": 127,
+          "end": 128
+        },
+        {
+          "start": 130,
+          "end": 130
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T07:34:51.071Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-05T07:08:31.721Z"
+  "lastUpdated": "2026-05-05T07:34:51.072Z"
 }

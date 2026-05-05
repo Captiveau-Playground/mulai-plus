@@ -726,7 +726,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create Batch</DialogTitle>
             <DialogDescription>Add a new batch to this program.</DialogDescription>
@@ -1017,7 +1017,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           isPending={updateMutation.isPending}
         />
       )}
-
       {mentorBatchId && (
         <BatchMentorsDialog
           batchId={mentorBatchId}
@@ -1025,7 +1024,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setMentorBatchId(null)}
         />
       )}
-
       {attendanceBatch && (
         <BatchAttendanceDialog
           batch={attendanceBatch}
@@ -1033,7 +1031,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setAttendanceBatch(null)}
         />
       )}
-
       {timelineBatch && (
         <BatchTimelineDialog
           batch={timelineBatch}
@@ -1041,7 +1038,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setTimelineBatch(null)}
         />
       )}
-
       {sessionsBatch && (
         <BatchSessionsDialog
           batch={sessionsBatch}
@@ -1049,7 +1045,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setSessionsBatch(null)}
         />
       )}
-
       {attachmentsBatch && (
         <BatchAttachmentsDialog
           batch={attachmentsBatch}
@@ -1117,7 +1112,7 @@ function EditBatchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit Batch</DialogTitle>
           <DialogDescription>Edit batch details.</DialogDescription>
@@ -1334,57 +1329,57 @@ function EditBatchDialog({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="bannerUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Banner Image</FormLabel>
-                    <FormControl>
-                      <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="communityLink"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Community Link (WhatsApp)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://chat.whatsapp.com/..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="upcoming">Upcoming</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                        <SelectItem value="running">Running</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+            <FormField
+              control={form.control}
+              name="bannerUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Banner Image</FormLabel>
+                  <FormControl>
+                    <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="communityLink"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Community Link (WhatsApp)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://chat.whatsapp.com/..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                      <SelectItem value="running">Running</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

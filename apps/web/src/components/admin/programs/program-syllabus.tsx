@@ -86,19 +86,24 @@ export function ProgramSyllabus({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Syllabus</CardTitle>
-        <CardDescription>Manage the weekly syllabus for this program.</CardDescription>
+    <Card className="mentor-card">
+      <CardHeader className="bg-white">
+        <CardTitle className="font-bricolage text-lg text-text-main">Syllabus</CardTitle>
+        <CardDescription className="font-manrope text-text-muted-custom">
+          Manage the weekly syllabus for this program.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 bg-white">
         {syllabus.map((item, index) => (
-          <div key={index} className="flex items-start gap-4 rounded-lg border p-4">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
+          <div
+            key={index}
+            className="flex items-start gap-4 rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-mentor-teal font-bold text-sm text-white">
               {item.week}
             </div>
-            <div className="flex-1 space-y-4">
-              <div className="grid gap-2">
+            <div className="flex-1 space-y-3">
+              <div className="grid gap-1.5">
                 <Label>Title</Label>
                 <Input
                   value={item.title}
@@ -106,7 +111,7 @@ export function ProgramSyllabus({
                   placeholder="Week Title"
                 />
               </div>
-              <div className="grid gap-2">
+              <div className="grid gap-1.5">
                 <Label>Outcome</Label>
                 <Input
                   value={item.outcome || ""}
@@ -115,17 +120,17 @@ export function ProgramSyllabus({
                 />
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => handleRemoveWeek(index)}>
-              <Trash className="h-4 w-4 text-red-500" />
+            <Button variant="ghost" size="icon" onClick={() => handleRemoveWeek(index)} className="mt-1 shrink-0">
+              <Trash className="h-4 w-4 text-brand-red" />
             </Button>
           </div>
         ))}
 
         <div className="flex flex-col gap-2 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <Button variant="outline" onClick={handleAddWeek}>
+          <Button variant="outline" className="rounded-full" onClick={handleAddWeek}>
             <Plus className="mr-2 h-4 w-4" /> Add Week
           </Button>
-          <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          <Button className="btn-mentor rounded-full" onClick={handleSave} disabled={updateMutation.isPending}>
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Syllabus
           </Button>
