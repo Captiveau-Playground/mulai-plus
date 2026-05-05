@@ -373,6 +373,12 @@
   @apply bg-brand-navy/5 text-brand-navy;
 }
 
+/* Loading spinner fallback in mentor context */
+.mentor-page-bg .animate-spin,
+.mentor-section .animate-spin {
+  color: var(--mentor-teal) !important;
+}
+
 /* DialogTrigger / DropdownMenuTrigger wrapper — collapse so inner Button is the visible one */
 .mentor-page-bg [data-slot="dialog-trigger"],
 .mentor-section [data-slot="dialog-trigger"],

@@ -16,8 +16,14 @@ export function PageState({ isLoading = false, isAuthorized = true, children }: 
 
   if (isLoading) {
     return (
-      <div className="flex h-full w-full items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="mx-auto flex h-full w-full flex-col items-center justify-center gap-5 p-12">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-navy to-mentor-teal shadow-brand-navy/20 shadow-lg">
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
+        </div>
+        <div className="space-y-2 text-center">
+          <div className="mx-auto h-3 w-40 animate-pulse rounded-full bg-gray-200" />
+          <div className="mx-auto h-2.5 w-28 animate-pulse rounded-full bg-gray-100" />
+        </div>
       </div>
     );
   }
