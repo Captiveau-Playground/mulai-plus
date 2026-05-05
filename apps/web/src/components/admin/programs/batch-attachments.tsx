@@ -238,7 +238,7 @@ export function BatchAttachmentsDialog({
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 pt-4">
                 <FormField
                   control={form.control}
                   name="type"
@@ -291,50 +291,51 @@ export function BatchAttachmentsDialog({
                   )}
                 />
               </div>
+              <div className="grid grid-cols-1 gap-4">
+                <FormField
+                  control={form.control}
+                  name="sessionId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Link to Session (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            {field.value && field.value !== "none" ? (
+                              <SelectValue />
+                            ) : (
+                              <span className="text-muted-foreground">None</span>
+                            )}
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {sessions?.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              Week {s.week} - {s.type} ({format(new Date(s.startsAt), "MMM d")})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="sessionId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link to Session (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormField
+                  control={form.control}
+                  name="url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          {field.value && field.value !== "none" ? (
-                            <SelectValue />
-                          ) : (
-                            <span className="text-muted-foreground">None</span>
-                          )}
-                        </SelectTrigger>
+                        <Input placeholder="https://..." {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {sessions?.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            Week {s.week} - {s.type} ({format(new Date(s.startsAt), "MMM d")})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="flex justify-end space-x-2">
                 <Button

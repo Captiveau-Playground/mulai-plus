@@ -1,30 +1,69 @@
 "use client";
 
+import { FileText, GraduationCap, LayoutList, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+
+const tabs = [
+  { value: "attendance", label: "Attendance", icon: Users },
+  { value: "participants", label: "Participants", icon: GraduationCap },
+  { value: "curriculum", label: "Curriculum", icon: LayoutList },
+  { value: "attachments", label: "Resources", icon: FileText },
+];
 
 export function MentorBatchTabs({ batchId }: { batchId: string }) {
   const pathname = usePathname();
   const segments = pathname.split("/");
-  const currentTab = segments[segments.length - 1]; // e.g., 'attendance', 'curriculum', 'attachments', 'participants'
+  const currentTab = segments[segments.length - 1];
 
   return (
-    <Tabs value={currentTab} className="w-full">
-      <TabsList className="grid w-full max-w-[600px] grid-cols-4">
-        <Link href={`/mentor/batches/${batchId}/attendance` as any}>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-        </Link>
-        <Link href={`/mentor/batches/${batchId}/participants` as any}>
-          <TabsTrigger value="participants">Participants</TabsTrigger>
-        </Link>
-        <Link href={`/mentor/batches/${batchId}/curriculum` as any}>
-          <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-        </Link>
-        <Link href={`/mentor/batches/${batchId}/attachments` as any}>
-          <TabsTrigger value="attachments">Resources</TabsTrigger>
-        </Link>
-      </TabsList>
-    </Tabs>
+    <>
+      {/* Desktop: horizontal tabs */}
+      <div className="hidden gap-1 rounded-xl bg-white p-1 shadow-sm sm:flex">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = currentTab === tab.value;
+          return (
+            <Link
+              key={tab.value}
+              href={`/mentor/batches/${batchId}/${tab.value}` as any}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-2 font-manrope font-medium text-sm transition-all",
+                isActive
+                  ? "bg-brand-navy text-white shadow-sm"
+                  : "text-text-muted-custom hover:bg-gray-100 hover:text-text-main",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Mobile: card grid */}
+      <div className="grid grid-cols-2 gap-3 sm:hidden">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = currentTab === tab.value;
+          return (
+            <Link
+              key={tab.value}
+              href={`/mentor/batches/${batchId}/${tab.value}` as any}
+              className={cn(
+                "flex flex-col items-center gap-2 rounded-2xl border p-4 font-manrope font-medium text-sm transition-all",
+                isActive
+                  ? "border-mentor-teal/30 bg-mentor-teal/5 text-mentor-teal shadow-sm"
+                  : "border-gray-200 bg-white text-text-muted-custom shadow-sm hover:border-gray-300 hover:text-text-main",
+              )}
+            >
+              <Icon className="h-6 w-6" />
+              <span className="text-center text-xs">{tab.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }

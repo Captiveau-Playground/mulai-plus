@@ -62,12 +62,14 @@ export function ProgramInfo({ program }: { program: Program }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Program Information</CardTitle>
-        <CardDescription>Update the basic details of the program.</CardDescription>
+    <Card className="mentor-card">
+      <CardHeader className="bg-white">
+        <CardTitle className="font-bricolage text-lg text-text-main">Program Information</CardTitle>
+        <CardDescription className="font-manrope text-text-muted-custom">
+          Update the basic details of the program.
+        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="bg-white">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -112,7 +114,7 @@ export function ProgramInfo({ program }: { program: Program }) {
               />
             </div>
             <div className="flex justify-end">
-              <Button type="submit" disabled={updateMutation.isPending}>
+              <Button type="submit" className="btn-mentor rounded-full" disabled={updateMutation.isPending}>
                 {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>

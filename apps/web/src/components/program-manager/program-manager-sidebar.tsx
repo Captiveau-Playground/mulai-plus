@@ -31,7 +31,6 @@ const data = {
       title: "Dashboard",
       url: "/program-manager",
       icon: LayoutDashboard,
-      isActive: true,
     },
   ],
   navPrograms: [

@@ -9,6 +9,7 @@ import {
   Clock,
   GraduationCap,
   HelpCircle,
+  MessageCircle,
   Star,
   Users,
   Video,
@@ -67,7 +68,11 @@ export default function StudentProgramDetailPage() {
   };
 
   const getStatusLabel = (status: string, sessionDate: Date) => {
-    if (status === "scheduled" && isPast(sessionDate)) return "In Progress";
+    const now = new Date();
+    const endTime = new Date(sessionDate.getTime() + 60 * 60000);
+    const joinWindowStart = new Date(sessionDate.getTime() - 15 * 60 * 1000);
+    const isInProgress = status === "scheduled" && now >= joinWindowStart && now < endTime;
+    if (isInProgress) return "In Progress";
     return status;
   };
 
@@ -206,12 +211,10 @@ export default function StudentProgramDetailPage() {
                   href={program.batch.communityLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-green-500 py-3 font-manrope font-semibold text-white transition-all hover:bg-green-600"
+                  className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 font-manrope font-semibold text-white transition-all hover:bg-[#1ebe5d]"
                 >
-                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
-                  </svg>
-                  Join Community Group
+                  <MessageCircle className="h-5 w-5" />
+                  Join WhatsApp Group
                 </a>
               )}
             </CardContent>
@@ -237,10 +240,13 @@ export default function StudentProgramDetailPage() {
                 {program?.sessions && program.sessions.length > 0 ? (
                   <div className="space-y-4">
                     {program.sessions.map((session) => {
+                      const now = new Date();
                       const sessionDate = new Date(session.startsAt);
                       const endTime = new Date(sessionDate.getTime() + (session.durationMinutes || 60) * 60000);
                       const { bg, text, icon: Icon } = getSessionStatusBadge(session.status);
                       const isUpcoming = session.status === "scheduled" && !isPast(sessionDate);
+                      const joinWindowStart = new Date(sessionDate.getTime() - 15 * 60 * 1000);
+                      const isInProgress = session.status === "scheduled" && now >= joinWindowStart && now < endTime;
 
                       return (
                         <Card
@@ -282,9 +288,15 @@ export default function StudentProgramDetailPage() {
                               </div>
 
                               <div className="flex items-center gap-2">
-                                <Badge className={cn("flex items-center gap-1.5 border font-inter text-xs", bg, text)}>
-                                  <Icon className="h-4 w-4" />
-                                  {getStatusLabel(session.status, sessionDate)}
+                                <Badge
+                                  className={cn(
+                                    "flex items-center gap-1.5 border font-inter text-xs",
+                                    isInProgress ? "border-brand-orange/20 bg-brand-orange/10 text-brand-orange" : bg,
+                                    isInProgress ? "" : text,
+                                  )}
+                                >
+                                  {isInProgress ? <Video className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                                  {isInProgress ? "In Progress" : getStatusLabel(session.status, sessionDate)}
                                 </Badge>
                               </div>
                             </div>
@@ -326,14 +338,45 @@ export default function StudentProgramDetailPage() {
                                     {session.notes}
                                   </p>
                                 )}
-                                {session.meetingLink && session.status === "scheduled" && (
-                                  <a href={session.meetingLink} target="_blank" rel="noopener noreferrer">
-                                    <Button size="sm" className="btn-brand-red gap-2 rounded-full">
-                                      <Video className="h-4 w-4" />
-                                      Join Meeting
-                                    </Button>
-                                  </a>
-                                )}
+                                {(() => {
+                                  const now = new Date();
+                                  const endTime = new Date(
+                                    sessionDate.getTime() + (session.durationMinutes || 60) * 60000,
+                                  );
+                                  const joinWindowStart = new Date(sessionDate.getTime() - 15 * 60 * 1000);
+                                  const canJoin = session.meetingLink && now >= joinWindowStart && now < endTime;
+
+                                  if (canJoin) {
+                                    return (
+                                      <a href={session.meetingLink!} target="_blank" rel="noopener noreferrer">
+                                        <Button
+                                          size="sm"
+                                          className="btn-brand-red gap-2 rounded-full shadow-md hover:shadow-lg"
+                                        >
+                                          <Video className="h-4 w-4" />
+                                          Join Meeting
+                                        </Button>
+                                      </a>
+                                    );
+                                  }
+                                  if (session.status === "scheduled" && session.meetingLink && now < joinWindowStart) {
+                                    return (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-2 rounded-full border-gray-200"
+                                        disabled
+                                      >
+                                        <Clock className="h-4 w-4" />
+                                        Join available{" "}
+                                        {isToday(joinWindowStart)
+                                          ? format(joinWindowStart, "'at' h:mm a")
+                                          : format(joinWindowStart, "MMM d 'at' h:mm a")}
+                                      </Button>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </div>
                             </div>
                           </CardContent>

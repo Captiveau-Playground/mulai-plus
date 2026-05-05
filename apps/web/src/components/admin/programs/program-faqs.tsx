@@ -216,45 +216,48 @@ export function ProgramFaqs({ programId }: { programId: string }) {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="question"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Question</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. What is the duration?" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="answer"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Answer</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="The program lasts for..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="order"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Order</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 gap-4">
+                <FormField
+                  control={form.control}
+                  name="question"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Question</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. What is the duration?" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="answer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Answer</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="The program lasts for..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="order"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Order</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
@@ -319,45 +322,48 @@ function EditFaqDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="question"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Question</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Question" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="answer"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Answer</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Answer" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="order"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Order</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 gap-4">
+              <FormField
+                control={form.control}
+                name="question"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Question</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Question" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="answer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Answer</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Answer" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="order"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Order</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

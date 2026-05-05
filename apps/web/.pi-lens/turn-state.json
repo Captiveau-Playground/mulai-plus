@@ -1,0 +1,1313 @@
+{
+  "files": {
+    "src/app/(internal)/mentor/layout.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 50
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T15:58:17.835Z"
+    },
+    "src/components/mentor/mentor-sidebar.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 228
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T16:49:48.662Z"
+    },
+    "src/app/(internal)/mentor/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 364
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:28:36.848Z"
+    },
+    "src/app/(internal)/mentor/batches/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 251
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T13:09:01.363Z"
+    },
+    "src/app/(internal)/mentor/sessions/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 164,
+          "end": 174
+        },
+        {
+          "start": 177,
+          "end": 178
+        },
+        {
+          "start": 182,
+          "end": 182
+        },
+        {
+          "start": 187,
+          "end": 187
+        },
+        {
+          "start": 198,
+          "end": 198
+        },
+        {
+          "start": 212,
+          "end": 212
+        },
+        {
+          "start": 223,
+          "end": 223
+        },
+        {
+          "start": 236,
+          "end": 236
+        },
+        {
+          "start": 242,
+          "end": 242
+        },
+        {
+          "start": 248,
+          "end": 248
+        },
+        {
+          "start": 252,
+          "end": 260
+        },
+        {
+          "start": 263,
+          "end": 263
+        },
+        {
+          "start": 265,
+          "end": 266
+        },
+        {
+          "start": 271,
+          "end": 272
+        },
+        {
+          "start": 274,
+          "end": 285
+        },
+        {
+          "start": 289,
+          "end": 290
+        },
+        {
+          "start": 292,
+          "end": 293
+        },
+        {
+          "start": 296,
+          "end": 311
+        },
+        {
+          "start": 316,
+          "end": 319
+        },
+        {
+          "start": 323,
+          "end": 326
+        },
+        {
+          "start": 331,
+          "end": 331
+        },
+        {
+          "start": 333,
+          "end": 333
+        },
+        {
+          "start": 337,
+          "end": 337
+        },
+        {
+          "start": 343,
+          "end": 343
+        },
+        {
+          "start": 350,
+          "end": 350
+        },
+        {
+          "start": 368,
+          "end": 368
+        },
+        {
+          "start": 388,
+          "end": 494
+        },
+        {
+          "start": 528,
+          "end": 528
+        },
+        {
+          "start": 546,
+          "end": 573
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T08:29:18.146Z"
+    },
+    "src/components/mentor/mentor-batch-tabs.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 67
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T16:35:15.601Z"
+    },
+    "src/app/(internal)/mentor/batches/[batchId]/attendance/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 353
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T16:42:47.492Z"
+    },
+    "src/app/(internal)/mentor/batches/[batchId]/participants/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 118
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T16:42:47.773Z"
+    },
+    "src/app/(internal)/mentor/batches/[batchId]/curriculum/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 143
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T16:42:47.791Z"
+    },
+    "src/app/(internal)/mentor/batches/[batchId]/attachments/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 64
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T16:42:20.170Z"
+    },
+    "src/components/admin/programs/batch-sessions-calendar.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 70,
+          "end": 71
+        },
+        {
+          "start": 86,
+          "end": 86
+        },
+        {
+          "start": 88,
+          "end": 88
+        },
+        {
+          "start": 90,
+          "end": 90
+        },
+        {
+          "start": 107,
+          "end": 108
+        },
+        {
+          "start": 122,
+          "end": 123
+        },
+        {
+          "start": 129,
+          "end": 130
+        },
+        {
+          "start": 145,
+          "end": 145
+        },
+        {
+          "start": 147,
+          "end": 147
+        },
+        {
+          "start": 149,
+          "end": 150
+        },
+        {
+          "start": 161,
+          "end": 161
+        },
+        {
+          "start": 172,
+          "end": 172
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T11:55:19.642Z"
+    },
+    "src/components/mentor/sessions/session-create-dialog.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 10,
+          "end": 10
+        },
+        {
+          "start": 121,
+          "end": 124
+        },
+        {
+          "start": 130,
+          "end": 130
+        },
+        {
+          "start": 143,
+          "end": 144
+        },
+        {
+          "start": 146,
+          "end": 156
+        },
+        {
+          "start": 172,
+          "end": 172
+        },
+        {
+          "start": 175,
+          "end": 177
+        },
+        {
+          "start": 185,
+          "end": 191
+        },
+        {
+          "start": 198,
+          "end": 198
+        },
+        {
+          "start": 212,
+          "end": 212
+        },
+        {
+          "start": 217,
+          "end": 218
+        },
+        {
+          "start": 221,
+          "end": 221
+        },
+        {
+          "start": 227,
+          "end": 227
+        },
+        {
+          "start": 235,
+          "end": 239
+        },
+        {
+          "start": 244,
+          "end": 244
+        },
+        {
+          "start": 302,
+          "end": 302
+        },
+        {
+          "start": 305,
+          "end": 306
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T12:41:23.659Z"
+    },
+    "src/components/mentor/sessions/session-update-dialog.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 124,
+          "end": 124
+        },
+        {
+          "start": 126,
+          "end": 127
+        },
+        {
+          "start": 132,
+          "end": 133
+        },
+        {
+          "start": 170,
+          "end": 175
+        },
+        {
+          "start": 196,
+          "end": 196
+        },
+        {
+          "start": 209,
+          "end": 209
+        },
+        {
+          "start": 223,
+          "end": 223
+        },
+        {
+          "start": 225,
+          "end": 232
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T12:41:45.912Z"
+    },
+    "src/components/mentor/batch-participants.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 64
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T11:45:47.791Z"
+    },
+    "src/components/mentor/batch-attachments.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 160,
+          "end": 160
+        },
+        {
+          "start": 162,
+          "end": 165
+        },
+        {
+          "start": 168,
+          "end": 168
+        },
+        {
+          "start": 174,
+          "end": 174
+        },
+        {
+          "start": 188,
+          "end": 189
+        },
+        {
+          "start": 206,
+          "end": 206
+        },
+        {
+          "start": 212,
+          "end": 212
+        },
+        {
+          "start": 234,
+          "end": 234
+        },
+        {
+          "start": 240,
+          "end": 240
+        },
+        {
+          "start": 270,
+          "end": 347
+        },
+        {
+          "start": 362,
+          "end": 362
+        },
+        {
+          "start": 371,
+          "end": 376
+        },
+        {
+          "start": 397,
+          "end": 398
+        },
+        {
+          "start": 401,
+          "end": 469
+        },
+        {
+          "start": 471,
+          "end": 472
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T16:43:58.175Z"
+    },
+    "src/components/dashboard-header.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 3,
+          "end": 5
+        },
+        {
+          "start": 7,
+          "end": 11
+        },
+        {
+          "start": 14,
+          "end": 17
+        },
+        {
+          "start": 19,
+          "end": 19
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-03T16:41:57.858Z"
+    },
+    "src/app/(internal)/layout.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 44,
+          "end": 44
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T16:10:54.917Z"
+    },
+    "src/components/student-sidebar.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 105,
+          "end": 105
+        },
+        {
+          "start": 119,
+          "end": 119
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T16:50:10.606Z"
+    },
+    "src/app/(internal)/program-manager/programs/mentors/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 14,
+          "end": 15
+        },
+        {
+          "start": 17,
+          "end": 18
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:33:43.182Z"
+    },
+    "src/app/(internal)/program-manager/programs/mentors/[mentorId]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 20,
+          "end": 20
+        },
+        {
+          "start": 24,
+          "end": 24
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:34:06.592Z"
+    },
+    "src/components/admin/programs/mentor-list.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 549
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T09:46:06.510Z"
+    },
+    "src/components/admin/programs/program-participants.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 4,
+          "end": 4
+        },
+        {
+          "start": 19,
+          "end": 31
+        },
+        {
+          "start": 33,
+          "end": 33
+        },
+        {
+          "start": 40,
+          "end": 40
+        },
+        {
+          "start": 45,
+          "end": 46
+        },
+        {
+          "start": 49,
+          "end": 49
+        },
+        {
+          "start": 53,
+          "end": 59
+        },
+        {
+          "start": 62,
+          "end": 62
+        },
+        {
+          "start": 64,
+          "end": 76
+        },
+        {
+          "start": 80,
+          "end": 82
+        },
+        {
+          "start": 85,
+          "end": 96
+        },
+        {
+          "start": 98,
+          "end": 105
+        },
+        {
+          "start": 107,
+          "end": 113
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T06:36:36.106Z"
+    },
+    "src/components/admin/programs/program-applications.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 4,
+          "end": 4
+        },
+        {
+          "start": 80,
+          "end": 94
+        },
+        {
+          "start": 96,
+          "end": 99
+        },
+        {
+          "start": 103,
+          "end": 103
+        },
+        {
+          "start": 105,
+          "end": 105
+        },
+        {
+          "start": 107,
+          "end": 157
+        },
+        {
+          "start": 159,
+          "end": 273
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T06:43:40.510Z"
+    },
+    "src/components/admin/programs/program-info.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 65,
+          "end": 70
+        },
+        {
+          "start": 72,
+          "end": 72
+        },
+        {
+          "start": 115,
+          "end": 115
+        },
+        {
+          "start": 117,
+          "end": 117
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:38:30.978Z"
+    },
+    "src/components/admin/programs/program-detail.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 21,
+          "end": 21
+        },
+        {
+          "start": 29,
+          "end": 29
+        },
+        {
+          "start": 38,
+          "end": 39
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:39:16.178Z"
+    },
+    "src/components/admin/programs/program-list.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 132,
+          "end": 133
+        },
+        {
+          "start": 135,
+          "end": 135
+        },
+        {
+          "start": 140,
+          "end": 140
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:39:37.624Z"
+    },
+    "src/app/(internal)/program-manager/programs/analytics/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 25,
+          "end": 25
+        },
+        {
+          "start": 28,
+          "end": 28
+        },
+        {
+          "start": 32,
+          "end": 33
+        },
+        {
+          "start": 113,
+          "end": 114
+        },
+        {
+          "start": 116,
+          "end": 117
+        },
+        {
+          "start": 122,
+          "end": 123
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:51:54.501Z"
+    },
+    "src/app/(internal)/program-manager/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 11,
+          "end": 14
+        },
+        {
+          "start": 17,
+          "end": 62
+        },
+        {
+          "start": 64,
+          "end": 64
+        },
+        {
+          "start": 68,
+          "end": 75
+        },
+        {
+          "start": 84,
+          "end": 85
+        },
+        {
+          "start": 88,
+          "end": 88
+        },
+        {
+          "start": 92,
+          "end": 92
+        },
+        {
+          "start": 94,
+          "end": 96
+        },
+        {
+          "start": 98,
+          "end": 100
+        },
+        {
+          "start": 103,
+          "end": 104
+        },
+        {
+          "start": 106,
+          "end": 108
+        },
+        {
+          "start": 110,
+          "end": 115
+        },
+        {
+          "start": 118,
+          "end": 129
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:40:48.395Z"
+    },
+    "src/app/(internal)/admin/(core)/programs/mentors/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 14,
+          "end": 15
+        },
+        {
+          "start": 17,
+          "end": 18
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:41:12.227Z"
+    },
+    "src/app/(internal)/admin/(core)/programs/mentors/[mentorId]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 20,
+          "end": 20
+        },
+        {
+          "start": 24,
+          "end": 24
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:41:29.490Z"
+    },
+    "src/app/(internal)/admin/(core)/programs/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 14,
+          "end": 14
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:41:47.165Z"
+    },
+    "src/app/(internal)/admin/(core)/programs/[id]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 18,
+          "end": 18
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:42:01.277Z"
+    },
+    "src/app/(internal)/program-manager/programs/[id]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 18,
+          "end": 18
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:42:18.697Z"
+    },
+    "src/app/(internal)/program-manager/programs/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 14,
+          "end": 14
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:42:34.460Z"
+    },
+    "src/app/(internal)/program-manager/layout.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 24,
+          "end": 24
+        },
+        {
+          "start": 26,
+          "end": 26
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:56:51.601Z"
+    },
+    "src/components/admin/site-header.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 23,
+          "end": 23
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:50:17.623Z"
+    },
+    "src/app/(internal)/admin/layout.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 24,
+          "end": 24
+        },
+        {
+          "start": 26,
+          "end": 26
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:57:57.731Z"
+    },
+    "src/app/(internal)/program-manager/programs/testimonials/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 14,
+          "end": 14
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:51:30.958Z"
+    },
+    "src/components/admin/programs/program-batches.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 119,
+          "end": 126
+        },
+        {
+          "start": 143,
+          "end": 143
+        },
+        {
+          "start": 279,
+          "end": 286
+        },
+        {
+          "start": 614,
+          "end": 629
+        },
+        {
+          "start": 729,
+          "end": 729
+        },
+        {
+          "start": 997,
+          "end": 997
+        },
+        {
+          "start": 1009,
+          "end": 1057
+        },
+        {
+          "start": 1119,
+          "end": 1120
+        },
+        {
+          "start": 1337,
+          "end": 1387
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T09:44:12.132Z"
+    },
+    "src/app/(internal)/admin/(core)/programs/testimonials/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 14,
+          "end": 14
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:52:49.013Z"
+    },
+    "src/app/(internal)/admin/(core)/programs/analytics/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 243
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T06:53:33.639Z"
+    },
+    "src/components/nav-main.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 5,
+          "end": 5
+        },
+        {
+          "start": 35,
+          "end": 36
+        },
+        {
+          "start": 42,
+          "end": 44
+        },
+        {
+          "start": 48,
+          "end": 48
+        },
+        {
+          "start": 58,
+          "end": 62
+        },
+        {
+          "start": 68,
+          "end": 74
+        },
+        {
+          "start": 79,
+          "end": 89
+        },
+        {
+          "start": 94,
+          "end": 94
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T07:05:45.767Z"
+    },
+    "src/components/program-manager/program-manager-sidebar.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 34,
+          "end": 34
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T07:08:07.245Z"
+    },
+    "src/components/admin/admin-sidebar.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 35,
+          "end": 35
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T07:08:31.721Z"
+    },
+    "src/components/admin/programs/program-syllabus.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 89,
+          "end": 94
+        },
+        {
+          "start": 96,
+          "end": 103
+        },
+        {
+          "start": 109,
+          "end": 109
+        },
+        {
+          "start": 111,
+          "end": 111
+        },
+        {
+          "start": 118,
+          "end": 121
+        },
+        {
+          "start": 125,
+          "end": 125
+        },
+        {
+          "start": 127,
+          "end": 128
+        },
+        {
+          "start": 130,
+          "end": 130
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T07:34:51.071Z"
+    },
+    "src/app/(app)/dashboard/student/schedule/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 85,
+          "end": 85
+        },
+        {
+          "start": 87,
+          "end": 94
+        },
+        {
+          "start": 97,
+          "end": 102
+        },
+        {
+          "start": 105,
+          "end": 106
+        },
+        {
+          "start": 130,
+          "end": 131
+        },
+        {
+          "start": 134,
+          "end": 135
+        },
+        {
+          "start": 139,
+          "end": 139
+        },
+        {
+          "start": 142,
+          "end": 142
+        },
+        {
+          "start": 144,
+          "end": 149
+        },
+        {
+          "start": 153,
+          "end": 155
+        },
+        {
+          "start": 170,
+          "end": 170
+        },
+        {
+          "start": 182,
+          "end": 182
+        },
+        {
+          "start": 189,
+          "end": 192
+        },
+        {
+          "start": 220,
+          "end": 220
+        },
+        {
+          "start": 222,
+          "end": 223
+        },
+        {
+          "start": 230,
+          "end": 230
+        },
+        {
+          "start": 232,
+          "end": 233
+        },
+        {
+          "start": 263,
+          "end": 263
+        },
+        {
+          "start": 265,
+          "end": 265
+        },
+        {
+          "start": 270,
+          "end": 270
+        },
+        {
+          "start": 273,
+          "end": 273
+        },
+        {
+          "start": 275,
+          "end": 275
+        },
+        {
+          "start": 280,
+          "end": 288
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T08:01:13.118Z"
+    },
+    "src/app/(app)/dashboard/student/programs/[id]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 12,
+          "end": 12
+        },
+        {
+          "start": 70,
+          "end": 75
+        },
+        {
+          "start": 209,
+          "end": 209
+        },
+        {
+          "start": 211,
+          "end": 214
+        },
+        {
+          "start": 216,
+          "end": 217
+        },
+        {
+          "start": 243,
+          "end": 243
+        },
+        {
+          "start": 247,
+          "end": 249
+        },
+        {
+          "start": 288,
+          "end": 300
+        },
+        {
+          "start": 329,
+          "end": 360
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T09:59:51.401Z"
+    },
+    "src/components/ui/input.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 9,
+          "end": 9
+        },
+        {
+          "start": 15,
+          "end": 15
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T08:23:01.973Z"
+    },
+    "src/components/ui/select.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 28,
+          "end": 28
+        },
+        {
+          "start": 30,
+          "end": 30
+        },
+        {
+          "start": 34,
+          "end": 34
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T08:24:04.159Z"
+    },
+    "src/components/ui/textarea.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 8,
+          "end": 8
+        },
+        {
+          "start": 13,
+          "end": 13
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T08:24:56.396Z"
+    },
+    "src/components/admin/user-actions-dialogs.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 32,
+          "end": 169
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T10:00:29.399Z"
+    },
+    "src/app/(internal)/admin/(infra)/users/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 3,
+          "end": 5
+        },
+        {
+          "start": 7,
+          "end": 7
+        },
+        {
+          "start": 14,
+          "end": 18
+        },
+        {
+          "start": 21,
+          "end": 30
+        },
+        {
+          "start": 32,
+          "end": 37
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T09:23:29.808Z"
+    },
+    "src/components/ui/page-state.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 19,
+          "end": 26
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T09:40:23.718Z"
+    },
+    "src/components/ui/skeleton.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 97
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T09:42:21.119Z"
+    },
+    "src/app/(app)/dashboard/student/layout.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 11,
+          "end": 11
+        },
+        {
+          "start": 22,
+          "end": 22
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T09:59:03.443Z"
+    }
+  },
+  "turnCycles": 0,
+  "maxCycles": 3,
+  "lastUpdated": "2026-05-05T10:00:29.400Z"
+}

@@ -17,11 +17,11 @@ export default function AdminMentorDetailPage() {
 
   return (
     <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
-      <div className="min-h-screen flex-1 rounded-xl bg-muted/50 p-4 md:min-h-min">
+      <div className="mentor-page-bg min-h-screen flex-1 rounded-xl bg-bg-light p-4 md:min-h-min">
         <div className="mb-6">
           <Link
             href="/admin/programs/mentors"
-            className="mb-4 inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
+            className="mb-4 inline-flex items-center gap-2 font-manrope text-sm text-text-muted-custom transition-colors hover:text-text-main"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Mentors

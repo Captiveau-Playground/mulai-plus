@@ -122,7 +122,7 @@ function BatchAttendanceDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky left-0 z-10 w-[200px] min-w-[200px] bg-background">Student</TableHead>
+                    <TableHead className="sticky left-0 z-10 w-[200px] min-w-[200px] bg-white">Student</TableHead>
                     {weeks.map((week) => (
                       <TableHead key={week} className="min-w-[120px]">
                         Week {week}
@@ -140,7 +140,7 @@ function BatchAttendanceDialog({
                   ) : (
                     data?.participants.map((student) => (
                       <TableRow key={student.id}>
-                        <TableCell className="sticky left-0 z-10 bg-background font-medium">{student.name}</TableCell>
+                        <TableCell className="sticky left-0 z-10 bg-white font-medium">{student.name}</TableCell>
                         {weeks.map((week) => (
                           <TableCell key={week}>
                             <div className="flex flex-col gap-1">
@@ -726,7 +726,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create Batch</DialogTitle>
             <DialogDescription>Add a new batch to this program.</DialogDescription>
@@ -746,7 +746,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 pt-4">
                 <FormField
                   control={form.control}
                   name="startDate"
@@ -944,6 +944,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
                   )}
                 />
               </div>
+
               <FormField
                 control={form.control}
                 name="bannerUrl"
@@ -957,43 +958,46 @@ export function ProgramBatches({ programId }: { programId: string }) {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="communityLink"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Community Link (WhatsApp)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://chat.whatsapp.com/..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <div className="grid grid-cols-1 gap-4 pt-4">
+                <FormField
+                  control={form.control}
+                  name="communityLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Community Link (WhatsApp)</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <Input placeholder="https://chat.whatsapp.com/..." {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="upcoming">Upcoming</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                        <SelectItem value="running">Running</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="upcoming">Upcoming</SelectItem>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                          <SelectItem value="running">Running</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
@@ -1017,7 +1021,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           isPending={updateMutation.isPending}
         />
       )}
-
       {mentorBatchId && (
         <BatchMentorsDialog
           batchId={mentorBatchId}
@@ -1025,7 +1028,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setMentorBatchId(null)}
         />
       )}
-
       {attendanceBatch && (
         <BatchAttendanceDialog
           batch={attendanceBatch}
@@ -1033,7 +1035,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setAttendanceBatch(null)}
         />
       )}
-
       {timelineBatch && (
         <BatchTimelineDialog
           batch={timelineBatch}
@@ -1041,7 +1042,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setTimelineBatch(null)}
         />
       )}
-
       {sessionsBatch && (
         <BatchSessionsDialog
           batch={sessionsBatch}
@@ -1049,7 +1049,6 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setSessionsBatch(null)}
         />
       )}
-
       {attachmentsBatch && (
         <BatchAttachmentsDialog
           batch={attachmentsBatch}
@@ -1117,7 +1116,7 @@ function EditBatchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit Batch</DialogTitle>
           <DialogDescription>Edit batch details.</DialogDescription>
@@ -1137,7 +1136,7 @@ function EditBatchDialog({
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 pt-4">
               <FormField
                 control={form.control}
                 name="startDate"
@@ -1334,6 +1333,8 @@ function EditBatchDialog({
                   </FormItem>
                 )}
               />
+            </div>
+            <div className="grid grid-cols-1 gap-4">
               <FormField
                 control={form.control}
                 name="bannerUrl"
@@ -1385,6 +1386,7 @@ function EditBatchDialog({
                 )}
               />
             </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
