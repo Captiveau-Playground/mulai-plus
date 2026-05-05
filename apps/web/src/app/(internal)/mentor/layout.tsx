@@ -1,10 +1,32 @@
 "use client";
 
-import { SiteHeader } from "@/components/admin/site-header";
+import DashboardFooter from "@/components/dashboard-footer";
+import DashboardHeader from "@/components/dashboard-header";
 import { MentorSidebar } from "@/components/mentor/mentor-sidebar";
 import { PageState } from "@/components/ui/page-state";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { useAuthorizePage } from "@/lib/auth-client";
+
+function MentorDashboardContent({ children }: { children: React.ReactNode }) {
+  const { setOpenMobile } = useSidebar();
+
+  const handleNavigate = () => {
+    setOpenMobile(false);
+  };
+
+  return (
+    <>
+      <MentorSidebar onNavigate={handleNavigate} />
+      <SidebarInset className="mentor-page-bg overflow-x-hidden">
+        <div className="flex min-h-screen min-w-0 flex-col">
+          <DashboardHeader />
+          <div className="min-w-0 flex-1">{children}</div>
+          <DashboardFooter />
+        </div>
+      </SidebarInset>
+    </>
+  );
+}
 
 export default function MentorLayout({ children }: { children: React.ReactNode }) {
   const { isAuthorized, isLoading } = useAuthorizePage({
@@ -16,15 +38,11 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
       <SidebarProvider
         style={
           {
-            "--sidebar-width": "16rem",
+            "--sidebar-width": "280px",
           } as React.CSSProperties
         }
       >
-        <MentorSidebar variant="inset" />
-        <SidebarInset>
-          <SiteHeader />
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-4">{children}</div>
-        </SidebarInset>
+        <MentorDashboardContent>{children}</MentorDashboardContent>
       </SidebarProvider>
     </PageState>
   );

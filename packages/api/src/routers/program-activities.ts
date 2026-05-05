@@ -195,7 +195,7 @@ export const programActivitiesRouter = {
           throw new Error("Unauthorized: You are not assigned to this batch");
         }
 
-        // Verify session ownership
+        // Verify session exists for this mentor, batch, week, and student
         const session = await db.query.programSession.findFirst({
           where: and(
             eq(programSession.batchId, input.batchId),
@@ -206,7 +206,7 @@ export const programActivitiesRouter = {
         });
 
         if (!session) {
-          throw new Error("Unauthorized: You are not assigned to this session week for this student");
+          throw new Error("No session scheduled for this student in this week");
         }
 
         const existing = await db.query.programAttendance.findFirst({

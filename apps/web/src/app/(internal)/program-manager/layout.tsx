@@ -21,9 +21,9 @@ export default function ProgramManagerLayout({ children }: { children: React.Rea
         }
       >
         <ProgramManagerSidebar variant="inset" />
-        <SidebarInset>
+        <SidebarInset className="!bg-bg-light">
           <SiteHeader />
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-4">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 pt-4">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </PageState>

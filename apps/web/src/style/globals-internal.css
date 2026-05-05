@@ -37,6 +37,32 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Brand Colors - Navy */
+  --brand-navy: #1a1f6d;
+  --brand-navy-light: #272c75;
+
+  /* Brand Colors - Accent */
+  --brand-orange: #fe9114;
+  --brand-red: #f93447;
+  --brand-red-orange: #fb632e;
+
+  /* Mentor Brand - Teal accent differentiator */
+  --mentor-teal: #0d9488;
+  --mentor-teal-light: #14b8a6;
+  --mentor-teal-dark: #0f766e;
+
+  /* Text Colors */
+  --text-main: #333333;
+  --text-muted-custom: #888888;
+  --text-light-blue: #b9e1fe;
+  --text-lighter-blue: #bfd6ff;
+
+  /* Background Colors */
+  --bg-beige: #f7ede1;
+  --bg-pink: #f6e2e5;
+  --bg-light-blue: #e0e0e9;
+  --bg-light: #f8f9fc;
 }
 
 .dark {
@@ -75,6 +101,9 @@
 
 @theme inline {
   --font-sans: "Inter Variable", sans-serif;
+  --font-bricolage: var(--font-bricolage);
+  --font-manrope: var(--font-manrope);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -113,6 +142,32 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Brand Colors - Navy */
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-light: var(--brand-navy-light);
+
+  /* Brand Colors - Accent */
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-red: var(--brand-red);
+  --color-brand-red-orange: var(--brand-red-orange);
+
+  /* Mentor Brand - Teal */
+  --color-mentor-teal: var(--mentor-teal);
+  --color-mentor-teal-light: var(--mentor-teal-light);
+  --color-mentor-teal-dark: var(--mentor-teal-dark);
+
+  /* Text Colors */
+  --color-text-main: var(--text-main);
+  --color-text-muted-custom: var(--text-muted-custom);
+  --color-text-light-blue: var(--text-light-blue);
+  --color-text-lighter-blue: var(--text-lighter-blue);
+
+  /* Background Colors */
+  --color-bg-beige: var(--bg-beige);
+  --color-bg-pink: var(--bg-pink);
+  --color-bg-light-blue: var(--bg-light-blue);
+  --color-bg-light: var(--bg-light);
 }
 
 @layer base {
@@ -125,4 +180,1208 @@
   html {
     @apply font-sans;
   }
+}
+
+/* Typography Utilities */
+.font-bricolage {
+  font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
+}
+
+.font-manrope {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif;
+}
+
+/* Mentor Dashboard Styles */
+.mentor-card {
+  @apply rounded-2xl border-0 bg-white shadow-md transition-all hover:shadow-lg;
+}
+
+.mentor-card-hover {
+  @apply transition-all hover:-translate-y-1 hover:shadow-lg;
+}
+
+.gradient-mentor {
+  @apply bg-gradient-to-br from-brand-navy to-mentor-teal;
+}
+
+.gradient-mentor-accent {
+  @apply bg-gradient-to-r from-mentor-teal to-mentor-teal-light;
+}
+
+.icon-box-mentor {
+  @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-mentor-teal md:h-14 md:w-14;
+}
+
+.icon-box-navy {
+  @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-navy md:h-14 md:w-14;
+}
+
+.icon-box-light {
+  @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-navy/10 md:h-14 md:w-14;
+}
+
+.btn-mentor {
+  @apply bg-mentor-teal text-white hover:bg-mentor-teal-dark;
+}
+
+.text-mentor {
+  @apply text-mentor-teal;
+}
+
+.badge-mentor {
+  @apply bg-mentor-teal text-white;
+}
+
+/* ─── Mentor Design System Overrides ─── */
+
+/* Page layout */
+.mentor-page-bg {
+  background-color: var(--bg-light);
+}
+
+/* Fix all shadcn text colors inside mentor context */
+.mentor-page-bg .text-muted-foreground,
+.mentor-section .text-muted-foreground {
+  color: var(--text-muted-custom) !important;
+}
+
+/* Card styling inside mentor */
+.mentor-page-bg [data-slot="card"],
+.mentor-section [data-slot="card"] {
+  background-color: white;
+  border: none;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+}
+
+.mentor-page-bg [data-slot="card-header"],
+.mentor-section [data-slot="card-header"] {
+  background-color: white;
+}
+
+.mentor-page-bg [data-slot="card-title"],
+.mentor-section [data-slot="card-title"] {
+  color: var(--text-main);
+}
+
+.mentor-page-bg [data-slot="card-description"],
+.mentor-section [data-slot="card-description"] {
+  color: var(--text-muted-custom);
+}
+
+.mentor-page-bg [data-slot="card-content"],
+.mentor-section [data-slot="card-content"] {
+  background-color: white;
+}
+
+/* Dialog styling inside mentor context */
+.mentor-page-bg [data-slot="dialog-content"],
+.mentor-section [data-slot="dialog-content"] {
+  border: none;
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.12);
+}
+
+.mentor-page-bg [data-slot="dialog-header"] [data-slot="dialog-title"],
+.mentor-section [data-slot="dialog-header"] [data-slot="dialog-title"] {
+  @apply font-bricolage font-bold text-brand-navy;
+}
+
+.mentor-page-bg [data-slot="dialog-header"] [data-slot="dialog-description"],
+.mentor-section [data-slot="dialog-header"] [data-slot="dialog-description"] {
+  color: var(--text-muted-custom);
+}
+
+/* Table styling inside mentor */
+.mentor-page-bg table,
+.mentor-section table {
+  --table-color: var(--text-main);
+}
+
+.mentor-page-bg [data-slot="table-header"] [data-slot="table-row"],
+.mentor-section [data-slot="table-header"] [data-slot="table-row"] {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.mentor-page-bg [data-slot="table-head"],
+.mentor-section [data-slot="table-head"] {
+  @apply font-manrope font-semibold text-text-muted-custom text-xs uppercase tracking-wider;
+}
+
+.mentor-page-bg [data-slot="table-cell"],
+.mentor-section [data-slot="table-cell"] {
+  color: var(--text-main);
+}
+
+.mentor-page-bg [data-slot="table-row"],
+.mentor-section [data-slot="table-row"] {
+  transition: background-color 0.15s ease;
+}
+
+.mentor-page-bg [data-slot="table-row"]:hover,
+.mentor-section [data-slot="table-row"]:hover {
+  background-color: var(--bg-light) !important;
+}
+
+/* Tabs styling inside mentor */
+.mentor-page-bg [data-slot="tabs-list"],
+.mentor-section [data-slot="tabs-list"] {
+  @apply rounded-xl bg-white p-1 shadow-sm;
+}
+
+.mentor-page-bg [data-slot="tabs-trigger"],
+.mentor-section [data-slot="tabs-trigger"] {
+  @apply rounded-lg font-manrope font-medium text-text-muted-custom text-sm transition-all;
+}
+
+.mentor-page-bg [data-slot="tabs-trigger"][data-state="active"],
+.mentor-section [data-slot="tabs-trigger"][data-state="active"] {
+  @apply bg-brand-navy text-white shadow-sm;
+}
+
+/* Select styling inside mentor */
+.mentor-page-bg [data-slot="select-trigger"],
+.mentor-section [data-slot="select-trigger"] {
+  @apply rounded-xl border-gray-200 bg-white font-manrope text-text-main;
+  border: 1px solid #e5e7eb !important;
+  background-color: white !important;
+  height: 2.75rem !important;
+}
+
+.mentor-page-bg [data-slot="select-trigger"]:focus-visible,
+.mentor-section [data-slot="select-trigger"]:focus-visible {
+  outline: none !important;
+  border-color: var(--brand-navy) !important;
+  box-shadow: 0 0 0 2px rgba(26, 31, 109, 0.1) !important;
+}
+
+.mentor-page-bg [data-slot="select-content"],
+.mentor-section [data-slot="select-content"] {
+  @apply rounded-xl border-0 bg-white shadow-lg;
+}
+
+.mentor-page-bg [data-slot="select-item"],
+.mentor-section [data-slot="select-item"] {
+  @apply font-manrope text-text-main;
+}
+
+.mentor-page-bg [data-slot="select-item"]:hover,
+.mentor-section [data-slot="select-item"]:hover {
+  @apply bg-brand-navy/5 text-brand-navy;
+}
+
+.mentor-page-bg [data-slot="select-item"][data-highlighted],
+.mentor-section [data-slot="select-item"][data-highlighted] {
+  @apply bg-brand-navy/5 text-brand-navy;
+}
+
+/* Loading spinner fallback in mentor context */
+.mentor-page-bg .animate-spin,
+.mentor-section .animate-spin {
+  color: var(--mentor-teal) !important;
+}
+
+/* DialogTrigger / DropdownMenuTrigger wrapper — collapse so inner Button is the visible one */
+.mentor-page-bg [data-slot="dialog-trigger"],
+.mentor-section [data-slot="dialog-trigger"],
+.mentor-page-bg [data-slot="dropdown-menu-trigger"],
+.mentor-section [data-slot="dropdown-menu-trigger"] {
+  all: unset !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+}
+
+/* ─── Button styling inside mentor — all variants ─── */
+/* Using raw CSS variables + !important to always beat shadcn classes */
+
+/* Default variant — teal rounded-full */
+.mentor-page-bg [data-slot="button"]:where([data-variant="default"]),
+.mentor-section [data-slot="button"]:where([data-variant="default"]) {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
+  padding: 0 1.25rem !important;
+  border: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.mentor-page-bg [data-slot="button"]:where([data-variant="default"]):hover,
+.mentor-section [data-slot="button"]:where([data-variant="default"]):hover {
+  background-color: var(--mentor-teal-dark) !important;
+}
+
+/* Outline variant — white rounded-full */
+.mentor-page-bg [data-slot="button"]:where([data-variant="outline"]),
+.mentor-section [data-slot="button"]:where([data-variant="outline"]) {
+  background-color: white !important;
+  color: var(--text-main) !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
+  padding: 0 1.25rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.mentor-page-bg [data-slot="button"]:where([data-variant="outline"]):hover,
+.mentor-section [data-slot="button"]:where([data-variant="outline"]):hover {
+  background-color: rgba(13, 148, 136, 0.05) !important;
+  border-color: rgba(13, 148, 136, 0.3) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* Ghost variant — muted text, teal hover */
+.mentor-page-bg [data-slot="button"]:where([data-variant="ghost"]),
+.mentor-section [data-slot="button"]:where([data-variant="ghost"]) {
+  border-radius: 0.5rem !important;
+  color: var(--text-muted-custom) !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  transition: all 0.15s ease !important;
+}
+
+.mentor-page-bg [data-slot="button"]:where([data-variant="ghost"]):hover,
+.mentor-section [data-slot="button"]:where([data-variant="ghost"]):hover {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* Secondary variant */
+.mentor-page-bg [data-slot="button"]:where([data-variant="secondary"]),
+.mentor-section [data-slot="button"]:where([data-variant="secondary"]) {
+  border-radius: 0.75rem !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+}
+
+/* Destructive variant — rounded-full */
+.mentor-page-bg [data-slot="button"]:where([data-variant="destructive"]),
+.mentor-section [data-slot="button"]:where([data-variant="destructive"]) {
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
+}
+
+/* Form labels */
+.mentor-page-bg [data-slot="form-label"],
+.mentor-section [data-slot="form-label"] {
+  @apply font-manrope font-semibold text-text-main;
+  font-size: 0.8125rem !important;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Raw Label component */
+.mentor-page-bg [data-slot="label"],
+.mentor-section [data-slot="label"] {
+  @apply font-manrope font-semibold text-text-main;
+  font-size: 0.8125rem !important;
+  margin-bottom: 0.25rem;
+}
+
+.mentor-page-bg [data-slot="form-item-description"],
+.mentor-section [data-slot="form-item-description"] {
+  color: var(--text-muted-custom);
+}
+
+/* Input fields — page level */
+.mentor-page-bg input[type="text"],
+.mentor-page-bg input[type="email"],
+.mentor-page-bg input[type="url"],
+.mentor-page-bg input[type="number"],
+.mentor-page-bg input[type="datetime-local"],
+.mentor-page-bg textarea,
+.mentor-section input[type="text"],
+.mentor-section input[type="email"],
+.mentor-section input[type="url"],
+.mentor-section input[type="number"],
+.mentor-section input[type="datetime-local"],
+.mentor-section textarea {
+  @apply rounded-xl border-gray-200 bg-white font-manrope text-text-main placeholder:text-text-muted-custom;
+  border: 1px solid #e5e7eb !important;
+  background-color: white !important;
+}
+
+/* Badge styling inside mentor */
+.mentor-page-bg [data-slot="badge"],
+.mentor-section [data-slot="badge"] {
+  @apply font-manrope font-medium;
+}
+
+.mentor-page-bg [data-slot="badge"]:where([data-variant="default"]),
+.mentor-section [data-slot="badge"]:where([data-variant="default"]) {
+  @apply bg-mentor-teal text-white;
+}
+
+.mentor-page-bg [data-slot="badge"]:where([data-variant="secondary"]),
+.mentor-section [data-slot="badge"]:where([data-variant="secondary"]) {
+  @apply bg-gray-100 text-text-muted-custom;
+}
+
+/* Avatar */
+.mentor-page-bg [data-slot="avatar-fallback"],
+.mentor-section [data-slot="avatar-fallback"] {
+  @apply bg-brand-navy/10 text-brand-navy font-bricolage font-bold;
+}
+
+/* Section Headers */
+.mentor-section-header {
+  @apply font-bricolage text-3xl font-bold text-brand-navy md:text-4xl;
+}
+
+.mentor-section-subheader {
+  @apply font-manrope text-lg text-text-muted-custom;
+}
+
+/* Breadcrumb in mentor */
+.mentor-page-bg [data-slot="breadcrumb"],
+.mentor-section [data-slot="breadcrumb"] {
+  @apply font-manrope text-text-muted-custom;
+}
+
+/* Separator */
+.mentor-page-bg [data-slot="separator"],
+.mentor-section [data-slot="separator"] {
+  @apply bg-gray-200;
+}
+
+/* ─── Portal Components (rendered outside DOM tree) ─── */
+/* These target ALL internal pages but use brand tokens */
+
+/* ─── Tabs (not always portal, but needs strong active state) ─── */
+[data-slot="tabs-trigger"][data-state="active"] {
+  background-color: var(--brand-navy) !important;
+  color: white !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-slot="tabs-trigger"]:not([data-state="active"]) {
+  color: var(--text-muted-custom);
+}
+
+[data-slot="tabs-trigger"]:not([data-state="active"]):hover {
+  background-color: #f3f4f6;
+  color: var(--text-main);
+}
+
+/* Select Content (portal) */
+[data-slot="select-content"] {
+  border-radius: 0.75rem !important;
+  border: none !important;
+  background-color: white !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+  padding: 4px !important;
+}
+
+/* Remove the default ring border */
+[data-slot="select-content"][class*="ring"] {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-slot="select-item"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.25 !important;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease !important;
+  color: var(--text-main) !important;
+}
+
+/* Hover state */
+[data-slot="select-item"]:hover,
+[data-slot="select-item"][data-highlighted] {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+}
+
+/* Selected state */
+[data-slot="select-item"][data-state="checked"] {
+  background-color: var(--brand-navy) !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+/* Check icon inside selected item - white to be visible on navy bg */
+[data-slot="select-item"][data-state="checked"] svg,
+[data-slot="select-item"][data-state="checked"] [class*="CheckIcon"] {
+  color: white !important;
+  opacity: 1 !important;
+}
+
+[data-slot="select-label"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  color: var(--text-muted-custom) !important;
+  font-size: 0.75rem !important;
+  padding: 0.375rem 0.75rem !important;
+}
+
+[data-slot="select-separator"] {
+  background-color: #f3f4f6 !important;
+  margin: 0 0.5rem !important;
+}
+
+/* Force visible text color on ALL select triggers and their values */
+[data-slot="select-trigger"] {
+  color: #333333 !important;
+}
+
+[data-slot="select-trigger"] [data-slot="select-value"] {
+  color: #333333 !important;
+  font-weight: 500 !important;
+  font-size: 0.875rem !important;
+}
+
+[data-slot="select-trigger"] * {
+  color: #333333 !important;
+}
+
+/* Placeholder state in trigger */
+[data-slot="select-trigger"][data-placeholder] [data-slot="select-value"] {
+  color: var(--text-muted-custom) !important;
+  font-weight: 400 !important;
+}
+
+/* Chevron icon color */
+[data-slot="select-trigger"] svg:last-child {
+  color: var(--text-muted-custom) !important;
+  opacity: 0.5 !important;
+}
+
+/* Dialog Content (portal) */
+[data-slot="dialog-overlay"] {
+  background-color: rgba(26, 31, 109, 0.25) !important;
+}
+
+[data-slot="dialog-content"] {
+  border-radius: 1rem !important;
+  border: none !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12) !important;
+  padding: 2rem !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  background-color: white !important;
+  outline: none !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+[data-slot="dialog-content"] [data-slot="dialog-close"] {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+[data-slot="dialog-header"] {
+  padding-bottom: 0.75rem !important;
+  margin-bottom: 1.25rem !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+
+[data-slot="dialog-header"] [data-slot="dialog-title"] {
+  font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  color: var(--brand-navy) !important;
+  font-size: 1.25rem !important;
+  line-height: 1.75rem !important;
+}
+
+[data-slot="dialog-header"] [data-slot="dialog-description"] {
+  color: var(--text-muted-custom) !important;
+  font-size: 0.8125rem !important;
+}
+
+[data-slot="dialog-footer"] {
+  padding-top: 1.5rem !important;
+  gap: 0.75rem !important;
+  border-top: 1px solid #f3f4f6 !important;
+}
+
+/* Nuclear fallback: ALL raw inputs inside dialog */
+[data-slot="dialog-content"] input,
+[data-slot="dialog-content"] textarea {
+  color: #333333 !important;
+  background-color: white !important;
+}
+
+[data-slot="dialog-content"] input::placeholder,
+[data-slot="dialog-content"] textarea::placeholder {
+  color: #888888 !important;
+}
+
+/* Dialog form fields */
+[data-slot="dialog-content"] [data-slot="form-item"] {
+  margin-bottom: 0 !important;
+}
+
+[data-slot="dialog-content"] [data-slot="form-label"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  color: var(--text-main) !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.25 !important;
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 0.25rem !important;
+}
+
+/* Raw Label component inside dialog */
+[data-slot="dialog-content"] [data-slot="label"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  color: var(--text-main) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25 !important;
+  margin-bottom: 0.375rem !important;
+}
+
+[data-slot="dialog-content"] [data-slot="input"] {
+  border-radius: 0.75rem !important;
+  border: 1px solid #e5e7eb !important;
+  background-color: white !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  color: var(--text-main) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  height: 2.75rem !important;
+  padding: 0.625rem 0.875rem !important;
+  width: 100% !important;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-slot="dialog-content"] [data-slot="input"]::placeholder {
+  color: var(--text-muted-custom) !important;
+}
+
+[data-slot="dialog-content"] [data-slot="input"]:focus-visible {
+  outline: none !important;
+  border-color: var(--brand-navy) !important;
+  box-shadow: 0 0 0 2px rgba(26, 31, 109, 0.1) !important;
+}
+
+[data-slot="dialog-content"] textarea {
+  border-radius: 0.75rem !important;
+  border: 1px solid #e5e7eb !important;
+  background-color: white !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  color: var(--text-main) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  padding: 0.75rem 0.875rem !important;
+  width: 100% !important;
+  min-height: 6rem !important;
+  resize: vertical !important;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease !important;
+}
+
+[data-slot="dialog-content"] textarea::placeholder {
+  color: var(--text-muted-custom) !important;
+}
+
+[data-slot="dialog-content"] textarea:focus-visible {
+  outline: none !important;
+  border-color: var(--brand-navy) !important;
+  box-shadow: 0 0 0 2px rgba(26, 31, 109, 0.1) !important;
+}
+
+[data-slot="dialog-content"] [data-slot="select-trigger"] {
+  border-radius: 0.75rem !important;
+  border: 1px solid #e5e7eb !important;
+  background-color: white !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  color: var(--text-main) !important;
+  font-size: 0.875rem !important;
+  height: 2.75rem !important;
+  padding: 0.625rem 0.875rem !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-slot="dialog-content"] [data-slot="select-trigger"]:focus-visible {
+  outline: none !important;
+  border-color: var(--brand-navy) !important;
+  box-shadow: 0 0 0 2px rgba(26, 31, 109, 0.1) !important;
+}
+
+[data-slot="dialog-content"] input[type="number"],
+[data-slot="dialog-content"] input[type="datetime-local"] {
+  border-radius: 0.75rem !important;
+  border: 1px solid #e5e7eb !important;
+  background-color: white !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  color: var(--text-main) !important;
+  font-size: 0.875rem !important;
+  height: 2.75rem !important;
+  padding: 0.625rem 0.875rem !important;
+  width: 100% !important;
+}
+
+[data-slot="dialog-content"] [data-slot="form-message"] {
+  color: var(--brand-red) !important;
+  font-size: 0.75rem !important;
+  margin-top: 0.375rem !important;
+}
+
+/* Dialog default button — brand teal */
+[data-slot="dialog-content"] [data-slot="button"][data-variant="default"] {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
+  padding: 0 1.5rem !important;
+  border: none !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-slot="dialog-content"] [data-slot="button"][data-variant="default"]:hover {
+  background-color: var(--mentor-teal-dark) !important;
+}
+
+/* Dialog outline button */
+[data-slot="dialog-content"] [data-slot="button"][data-variant="outline"] {
+  background-color: white !important;
+  color: var(--text-main) !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
+  padding: 0 1.5rem !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-slot="dialog-content"] [data-slot="button"][data-variant="outline"]:hover {
+  background-color: rgba(13, 148, 136, 0.05) !important;
+  border-color: rgba(13, 148, 136, 0.3) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* Dialog destructive button */
+[data-slot="dialog-content"] [data-slot="button"][data-variant="destructive"] {
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
+  padding: 0 1.5rem !important;
+}
+
+/* Dialog ghost button */
+[data-slot="dialog-content"] [data-slot="button"][data-variant="ghost"] {
+  border-radius: 0.5rem !important;
+  color: var(--text-muted-custom) !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-slot="dialog-content"] [data-slot="button"][data-variant="ghost"]:hover {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* DatePicker trigger button inside dialog */
+[data-slot="dialog-content"] [data-slot="popover-trigger"] {
+  border-radius: 0.75rem !important;
+  border: 1px solid #e5e7eb !important;
+  background-color: white !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  color: var(--text-main) !important;
+  font-size: 0.875rem !important;
+  height: 2.75rem !important;
+  padding: 0 0.875rem !important;
+  width: 100% !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  font-weight: 400 !important;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease !important;
+}
+
+[data-slot="dialog-content"] [data-slot="popover-trigger"]:hover {
+  border-color: var(--mentor-teal) !important;
+  background-color: white !important;
+}
+
+[data-slot="dialog-content"] [data-slot="popover-trigger"]:focus-visible {
+  outline: none !important;
+  border-color: var(--brand-navy) !important;
+  box-shadow: 0 0 0 2px rgba(26, 31, 109, 0.1) !important;
+}
+
+[data-slot="dialog-content"] [data-slot="popover-trigger"] .text-muted-foreground {
+  color: var(--text-muted-custom) !important;
+}
+
+/* Select value text inside dialog trigger — ensure visibility */
+[data-slot="dialog-content"] [data-slot="select-value"] {
+  color: var(--text-main) !important;
+  font-weight: 500 !important;
+}
+
+/* Force light theme CSS vars on select content (portaled to body), so items are always visible */
+[data-slot="select-content"] {
+  --primary: oklch(0.205 0 0) !important;
+  --primary-foreground: oklch(0.985 0 0) !important;
+  --accent: oklch(0.922 0 0) !important;
+  --accent-foreground: oklch(0.205 0 0) !important;
+  --muted: oklch(0.97 0 0) !important;
+  --muted-foreground: #888888 !important;
+}
+
+/* Dropdown Menu Content (portal) */
+[data-slot="dropdown-menu-content"] {
+  @apply rounded-xl border-0 bg-white shadow-lg;
+  padding: 4px;
+}
+
+[data-slot="dropdown-menu-item"] {
+  @apply font-manrope rounded-lg px-3 py-2 text-sm transition-colors;
+  color: var(--text-main);
+}
+
+[data-slot="dropdown-menu-item"]:hover,
+[data-slot="dropdown-menu-item"][data-highlighted] {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* Destructive dropdown items (e.g. Delete) */
+[data-slot="dropdown-menu-item"]:where(.text-red-600):hover,
+[data-slot="dropdown-menu-item"]:where(.text-red-500):hover,
+[data-slot="dropdown-menu-item"]:where(.text-destructive):hover {
+  background-color: rgba(249, 52, 71, 0.08) !important;
+  color: var(--brand-red) !important;
+}
+
+[data-slot="dropdown-menu-separator"] {
+  @apply bg-gray-100 mx-2;
+}
+
+/* Popover Content (portal) — always light */
+[data-slot="popover-content"] {
+  @apply rounded-xl border-0 bg-white shadow-lg;
+  --primary: oklch(0.205 0 0) !important;
+  --primary-foreground: oklch(0.985 0 0) !important;
+  --accent: oklch(0.922 0 0) !important;
+  --accent-foreground: oklch(0.205 0 0) !important;
+  --muted: oklch(0.97 0 0) !important;
+  --muted-foreground: #888888 !important;
+}
+
+/* Calendar inside popover — brand styling */
+[data-slot="popover-content"] .rdp {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+}
+
+[data-slot="popover-content"] .rdp-caption_label {
+  font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  color: var(--brand-navy) !important;
+  font-size: 0.9375rem !important;
+}
+
+[data-slot="popover-content"] .rdp-head_cell {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  color: var(--text-muted-custom) !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+}
+
+[data-slot="popover-content"] .rdp-day {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.12s ease !important;
+}
+
+[data-slot="popover-content"] .rdp-day:hover {
+  background-color: rgba(13, 148, 136, 0.1) !important;
+}
+
+[data-slot="popover-content"] .rdp-day_selected {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+[data-slot="popover-content"] .rdp-day_selected:hover {
+  background-color: var(--mentor-teal-dark) !important;
+  color: white !important;
+}
+
+[data-slot="popover-content"] .rdp-day_today {
+  background-color: #f3f4f6 !important;
+  color: var(--brand-navy) !important;
+  font-weight: 600 !important;
+}
+
+[data-slot="popover-content"] .rdp-day_outside {
+  color: #cccccc !important;
+}
+
+[data-slot="popover-content"] .rdp-day_disabled {
+  color: #d1d5db !important;
+}
+
+[data-slot="popover-content"] .rdp-nav_button {
+  color: var(--text-muted-custom) !important;
+}
+
+[data-slot="popover-content"] .rdp-nav_button:hover {
+  background-color: rgba(13, 148, 136, 0.1) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* Alert Dialog (portal) */
+[data-slot="alert-dialog-content"] {
+  @apply rounded-2xl border-0 shadow-xl;
+}
+
+[data-slot="alert-dialog-title"] {
+  @apply font-bricolage font-bold text-brand-navy;
+}
+
+[data-slot="alert-dialog-description"] {
+  color: var(--text-muted-custom);
+}
+
+[data-slot="alert-dialog-cancel"] {
+  @apply rounded-xl border-gray-200 text-text-main;
+}
+
+[data-slot="alert-dialog-action"] {
+  @apply rounded-xl bg-mentor-teal text-white hover:bg-mentor-teal-dark;
+}
+
+/* ─── Sidebar Design System ─── */
+/* Target ALL internal sidebars (admin, program-manager) */
+
+/* Sidebar wrapper */
+[data-slot="sidebar-wrapper"] {
+  --sidebar: #1a1f6d;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #0d9488;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(255, 255, 255, 0.1);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #0d9488;
+}
+
+/* Sidebar background */
+[data-slot="sidebar"] {
+  background-color: var(--brand-navy) !important;
+  color: white !important;
+}
+
+/* Sidebar header/footer backgrounds */
+[data-slot="sidebar-header"],
+[data-slot="sidebar-footer"] {
+  background-color: var(--brand-navy) !important;
+}
+
+/* Sidebar group label */
+[data-slot="sidebar-group"] [data-slot="sidebar-group-label"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-size: 0.6875rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  padding: 0.5rem 0.75rem 0.25rem !important;
+}
+
+/* Sidebar menu button - default */
+[data-slot="sidebar-menu-button"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-slot="sidebar-menu-button"]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: white !important;
+}
+
+/* Sidebar menu button - active state */
+/* Sidebar menu button - active state */
+/* data-active is set by isActive prop on SidebarMenuButton */
+[data-slot="sidebar-menu-button"][data-active],
+[data-slot="sidebar-menu-button"][aria-current="page"] {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+/* Chevron icon in collapsible */
+[data-slot="sidebar-menu-button"] svg {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+[data-slot="sidebar-menu-button"]:hover svg {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Sidebar menu sub items */
+[data-slot="sidebar-menu-sub"] {
+  padding-left: 0.5rem !important;
+}
+
+[data-slot="sidebar-menu-sub-button"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-size: 0.8125rem !important;
+  font-weight: 450 !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+  border-radius: 0.375rem !important;
+  padding: 0.375rem 0.75rem !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-slot="sidebar-menu-sub-button"]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: white !important;
+}
+
+/* Active sub item */
+[data-slot="sidebar-menu-sub-button"][data-active],
+[data-slot="sidebar-menu-sub-button"][aria-current="page"] {
+  background-color: rgba(13, 148, 136, 0.25) !important;
+  color: white !important;
+  font-weight: 500 !important;
+}
+
+/* Sidebar menu badge */
+[data-slot="sidebar-menu-badge"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+}
+
+/* Team Switcher in sidebar */
+[data-slot="sidebar"] [data-slot="sidebar-menu-button"] .flex.aspect-square.items-center.justify-center.rounded-lg,
+[data-slot="sidebar"] [class*="aspect-square"] {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+}
+
+[data-slot="sidebar"] .truncate.font-semibold {
+  color: white !important;
+}
+
+[data-slot="sidebar"] .truncate.text-xs {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Sidebar separator */
+[data-slot="sidebar-separator"] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Sidebar rail — hidden, no vertical line */
+[data-slot="sidebar-rail"] {
+  display: none !important;
+}
+
+/* Sidebar input (search) */
+[data-slot="sidebar-input"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: white !important;
+  border-radius: 0.5rem !important;
+}
+
+[data-slot="sidebar-input"]::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Sidebar trigger inside the SiteHeader (white bg) — use dark icon */
+[data-slot="sidebar-inset"] header [data-slot="sidebar-trigger"] {
+  color: var(--text-muted-custom) !important;
+  border-radius: 0.5rem !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="sidebar-trigger"]:hover {
+  color: var(--text-main) !important;
+  background-color: #f3f4f6 !important;
+}
+
+/* ─── Site Header Design System ─── */
+
+/* Header separator */
+[data-slot="sidebar-inset"] header [data-slot="separator"] {
+  background-color: #e5e7eb !important;
+}
+
+/* Breadcrumb text colors in site header */
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb"] {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-item"] a,
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-link"] {
+  color: var(--text-muted-custom) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  transition: color 0.15s ease !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-link"]:hover {
+  color: var(--brand-navy) !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-page"] {
+  color: var(--text-main) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="breadcrumb-separator"] {
+  color: #d1d5db !important;
+}
+
+/* Mode toggle in header */
+[data-slot="sidebar-inset"] header button[data-slot="button"]:where([data-variant="outline"]) {
+  border-color: #e5e7eb !important;
+  color: var(--text-main) !important;
+  background-color: white !important;
+}
+
+[data-slot="sidebar-inset"] header button[data-slot="button"]:where([data-variant="outline"]):hover {
+  background-color: #f9fafb !important;
+  border-color: #d1d5db !important;
+}
+
+/* Notification bell in header */
+[data-slot="sidebar-inset"] header [data-slot="button"]:where([data-variant="ghost"]) {
+  color: var(--text-muted-custom) !important;
+}
+
+[data-slot="sidebar-inset"] header [data-slot="button"]:where([data-variant="ghost"]):hover {
+  color: var(--text-main) !important;
+  background-color: #f3f4f6 !important;
+}
+
+/* ─── Page Content Area ─── */
+/* These target all content inside sidebar-inset (internal pages) */
+
+/* Ensure all page text uses design system colors */
+/* Only apply to elements WITHOUT an explicit Tailwind text-* color class */
+[data-slot="sidebar-inset"] h1:not([class*="text-"]),
+[data-slot="sidebar-inset"] h2:not([class*="text-"]),
+[data-slot="sidebar-inset"] h3:not([class*="text-"]) {
+  color: var(--text-main);
+}
+
+[data-slot="sidebar-inset"] p:not([class*="text-"]) {
+  color: var(--text-main);
+}
+
+/* ─── Dialog Override (portal) ─── */
+/* Already covered above */
+
+/* ─── Ensure shadcn base elements use brand colors in internal pages ─── */
+
+/* Force white backgrounds on all base elements inside mentor page context */
+.mentor-page-bg [data-slot="card"] {
+  background-color: white !important;
+}
+
+.mentor-page-bg [data-slot="card-content"] {
+  background-color: white !important;
+}
+
+.mentor-page-bg [data-slot="table"] {
+  --table-color: var(--text-main);
+}
+
+/* Force proper text colors on all form labels inside mentor pages */
+.mentor-page-bg [data-slot="form-label"] {
+  color: var(--text-main) !important;
+}
+
+/* Ensure all inputs have proper text color */
+.mentor-page-bg input,
+.mentor-page-bg textarea,
+.mentor-page-bg select {
+  color: var(--text-main) !important;
+}
+
+.mentor-page-bg input::placeholder,
+.mentor-page-bg textarea::placeholder {
+  color: var(--text-muted-custom) !important;
+}
+
+/* ─── Disable dark mode for internal pages ─── */
+/* Override dark mode to use light design system colors */
+.dark [data-slot="sidebar-wrapper"],
+.dark [data-slot="sidebar-inset"] {
+  --background: oklch(1 0 0) !important;
+  --foreground: #333333 !important;
+  --card: white !important;
+  --card-foreground: #333333 !important;
+  --muted: oklch(0.97 0 0) !important;
+  --muted-foreground: #888888 !important;
+  --border: oklch(0.922 0 0) !important;
+  --input: oklch(0.922 0 0) !important;
+}
+
+.dark [data-slot="sidebar-inset"] {
+  background-color: var(--bg-light) !important;
+}
+
+.dark .mentor-page-bg {
+  background-color: var(--bg-light) !important;
+}
+
+.dark .mentor-page-bg [data-slot="card"] {
+  background-color: white !important;
+}
+
+.dark .mentor-page-bg [data-slot="card-title"],
+.dark .mentor-page-bg [data-slot="card-description"],
+.dark .mentor-page-bg [data-slot="card-content"] {
+  color: var(--text-main) !important;
+}
+
+/* ─── Separator styling ─── */
+.mentor-page-bg [data-slot="separator"] {
+  background-color: #e5e7eb !important;
+}
+
+/* ─── Full-height layout fix ─── */
+/* Override shadcn's h-fit so SidebarInset fills the viewport */
+[data-slot="sidebar-inset"] {
+  min-height: 100dvh !important;
+  height: auto !important;
+}
+
+/* Page wrapper inside layout should not be taller than its flex container */
+.mentor-page-bg[class*="min-h-screen"],
+.mentor-page-bg {
+  min-height: 0 !important;
+}
+
+/* The SiteHeader separator needs to stay visible */
+[data-slot="sidebar-inset"] header {
+  flex-shrink: 0;
 }

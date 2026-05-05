@@ -22,15 +22,15 @@ export default function ProgramManagerAnalyticsPage() {
   });
 
   return (
-    <div className="min-h-screen flex-1 rounded-xl bg-muted/50 p-4 md:min-h-min">
+    <div className="mentor-page-bg min-h-screen flex-1 rounded-xl bg-bg-light p-4 md:min-h-min">
       <PageState isLoading={isAuthLoading || isAnalyticsLoading} isAuthorized={isAuthorized}>
         {!analytics ? (
-          <div>Failed to load analytics.</div>
+          <div className="font-manrope text-text-muted-custom">Failed to load analytics.</div>
         ) : (
           <div className="space-y-6">
             <div>
-              <h2 className="font-bold text-3xl tracking-tight">Program Analytics</h2>
-              <p className="text-muted-foreground">Overview of program performance and statistics.</p>
+              <h2 className="font-bold font-bricolage text-3xl text-brand-navy tracking-tight">Program Analytics</h2>
+              <p className="font-manrope text-text-muted-custom">Overview of program performance and statistics.</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -108,19 +108,23 @@ export default function ProgramManagerAnalyticsPage() {
                         <Tooltip
                           cursor={{ fill: "transparent" }}
                           content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
+                            if (active && payload?.length) {
                               return (
-                                <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                  <div className="grid grid-cols-2 gap-2">
+                                <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+                                  <div className="grid grid-cols-2 gap-3">
                                     <div className="flex flex-col">
-                                      <span className="text-[0.70rem] text-muted-foreground uppercase">Date</span>
-                                      <span className="font-bold text-muted-foreground">
+                                      <span className="font-manrope font-semibold text-[0.7rem] text-text-muted-custom uppercase tracking-wider">
+                                        Date
+                                      </span>
+                                      <span className="font-bold font-manrope text-text-main text-xs">
                                         {format(new Date(payload[0].payload.date), "MMM d, yyyy")}
                                       </span>
                                     </div>
                                     <div className="flex flex-col">
-                                      <span className="text-[0.70rem] text-muted-foreground uppercase">Apps</span>
-                                      <span className="font-bold">{payload[0].value}</span>
+                                      <span className="font-manrope font-semibold text-[0.7rem] text-text-muted-custom uppercase tracking-wider">
+                                        Apps
+                                      </span>
+                                      <span className="font-bold font-manrope text-text-main">{payload[0].value}</span>
                                     </div>
                                   </div>
                                 </div>

@@ -11,7 +11,7 @@ export default function AdminProgramsPage() {
 
   return (
     <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
-      <div className="min-h-screen flex-1 rounded-xl bg-muted/50 p-4 md:min-h-min">
+      <div className="mentor-page-bg min-h-screen flex-1 rounded-xl bg-bg-light p-4 md:min-h-min">
         <ProgramList />
       </div>
     </PageState>
