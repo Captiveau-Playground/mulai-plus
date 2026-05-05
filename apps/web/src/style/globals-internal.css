@@ -373,15 +373,93 @@
   @apply bg-brand-navy/5 text-brand-navy;
 }
 
-/* Button styling inside mentor */
-.mentor-page-bg [data-slot="button"]:where([data-variant="default"]),
-.mentor-section [data-slot="button"]:where([data-variant="default"]) {
-  @apply bg-mentor-teal text-white hover:bg-mentor-teal-dark;
+/* DialogTrigger / DropdownMenuTrigger wrapper — collapse so inner Button is the visible one */
+.mentor-page-bg [data-slot="dialog-trigger"],
+.mentor-section [data-slot="dialog-trigger"],
+.mentor-page-bg [data-slot="dropdown-menu-trigger"],
+.mentor-section [data-slot="dropdown-menu-trigger"] {
+  all: unset !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
 }
 
+/* ─── Button styling inside mentor — all variants ─── */
+/* Using raw CSS variables + !important to always beat shadcn classes */
+
+/* Default variant — teal rounded-full */
+.mentor-page-bg [data-slot="button"]:where([data-variant="default"]),
+.mentor-section [data-slot="button"]:where([data-variant="default"]) {
+  background-color: var(--mentor-teal) !important;
+  color: white !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
+  padding: 0 1.25rem !important;
+  border: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.mentor-page-bg [data-slot="button"]:where([data-variant="default"]):hover,
+.mentor-section [data-slot="button"]:where([data-variant="default"]):hover {
+  background-color: var(--mentor-teal-dark) !important;
+}
+
+/* Outline variant — white rounded-full */
 .mentor-page-bg [data-slot="button"]:where([data-variant="outline"]),
 .mentor-section [data-slot="button"]:where([data-variant="outline"]) {
-  @apply border-gray-200 text-text-main hover:bg-mentor-teal/5 hover:border-mentor-teal/30 hover:text-mentor-teal;
+  background-color: white !important;
+  color: var(--text-main) !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
+  padding: 0 1.25rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.mentor-page-bg [data-slot="button"]:where([data-variant="outline"]):hover,
+.mentor-section [data-slot="button"]:where([data-variant="outline"]):hover {
+  background-color: rgba(13, 148, 136, 0.05) !important;
+  border-color: rgba(13, 148, 136, 0.3) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* Ghost variant — muted text, teal hover */
+.mentor-page-bg [data-slot="button"]:where([data-variant="ghost"]),
+.mentor-section [data-slot="button"]:where([data-variant="ghost"]) {
+  border-radius: 0.5rem !important;
+  color: var(--text-muted-custom) !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  transition: all 0.15s ease !important;
+}
+
+.mentor-page-bg [data-slot="button"]:where([data-variant="ghost"]):hover,
+.mentor-section [data-slot="button"]:where([data-variant="ghost"]):hover {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* Secondary variant */
+.mentor-page-bg [data-slot="button"]:where([data-variant="secondary"]),
+.mentor-section [data-slot="button"]:where([data-variant="secondary"]) {
+  border-radius: 0.75rem !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+}
+
+/* Destructive variant — rounded-full */
+.mentor-page-bg [data-slot="button"]:where([data-variant="destructive"]),
+.mentor-section [data-slot="button"]:where([data-variant="destructive"]) {
+  border-radius: 9999px !important;
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+  height: 2.5rem !important;
 }
 
 /* Form labels */
@@ -800,6 +878,18 @@
   padding: 0 1.5rem !important;
 }
 
+/* Dialog ghost button */
+[data-slot="dialog-content"] [data-slot="button"][data-variant="ghost"] {
+  border-radius: 0.5rem !important;
+  color: var(--text-muted-custom) !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-slot="dialog-content"] [data-slot="button"][data-variant="ghost"]:hover {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  color: var(--mentor-teal) !important;
+}
+
 /* DatePicker trigger button inside dialog */
 [data-slot="dialog-content"] [data-slot="popover-trigger"] {
   border-radius: 0.75rem !important;
@@ -863,8 +953,16 @@
 
 [data-slot="dropdown-menu-item"]:hover,
 [data-slot="dropdown-menu-item"][data-highlighted] {
-  background-color: var(--brand-navy) !important;
-  color: white !important;
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  color: var(--mentor-teal) !important;
+}
+
+/* Destructive dropdown items (e.g. Delete) */
+[data-slot="dropdown-menu-item"]:where(.text-red-600):hover,
+[data-slot="dropdown-menu-item"]:where(.text-red-500):hover,
+[data-slot="dropdown-menu-item"]:where(.text-destructive):hover {
+  background-color: rgba(249, 52, 71, 0.08) !important;
+  color: var(--brand-red) !important;
 }
 
 [data-slot="dropdown-menu-separator"] {
