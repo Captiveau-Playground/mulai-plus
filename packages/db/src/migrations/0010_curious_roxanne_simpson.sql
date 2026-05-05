@@ -1,1 +1,0 @@
-ALTER TABLE "program" DROP COLUMN "banner_url";

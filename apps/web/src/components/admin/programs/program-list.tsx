@@ -31,6 +31,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { authClient, isAdmin } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 const programSchema = z.object({
@@ -42,6 +43,7 @@ const programSchema = z.object({
 type ProgramFormValues = z.infer<typeof programSchema>;
 
 export function ProgramList() {
+  const { data: session } = authClient.useSession();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProgram, setEditingProgram] = useState<{
     id: string;
@@ -127,15 +129,15 @@ export function ProgramList() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-bold text-2xl tracking-tight">Programs</h2>
-          <p className="text-muted-foreground">Manage your mentoring programs.</p>
+          <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Programs</h2>
+          <p className="font-manrope text-text-muted-custom">Manage your mentoring programs.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button onClick={() => setIsCreateOpen(true)} className="btn-mentor rounded-full">
           <Plus className="mr-2 h-4 w-4" /> Create Program
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-md border bg-card">
+      <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -181,8 +183,13 @@ export function ProgramList() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem>
-                            {/* biome-ignore lint/suspicious/noExplicitAny: typed routes issue */}
-                            <Link href={`/admin/programs/${program.id}` as any}>
+                            <Link
+                              href={
+                                isAdmin(session)
+                                  ? `/admin/programs/${program.id}`
+                                  : `/program-manager/programs/${program.id}`
+                              }
+                            >
                               <BookOpen className="mr-2 h-4 w-4" /> View Details
                             </Link>
                           </DropdownMenuItem>
@@ -226,46 +233,49 @@ export function ProgramList() {
             <DialogDescription>Create a new mentoring program.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Program Name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Description" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="bannerUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Banner Image</FormLabel>
-                    <FormControl>
-                      <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="programs" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-1">
+              <div className="grid grid-cols-1 gap-3">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Program Name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Description" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bannerUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Banner Image</FormLabel>
+                      <FormControl>
+                        <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="programs" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <DialogFooter>
                 <Button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -328,55 +338,57 @@ function EditProgramForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Program Name" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Description" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="bannerUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Banner Image</FormLabel>
-              <FormControl>
-                <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="programs" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
-          </Button>
-        </DialogFooter>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="">
+        <div className="grid grid-cols-1 gap-3">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Program Name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Description" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="bannerUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Banner Image</FormLabel>
+                <FormControl>
+                  <FileUpload value={field.value} onChange={field.onChange} bucket="banners" path="programs" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </div>
       </form>
     </Form>
   );

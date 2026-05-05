@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { orpc } from "@/utils/orpc";
@@ -157,27 +157,36 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
   const weeks = Array.from({ length: batch.durationWeeks }, (_, i) => i + 1);
 
   return (
-    <div className="space-y-4">
+    <div className="mentor-section space-y-4">
       <Tabs defaultValue="active" className="w-full">
-        <div className="mb-4 flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="active">Active Resources</TabsTrigger>
-            <TabsTrigger value="requests">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="rounded-xl bg-white p-1 shadow-sm">
+            <TabsTrigger
+              value="active"
+              className="rounded-lg data-[state=active]:bg-brand-navy data-[state=active]:text-white"
+            >
+              Active Resources
+            </TabsTrigger>
+            <TabsTrigger
+              value="requests"
+              className="rounded-lg data-[state=active]:bg-brand-navy data-[state=active]:text-white"
+            >
               My Requests
               {myRequests && myRequests.length > 0 && (
-                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px]">
+                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-mentor-teal text-[10px] text-white">
                   {myRequests.length}
                 </span>
               )}
             </TabsTrigger>
           </TabsList>
-          <Button onClick={handleCreate}>
+          <Button onClick={handleCreate} className="btn-mentor rounded-full shadow-sm">
             <Plus className="mr-2 h-4 w-4" /> Request New
           </Button>
         </div>
 
         <TabsContent value="active">
-          <div className="rounded-md border">
+          {/* Table - desktop */}
+          <div className="hidden rounded-md border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -203,13 +212,13 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                   </TableRow>
                 ) : (
                   attachments?.map((attachment) => (
-                    <TableRow key={attachment.id}>
+                    <TableRow key={attachment.id} className="border-gray-100 transition-colors hover:bg-bg-light">
                       <TableCell>
                         <a
                           href={attachment.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center font-medium hover:underline"
+                          className="flex items-center font-manrope font-medium text-text-main hover:text-mentor-teal"
                         >
                           {attachment.type === "video" ? (
                             <Video className="mr-2 h-4 w-4" />
@@ -231,13 +240,18 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(attachment)} className="mr-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(attachment)}
+                          className="mr-1 text-text-muted-custom hover:text-mentor-teal"
+                        >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600"
+                          className="text-red-400 hover:bg-red-50 hover:text-red-500"
                           onClick={() => {
                             if (confirm("Are you sure?")) {
                               deleteMutation.mutate({ id: attachment.id });
@@ -253,10 +267,83 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
               </TableBody>
             </Table>
           </div>
+
+          {/* Cards - mobile */}
+          <div className="space-y-3 md:hidden">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-text-muted-custom" />
+              </div>
+            ) : attachments?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-gray-200 border-dashed bg-white py-16">
+                <p className="font-manrope text-sm text-text-muted-custom">No attachments found.</p>
+              </div>
+            ) : (
+              attachments?.map((attachment) => (
+                <div key={attachment.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 font-manrope font-medium text-text-main hover:text-mentor-teal"
+                    >
+                      {attachment.type === "video" ? (
+                        <Video className="h-4 w-4 shrink-0 text-mentor-teal" />
+                      ) : attachment.type === "file" ? (
+                        <File className="h-4 w-4 shrink-0 text-mentor-teal" />
+                      ) : (
+                        <LinkIcon className="h-4 w-4 shrink-0 text-mentor-teal" />
+                      )}
+                      <span className="break-words">{attachment.name}</span>
+                    </a>
+                    <span className="shrink-0 rounded-lg border px-2 py-0.5 font-manrope text-[10px] text-text-muted-custom capitalize">
+                      {attachment.type}
+                    </span>
+                  </div>
+
+                  <div className="mb-3 flex items-center gap-4 text-text-muted-custom text-xs">
+                    <span>{attachment.week ? `Week ${attachment.week}` : "All Weeks"}</span>
+                    {attachment.sessionId && (
+                      <span className="flex items-center gap-1">
+                        <LinkIcon className="h-3 w-3" />
+                        Linked
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-1.5 border-gray-100 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(attachment)}
+                      className="rounded-lg border-gray-200 text-xs"
+                    >
+                      <Pencil className="mr-1 h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-400 hover:bg-red-50 hover:text-red-500"
+                      onClick={() => {
+                        if (confirm("Are you sure?")) {
+                          deleteMutation.mutate({ id: attachment.id });
+                        }
+                      }}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="requests">
-          <div className="rounded-md border">
+          {/* Table - desktop */}
+          <div className="hidden rounded-md border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -317,19 +404,79 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
               </TableBody>
             </Table>
           </div>
+
+          {/* Cards - mobile */}
+          <div className="space-y-3 md:hidden">
+            {isLoadingRequests ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-text-muted-custom" />
+              </div>
+            ) : myRequests?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-gray-200 border-dashed bg-white py-16">
+                <p className="font-manrope text-sm text-text-muted-custom">No requests found.</p>
+              </div>
+            ) : (
+              myRequests?.map((req) => (
+                <div key={req.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <span className="rounded-lg bg-brand-navy/5 px-2.5 py-1 font-manrope font-medium text-brand-navy text-xs capitalize">
+                      {req.action}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2.5 py-0.5 font-manrope font-semibold text-[10px] text-white",
+                        req.status === "pending"
+                          ? "bg-yellow-500"
+                          : req.status === "approved"
+                            ? "bg-green-500"
+                            : "bg-red-500",
+                      )}
+                    >
+                      {req.status}
+                    </span>
+                  </div>
+
+                  <div className="mb-2 text-sm">
+                    {req.action === "create" || req.action === "update" ? (
+                      <>
+                        <p className="font-manrope font-medium text-text-main">{(req.data as any).name}</p>
+                        <p className="font-manrope text-text-muted-custom text-xs capitalize">
+                          {(req.data as any).type}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="font-manrope text-text-muted-custom text-xs">Attachment ID: {req.attachmentId}</p>
+                    )}
+                  </div>
+
+                  <div className="font-manrope text-text-muted-custom text-xs">
+                    {format(new Date(req.createdAt), "MMM d, yyyy")}
+                  </div>
+
+                  {req.rejectionReason && (
+                    <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 font-manrope text-red-600 text-xs">
+                      {req.rejectionReason}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="min-w-7xl">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingAttachment ? "Edit Attachment Request" : "Request New Attachment"}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="font-bold font-bricolage text-brand-navy text-xl">
+              {editingAttachment ? "Edit Attachment Request" : "Request New Attachment"}
+            </DialogTitle>
+            <DialogDescription className="font-manrope text-text-muted-custom">
               Submit a request to {editingAttachment ? "update" : "add"} a resource. Admin approval required.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField
                 control={form.control}
                 name="name"
@@ -344,7 +491,7 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-5 pt-3">
                 <FormField
                   control={form.control}
                   name="type"
@@ -353,8 +500,12 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                       <FormLabel>Type</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
+                          <SelectTrigger className="text-text-main">
+                            {field.value ? (
+                              <span className="text-text-main capitalize">{field.value}</span>
+                            ) : (
+                              <span className="text-text-muted-custom">Select type</span>
+                            )}
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -375,12 +526,22 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                     <FormItem>
                       <FormLabel>Week (Optional)</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value ? String(field.value) : undefined}
+                        onValueChange={(val) => field.onChange(val === "0" ? 0 : Number(val))}
+                        defaultValue={
+                          field.value !== undefined && field.value !== null ? String(field.value) : undefined
+                        }
                       >
                         <FormControl>
-                          <SelectTrigger>
-                            {field.value ? <SelectValue /> : <span className="text-muted-foreground">All Weeks</span>}
+                          <SelectTrigger className="text-text-main">
+                            {field.value !== undefined && field.value !== null ? (
+                              field.value === 0 ? (
+                                <span className="text-text-main">All Weeks</span>
+                              ) : (
+                                <span className="text-text-main">Week {field.value}</span>
+                              )
+                            ) : (
+                              <span className="text-text-muted-custom">All Weeks</span>
+                            )}
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -398,49 +559,57 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="sessionId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link to Session (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          {field.value && field.value !== "none" ? (
-                            <SelectValue />
-                          ) : (
-                            <span className="text-muted-foreground">None</span>
-                          )}
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {sessions?.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            Week {s.week} - {s.type} ({format(new Date(s.startsAt), "MMM d")})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-rows-2 gap-5">
+                <FormField
+                  control={form.control}
+                  name="sessionId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Link to Session (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="text-text-main">
+                            {field.value && field.value !== "none" && sessions ? (
+                              <span className="text-text-main">
+                                {(() => {
+                                  const s = sessions.find((x) => x.id === field.value);
+                                  if (!s) return field.value;
+                                  return `Week ${s.week} - ${s.type.replace("_", " ")} (${format(new Date(s.startsAt), "MMM d")})`;
+                                })()}
+                              </span>
+                            ) : (
+                              <span className="text-text-muted-custom">None</span>
+                            )}
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {sessions?.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              Week {s.week} - {s.type} ({format(new Date(s.startsAt), "MMM d")})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="flex justify-end space-x-2">
                 <Button
@@ -450,10 +619,15 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
                     setIsFormOpen(false);
                     setEditingAttachment(null);
                   }}
+                  className="rounded-xl border-gray-200"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                <Button
+                  type="submit"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  className="btn-mentor rounded-xl"
+                >
                   {(createMutation.isPending || updateMutation.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}

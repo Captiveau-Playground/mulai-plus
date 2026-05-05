@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { orpc } from "@/utils/orpc";
 
@@ -121,14 +121,16 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="mentor-section sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Update Session</DialogTitle>
-          <DialogDescription>Update session details, status, and links.</DialogDescription>
+          <DialogTitle className="font-bold font-bricolage text-brand-navy text-xl">Update Session</DialogTitle>
+          <DialogDescription className="font-manrope text-text-muted-custom">
+            Update session details, status, and links.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            <div className="grid grid-cols-2 gap-5">
               <FormField
                 control={form.control}
                 name="startsAt"
@@ -165,8 +167,12 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
                   <FormLabel>Status</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger disabled={isPending}>
-                        <SelectValue />
+                      <SelectTrigger disabled={isPending} className="rounded-xl border-gray-200 text-text-main">
+                        {field.value ? (
+                          <span className="font-medium text-text-main capitalize">{field.value}</span>
+                        ) : (
+                          <span className="text-text-muted-custom">Select status</span>
+                        )}
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -180,47 +186,62 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="meetingLink"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Meeting Link</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://meet.google.com/..." {...field} disabled={isPending} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="recordingLink"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Recording Link</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} disabled={isPending} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Session notes..." {...field} disabled={isPending} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid gap-5 pt-5">
+              <FormField
+                control={form.control}
+                name="meetingLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Meeting Link</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="https://meet.google.com/..."
+                        className="text-text-main"
+                        {...field}
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="recordingLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Recording Link</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://..." className="text-text-main" {...field} disabled={isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Session notes..." {...field} disabled={isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <DialogFooter>
-              <Button type="submit" disabled={isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="rounded-xl border-gray-200"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending} className="btn-mentor rounded-xl">
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>

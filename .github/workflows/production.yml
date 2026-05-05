@@ -125,8 +125,27 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  migrate:
+    needs: tag
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Push database schema
+        working-directory: packages/db
+        run: bun run db:push
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
   deploy:
-    needs: [build-web, build-server]
+    needs: [build-web, build-server, migrate]
     runs-on: ubuntu-latest
     environment: production
     steps:

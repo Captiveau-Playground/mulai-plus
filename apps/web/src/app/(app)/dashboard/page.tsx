@@ -25,6 +25,8 @@ function DashboardContent() {
       router.push("/admin");
     } else if (role === "mentor") {
       router.push("/mentor");
+    } else if (role === "program_manager") {
+      router.push("/program-manager");
     } else {
       router.push("/dashboard/student");
     }

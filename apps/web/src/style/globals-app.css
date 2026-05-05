@@ -37,9 +37,6 @@
   --sidebar-accent-foreground: oklch(0 0 0);
   --sidebar-border: oklch(0 0 0);
   --sidebar-ring: oklch(0.7853 0.1041 274.7134);
-  --font-sans: DM Sans, sans-serif;
-  --font-serif: DM Sans, sans-serif;
-  --font-mono: Space Mono, monospace;
   --radius: 1rem;
   --shadow-x: 0px;
   --shadow-y: 0px;
@@ -56,11 +53,12 @@
   --shadow-xl: 0px 0px 0px 0px hsl(0 0% 10.1961% / 0.05), 0px 8px 10px -1px hsl(0 0% 10.1961% / 0.05);
   --shadow-2xl: 0px 0px 0px 0px hsl(0 0% 10.1961% / 0.13);
   --tracking-normal: normal;
-  --spacing: 0.25rem;
 
-  /* Brand Colors (Extracted) */
+  /* Brand Colors - Navy */
   --brand-navy: #1a1f6d;
   --brand-navy-light: #272c75;
+
+  /* Brand Colors - Accent */
   --brand-orange: #fe9114;
   --brand-red: #f93447;
   --brand-red-orange: #fb632e;
@@ -75,6 +73,7 @@
   --bg-beige: #f7ede1;
   --bg-pink: #f6e2e5;
   --bg-light-blue: #e0e0e9;
+  --bg-light: #f8f9fc;
 }
 
 .dark {
@@ -110,9 +109,6 @@
   --sidebar-accent-foreground: oklch(0 0 0);
   --sidebar-border: oklch(1 0 0);
   --sidebar-ring: oklch(0.6801 0.1583 276.9349);
-  --font-sans: DM Sans, sans-serif;
-  --font-serif: DM Sans, sans-serif;
-  --font-mono: Space Mono, monospace;
   --radius: 1rem;
   --shadow-x: 0px;
   --shadow-y: 0px;
@@ -174,6 +170,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
 
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
@@ -191,9 +190,11 @@
   --tracking-wider: calc(var(--tracking-normal) + 0.05em);
   --tracking-widest: calc(var(--tracking-normal) + 0.1em);
 
-  /* Brand Colors */
+  /* Brand Colors - Navy */
   --color-brand-navy: var(--brand-navy);
   --color-brand-navy-light: var(--brand-navy-light);
+
+  /* Brand Colors - Accent */
   --color-brand-orange: var(--brand-orange);
   --color-brand-red: var(--brand-red);
   --color-brand-red-orange: var(--brand-red-orange);
@@ -208,10 +209,12 @@
   --color-bg-beige: var(--bg-beige);
   --color-bg-pink: var(--bg-pink);
   --color-bg-light-blue: var(--bg-light-blue);
+  --color-bg-light: var(--bg-light);
 }
 
 body {
   letter-spacing: var(--tracking-normal);
+  color: var(--text-main);
 }
 
 @layer base {
@@ -224,4 +227,225 @@ body {
   html {
     @apply font-sans;
   }
+}
+
+/* Ensure text is always visible on white backgrounds */
+.text-foreground {
+  color: var(--text-main) !important;
+}
+
+.text-muted-foreground {
+  color: var(--text-muted-custom) !important;
+}
+
+/* Card component base styles for visibility */
+[data-slot="card"] {
+  background-color: white;
+  color: var(--text-main);
+}
+
+[data-slot="card-header"] {
+  background-color: white;
+  color: var(--text-main);
+}
+
+[data-slot="card-title"] {
+  color: var(--text-main);
+}
+
+[data-slot="card-description"] {
+  color: var(--text-muted-custom);
+}
+
+[data-slot="card-content"] {
+  background-color: white;
+}
+
+/* Typography Utilities */
+.font-bricolage {
+  font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
+}
+
+.font-manrope {
+  font-family: var(--font-manrope), "Manrope", system-ui, sans-serif;
+}
+
+.font-inters {
+  font-family: var(--font-sans), "Inter", system-ui, sans-serif;
+}
+
+/* Student Dashboard Specific Styles */
+.student-dashboard {
+  @apply bg-bg-light;
+}
+
+.student-card {
+  @apply rounded-2xl border-0 bg-white shadow-md transition-all hover:shadow-lg;
+}
+
+.student-card-hover {
+  @apply transition-all hover:-translate-y-1 hover:shadow-lg;
+}
+
+/* Navigation Styles */
+.nav-link {
+  @apply font-manrope text-sm font-medium text-white/80 transition-all hover:bg-white/10 hover:text-white;
+}
+
+.nav-link-active {
+  @apply bg-white/10 text-white;
+}
+
+/* Button Enhancements */
+.btn-brand-navy {
+  @apply bg-brand-navy text-white hover:bg-brand-navy/90;
+}
+
+.btn-brand-red {
+  @apply bg-brand-red text-white hover:bg-brand-red/90;
+}
+
+.btn-brand-orange {
+  @apply bg-brand-orange text-white hover:bg-brand-orange/90;
+}
+
+/* Gradient Backgrounds */
+.gradient-brand-navy {
+  @apply bg-gradient-to-br from-brand-navy to-brand-navy-light;
+}
+
+.gradient-brand-accent {
+  @apply bg-gradient-to-r from-brand-red to-brand-orange;
+}
+
+/* Text Colors */
+.text-brand-navy {
+  @apply text-brand-navy;
+}
+
+.text-brand-red {
+  @apply text-brand-red;
+}
+
+.text-brand-orange {
+  @apply text-brand-orange;
+}
+
+.text-text-main {
+  @apply text-text-main;
+}
+
+.text-text-muted {
+  @apply text-text-muted-custom;
+}
+
+/* Badge Styles */
+.badge-brand-navy {
+  @apply bg-brand-navy text-white;
+}
+
+.badge-brand-red {
+  @apply bg-brand-red text-white;
+}
+
+.badge-brand-orange {
+  @apply bg-brand-orange text-white;
+}
+
+/* Section Headers */
+.section-header {
+  @apply font-bricolage text-3xl font-bold md:text-4xl;
+}
+
+.section-subheader {
+  @apply font-manrope text-lg text-text-muted-custom;
+}
+
+/* Stats Card */
+.stat-card {
+  @apply rounded-2xl border-0 bg-white p-4 shadow-md md:p-6;
+}
+
+.stat-card-value {
+  @apply font-bricolage text-3xl font-bold md:text-4xl;
+}
+
+.stat-card-label {
+  @apply font-manrope text-sm font-medium text-muted-foreground;
+}
+
+.stat-card-sublabel {
+  @apply font-manrope text-xs text-muted-foreground;
+}
+
+/* Icon Box */
+.icon-box-navy {
+  @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-navy md:h-14 md:w-14;
+}
+
+.icon-box-red {
+  @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-red md:h-14 md:w-14;
+}
+
+.icon-box-orange {
+  @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-orange md:h-14 md:w-14;
+}
+
+.icon-box-light {
+  @apply flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-navy/10 md:h-14 md:w-14;
+}
+
+/* Page Header */
+.page-header {
+  @apply font-bricolage text-3xl font-bold text-brand-navy md:text-4xl;
+}
+
+.page-subheader {
+  @apply font-manrope text-lg text-text-muted-custom;
+}
+
+/* Card Hover Effects */
+.card-hover {
+  @apply transition-all hover:-translate-y-1 hover:shadow-lg;
+}
+
+/* Grid Layouts */
+.student-grid {
+  @apply grid gap-4 lg:grid-cols-2 lg:gap-6;
+}
+
+.student-grid-3 {
+  @apply grid gap-6 md:grid-cols-2 lg:grid-cols-3;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .student-dashboard-content {
+    @apply p-4 md:p-6;
+  }
+}
+
+/* Student Form Inputs */
+.student-input {
+  @apply rounded-xl border border-gray-200 bg-white px-4 py-3 font-manrope text-sm text-text-main transition-all placeholder:text-gray-400 focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-navy/10;
+}
+
+.student-textarea {
+  @apply rounded-xl border border-gray-200 bg-white px-4 py-3 font-manrope text-sm text-text-main transition-all placeholder:text-gray-400 focus:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-navy/10;
+}
+
+/* Step indicator animation */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-in {
+  animation: fadeInSlide 0.3s ease-out forwards;
 }

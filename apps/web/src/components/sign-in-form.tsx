@@ -6,9 +6,6 @@ import z from "zod";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 
 export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
   const router = useRouter();
@@ -34,6 +31,8 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
               router.push("/admin");
             } else if (role === "mentor") {
               router.push("/mentor");
+            } else if (role === "program_manager") {
+              router.push("/program-manager");
             } else {
               router.push("/dashboard/student");
             }
@@ -75,12 +74,19 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
   }
 
   return (
-    <div className="mx-auto mt-10 w-full max-w-md p-6">
-      <h1 className="mb-6 text-center font-bold text-3xl">Welcome Back</h1>
+    <div className="w-full">
+      <div className="mb-8 text-center">
+        <h1 className="font-bold font-bricolage text-4xl text-[#1A1F6D]">Welcome Back</h1>
+        <p className="mt-3 font-manrope text-[#888888] text-lg">Sign in to continue your learning journey</p>
+      </div>
 
-      <div className="mb-6 space-y-4">
-        <Button onClick={handleGoogleSignIn} className="w-full" variant="outline">
-          <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-label="Google logo">
+      <div className="space-y-5">
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          className="group flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-[#E0E0E9] bg-white px-6 py-4 font-manrope font-semibold text-[#333333] transition-all hover:border-[#1A1F6D] hover:bg-[#1A1F6D] hover:text-white"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" aria-label="Google logo">
             <title>Google logo</title>
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -99,16 +105,13 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
               fill="#EA4335"
             />
           </svg>
-          Sign in with Google
-        </Button>
+          Continue with Google
+        </button>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
-          </div>
+        <div className="relative flex items-center">
+          <div className="h-px flex-1 bg-[#E0E0E9]" />
+          <span className="mx-4 shrink-0 font-manrope text-[#888888] text-sm">or continue with email</span>
+          <div className="h-px flex-1 bg-[#E0E0E9]" />
         </div>
       </div>
 
@@ -118,67 +121,96 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
           e.stopPropagation();
           form.handleSubmit();
         }}
-        className="space-y-4"
+        className="mt-8 space-y-5"
       >
-        <div>
+        <div className="space-y-2">
+          <label htmlFor="email" className="font-manrope font-semibold text-[#333333] text-sm">
+            Email
+          </label>
           <form.Field name="email">
             {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Email</Label>
-                <Input
+              <>
+                <input
                   id={field.name}
                   name={field.name}
                   type="email"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="your@email.com"
+                  className="h-14 w-full rounded-2xl border-2 border-[#E0E0E9] bg-white px-5 font-manrope text-[#333333] transition-all placeholder:text-[#888888] focus:border-[#1A1F6D] focus:outline-none focus:ring-4 focus:ring-[#1A1F6D]/10"
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="mt-2 font-manrope text-[#F93447] text-sm">
                     {error?.message}
                   </p>
                 ))}
-              </div>
+              </>
             )}
           </form.Field>
         </div>
 
-        <div>
+        <div className="space-y-2">
+          <label htmlFor="password" className="font-manrope font-semibold text-[#333333] text-sm">
+            Password
+          </label>
           <form.Field name="password">
             {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Password</Label>
-                <Input
+              <>
+                <input
                   id={field.name}
                   name={field.name}
                   type="password"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="Enter your password"
+                  className="h-14 w-full rounded-2xl border-2 border-[#E0E0E9] bg-white px-5 font-manrope text-[#333333] transition-all placeholder:text-[#888888] focus:border-[#1A1F6D] focus:outline-none focus:ring-4 focus:ring-[#1A1F6D]/10"
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="mt-2 font-manrope text-[#F93447] text-sm">
                     {error?.message}
                   </p>
                 ))}
-              </div>
+              </>
             )}
           </form.Field>
         </div>
 
         <form.Subscribe>
           {(state) => (
-            <Button type="submit" className="w-full" disabled={!state.canSubmit || state.isSubmitting}>
-              {state.isSubmitting ? "Submitting..." : "Sign In"}
-            </Button>
+            <button
+              type="submit"
+              disabled={!state.canSubmit || state.isSubmitting}
+              className="flex h-14 w-full items-center justify-center rounded-2xl bg-brand-navy font-bold font-manrope text-lg text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {state.isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Signing in...
+                </span>
+              ) : (
+                "Sign In"
+              )}
+            </button>
           )}
         </form.Subscribe>
       </form>
 
-      <div className="mt-4 text-center">
-        <Button variant="link" onClick={onSwitchToSignUp} className="text-indigo-600 hover:text-indigo-800">
-          Need an account? Sign Up
-        </Button>
+      <div className="mt-8 text-center">
+        <p className="font-manrope text-[#888888]">
+          Don&apos;t have an account?{" "}
+          <button
+            type="button"
+            onClick={onSwitchToSignUp}
+            className="font-semibold text-[#1A1F6D] hover:text-[#FE9114] hover:underline"
+          >
+            Sign Up
+          </button>
+        </p>
       </div>
     </div>
   );

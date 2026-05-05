@@ -1,0 +1,41 @@
+{
+  "files": {
+    "src/routers/program-activities.ts": {
+      "modifiedRanges": [
+        {
+          "start": 198,
+          "end": 205
+        },
+        {
+          "start": 208,
+          "end": 209
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-03T13:22:37.834Z"
+    },
+    "src/lib/unosend.ts": {
+      "modifiedRanges": [
+        {
+          "start": 77,
+          "end": 88
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T06:27:44.923Z"
+    },
+    "src/routers/user.ts": {
+      "modifiedRanges": [
+        {
+          "start": 99,
+          "end": 128
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T09:33:29.789Z"
+    }
+  },
+  "turnCycles": 0,
+  "maxCycles": 3,
+  "lastUpdated": "2026-05-05T09:33:29.790Z"
+}

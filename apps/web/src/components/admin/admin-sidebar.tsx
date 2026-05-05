@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, Computer, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import Image from "next/image";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -8,11 +9,8 @@ import { TeamSwitcher } from "@/components/team-switcher";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 
-export function CvgLogo(props: React.ComponentProps<"img">) {
-  return (
-    // biome-ignore lint/a11y/useAltText: <explanation>
-    <img src="/main-icon-logo.svg" {...props} />
-  );
+export function CvgLogo(props: Omit<React.ComponentProps<typeof Image>, "src" | "alt" | "width" | "height">) {
+  return <Image src="/main-icon-logo.svg" alt="Logo" width={32} height={32} {...props} />;
 }
 
 // This is sample data.
@@ -34,7 +32,6 @@ const data = {
       title: "Dashboard",
       url: "/admin",
       icon: LayoutDashboard,
-      isActive: true,
     },
   ],
   navAuth: [
@@ -112,16 +109,20 @@ const data = {
       icon: BookOpen,
       items: [
         {
-          title: "Analytics",
-          url: "/admin/programs/analytics",
-        },
-        {
           title: "Programs",
           url: "/admin/programs",
         },
         {
+          title: "Mentors",
+          url: "/admin/programs/mentors",
+        },
+        {
+          title: "Analytics",
+          url: "/admin/programs/analytics",
+        },
+        {
           title: "Testimonials",
-          url: "/admin/testimonials",
+          url: "/admin/programs/testimonials",
         },
       ],
     },

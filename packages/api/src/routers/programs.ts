@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, db, desc, eq, inArray, isNotNull, isNull, sql } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, gt, inArray, isNotNull, isNull, ne, or, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
@@ -13,12 +13,13 @@ import {
   programBenefit,
   programFaq,
   programParticipant,
+  programSession,
   programSyllabus,
   requestStatusEnum,
 } from "@mulai-plus/db/schema/programs";
 import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
-import { protectedProcedure, publicProcedure } from "../index";
+import { adminOrProgramManagerProcedure, protectedProcedure, publicProcedure } from "../index";
 import {
   getApplicationAcceptedEmailHtml,
   getApplicationRejectedEmailHtml,
@@ -136,7 +137,7 @@ export const programsRouter = {
     }),
   },
 
-  apply: protectedProcedure
+  apply: publicProcedure
     .input(
       z.object({
         programId: z.string(),
@@ -146,10 +147,14 @@ export const programsRouter = {
           class: z.string().min(1),
           school: z.string().min(1),
           major: z.string().min(1),
-          domicile: z.string().min(1),
+          province: z.string().min(1),
+          city: z.string().min(1),
           reason: z.string().min(1),
           phone: z.string().min(1),
           email: z.string().email(),
+          reflectionIdealSelf: z.string().min(1),
+          reflectionExpectation: z.string().min(1),
+          reflectionFuture: z.string().min(1),
         }),
       }),
     )
@@ -186,13 +191,15 @@ export const programsRouter = {
       if (now > batchItem.registrationEndDate) {
         throw new Error("Registration has ended");
       }
+      const userId = context?.session?.user?.id;
+      if (!userId) throw new Error("Unauthorized");
 
       // 3. Check if already applied
       const existingApplication = await db.query.programApplication.findFirst({
         where: and(
           eq(programApplication.programId, input.programId),
           eq(programApplication.batchId, input.batchId),
-          eq(programApplication.userId, context.session.user.id),
+          eq(programApplication.userId, userId),
         ),
       });
 
@@ -206,7 +213,7 @@ export const programsRouter = {
         id,
         programId: input.programId,
         batchId: input.batchId,
-        userId: context.session.user.id,
+        userId: userId,
         status: "applied",
         reflectiveAnswers: input.answers,
       });
@@ -216,7 +223,7 @@ export const programsRouter = {
         const emailConfig = await db.query.systemSettings.findFirst({
           where: eq(systemSettings.key, "email_config"),
         });
-        const isEmailEnabled = (emailConfig?.value as any)?.enabled ?? true;
+        const isEmailEnabled = (emailConfig?.value as { enabled?: boolean })?.enabled ?? true;
 
         if (isEmailEnabled) {
           const emailHtml = getRegistrationEmailHtml({
@@ -275,9 +282,27 @@ export const programsRouter = {
   }),
 
   student: {
-    myPrograms: protectedProcedure.handler(async ({ context }) => {
+    myApplications: protectedProcedure.handler(async ({ context }) => {
+      const userId = context.session.user.id;
+
+      const applications = await db.query.programApplication.findMany({
+        where: eq(programApplication.userId, userId),
+        with: {
+          program: true,
+          batch: true,
+        },
+        orderBy: [desc(programApplication.createdAt)],
+      });
+
+      return applications;
+    }),
+
+    myPrograms: publicProcedure.handler(async ({ context }) => {
+      const userId = context?.session?.user?.id;
+      if (!userId) throw new Error("Unauthorized");
+
       const participations = await db.query.programParticipant.findMany({
-        where: and(eq(programParticipant.userId, context.session.user.id), isNotNull(programParticipant.batchId)),
+        where: and(eq(programParticipant.userId, userId), isNotNull(programParticipant.batchId)),
         with: {
           batch: {
             with: {
@@ -297,14 +322,17 @@ export const programsRouter = {
         }));
     }),
 
-    checkApplication: protectedProcedure
+    checkApplication: publicProcedure
       .input(z.object({ programId: z.string(), batchId: z.string() }))
       .handler(async ({ input, context }) => {
+        const userId = context?.session?.user?.id;
+        if (!userId) throw new Error("Unauthorized");
+
         const application = await db.query.programApplication.findFirst({
           where: and(
             eq(programApplication.programId, input.programId),
             eq(programApplication.batchId, input.batchId),
-            eq(programApplication.userId, context.session.user.id),
+            eq(programApplication.userId, userId),
           ),
         });
 
@@ -313,10 +341,71 @@ export const programsRouter = {
           status: application?.status,
         };
       }),
+
+    get: publicProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
+      const userId = context?.session?.user?.id;
+      if (!userId) throw new Error("Unauthorized");
+
+      const participant = await db.query.programParticipant.findFirst({
+        where: and(eq(programParticipant.userId, userId), eq(programParticipant.programId, input.id)),
+        with: {
+          batch: {
+            with: {
+              program: {
+                with: {
+                  syllabus: {
+                    orderBy: (s, { asc }) => [asc(s.week)],
+                  },
+                },
+              },
+              mentors: {
+                with: {
+                  user: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!participant?.batch) {
+        throw new Error("Program not found or you are not enrolled");
+      }
+
+      const sessions = await db.query.programSession.findMany({
+        where: and(
+          eq(programSession.batchId, participant.batchId!),
+          or(eq(programSession.studentId, userId), isNull(programSession.studentId)),
+          ne(programSession.status, "cancelled"),
+        ),
+        with: {
+          mentor: true,
+          batch: {
+            with: {
+              program: true,
+            },
+          },
+        },
+        orderBy: [asc(programSession.startsAt)],
+      });
+
+      const attendance = await db.query.programAttendance.findMany({
+        where: eq(programAttendance.userId, userId),
+      });
+
+      return {
+        ...participant.batch.program,
+        batch: participant.batch,
+        participant,
+        sessions,
+        attendance,
+        joinedAt: participant.createdAt,
+      };
+    }),
   },
 
   admin: {
-    analytics: protectedProcedure.handler(async () => {
+    analytics: adminOrProgramManagerProcedure.handler(async () => {
       const [totalPrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
       const [activePrograms] = await db.select({ count: count() }).from(program).where(isNull(program.deletedAt));
 
@@ -364,7 +453,7 @@ export const programsRouter = {
       };
     }),
 
-    list: protectedProcedure
+    list: adminOrProgramManagerProcedure
       .input(
         z
           .object({
@@ -401,7 +490,7 @@ export const programsRouter = {
         };
       }),
 
-    get: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    get: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       const item = await db.query.program.findFirst({
         where: eq(program.id, input.id),
         with: {
@@ -434,7 +523,7 @@ export const programsRouter = {
       };
     }),
 
-    create: protectedProcedure
+    create: adminOrProgramManagerProcedure
       .input(
         z.object({
           name: z.string().min(1),
@@ -463,7 +552,7 @@ export const programsRouter = {
         return { id };
       }),
 
-    update: protectedProcedure
+    update: adminOrProgramManagerProcedure
       .input(
         z.object({
           id: z.string(),
@@ -503,21 +592,21 @@ export const programsRouter = {
         return { success: true };
       }),
 
-    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       // Soft delete
       await db.update(program).set({ deletedAt: new Date() }).where(eq(program.id, input.id));
       return { success: true };
     }),
 
     batches: {
-      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+      list: adminOrProgramManagerProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
         return await db
           .select()
           .from(programBatch)
           .where(and(eq(programBatch.programId, input.programId), isNull(programBatch.deletedAt)))
           .orderBy(desc(programBatch.startDate));
       }),
-      create: protectedProcedure
+      create: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -540,7 +629,7 @@ export const programsRouter = {
           });
           return { id };
         }),
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             id: z.string(),
@@ -588,6 +677,7 @@ export const programsRouter = {
             quota: z.number().min(0).optional(),
             durationWeeks: z.number().min(1).optional(),
             bannerUrl: z.string().optional(),
+            communityLink: z.string().url().optional().or(z.literal("")),
             status: z.enum(["upcoming", "open", "closed", "running", "completed"]).optional(),
           }),
         )
@@ -612,12 +702,12 @@ export const programsRouter = {
           await db.update(programBatch).set(data).where(eq(programBatch.id, id));
           return { success: true };
         }),
-      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
         await db.update(programBatch).set({ deletedAt: new Date() }).where(eq(programBatch.id, input.id));
         return { success: true };
       }),
 
-      assignMentors: protectedProcedure
+      assignMentors: adminOrProgramManagerProcedure
         .input(
           z.object({
             batchId: z.string(),
@@ -641,7 +731,7 @@ export const programsRouter = {
           return { success: true };
         }),
 
-      getMentors: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+      getMentors: adminOrProgramManagerProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
         const mentors = await db.query.programBatchMentor.findMany({
           where: eq(programBatchMentor.batchId, input.batchId),
           with: {
@@ -652,7 +742,7 @@ export const programsRouter = {
       }),
 
       attendance: {
-        list: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+        list: adminOrProgramManagerProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
           const participants = await db.query.programApplication.findMany({
             where: and(eq(programApplication.batchId, input.batchId), eq(programApplication.status, "accepted")),
             with: {
@@ -662,6 +752,14 @@ export const programsRouter = {
 
           const attendance = await db.query.programAttendance.findMany({
             where: eq(programAttendance.batchId, input.batchId),
+            columns: {
+              id: true,
+              userId: true,
+              week: true,
+              status: true,
+              notes: true,
+              progressNote: true,
+            },
           });
 
           return {
@@ -670,7 +768,7 @@ export const programsRouter = {
           };
         }),
 
-        update: protectedProcedure
+        update: adminOrProgramManagerProcedure
           .input(
             z.object({
               batchId: z.string(),
@@ -680,6 +778,7 @@ export const programsRouter = {
                   week: z.number(),
                   status: z.enum(["present", "absent", "excused"]),
                   notes: z.string().optional(),
+                  progressNote: z.string().optional(),
                 }),
               ),
             }),
@@ -712,6 +811,7 @@ export const programsRouter = {
                     .set({
                       status: update.status,
                       notes: update.notes,
+                      progressNote: update.progressNote,
                     })
                     .where(eq(programAttendance.id, existing.id));
                 } else {
@@ -722,6 +822,7 @@ export const programsRouter = {
                     week: update.week,
                     status: update.status,
                     notes: update.notes,
+                    progressNote: update.progressNote,
                   });
                 }
               }
@@ -732,14 +833,14 @@ export const programsRouter = {
     },
 
     faqs: {
-      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+      list: adminOrProgramManagerProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
         return await db
           .select()
           .from(programFaq)
           .where(eq(programFaq.programId, input.programId))
           .orderBy(programFaq.order);
       }),
-      create: protectedProcedure
+      create: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -756,7 +857,7 @@ export const programsRouter = {
           });
           return { id };
         }),
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             id: z.string(),
@@ -770,21 +871,21 @@ export const programsRouter = {
           await db.update(programFaq).set(data).where(eq(programFaq.id, id));
           return { success: true };
         }),
-      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
         await db.delete(programFaq).where(eq(programFaq.id, input.id));
         return { success: true };
       }),
     },
 
     benefits: {
-      list: protectedProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
+      list: adminOrProgramManagerProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
         return await db
           .select()
           .from(programBenefit)
           .where(eq(programBenefit.programId, input.programId))
           .orderBy(programBenefit.order);
       }),
-      create: protectedProcedure
+      create: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -802,7 +903,7 @@ export const programsRouter = {
           });
           return { id };
         }),
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             id: z.string(),
@@ -817,14 +918,14 @@ export const programsRouter = {
           await db.update(programBenefit).set(data).where(eq(programBenefit.id, id));
           return { success: true };
         }),
-      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
         await db.delete(programBenefit).where(eq(programBenefit.id, input.id));
         return { success: true };
       }),
     },
 
     syllabus: {
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -875,14 +976,14 @@ export const programsRouter = {
           return { success: true };
         }),
 
-      delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
         await db.delete(programSyllabus).where(eq(programSyllabus.id, input.id));
         return { success: true };
       }),
     },
 
     mentors: {
-      assign: protectedProcedure
+      assign: adminOrProgramManagerProcedure
         .input(
           z.object({
             batchId: z.string(),
@@ -904,10 +1005,256 @@ export const programsRouter = {
           });
           return { success: true };
         }),
+
+      list: adminOrProgramManagerProcedure
+        .input(
+          z
+            .object({
+              programId: z.string().optional(),
+              limit: z.number().default(50),
+              offset: z.number().default(0),
+            })
+            .optional(),
+        )
+        .handler(async ({ input }) => {
+          const limit = input?.limit ?? 50;
+          const offset = input?.offset ?? 0;
+
+          let mentors: { userId: string; name: string | null; email: string | null; image: string | null }[];
+          if (input?.programId) {
+            const result = await db
+              .selectDistinct({
+                userId: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+              })
+              .from(programBatchMentor)
+              .innerJoin(user, eq(programBatchMentor.userId, user.id))
+              .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
+              .where(eq(programBatch.programId, input.programId));
+            mentors = result;
+          } else {
+            const result = await db
+              .selectDistinct({
+                userId: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+              })
+              .from(programBatchMentor)
+              .innerJoin(user, eq(programBatchMentor.userId, user.id));
+            mentors = result;
+          }
+
+          const userIds = mentors.map((m) => m.userId);
+
+          if (userIds.length === 0) {
+            return {
+              data: [],
+              pagination: { total: 0, limit, offset },
+            };
+          }
+
+          const sessionCounts = await db
+            .select({
+              mentorId: programSession.mentorId,
+              totalSessions: count(),
+            })
+            .from(programSession)
+            .where(inArray(programSession.mentorId, userIds))
+            .groupBy(programSession.mentorId);
+
+          const batchCounts = await db
+            .select({
+              mentorId: programBatchMentor.userId,
+              totalBatches: count(),
+            })
+            .from(programBatchMentor)
+            .where(inArray(programBatchMentor.userId, userIds))
+            .groupBy(programBatchMentor.userId);
+
+          const sessionCountMap = Object.fromEntries(sessionCounts.map((s) => [s.mentorId, s.totalSessions]));
+          const batchCountMap = Object.fromEntries(batchCounts.map((b) => [b.mentorId, b.totalBatches]));
+
+          const mentorsWithStats = mentors.map((m) => ({
+            id: m.userId,
+            name: m.name,
+            email: m.email,
+            image: m.image,
+            totalSessions: sessionCountMap[m.userId] ?? 0,
+            assignedBatches: batchCountMap[m.userId] ?? 0,
+          }));
+
+          return {
+            data: mentorsWithStats,
+            pagination: {
+              total: mentorsWithStats.length,
+              limit,
+              offset,
+            },
+          };
+        }),
+
+      get: adminOrProgramManagerProcedure.input(z.object({ mentorId: z.string() })).handler(async ({ input }) => {
+        const mentor = await db.query.user.findFirst({
+          where: eq(user.id, input.mentorId),
+        });
+
+        if (!mentor) {
+          throw new Error("Mentor not found");
+        }
+
+        const totalSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(eq(programSession.mentorId, input.mentorId));
+
+        const completedSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(and(eq(programSession.mentorId, input.mentorId), eq(programSession.status, "completed")));
+
+        const upcomingSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(
+            and(
+              eq(programSession.mentorId, input.mentorId),
+              eq(programSession.status, "scheduled"),
+              gt(programSession.startsAt, new Date()),
+            ),
+          );
+
+        const missedSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(and(eq(programSession.mentorId, input.mentorId), eq(programSession.status, "missed")));
+
+        const cancelledSessions = await db
+          .select({ count: count() })
+          .from(programSession)
+          .where(and(eq(programSession.mentorId, input.mentorId), eq(programSession.status, "cancelled")));
+
+        const assignedBatches = await db.query.programBatchMentor.findMany({
+          where: eq(programBatchMentor.userId, input.mentorId),
+          with: {
+            batch: {
+              with: {
+                program: true,
+              },
+            },
+          },
+        });
+
+        const allSessions = await db.query.programSession.findMany({
+          where: eq(programSession.mentorId, input.mentorId),
+          with: {
+            student: true,
+            batch: {
+              with: {
+                program: true,
+              },
+            },
+          },
+          orderBy: [desc(programSession.startsAt)],
+        });
+
+        const studentsMap = new Map<
+          string,
+          {
+            id: string;
+            name: string;
+            email: string;
+            image: string | null;
+            sessionCount: number;
+            sessions: {
+              id: string;
+              week: number;
+              type: string;
+              status: string;
+              startsAt: Date;
+              durationMinutes: number;
+              batchName: string;
+              programName: string;
+              meetingLink: string | null;
+            }[];
+          }
+        >();
+
+        for (const session of allSessions) {
+          if (!session.studentId) continue;
+          const studentId = session.studentId;
+
+          if (!studentsMap.has(studentId)) {
+            studentsMap.set(studentId, {
+              id: studentId,
+              name: session.student?.name || "Unknown",
+              email: session.student?.email || "",
+              image: session.student?.image || null,
+              sessionCount: 0,
+              sessions: [],
+            });
+          }
+
+          const studentData = studentsMap.get(studentId);
+          if (!studentData) continue;
+          studentData.sessionCount++;
+          studentData.sessions.push({
+            id: session.id,
+            week: session.week,
+            type: session.type,
+            status: session.status,
+            startsAt: session.startsAt,
+            durationMinutes: session.durationMinutes,
+            batchName: session.batch?.name || "Unknown Batch",
+            programName: session.batch?.program?.name || "Unknown Program",
+            meetingLink: session.meetingLink,
+          });
+        }
+
+        const students = Array.from(studentsMap.values()).sort((a, b) => b.sessions.length - a.sessions.length);
+
+        const recentSessions = allSessions.slice(0, 10).map((s) => ({
+          id: s.id,
+          week: s.week,
+          type: s.type,
+          status: s.status,
+          startsAt: s.startsAt,
+          durationMinutes: s.durationMinutes,
+          studentName: s.student?.name || null,
+          studentId: s.studentId,
+          batchName: s.batch?.name || "Unknown Batch",
+          programName: s.batch?.program?.name || "Unknown Program",
+          meetingLink: s.meetingLink,
+        }));
+
+        return {
+          id: mentor.id,
+          name: mentor.name,
+          email: mentor.email,
+          image: mentor.image,
+          stats: {
+            total: totalSessions[0]?.count ?? 0,
+            completed: completedSessions[0]?.count ?? 0,
+            upcoming: upcomingSessions[0]?.count ?? 0,
+            missed: missedSessions[0]?.count ?? 0,
+            cancelled: cancelledSessions[0]?.count ?? 0,
+          },
+          assignedBatches: assignedBatches.map((ab) => ({
+            id: ab.batch.id,
+            name: ab.batch.name,
+            programName: ab.batch.program.name,
+            assignedAt: ab.assignedAt,
+          })),
+          students,
+          recentSessions,
+        };
+      }),
     },
 
     applications: {
-      list: protectedProcedure
+      list: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -958,7 +1305,7 @@ export const programsRouter = {
           };
         }),
 
-      recent: protectedProcedure
+      recent: adminOrProgramManagerProcedure
         .input(
           z.object({
             limit: z.number().default(5),
@@ -990,7 +1337,7 @@ export const programsRouter = {
           return items;
         }),
 
-      bulkUpdateStatus: protectedProcedure
+      bulkUpdateStatus: adminOrProgramManagerProcedure
         .input(
           z.object({
             ids: z.array(z.string()),
@@ -1034,7 +1381,7 @@ export const programsRouter = {
           return { success: true };
         }),
 
-      updateStatus: protectedProcedure
+      updateStatus: adminOrProgramManagerProcedure
         .input(
           z.object({
             id: z.string(),
@@ -1063,7 +1410,7 @@ export const programsRouter = {
             const emailConfig = await tx.query.systemSettings.findFirst({
               where: eq(systemSettings.key, "email_config"),
             });
-            const isEmailEnabled = (emailConfig?.value as any)?.enabled ?? true;
+            const isEmailEnabled = (emailConfig?.value as { enabled?: boolean })?.enabled ?? true;
 
             if (input.status === "accepted") {
               // Check if already a participant in this program (and batch if applicable)
@@ -1184,7 +1531,7 @@ export const programsRouter = {
     },
 
     participants: {
-      list: protectedProcedure
+      list: adminOrProgramManagerProcedure
         .input(
           z.object({
             programId: z.string(),
@@ -1237,7 +1584,7 @@ export const programsRouter = {
     },
 
     attendance: {
-      list: protectedProcedure
+      list: adminOrProgramManagerProcedure
         .input(
           z.object({
             batchId: z.string(),
@@ -1258,6 +1605,7 @@ export const programsRouter = {
               week: programAttendance.week,
               status: programAttendance.status,
               notes: programAttendance.notes,
+              progressNote: programAttendance.progressNote,
               user: {
                 id: user.id,
                 name: user.name,
@@ -1271,7 +1619,7 @@ export const programsRouter = {
           return records;
         }),
 
-      update: protectedProcedure
+      update: adminOrProgramManagerProcedure
         .input(
           z.object({
             batchId: z.string(),
@@ -1281,6 +1629,7 @@ export const programsRouter = {
                 week: z.number(),
                 status: z.enum(["present", "absent", "excused"]),
                 notes: z.string().optional(),
+                progressNote: z.string().optional(),
               }),
             ),
           }),
@@ -1312,6 +1661,7 @@ export const programsRouter = {
                   .set({
                     status: record.status,
                     notes: record.notes,
+                    progressNote: record.progressNote,
                   })
                   .where(eq(programAttendance.id, existing.id));
               } else {
@@ -1322,6 +1672,7 @@ export const programsRouter = {
                   week: record.week,
                   status: record.status,
                   notes: record.notes,
+                  progressNote: record.progressNote,
                 });
               }
             }
@@ -1331,7 +1682,7 @@ export const programsRouter = {
     },
 
     attachmentRequests: {
-      list: protectedProcedure
+      list: adminOrProgramManagerProcedure
         .input(
           z.object({
             limit: z.number().default(50),
@@ -1376,54 +1727,59 @@ export const programsRouter = {
           };
         }),
 
-      approve: protectedProcedure.input(z.object({ requestId: z.string() })).handler(async ({ input, context }) => {
-        const request = await db.query.programAttachmentRequest.findFirst({
-          where: eq(programAttachmentRequest.id, input.requestId),
-        });
+      approve: adminOrProgramManagerProcedure
+        .input(z.object({ requestId: z.string() }))
+        .handler(async ({ input, context }) => {
+          const request = await db.query.programAttachmentRequest.findFirst({
+            where: eq(programAttachmentRequest.id, input.requestId),
+          });
 
-        if (!request) throw new Error("Request not found");
-        if (request.status !== "pending") throw new Error("Request is not pending");
+          if (!request) throw new Error("Request not found");
+          if (request.status !== "pending") throw new Error("Request is not pending");
 
-        await db.transaction(async (tx) => {
-          const data = request.data as any;
+          await db.transaction(async (tx) => {
+            const data = request.data as Record<string, unknown>;
 
-          if (request.action === "create") {
-            await tx.insert(programAttachment).values({
-              id: randomUUID(),
-              batchId: request.batchId,
-              ...data,
-            });
-          } else if (request.action === "update") {
-            if (!request.attachmentId) throw new Error("Attachment ID missing for update");
-            await tx.update(programAttachment).set(data).where(eq(programAttachment.id, request.attachmentId));
-          } else if (request.action === "delete") {
-            if (!request.attachmentId) throw new Error("Attachment ID missing for delete");
-            await tx.delete(programAttachment).where(eq(programAttachment.id, request.attachmentId));
-          }
+            if (request.action === "create") {
+              const typedData = data as { name: string; type: "file" | "video" | "link" | "tool"; url: string };
+              await tx.insert(programAttachment).values({
+                id: randomUUID(),
+                batchId: request.batchId,
+                name: typedData.name,
+                type: typedData.type,
+                url: typedData.url,
+              });
+            } else if (request.action === "update") {
+              if (!request.attachmentId) throw new Error("Attachment ID missing for update");
+              await tx.update(programAttachment).set(data).where(eq(programAttachment.id, request.attachmentId));
+            } else if (request.action === "delete") {
+              if (!request.attachmentId) throw new Error("Attachment ID missing for delete");
+              await tx.delete(programAttachment).where(eq(programAttachment.id, request.attachmentId));
+            }
 
-          await tx
-            .update(programAttachmentRequest)
-            .set({
-              status: "approved",
-              reviewedBy: context.session.user.id,
-              updatedAt: new Date(),
-            })
-            .where(eq(programAttachmentRequest.id, input.requestId));
-        });
+            await tx
+              .update(programAttachmentRequest)
+              .set({
+                status: "approved",
+                reviewedBy: context.session.user.id,
+                updatedAt: new Date(),
+              })
+              .where(eq(programAttachmentRequest.id, input.requestId));
+          });
 
-        // Notify Mentor
-        await sendNotification({
-          userId: request.requestedBy,
-          title: "Attachment Request Approved",
-          message: `Your request to ${request.action} attachment has been approved.`,
-          type: "success",
-          link: `/mentor/batches/${request.batchId}/attachments`,
-        });
+          // Notify Mentor
+          await sendNotification({
+            userId: request.requestedBy,
+            title: "Attachment Request Approved",
+            message: `Your request to ${request.action} attachment has been approved.`,
+            type: "success",
+            link: `/mentor/batches/${request.batchId}/attachments`,
+          });
 
-        return { success: true };
-      }),
+          return { success: true };
+        }),
 
-      reject: protectedProcedure
+      reject: adminOrProgramManagerProcedure
         .input(z.object({ requestId: z.string(), reason: z.string().optional() }))
         .handler(async ({ input, context }) => {
           const request = await db.query.programAttachmentRequest.findFirst({

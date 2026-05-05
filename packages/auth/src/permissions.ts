@@ -21,11 +21,23 @@ const statement = {
   task: ["create", "read", "update", "delete", "assign"],
   comment: ["create", "read", "update", "delete"],
 
+  // Program Management
+  program: ["create", "read", "update", "delete"],
+  batch: ["create", "read", "update", "delete"],
+  application: ["read", "approve", "reject"],
+  participant: ["read", "update"],
+  attendance: ["read", "update"],
+  session: ["create", "read", "update", "delete"],
+  attachment: ["create", "read", "update", "delete"],
+  testimonial: ["create", "read", "update", "delete"],
+  analytics: ["read"],
+
   // Dashboard Access
   dashboard: ["access"],
   student_dashboard: ["access"],
   mentor_dashboard: ["access"],
   admin_dashboard: ["access"],
+  program_manager_dashboard: ["access"],
 
   // Dynamic catch-all for custom resources created at runtime
   // This allows the AC to be flexible with DB-defined permissions
@@ -88,7 +100,7 @@ export const getRoles = async () => {
         admin_dashboard: ["access"],
         "*": ["*"],
       }),
-    } as any;
+    };
   }
 };
 
@@ -114,3 +126,4 @@ export const admin = ac.newRole({
 });
 export const student = ac.newRole({});
 export const mentor = ac.newRole({});
+export const program_manager = ac.newRole({});

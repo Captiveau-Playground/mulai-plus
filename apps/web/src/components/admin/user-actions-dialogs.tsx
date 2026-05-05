@@ -29,6 +29,146 @@ interface EditUserRoleDialogProps {
   onSuccess?: () => void;
 }
 
+interface CreateUserDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+}
+
+export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDialogProps) {
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [role, setRole] = React.useState<string>("student");
+  const [isPending, setIsPending] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  const { data: roles } = useQuery(orpc.role.list.queryOptions());
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsPending(true);
+
+    try {
+      const { error } = await authClient.admin.createUser({
+        name,
+        email,
+        password,
+        role: role as "student" | "mentor" | "admin" | "program_manager",
+      });
+
+      if (error) throw new Error(error.message || error.statusText);
+
+      toast.success(`User ${name} created successfully`);
+      setName("");
+      setEmail("");
+      setPassword("");
+      setRole("student");
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (err: any) {
+      setError(err.message || "Failed to create user");
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create User</DialogTitle>
+          <DialogDescription>
+            Create a new user account. They will receive an email to set their password.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="name" className="font-manrope font-medium text-sm text-text-main">
+              Name
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Full name"
+              required
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 font-manrope text-sm text-text-main outline-none transition-colors placeholder:text-text-muted-custom focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/10"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="email" className="font-manrope font-medium text-sm text-text-main">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="user@example.com"
+              required
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 font-manrope text-sm text-text-main outline-none transition-colors placeholder:text-text-muted-custom focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/10"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="password" className="font-manrope font-medium text-sm text-text-main">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Min. 6 characters"
+              required
+              minLength={6}
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 font-manrope text-sm text-text-main outline-none transition-colors placeholder:text-text-muted-custom focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/10"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="role" className="font-manrope font-medium text-sm text-text-main">
+              Role
+            </label>
+            <select
+              id="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 font-manrope text-sm text-text-main outline-none transition-colors focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/10"
+            >
+              {roles?.map((r: { id: string; name?: string }) => (
+                <option key={r.id} value={r.id}>
+                  {r.name || r.id}
+                </option>
+              )) || (
+                <>
+                  <option value="student">Student</option>
+                  <option value="mentor">Mentor</option>
+                  <option value="program_manager">Program Manager</option>
+                  <option value="admin">Admin</option>
+                </>
+              )}
+            </select>
+          </div>
+
+          {error && <div className="rounded-lg bg-red-50 px-3 py-2 font-manrope text-red-600 text-sm">{error}</div>}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create User
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function EditUserRoleDialog({ user, open, onOpenChange, onSuccess }: EditUserRoleDialogProps) {
   const [selectedRole, setSelectedRole] = React.useState(user?.role || "student");
   const [isPending, setIsPending] = React.useState(false);
@@ -47,7 +187,12 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSuccess }: Edit
     try {
       const { error } = await authClient.admin.setRole({
         userId: user.id,
-        role: selectedRole as "user" | "admin",
+        role: selectedRole as
+          | "admin"
+          | "student"
+          | "mentor"
+          | "program_manager"
+          | ("admin" | "student" | "mentor" | "program_manager")[],
       });
 
       if (error) {
