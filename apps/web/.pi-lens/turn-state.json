@@ -1227,9 +1227,45 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-05T08:24:56.396Z"
+    },
+    "src/components/admin/user-actions-dialogs.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 32,
+          "end": 169
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-05T09:31:53.856Z"
+    },
+    "src/app/(internal)/admin/(infra)/users/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 3,
+          "end": 5
+        },
+        {
+          "start": 7,
+          "end": 7
+        },
+        {
+          "start": 14,
+          "end": 18
+        },
+        {
+          "start": 21,
+          "end": 30
+        },
+        {
+          "start": 32,
+          "end": 37
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-05T09:23:29.808Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-05T08:29:18.147Z"
+  "lastUpdated": "2026-05-05T09:31:53.857Z"
 }
