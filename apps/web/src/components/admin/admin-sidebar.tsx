@@ -1,7 +1,8 @@
 "use client";
 
-import { BookOpen, Computer, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import { BookOpen, Computer, ExternalLink, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -203,6 +204,18 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
         <NavMain label="Programs" items={data.navMentoring} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
+
+        {/* Back to Site */}
+        <div className="mt-auto px-3 pb-1">
+          <div className="mb-2 border-sidebar-border/50 border-t" />
+          <Link
+            href="/"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 font-manrope font-medium text-sm text-white/40 transition-all hover:bg-white/10 hover:text-white"
+          >
+            <ExternalLink className="h-4 w-4 shrink-0" />
+            <span>Back to Site</span>
+          </Link>
+        </div>
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

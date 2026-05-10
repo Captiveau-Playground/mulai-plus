@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Calendar, LayoutDashboard, Loader2, LogOut } from "lucide-react";
+import { BookOpen, Calendar, ExternalLink, LayoutDashboard, Loader2, LogOut } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -124,6 +124,18 @@ export function MentorSidebar({
             <NavLink key={item.title} item={item} onNavigate={onNavigate} />
           ))}
         </nav>
+
+        {/* Back to Site */}
+        <div className="mt-2 border-white/10 border-t pt-3">
+          <Link
+            href="/"
+            onClick={onNavigate}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-manrope font-medium text-sm text-white/40 transition-all duration-200 hover:bg-white/10 hover:text-white"
+          >
+            <ExternalLink className="h-4 w-4 shrink-0" />
+            <span>Back to Site</span>
+          </Link>
+        </div>
       </SidebarContent>
 
       <SidebarFooter className="border-white/10 border-t px-3 py-4">
