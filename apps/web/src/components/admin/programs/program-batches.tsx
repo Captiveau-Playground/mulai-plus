@@ -58,6 +58,8 @@ function BatchAttendanceDialog({
     staleTime: 1000 * 60 * 1, // 1 minute
   });
 
+  const attendanceQueryClient = useQueryClient();
+
   const [updates, setUpdates] = useState<
     Record<string, { status: "present" | "absent" | "excused"; notes?: string; progressNote?: string }>
   >({});
@@ -66,6 +68,8 @@ function BatchAttendanceDialog({
     orpc.programs.admin.batches.attendance.update.mutationOptions({
       onSuccess: () => {
         toast.success("Attendance updated");
+        const path = orpc.programs.admin.batches.attendance.list.key()[0];
+        attendanceQueryClient.invalidateQueries({ queryKey: [path], refetchType: "all" });
         onOpenChange(false);
         setUpdates({});
       },
