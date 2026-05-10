@@ -383,7 +383,7 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-[640px]">
+        <DialogContent className="flex max-h-[90vh] flex-col overflow-y-auto p-0 sm:max-w-[640px]">
           <div className="gradient-brand-navy px-6 py-5">
             <div className="flex items-center justify-between">
               <div>

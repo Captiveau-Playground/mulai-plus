@@ -1503,10 +1503,14 @@
         {
           "start": 380,
           "end": 380
+        },
+        {
+          "start": 386,
+          "end": 386
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-10T08:44:41.467Z"
+      "lastEdit": "2026-05-10T08:55:17.113Z"
     },
     "src/app/(app)/(front)/programs/[slug]/page.tsx": {
       "modifiedRanges": [
@@ -1753,5 +1757,5 @@
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-10T08:47:35.256Z"
+  "lastUpdated": "2026-05-10T08:55:17.113Z"
 }
