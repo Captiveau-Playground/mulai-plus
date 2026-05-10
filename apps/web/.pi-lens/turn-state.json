@@ -1305,9 +1305,113 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-05T09:59:03.443Z"
+    },
+    "src/components/front/featured-programs.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 23,
+          "end": 23
+        },
+        {
+          "start": 37,
+          "end": 62
+        },
+        {
+          "start": 112,
+          "end": 112
+        },
+        {
+          "start": 114,
+          "end": 134
+        },
+        {
+          "start": 136,
+          "end": 162
+        },
+        {
+          "start": 164,
+          "end": 178
+        },
+        {
+          "start": 180,
+          "end": 216
+        },
+        {
+          "start": 218,
+          "end": 220
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-10T06:28:35.814Z"
+    },
+    "src/components/front/details-program/registration-cta.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 20,
+          "end": 20
+        },
+        {
+          "start": 23,
+          "end": 30
+        },
+        {
+          "start": 78,
+          "end": 78
+        },
+        {
+          "start": 85,
+          "end": 85
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-10T06:27:01.245Z"
+    },
+    "src/components/front/program-registration.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 56,
+          "end": 67
+        },
+        {
+          "start": 69,
+          "end": 70
+        },
+        {
+          "start": 103,
+          "end": 103
+        },
+        {
+          "start": 288,
+          "end": 346
+        },
+        {
+          "start": 350,
+          "end": 350
+        },
+        {
+          "start": 352,
+          "end": 354
+        },
+        {
+          "start": 361,
+          "end": 361
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-10T06:36:45.042Z"
+    },
+    "src/app/(app)/(front)/programs/[slug]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 204,
+          "end": 213
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-10T06:28:08.776Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-05T10:00:29.400Z"
+  "lastUpdated": "2026-05-10T06:36:45.042Z"
 }

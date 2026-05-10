@@ -17,10 +17,13 @@ interface Batch {
 interface RegistrationCTAProps {
   programId: string;
   batch: Batch;
+  allBatches?: Batch[];
   className?: string;
 }
 
-export function RegistrationCTA({ programId, batch, className }: RegistrationCTAProps) {
+export function RegistrationCTA({ programId, batch, allBatches, className }: RegistrationCTAProps) {
+  // Find the next available batch (open/upcoming) that is different from current batch
+  const nextBatch = allBatches?.find((b) => b.id !== batch.id && (b.status === "open" || b.status === "upcoming"));
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString("id-ID", {
       day: "2-digit",
@@ -75,7 +78,7 @@ export function RegistrationCTA({ programId, batch, className }: RegistrationCTA
 
         <div className="h-px w-full bg-[#BFD6FF]" />
 
-        <ProgramRegistration programId={programId} batch={batch} />
+        <ProgramRegistration programId={programId} batch={batch} nextBatch={nextBatch} />
       </div>
     </div>
   );
