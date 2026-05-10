@@ -380,6 +380,7 @@ export const programsRouter = {
         ),
         with: {
           mentor: true,
+          attachments: true,
           batch: {
             with: {
               program: true,

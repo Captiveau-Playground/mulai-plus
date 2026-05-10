@@ -427,6 +427,10 @@
     "src/components/mentor/batch-attachments.tsx": {
       "modifiedRanges": [
         {
+          "start": 23,
+          "end": 27
+        },
+        {
           "start": 160,
           "end": 160
         },
@@ -485,10 +489,22 @@
         {
           "start": 471,
           "end": 472
+        },
+        {
+          "start": 576,
+          "end": 576
+        },
+        {
+          "start": 579,
+          "end": 581
+        },
+        {
+          "start": 593,
+          "end": 593
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-03T16:43:58.175Z"
+      "lastEdit": "2026-05-10T08:15:00.747Z"
     },
     "src/components/dashboard-header.tsx": {
       "modifiedRanges": [
@@ -1264,11 +1280,15 @@
         },
         {
           "start": 329,
-          "end": 360
+          "end": 380
+        },
+        {
+          "start": 382,
+          "end": 409
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-05T09:59:51.401Z"
+      "lastEdit": "2026-05-10T08:12:26.998Z"
     },
     "src/components/ui/input.tsx": {
       "modifiedRanges": [
@@ -1631,9 +1651,19 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-10T07:19:29.264Z"
+    },
+    "src/components/admin/programs/batch-attachments.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 304,
+          "end": 312
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-10T08:20:59.283Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-10T07:49:34.414Z"
+  "lastUpdated": "2026-05-10T08:20:59.283Z"
 }

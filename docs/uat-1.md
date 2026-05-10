@@ -1,7 +1,4 @@
-PROGRAM MANAGER di menu session:
-
-1. kebanyakan form input: valuenya ketika select dropdown / select value, valuenya masih ID, terutama di create session, value mentor & student setelah di select masih ID
-2. Tampilan dialog di menu session cukup sempit, coba sesuaikan lebar dialog / modalnya agar uiuxnya bagus
-3. kasih validasion meeting link, harus https gitu gitu format link
-4. pastikan hal hal yang berkaitan dengan datetime, makesure WIB, settingan harus WIB gmt berapa gitu anda audit semua
-5. ketika buka view calendar di session management, dan klik detail session di calendar, ketika back: makesure back ke state calendar view tadi, bukan kembali ke session management
+ATTACHMENT di MENTOR / PROGRAM MANAGER / ADMIN
+1. Semua type input valuenya link, makesure https url format
+2. untuk informasi link to session, di select value, selain nama sesi dan tanggal, tambahkan info itu mentor siapa, dan menteenya siapa, sehingga attachmentnya tidak salah sesi
+3. pastikan di sisi student, tiap sesinya, jika ada attachemtn, kasih info, biar bisa diklik href _blank untuk materi dia. ini butuh UI
