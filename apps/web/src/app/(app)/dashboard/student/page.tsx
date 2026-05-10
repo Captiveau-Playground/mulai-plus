@@ -6,6 +6,7 @@ import { ArrowRight, BookOpen, Calendar, Clock, GraduationCap, ShoppingCart, Vid
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ApplicationHistory } from "@/components/student/application-history";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -168,8 +169,9 @@ export default function StudentDashboardPage() {
             </Card>
           </div>
 
-          {/* Quick Actions / Recent Orders */}
+          {/* Application History / Quick Actions / Recent Orders */}
           <div className="space-y-6">
+            <ApplicationHistory compact limit={5} />
             {/* Quick Actions */}
             <Card className="student-card">
               <CardHeader className="pb-3">

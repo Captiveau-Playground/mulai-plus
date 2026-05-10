@@ -1661,9 +1661,67 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-10T08:20:59.283Z"
+    },
+    "src/components/student/application-history.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 219
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-10T08:35:35.690Z"
+    },
+    "src/app/(app)/dashboard/student/programs/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 5,
+          "end": 5
+        },
+        {
+          "start": 9,
+          "end": 9
+        },
+        {
+          "start": 18,
+          "end": 21
+        },
+        {
+          "start": 74,
+          "end": 74
+        },
+        {
+          "start": 76,
+          "end": 92
+        },
+        {
+          "start": 94,
+          "end": 109
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-10T08:36:10.782Z"
+    },
+    "src/app/(app)/dashboard/student/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 6,
+          "end": 6
+        },
+        {
+          "start": 171,
+          "end": 172
+        },
+        {
+          "start": 174,
+          "end": 174
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-10T08:36:28.318Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-10T08:20:59.283Z"
+  "lastUpdated": "2026-05-10T08:36:28.318Z"
 }

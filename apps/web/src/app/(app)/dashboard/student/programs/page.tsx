@@ -2,10 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertCircle, Award, BookOpen, Calendar, CheckCircle2, Clock, GraduationCap, XCircle } from "lucide-react";
+import { Award, BookOpen, Calendar, GraduationCap } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ApplicationHistory } from "@/components/student/application-history";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,10 +16,7 @@ import { orpc } from "@/utils/orpc";
 
 export default function StudentProgramsPage() {
   const { data: programs, isLoading: programsLoading } = useQuery(orpc.programs.student.myPrograms.queryOptions());
-  const { data: applications, isLoading: applicationsLoading } = useQuery(
-    orpc.programs.student.myApplications.queryOptions(),
-  );
-  const isLoading = programsLoading || applicationsLoading;
+  const isLoading = programsLoading;
 
   return (
     <PageState isLoading={isLoading}>
@@ -73,39 +71,7 @@ export default function StudentProgramsPage() {
         </div>
 
         {/* Application History */}
-        {applications && applications.length > 0 && (
-          <details className="group rounded-lg border border-gray-200 bg-white">
-            <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-manrope text-sm text-text-muted-custom hover:text-text-main">
-              <Clock className="h-4 w-4" />
-              Application History ({applications.length})
-            </summary>
-            <div className="border-gray-100 border-t px-4 py-3">
-              <div className="space-y-2">
-                {applications.map((app) => {
-                  const statusConfig = {
-                    applied: { bg: "bg-blue-50", text: "text-blue-600", icon: Clock, label: "Pending" },
-                    accepted: { bg: "bg-green-50", text: "text-green-600", icon: CheckCircle2, label: "Accepted" },
-                    rejected: { bg: "bg-red-50", text: "text-red-600", icon: XCircle, label: "Rejected" },
-                    waitlisted: { bg: "bg-orange-50", text: "text-orange-600", icon: AlertCircle, label: "Waitlisted" },
-                  };
-                  const config = statusConfig[app.status as keyof typeof statusConfig] || statusConfig.applied;
-                  const Icon = config.icon;
-
-                  return (
-                    <div key={app.id} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <Icon className={cn("h-4 w-4", config.text)} />
-                        <span className="font-manrope text-sm text-text-main">{app.program?.name}</span>
-                        <span className="font-manrope text-sm text-text-muted-custom">• {app.batch?.name}</span>
-                      </div>
-                      <span className={cn("font-manrope text-xs", config.text)}>{config.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </details>
-        )}
+        <ApplicationHistory />
 
         {/* Programs Grid */}
         {programs && programs.length > 0 ? (
