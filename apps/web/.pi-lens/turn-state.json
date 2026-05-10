@@ -1495,10 +1495,18 @@
         {
           "start": 361,
           "end": 361
+        },
+        {
+          "start": 373,
+          "end": 373
+        },
+        {
+          "start": 380,
+          "end": 380
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-10T06:36:45.042Z"
+      "lastEdit": "2026-05-10T08:44:41.467Z"
     },
     "src/app/(app)/(front)/programs/[slug]/page.tsx": {
       "modifiedRanges": [
@@ -1697,10 +1705,14 @@
         {
           "start": 94,
           "end": 109
+        },
+        {
+          "start": 179,
+          "end": 179
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-10T08:36:10.782Z"
+      "lastEdit": "2026-05-10T08:44:06.936Z"
     },
     "src/app/(app)/dashboard/student/page.tsx": {
       "modifiedRanges": [
@@ -1719,9 +1731,27 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-10T08:36:28.318Z"
+    },
+    "src/components/front/hero-section.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 4,
+          "end": 4
+        },
+        {
+          "start": 11,
+          "end": 11
+        },
+        {
+          "start": 23,
+          "end": 28
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-10T08:47:35.256Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-10T08:36:28.318Z"
+  "lastUpdated": "2026-05-10T08:47:35.256Z"
 }

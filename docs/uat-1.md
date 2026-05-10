@@ -1,4 +1,6 @@
-UI STUDENT
-1. buat application history lebih keren dan bagus, krn student possible daftar ke banyak program / batch. status pending ubah jadi enum in progres, dan finalnya kan rejected / accepted|
-2. komponen application history juga tambahkan di dashboard, bukan hanya di my programs
-3.
+UI for STUDENT
+
+1. Ketika user baru pertama kali landing, belum ada program aktif, browse my program button, redirect ke / halaman utama aja yaa
+2. button Daftar sekarang di landing page / halaman utama, href ke #featured-programs yaa
+3. buat button daftar di program registration sedikit lebih solid dengan bg putih misal, sesuaikan dengan design system
+4.

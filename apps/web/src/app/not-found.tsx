@@ -55,7 +55,7 @@ export default function NotFound() {
         </Link>
 
         <Link
-          href={"/#featured-programs" as Route}
+          href={"#featured-programs" as Route}
           className="flex items-center justify-center gap-2 rounded-full border border-gray-200 px-8 py-4 font-manrope font-medium text-sm text-text-main transition-all hover:border-brand-navy/30 hover:bg-brand-navy/5"
         >
           Lihat Program

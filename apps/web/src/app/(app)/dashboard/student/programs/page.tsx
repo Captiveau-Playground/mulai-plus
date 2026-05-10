@@ -176,7 +176,7 @@ export default function StudentProgramsPage() {
               <p className="mt-2 mb-6 font-manrope text-sm text-text-muted-custom sm:text-base">
                 You haven't enrolled in any mentoring programs.
               </p>
-              <Link href={"/programs" as Route}>
+              <Link href={"/" as Route}>
                 <Button className="btn-brand-red rounded-full">Browse Programs</Button>
               </Link>
             </CardContent>

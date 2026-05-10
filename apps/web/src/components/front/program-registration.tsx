@@ -370,14 +370,14 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
   return (
     <>
       <Button
-        className="btn-brand-navy w-full shadow-md"
+        className="flex w-full items-center gap-2 rounded-full bg-white px-6 py-6 font-bold font-manrope text-brand-navy shadow-md transition-all hover:bg-gray-100"
         size="lg"
         onClick={handleRegisterClick}
         disabled={buttonState.disabled}
       >
         {(() => {
           const Icon = buttonState.icon;
-          return <Icon className="mr-2 h-5 w-5" />;
+          return <Icon className="h-5 w-5" />;
         })()}
         {buttonState.label}
       </Button>
