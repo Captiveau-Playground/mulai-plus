@@ -431,7 +431,7 @@ function MentorSessionsContent() {
                       <div className="mb-1 flex items-center gap-1.5">
                         <Clock className="h-3.5 w-3.5 shrink-0 text-text-muted-custom" />
                         <span className="font-manrope text-text-muted-custom text-xs">
-                          {format(new Date(session.startsAt), "h:mm a")} ({session.durationMinutes} min)
+                          {format(new Date(session.startsAt), "h:mm a")} WIB ({session.durationMinutes} min)
                         </span>
                       </div>
 
@@ -497,7 +497,7 @@ function MentorSessionsContent() {
 
         {viewingSession && (
           <Dialog open={true} onOpenChange={(open) => !open && setViewingSession(null)}>
-            <DialogContent className="mentor-section max-w-md">
+            <DialogContent className="mentor-section w-full max-w-[95vw] sm:max-w-xl">
               <DialogHeader>
                 <DialogTitle className="font-bold font-bricolage text-brand-navy text-xl">Session Details</DialogTitle>
               </DialogHeader>
@@ -532,7 +532,8 @@ function MentorSessionsContent() {
                     <span className="mb-1 block text-muted-foreground">Time</span>
                     <span className="font-medium">
                       {format(new Date(viewingSession.startsAt), "HH:mm")} -{" "}
-                      {format(addMinutes(new Date(viewingSession.startsAt), viewingSession.durationMinutes), "HH:mm")}
+                      {format(addMinutes(new Date(viewingSession.startsAt), viewingSession.durationMinutes), "HH:mm")}{" "}
+                      WIB
                     </span>
                   </div>
                   <div>

@@ -23,8 +23,18 @@ import { orpc } from "@/utils/orpc";
 
 const sessionSchema = z.object({
   status: z.enum(["scheduled", "completed", "cancelled", "missed"]),
-  meetingLink: z.string().optional(),
-  recordingLink: z.string().optional(),
+  meetingLink: z
+    .string()
+    .url("Must be a valid URL")
+    .refine((val) => !val || val.startsWith("https://"), "Meeting link must use HTTPS")
+    .optional()
+    .or(z.literal("")),
+  recordingLink: z
+    .string()
+    .url("Must be a valid URL")
+    .refine((val) => !val || val.startsWith("https://"), "Recording link must use HTTPS")
+    .optional()
+    .or(z.literal("")),
   notes: z.string().optional(),
   startsAt: z.string().min(1, "Date and time is required"),
   durationMinutes: z.coerce.number().min(15, "Duration must be at least 15 minutes"),
@@ -96,10 +106,14 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
   const isPending = updateOneOnOneMutation.isPending || upsertMutation.isPending;
 
   const onSubmit: SubmitHandler<SessionFormValues> = (values) => {
+    // Preserve WIB (UTC+7) offset — convert datetime-local to ISO with +07:00
+    const startsAtWIB = values.startsAt ? `${values.startsAt}:00+07:00` : values.startsAt;
+
     if (isOneOnOne) {
       updateOneOnOneMutation.mutate({
         id: session.id,
         ...values,
+        startsAt: startsAtWIB,
       });
     } else {
       upsertMutation.mutate({
@@ -108,7 +122,7 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
         mentorId: session.mentorId,
         week: session.week,
         type: session.type as any,
-        startsAt: new Date(values.startsAt).toISOString(),
+        startsAt: startsAtWIB,
         durationMinutes: values.durationMinutes,
         studentId: session.studentId || undefined,
         status: values.status,
@@ -130,13 +144,15 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="startsAt"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date & Time</FormLabel>
+                    <FormLabel>
+                      Date & Time <span className="font-normal text-muted-foreground">(WIB)</span>
+                    </FormLabel>
                     <FormControl>
                       <Input type="datetime-local" {...field} disabled={isPending} />
                     </FormControl>

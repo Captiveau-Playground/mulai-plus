@@ -53,8 +53,18 @@ const sessionSchema = z.object({
   durationMinutes: z.coerce.number().min(15).default(60),
   mentorId: z.string().min(1, "Mentor is required"),
   studentId: z.string().optional(),
-  meetingLink: z.string().optional(),
-  recordingLink: z.string().optional(),
+  meetingLink: z
+    .string()
+    .url("Must be a valid URL")
+    .refine((val) => !val || val.startsWith("https://"), "Meeting link must use HTTPS")
+    .optional()
+    .or(z.literal("")),
+  recordingLink: z
+    .string()
+    .url("Must be a valid URL")
+    .refine((val) => !val || val.startsWith("https://"), "Recording link must use HTTPS")
+    .optional()
+    .or(z.literal("")),
   notes: z.string().optional(),
 });
 
@@ -81,6 +91,7 @@ export function BatchSessionsDialog({
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
+  const [activeTab, setActiveTab] = useState("table");
   const [viewingSession, setViewingSession] = useState<CalendarSession | null>(null);
 
   const { data: mentors } = useQuery({
@@ -199,10 +210,13 @@ export function BatchSessionsDialog({
   });
 
   const onSubmit = (values: SessionFormValues) => {
+    // Convert WIB (UTC+7) datetime-local value to ISO string with offset
+    const startsAtWIB = values.startsAt ? `${values.startsAt}:00+07:00` : values.startsAt;
     upsertMutation.mutate({
       id: editingSession?.id,
       batchId: batch.id,
       ...values,
+      startsAt: startsAtWIB,
       studentId: values.type === "one_on_one" ? values.studentId : undefined,
     });
   };
@@ -270,12 +284,12 @@ export function BatchSessionsDialog({
 
     return (
       <Dialog open={true} onOpenChange={(open) => !open && setViewingSession(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Session Details</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
               <div>
                 <span className="mb-1 block text-muted-foreground">Week</span>
                 <span className="font-medium">Week {viewingSession.week}</span>
@@ -304,7 +318,7 @@ export function BatchSessionsDialog({
               <div>
                 <span className="mb-1 block text-muted-foreground">Time</span>
                 <span className="font-medium">
-                  {format(start, "HH:mm")} - {format(end, "HH:mm")}
+                  {format(start, "HH:mm")} - {format(end, "HH:mm")} WIB
                 </span>
               </div>
               <div>
@@ -373,7 +387,7 @@ export function BatchSessionsDialog({
   if (isFormOpen) {
     return (
       <Dialog open={true} onOpenChange={(open) => !open && setIsFormOpen(false)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingSession ? "Edit Session" : "Create Session"}</DialogTitle>
             <DialogDescription>
@@ -382,7 +396,7 @@ export function BatchSessionsDialog({
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="week"
@@ -449,13 +463,15 @@ export function BatchSessionsDialog({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="startsAt"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date & Time</FormLabel>
+                      <FormLabel>
+                        Date & Time <span className="font-normal text-muted-foreground">(WIB)</span>
+                      </FormLabel>
                       <FormControl>
                         <Input type="datetime-local" {...field} />
                       </FormControl>
@@ -478,18 +494,20 @@ export function BatchSessionsDialog({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="mentorId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Mentor</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             {field.value ? (
-                              <SelectValue />
+                              <span className="font-medium text-sm">
+                                {mentors?.find((m) => m.id === field.value)?.name || field.value}
+                              </span>
                             ) : (
                               <span className="text-muted-foreground">Select mentor</span>
                             )}
@@ -514,11 +532,13 @@ export function BatchSessionsDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Student</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || undefined}>
                           <FormControl>
                             <SelectTrigger>
                               {field.value ? (
-                                <SelectValue />
+                                <span className="font-medium text-sm">
+                                  {participants?.find((p) => p.id === field.value)?.name || field.value}
+                                </span>
                               ) : (
                                 <span className="text-muted-foreground">Select student</span>
                               )}
@@ -571,7 +591,7 @@ export function BatchSessionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] w-full max-w-7xl flex-col">
+      <DialogContent className="flex max-h-[90vh] w-full max-w-7xl flex-col sm:h-[90vh]">
         <DialogHeader>
           <div className="flex items-center justify-between pr-8">
             <div>
@@ -581,7 +601,7 @@ export function BatchSessionsDialog({
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="table" className="flex flex-1 flex-col overflow-hidden">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
           <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <TabsList>
               <TabsTrigger value="table">
@@ -708,7 +728,9 @@ export function BatchSessionsDialog({
                           <TableCell>Week {session.week}</TableCell>
                           <TableCell>
                             <div className="flex flex-col text-sm">
-                              <span className="font-medium">{format(new Date(session.startsAt), "MMM d, h:mm a")}</span>
+                              <span className="font-medium">
+                                {format(new Date(session.startsAt), "MMM d, h:mm a")} WIB
+                              </span>
                               <span className="text-muted-foreground text-xs">{session.durationMinutes} min</span>
                             </div>
                           </TableCell>

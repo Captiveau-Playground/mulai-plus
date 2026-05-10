@@ -1,5 +1,7 @@
-1. LANDING PAGE: Hanya muncul 2 card batch of programs, slice 2 card aja yang paling mendekati tanggal
-2. LANDING PAGE: Card batch ofprograms juga keluarkan dia batch berapa, misal 1 / 2 dst
-3. programs/[slug]: pada komponen registrasi / button untuk daftar untuk isi nama dan lain lain. nah button tersebut juga harus return info, jika dia di terima, ada action button ke dashboard student, jika ditolak kasih info kayak ada icon gitu, bisa mendaftar di batch selanjutnya
---------------------------------------------------------------------------------------
-4. redirect after login untuk program manager kurang /programs,
+PROGRAM MANAGER di menu session:
+
+1. kebanyakan form input: valuenya ketika select dropdown / select value, valuenya masih ID, terutama di create session, value mentor & student setelah di select masih ID
+2. Tampilan dialog di menu session cukup sempit, coba sesuaikan lebar dialog / modalnya agar uiuxnya bagus
+3. kasih validasion meeting link, harus https gitu gitu format link
+4. pastikan hal hal yang berkaitan dengan datetime, makesure WIB, settingan harus WIB gmt berapa gitu anda audit semua
+5. ketika buka view calendar di session management, dan klik detail session di calendar, ketika back: makesure back ke state calendar view tadi, bukan kembali ke session management

@@ -128,7 +128,7 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-            <div className="grid w-full grid-rows-2 gap-2">
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-rows-2">
               <FormField
                 control={form.control}
                 name="batchId"
@@ -211,7 +211,7 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="week"
