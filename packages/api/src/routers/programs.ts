@@ -1033,7 +1033,7 @@ export const programsRouter = {
               .from(programBatchMentor)
               .innerJoin(user, eq(programBatchMentor.userId, user.id))
               .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
-              .where(eq(programBatch.programId, input.programId));
+              .where(and(eq(programBatch.programId, input.programId), eq(user.role, "mentor")));
             mentors = result;
           } else {
             const result = await db
@@ -1044,7 +1044,8 @@ export const programsRouter = {
                 image: user.image,
               })
               .from(programBatchMentor)
-              .innerJoin(user, eq(programBatchMentor.userId, user.id));
+              .innerJoin(user, eq(programBatchMentor.userId, user.id))
+              .where(eq(user.role, "mentor"));
             mentors = result;
           }
 

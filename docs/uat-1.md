@@ -1,4 +1,2 @@
-ATTACHMENT di MENTOR / PROGRAM MANAGER / ADMIN
-1. Semua type input valuenya link, makesure https url format
-2. untuk informasi link to session, di select value, selain nama sesi dan tanggal, tambahkan info itu mentor siapa, dan menteenya siapa, sehingga attachmentnya tidak salah sesi
-3. pastikan di sisi student, tiap sesinya, jika ada attachemtn, kasih info, biar bisa diklik href _blank untuk materi dia. ini butuh UI
+di menu /mentors untuk role Program Manager dan Admin, make sure itu adalah data mentor
+di menu manage mentor role Program Manager dan Admin yang tujuannya untuk assign mentor ke batch, make sure itu adalah list / data mentor, dan kecualikan admin@captiveau.fun atau yang rolenya admin
