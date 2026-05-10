@@ -27,7 +27,10 @@ import { orpc } from "@/utils/orpc";
 const attachmentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["file", "video", "link", "tool"]),
-  url: z.string().url("Must be a valid URL"),
+  url: z
+    .string()
+    .url("Must be a valid URL")
+    .refine((val) => val.startsWith("https://"), "URL must use HTTPS"),
   week: z.coerce.number().optional(),
   sessionId: z.string().optional(),
 });
@@ -298,11 +301,18 @@ export function BatchAttachmentsDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Link to Session (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger>
                             {field.value && field.value !== "none" ? (
-                              <SelectValue />
+                              <span className="font-medium text-sm">
+                                {(() => {
+                                  if (!sessions) return "Loading...";
+                                  const s = sessions.find((x) => x.id === field.value);
+                                  if (!s) return "Unknown session";
+                                  return `Week ${s.week} - ${s.type.replace("_", " ")} | Mentor: ${s.mentor?.name || "-"} | Student: ${s.student?.name || "Group"} (${format(new Date(s.startsAt), "MMM d")})`;
+                                })()}
+                              </span>
                             ) : (
                               <span className="text-muted-foreground">None</span>
                             )}
@@ -312,7 +322,8 @@ export function BatchAttachmentsDialog({
                           <SelectItem value="none">None</SelectItem>
                           {sessions?.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
-                              Week {s.week} - {s.type} ({format(new Date(s.startsAt), "MMM d")})
+                              Week {s.week} - {s.type.replace("_", " ")} | Mentor: {s.mentor?.name || "-"} | Student:{" "}
+                              {s.student?.name || "Group"} ({format(new Date(s.startsAt), "MMM d")})
                             </SelectItem>
                           ))}
                         </SelectContent>

@@ -44,6 +44,8 @@ export const programActivitiesRouter = {
         ),
         with: {
           mentor: true,
+          student: true,
+          attachments: true,
           batch: {
             with: { program: true },
           },

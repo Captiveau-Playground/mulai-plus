@@ -31,7 +31,7 @@ export default function MentorBatchAttendancePage() {
     mentor_dashboard: ["access"],
   });
 
-  const queryClient = useQueryClient();
+  const attendanceQueryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     ...orpc.programActivities.mentor.getBatchAttendance.queryOptions({
       input: { batchId },
@@ -103,24 +103,27 @@ export default function MentorBatchAttendancePage() {
       try {
         await updateMutation.mutateAsync(entry);
         succeeded++;
-      } catch {
+      } catch (err) {
+        console.error("Attendance save error:", err);
         failed++;
       }
     }
 
+    setSaving(false);
+
     if (failed === 0) {
-      queryClient.invalidateQueries({ queryKey: orpc.programActivities.mentor.getBatchAttendance.key() });
+      const path = orpc.programActivities.mentor.getBatchAttendance.key()[0];
+      attendanceQueryClient.invalidateQueries({ queryKey: [path], refetchType: "all" });
       setUpdates({});
       toast.success(`${succeeded} attendance record${succeeded > 1 ? "s" : ""} saved!`);
     } else if (succeeded > 0) {
-      queryClient.invalidateQueries({ queryKey: orpc.programActivities.mentor.getBatchAttendance.key() });
+      const path = orpc.programActivities.mentor.getBatchAttendance.key()[0];
+      attendanceQueryClient.invalidateQueries({ queryKey: [path], refetchType: "all" });
       setUpdates({});
-      toast.warning(`${succeeded} saved, ${failed} failed. Retry the failed ones.`);
+      toast.warning(`${succeeded} saved, ${failed} failed.`);
     } else {
       toast.error("Failed to save. Please try again.");
     }
-
-    setSaving(false);
   };
 
   const hasUpdates = Object.keys(updates).length > 0;
