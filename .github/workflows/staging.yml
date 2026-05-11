@@ -157,7 +157,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_PASSPHRASE }}
           script: |
-            # Masuk ke direktori project (sesuaikan path ini di VPS Anda atau set via secrets)
+            set -euo pipefail
+
+            # Masuk ke direktori project
             cd ${{ secrets.VPS_PROJECT_PATH }}
 
             # Clone atau Pull repo (menggunakan HTTPS dengan Token)
@@ -170,7 +172,7 @@ jobs:
               git pull origin staging
             fi
 
-            # Login ke GHCR pakai token bawaan workflow (tanpa repo/env secret tambahan)
+            # Login ke GHCR pakai token bawaan workflow
             echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             # Convert repository name to lowercase
@@ -182,7 +184,6 @@ jobs:
             echo "PORT_SERVER=3000" >> .env.staging
             echo "NODE_ENV=staging" >> .env.staging
             echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}" >> .env.staging
-            # Tambahkan variable lain sesuai kebutuhan runtime server
             echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env.staging
             echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> .env.staging
             echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> .env.staging
@@ -194,7 +195,7 @@ jobs:
             echo "UNOSEND_API_KEY=${{ secrets.UNOSEND_API_KEY }}" >> .env.staging
             echo "UNOSEND_FROM_EMAIL=${{ secrets.UNOSEND_FROM_EMAIL }}" >> .env.staging
 
-            # DEBUG: Cek apakah file .env.staging terisi (Hanya tampilkan key, sembunyikan value sensitif)
+            # DEBUG: Cek apakah file .env.staging terisi
             echo "=== DEBUG: Checking .env.staging content (Values masked) ==="
             while IFS='=' read -r key value; do
               if [ -n "$value" ]; then
@@ -205,14 +206,21 @@ jobs:
             done < .env.staging
             echo "=========================================================="
 
+            # Export semua variable dari .env.staging ke shell environment
+            # agar ${VAR} di docker-compose.yml bisa di-resolve meski --env-file bermasalah
+            set -a; source .env.staging; set +a
+
+            # Cek apakah docker-compose.yml sudah punya UNOSEND entry
+            echo "=== Cek UNOSEND di docker-compose.yml ==="
+            grep -n "UNOSEND" docker-compose.staging.yml || echo "⚠️ UNOSEND TIDAK ADA di docker-compose.yml! Mungkin git pull gagal."
+            echo "==========================================="
+
             # Pull image docker terbaru
-            docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging pull
+            docker compose -p mulaiplus-staging -f docker-compose.staging.yml pull
 
             # Restart container
-            # Kita lakukan down dulu untuk memastikan container lama terhapus bersih
-            # dan container baru dibuat ulang dengan image terbaru
-            docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging down
-            docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging up -d --force-recreate
+            docker compose -p mulaiplus-staging -f docker-compose.staging.yml down
+            docker compose -p mulaiplus-staging -f docker-compose.staging.yml up -d --force-recreate
 
-            # Bersihkan image usang (dangling images) khusus untuk project ini
+            # Bersihkan image usang
             docker image prune -f --filter "label=project=mulai-plus"
