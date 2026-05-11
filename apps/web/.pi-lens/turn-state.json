@@ -1403,16 +1403,24 @@
     "src/app/(app)/dashboard/student/layout.tsx": {
       "modifiedRanges": [
         {
+          "start": 3,
+          "end": 3
+        },
+        {
           "start": 11,
           "end": 11
         },
         {
           "start": 22,
           "end": 22
+        },
+        {
+          "start": 28,
+          "end": 28
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-05T09:59:03.443Z"
+      "lastEdit": "2026-05-11T13:19:30.864Z"
     },
     "src/components/front/featured-programs.tsx": {
       "modifiedRanges": [
@@ -1771,9 +1779,19 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-11T13:15:16.029Z"
+    },
+    "src/components/contact-support.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 142
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T13:18:48.987Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-11T13:15:16.029Z"
+  "lastUpdated": "2026-05-11T13:19:30.864Z"
 }
