@@ -1858,17 +1858,17 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T15:42:06.071Z"
+      "lastEdit": "2026-05-11T16:09:15.825Z"
     },
     "src/components/analytics-provider.tsx": {
       "modifiedRanges": [
         {
           "start": 1,
-          "end": 50
+          "end": 69
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T15:53:02.263Z"
+      "lastEdit": "2026-05-11T16:09:39.239Z"
     },
     "src/components/providers.tsx": {
       "modifiedRanges": [
@@ -1925,5 +1925,5 @@
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-11T15:58:52.872Z"
+  "lastUpdated": "2026-05-11T16:09:39.239Z"
 }

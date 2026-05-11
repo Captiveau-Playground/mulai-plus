@@ -1,9 +1,25 @@
 "use client";
 
 import { env } from "@mulai-plus/env/web";
+import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
+import { Suspense } from "react";
 import { usePageViewTracking } from "@/lib/analytics";
 import { CookieConsentBanner, useConsent } from "./cookie-consent";
+
+/**
+ * Separate component that accesses useSearchParams.
+ * Must be wrapped in <Suspense> for Next.js static generation compat.
+ */
+function PageViewTracker() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const fullPath = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
+
+  usePageViewTracking(fullPath);
+
+  return null;
+}
 
 /**
  * Injects the GA4 script tag and tracks page views on route changes.
@@ -13,13 +29,15 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const gaId = env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   const { consent, accept, reject } = useConsent();
 
-  // Track page views on every route change (always, even without GA)
-  usePageViewTracking();
-
   const shouldLoadGa = gaId && consent === "accepted";
 
   return (
     <>
+      {/* Page view tracking — wrapped in Suspense for static generation safety */}
+      <Suspense fallback={null}>
+        <PageViewTracker />
+      </Suspense>
+
       {/* GA4 script — only loaded after consent */}
       {shouldLoadGa && (
         <>

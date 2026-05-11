@@ -1,7 +1,6 @@
 "use client";
 
 import { env } from "@mulai-plus/env/web";
-import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 // GA4 gtag type declaration
@@ -31,21 +30,18 @@ export function trackEvent(action: string, params?: EventParams) {
 
 /**
  * Hook that fires page_view on route changes.
- * Must be nested inside a Next.js App Router component (has pathname).
+ * Receives the full path including search params as a string.
  */
-export function usePageViewTracking() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
+export function usePageViewTracking(pagePath?: string) {
   useEffect(() => {
     if (!env.NEXT_PUBLIC_GA_MEASUREMENT_ID) return;
     if (typeof window.gtag !== "function") return;
 
     window.gtag("config", env.NEXT_PUBLIC_GA_MEASUREMENT_ID, {
-      page_path: pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : ""),
+      page_path: pagePath,
       debug_mode: env.NEXT_PUBLIC_GA_DEBUG_MODE,
     });
-  }, [pathname, searchParams]);
+  }, [pagePath]);
 }
 
 /**
