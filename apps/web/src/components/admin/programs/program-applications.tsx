@@ -16,8 +16,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { orpc } from "@/utils/orpc";
+import { ProgramApplicationAnswers } from "./program-application-answers";
 
 export function ProgramApplications({ programId }: { programId: string }) {
   const queryClient = useQueryClient();
@@ -218,16 +220,16 @@ export function ProgramApplications({ programId }: { programId: string }) {
                               View Answers
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-3xl">
+                          <DialogContent className="max-w-2xl lg:max-w-4xl">
                             <DialogHeader>
-                              <DialogTitle>Reflective Answers</DialogTitle>
-                              <DialogDescription>Submitted by {app.user?.name}</DialogDescription>
+                              <DialogTitle className="font-bricolage text-lg">Jawaban Pendaftar</DialogTitle>
+                              <DialogDescription className="font-manrope">
+                                Jawaban program registration oleh {app.user?.name}
+                              </DialogDescription>
                             </DialogHeader>
-                            <div className="max-h-[400px] space-y-4 overflow-y-auto">
-                              <pre className="whitespace-pre-wrap rounded-xl bg-gray-50 p-4 font-manrope text-sm text-text-main">
-                                {JSON.stringify(app.reflectiveAnswers, null, 2)}
-                              </pre>
-                            </div>
+                            <ScrollArea className="max-h-[75vh] pr-1">
+                              <ProgramApplicationAnswers answers={app.reflectiveAnswers} />
+                            </ScrollArea>
                           </DialogContent>
                         </Dialog>
 
