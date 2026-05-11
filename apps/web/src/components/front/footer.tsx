@@ -45,7 +45,7 @@ export function Footer() {
           </nav>
         </div>
         <div className="flex flex-col items-center justify-between gap-4 lg:flex-row lg:gap-0">
-          <p className="flex items-center gap-2 text-center font-manrope text-[#BFD6FF] text-lg lg:text-xl">
+          <p className="flex flex-col items-center gap-2 text-center font-manrope text-[#BFD6FF] text-lg lg:flex-row lg:text-xl">
             <Badge>
               {env.NEXT_PUBLIC_SERVER_URL === "http://localhost:3000"
                 ? "development"

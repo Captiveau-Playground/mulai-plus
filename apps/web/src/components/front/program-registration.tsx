@@ -53,18 +53,21 @@ const registrationSchema = z.object({
 
 type RegistrationFormValues = z.infer<typeof registrationSchema>;
 
+interface BatchType {
+  id: string;
+  name: string;
+  status: string;
+  registrationStartDate: Date | string;
+  registrationEndDate: Date | string;
+  quota: number;
+  startDate?: Date | string;
+  endDate?: Date | string;
+}
+
 interface ProgramRegistrationProps {
   programId: string;
-  batch: {
-    id: string;
-    name: string;
-    status: string;
-    registrationStartDate: Date | string;
-    registrationEndDate: Date | string;
-    quota: number;
-    startDate?: Date | string;
-    endDate?: Date | string;
-  };
+  batch: BatchType;
+  nextBatch?: BatchType;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -97,7 +100,7 @@ const STEPS = [
   { id: 4, title: "Refleksi", icon: CheckCircle },
 ];
 
-export function ProgramRegistration({ programId, batch }: ProgramRegistrationProps) {
+export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegistrationProps) {
   const router = useRouter();
   const session = authClient.useSession();
   const [isOpen, setIsOpen] = useState(false);
@@ -282,12 +285,84 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
   }
 
   if (applicationStatus?.hasApplied) {
+    const status = applicationStatus.status ?? "applied";
+
+    if (status === "accepted") {
+      return (
+        <div className="w-full rounded-2xl border border-green-200 bg-green-50 p-6 text-center">
+          {/* Icon */}
+          <div className="mb-4 flex justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+          {/* Title */}
+          <h4 className="mb-1 font-bricolage font-semibold text-base text-green-700">Selamat! Kamu Diterima</h4>
+          {/* Message */}
+          <p className="mb-5 font-manrope text-green-600/80 text-sm">
+            Kamu telah diterima di {batch.name}. Yuk lihat detail program di dashboard!
+          </p>
+          {/* CTA Button */}
+          <Button
+            className="btn-brand-navy flex w-full items-center gap-2 rounded-full px-6 font-bold font-manrope shadow-md"
+            size="lg"
+            onClick={() => router.push("/dashboard/student/programs")}
+          >
+            <CheckCircle className="h-5 w-5" />
+            Ke Dashboard Student
+          </Button>
+        </div>
+      );
+    }
+
+    if (status === "rejected") {
+      return (
+        <div className="w-full rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+          {/* Icon */}
+          <div className="mb-4 flex justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+              <XCircle className="h-6 w-6 text-red-600" />
+            </div>
+          </div>
+          {/* Title */}
+          <h4 className="mb-1 font-bricolage font-semibold text-base text-red-700">Pendaftaran Ditolak</h4>
+          {/* Message */}
+          <p className="mb-5 font-manrope text-red-600/80 text-sm">
+            Maaf, pendaftaran kamu untuk {batch.name} belum diterima.
+            {nextBatch
+              ? ` Kamu bisa mendaftar di ${nextBatch.name} yang akan datang.`
+              : " Silakan coba di batch selanjutnya."}
+          </p>
+          {/* CTA Button */}
+          {nextBatch ? (
+            <Button
+              className="btn-brand-navy flex w-full items-center gap-2 rounded-full px-6 font-bold font-manrope shadow-md"
+              size="lg"
+              onClick={() => {
+                router.refresh();
+              }}
+            >
+              <CalendarCheck className="h-5 w-5" />
+              Daftar {nextBatch.name}
+            </Button>
+          ) : (
+            <p className="text-center font-manrope text-red-500/60 text-xs">
+              Belum ada batch selanjutnya yang tersedia.
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // Default: applied / pending status (menggunakan design system brand-navy)
     return (
       <div className="w-full rounded-2xl border border-brand-navy/20 bg-brand-navy/5 p-4">
         <div className="mb-3 flex items-center justify-center">
-          <StatusBadge status={applicationStatus.status ?? ""} />
+          <StatusBadge status={status} />
         </div>
-        <p className="text-center font-manrope text-sm text-text-muted-custom">Kamu sudah terdaftar di batch ini</p>
+        <p className="text-center font-manrope text-sm text-text-muted-custom">
+          Kamu sudah mendaftar di {batch.name}, mohon tunggu hasil verifikasi.
+        </p>
       </div>
     );
   }
@@ -295,20 +370,20 @@ export function ProgramRegistration({ programId, batch }: ProgramRegistrationPro
   return (
     <>
       <Button
-        className="btn-brand-navy w-full shadow-md"
+        className="flex w-full items-center gap-2 rounded-full bg-white px-6 py-6 font-bold font-manrope text-brand-navy shadow-md transition-all hover:bg-gray-100"
         size="lg"
         onClick={handleRegisterClick}
         disabled={buttonState.disabled}
       >
         {(() => {
           const Icon = buttonState.icon;
-          return <Icon className="mr-2 h-5 w-5" />;
+          return <Icon className="h-5 w-5" />;
         })()}
         {buttonState.label}
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-[640px]">
+        <DialogContent className="flex max-h-[90vh] flex-col overflow-y-auto p-0 sm:max-w-[640px]">
           <div className="gradient-brand-navy px-6 py-5">
             <div className="flex items-center justify-between">
               <div>

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, isNull, or, sum } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, isNull, sum } from "@mulai-plus/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   category,
@@ -253,10 +253,7 @@ export const lmsRouter = {
   },
   mentors: {
     list: protectedProcedure.handler(async () => {
-      return await db
-        .select()
-        .from(user)
-        .where(or(eq(user.role, "admin"), eq(user.role, "mentor")));
+      return await db.select().from(user).where(eq(user.role, "mentor"));
     }),
   },
   tag: {

@@ -32,7 +32,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
             } else if (role === "mentor") {
               router.push("/mentor");
             } else if (role === "program_manager") {
-              router.push("/program-manager");
+              router.push("/program-manager/programs");
             } else {
               router.push("/dashboard/student");
             }

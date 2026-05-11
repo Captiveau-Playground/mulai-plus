@@ -33,6 +33,8 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - PAYMENT_API_URL=${PAYMENT_API_URL}
       - PAYMENT_API_KEY=${PAYMENT_API_KEY}
+      - UNOSEND_API_KEY=${UNOSEND_API_KEY}
+      - UNOSEND_FROM_EMAIL=${UNOSEND_FROM_EMAIL}
     restart: always
     networks:
       - shared_proxy

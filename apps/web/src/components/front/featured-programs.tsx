@@ -20,7 +20,7 @@ const getIcon = (name: string | null | undefined): LucideIcon => {
 export function FeaturedPrograms() {
   const { data: programsData, isLoading } = useQuery(
     orpc.programs.public.list.queryOptions({
-      input: { limit: 2 }, // Limit to 2 cards as requested
+      input: { limit: 10 }, // Fetch more programs to collect batches
     }),
   );
 
@@ -33,6 +33,32 @@ export function FeaturedPrograms() {
   if (programs.length === 0) {
     return null; // Don't show section if no programs
   }
+
+  // Collect all batch+program combos, sort by closest startDate to today, take only 2
+  const now = new Date();
+  const sortedBatchCards = programs
+    .flatMap((program) =>
+      (program.batches || []).map((batch) => ({
+        ...batch,
+        program,
+        // For sorting: absolute diff from now, prefer future dates
+        sortScore: Math.abs(new Date(batch.startDate).getTime() - now.getTime()),
+      })),
+    )
+    .sort((a, b) => a.sortScore - b.sortScore)
+    .slice(0, 2);
+
+  // Optional: compute total batch count per program for "X/Y" label
+  const programBatchCounts = programs.reduce<Record<string, number>>((acc, p) => {
+    acc[p.id] = (p.batches || []).length;
+    return acc;
+  }, {});
+  const batchIndexMap = sortedBatchCards.reduce<Record<string, number>>((acc, card) => {
+    const batches = card.program.batches || [];
+    const idx = batches.findIndex((b) => b.id === card.id);
+    acc[card.id] = idx >= 0 ? idx + 1 : 1;
+    return acc;
+  }, {});
 
   return (
     <div className="bg-white">
@@ -83,115 +109,100 @@ export function FeaturedPrograms() {
                 </h2>
               </div>
 
-              {/* Cards Grid */}
+              {/* Cards Grid — show only 2 cards sorted by closest date */}
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-6">
-                {programs
-                  .flatMap((program) =>
-                    (program.batches || []).map((batch) => ({
-                      ...batch,
-                      program,
-                    })),
-                  )
-                  .toReversed()
-                  .map((batch, index) => {
-                    const { program } = batch;
-                    // Use index to enforce Figma design pattern: Left Card (Scholarship/Red), Right Card (Regular/Orange)
-                    const isFirstCard = index === 0;
-                    const isScholarship = isFirstCard || program.name.toLowerCase().includes("scholarship");
+                {sortedBatchCards.map((batch, index) => {
+                  const { program } = batch;
+                  // Alternate accent color between the 2 cards
+                  const isFirstCard = index === 0;
+                  const iconBgColor = isFirstCard ? "bg-[#F93447]" : "bg-[#FE9114]";
 
-                    // Styles based on Figma - Dark Theme Cards
-                    const cardBg = "bg-[#272C75]"; // Inferred fill_4BNFOS (Lighter Navy)
-                    const iconBgColor = isScholarship
-                      ? "bg-[#F93447]" // Accent1 (Red)
-                      : "bg-[#FE9114]"; // Accent2 (Orange)
+                  const buttonLabel = "Daftar Sekarang";
 
-                    const buttonLabel = isScholarship ? "Gabung Beasiswa" : "Coming Soon";
+                  const batchNumber = batchIndexMap[batch.id] ?? 1;
+                  const totalBatches = programBatchCounts[program.id] ?? 1;
 
-                    const isComingSoon = !isScholarship;
-
-                    return (
-                      <Link
-                        href={isComingSoon ? "#" : `/programs/${program.slug}`}
-                        key={batch.id}
-                        className={cn(isComingSoon && "pointer-events-none cursor-default")}
-                        aria-disabled={isComingSoon}
+                  return (
+                    <Link href={`/programs/${program.slug}`} key={batch.id}>
+                      <div
+                        className={cn(
+                          "flex flex-col justify-between rounded-3xl p-8 transition-transform duration-300 hover:scale-[1.02]",
+                          "bg-[#272C75] opacity-90",
+                        )}
                       >
-                        <div
-                          key={batch.id}
-                          className={cn(
-                            "flex flex-col justify-between rounded-3xl p-8 opacity-90 transition-transform duration-300",
-                            cardBg,
-                          )}
-                        >
-                          <div className="flex flex-col gap-6">
-                            {/* Upper Section */}
-                            <div className="flex flex-col gap-4">
-                              <div className="flex flex-col items-start gap-4">
-                                <div
-                                  className={cn(
-                                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-lg sm:h-14 sm:w-14",
-                                    iconBgColor,
-                                  )}
-                                >
-                                  <Icons.GraduationCap className="h-6 w-6 sm:h-7 sm:w-7" />
+                        <div className="flex flex-col gap-6">
+                          {/* Upper Section */}
+                          <div className="flex flex-col gap-4">
+                            <div className="flex flex-col items-start gap-4">
+                              <div
+                                className={cn(
+                                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-lg sm:h-14 sm:w-14",
+                                  iconBgColor,
+                                )}
+                              >
+                                <Icons.GraduationCap className="h-6 w-6 sm:h-7 sm:w-7" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex flex-col flex-wrap items-start gap-2">
+                                  <h3 className="font-bold font-bricolage text-lg text-white leading-tight sm:text-2xl">
+                                    {program.name}
+                                  </h3>
+                                  {/* Batch number badge */}
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 font-manrope font-medium text-[#B9E1FE] text-xs">
+                                    <Icons.Layers className="h-3 w-3" />
+                                    {batch.name}{" "}
+                                    {totalBatches > 1 && (
+                                      <>
+                                        ({batchNumber}/{totalBatches})
+                                      </>
+                                    )}
+                                  </span>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex flex-col flex-wrap items-start gap-3">
-                                    <h3 className="font-bold font-bricolage text-lg text-white leading-tight sm:text-2xl">
-                                      {program.name}
-                                    </h3>
-                                    <span className="font-bold font-inter text-[#B9E1FE] text-xs tracking-widest">
-                                      {batch.name.toUpperCase() === "BATCH 11" ? "FREE" : "PAID"}
-                                    </span>
-                                  </div>
-                                  <p className="line-clamp-2 font-manrope text-[#B9E1FE]/80 text-xs leading-relaxed sm:text-sm">
-                                    {program.description || "No description available."}
-                                  </p>
-                                </div>
+                                <p className="line-clamp-2 font-manrope text-[#B9E1FE]/80 text-xs leading-relaxed sm:text-sm">
+                                  {program.description || "No description available."}
+                                </p>
                               </div>
                             </div>
-
-                            {/* Detail / Benefits */}
-                            <div className="flex flex-col gap-3 pt-2">
-                              {program.benefits?.slice(0, 4).map((benefit) => {
-                                const Icon = getIcon(benefit.icon);
-                                return (
-                                  <div key={benefit.id} className="flex items-center gap-3">
-                                    <div
-                                      className={cn(
-                                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white",
-                                        isScholarship ? "bg-[#F93447]" : "bg-[#FE9114]",
-                                      )}
-                                    >
-                                      <Icon className="h-3 w-3" />
-                                    </div>
-                                    <span className="font-bricolage font-medium text-white text-xs sm:text-sm">
-                                      {benefit.title}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
                           </div>
 
-                          {/* Button */}
-                          <div className="mt-6">
-                            <Button
-                              className={cn(
-                                "w-full cursor-pointer rounded-sm py-6 font-bold font-inter text-sm transition-all",
-                                isScholarship
-                                  ? "bg-white text-[#1A1F6D] shadow-md hover:bg-gray-100"
-                                  : "cursor-default bg-white/10 text-white hover:bg-white/5",
-                              )}
-                              disabled={!isScholarship}
-                            >
-                              {buttonLabel}
-                            </Button>
+                          {/* Detail / Benefits */}
+                          <div className="flex flex-col gap-3 pt-2">
+                            {program.benefits?.slice(0, 4).map((benefit) => {
+                              const Icon = getIcon(benefit.icon);
+                              return (
+                                <div key={benefit.id} className="flex items-center gap-3">
+                                  <div
+                                    className={cn(
+                                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white",
+                                      iconBgColor,
+                                    )}
+                                  >
+                                    <Icon className="h-3 w-3" />
+                                  </div>
+                                  <span className="font-bricolage font-medium text-white text-xs sm:text-sm">
+                                    {benefit.title}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      </Link>
-                    );
-                  })}
+
+                        {/* Button */}
+                        <div className="mt-6">
+                          <Button
+                            className={cn(
+                              "w-full cursor-pointer rounded-sm py-6 font-bold font-inter text-sm transition-all",
+                              "bg-white text-[#1A1F6D] shadow-md hover:bg-gray-100",
+                            )}
+                          >
+                            {buttonLabel}
+                          </Button>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </div>

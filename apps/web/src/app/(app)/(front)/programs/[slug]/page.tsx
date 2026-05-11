@@ -201,6 +201,27 @@ export default function ProgramDetailPage() {
                     registrationEndDate: batch.registrationEndDate,
                     quota: batch.quota,
                   }}
+                  allBatches={program.batches?.map(
+                    (b: {
+                      id: string;
+                      name: string;
+                      status: string;
+                      registrationStartDate: Date | string;
+                      registrationEndDate: Date | string;
+                      quota: number;
+                      startDate?: Date | string;
+                      endDate?: Date | string;
+                    }) => ({
+                      id: b.id,
+                      name: b.name,
+                      status: b.status,
+                      registrationStartDate: b.registrationStartDate,
+                      registrationEndDate: b.registrationEndDate,
+                      quota: b.quota,
+                      startDate: b.startDate,
+                      endDate: b.endDate,
+                    }),
+                  )}
                   className=""
                 />
               ) : (
