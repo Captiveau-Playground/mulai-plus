@@ -203,6 +203,8 @@ jobs:
                   - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
                   - PAYMENT_API_URL=${PAYMENT_API_URL}
                   - PAYMENT_API_KEY=${PAYMENT_API_KEY}
+                  - UNOSEND_API_KEY=${UNOSEND_API_KEY}
+                  - UNOSEND_FROM_EMAIL=${UNOSEND_FROM_EMAIL}
                 restart: always
                 networks:
                   - shared_proxy
@@ -224,6 +226,8 @@ jobs:
             GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
             PAYMENT_API_URL=${{ secrets.PAYMENT_API_URL }}
             PAYMENT_API_KEY=${{ secrets.PAYMENT_API_KEY }}
+            UNOSEND_API_KEY=${{ secrets.UNOSEND_API_KEY }}
+            UNOSEND_FROM_EMAIL=${{ secrets.UNOSEND_FROM_EMAIL }}
             EOF
 
             docker compose -p mulaiplus-production -f docker-compose.production.yml --env-file .env.production pull
