@@ -2,7 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import z from "zod";
-
+import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
@@ -27,6 +27,8 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
             const session = await authClient.getSession();
             const role = session.data?.user.role;
 
+            trackEvent("login", { method: "email", role: role || "unknown" });
+
             if (role === "admin") {
               router.push("/admin");
             } else if (role === "mentor") {
@@ -39,6 +41,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
             toast.success("Sign in successful");
           },
           onError: (error) => {
+            trackEvent("login_error", { method: "email", error_code: error.error.message });
             toast.error(error.error.message || error.error.statusText);
           },
         },
@@ -53,6 +56,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
   });
 
   const handleGoogleSignIn = async () => {
+    trackEvent("login", { method: "google" });
     await authClient.signIn.social(
       {
         provider: "google",
@@ -63,6 +67,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
           toast.success("Sign in successful");
         },
         onError: (error) => {
+          trackEvent("login_error", { method: "google", error_code: error.error.message });
           toast.error(error.error.message || error.error.statusText);
         },
       },

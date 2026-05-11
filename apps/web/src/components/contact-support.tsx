@@ -3,6 +3,7 @@
 import { Mail, MessageCircle, MessageCircleHeart, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 const CONTACT_CHANNELS = [
@@ -84,6 +85,12 @@ export function ContactSupport() {
                   href={channel.href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() =>
+                    trackEvent("contact_support", {
+                      channel: channel.id,
+                      label: channel.label,
+                    })
+                  }
                   className={cn("flex items-center gap-3 rounded-xl px-3 py-3 transition-all", channel.bg, "group")}
                 >
                   <div

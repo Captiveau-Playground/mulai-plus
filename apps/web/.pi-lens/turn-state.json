@@ -667,12 +667,20 @@
           "end": 4
         },
         {
+          "start": 7,
+          "end": 7
+        },
+        {
           "start": 19,
           "end": 19
         },
         {
           "start": 21,
           "end": 21
+        },
+        {
+          "start": 73,
+          "end": 77
         },
         {
           "start": 80,
@@ -700,7 +708,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T13:12:10.876Z"
+      "lastEdit": "2026-05-11T15:49:20.617Z"
     },
     "src/components/admin/programs/program-info.tsx": {
       "modifiedRanges": [
@@ -1485,6 +1493,14 @@
     "src/components/front/program-registration.tsx": {
       "modifiedRanges": [
         {
+          "start": 19,
+          "end": 19
+        },
+        {
+          "start": 21,
+          "end": 21
+        },
+        {
           "start": 56,
           "end": 67
         },
@@ -1495,6 +1511,26 @@
         {
           "start": 103,
           "end": 103
+        },
+        {
+          "start": 125,
+          "end": 125
+        },
+        {
+          "start": 132,
+          "end": 132
+        },
+        {
+          "start": 169,
+          "end": 169
+        },
+        {
+          "start": 197,
+          "end": 201
+        },
+        {
+          "start": 211,
+          "end": 216
         },
         {
           "start": 288,
@@ -1523,10 +1559,14 @@
         {
           "start": 386,
           "end": 386
+        },
+        {
+          "start": 400,
+          "end": 412
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-10T08:55:17.113Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T15:47:58.955Z"
     },
     "src/app/(app)/(front)/programs/[slug]/page.tsx": {
       "modifiedRanges": [
@@ -1551,12 +1591,32 @@
     "src/components/sign-in-form.tsx": {
       "modifiedRanges": [
         {
+          "start": 7,
+          "end": 7
+        },
+        {
+          "start": 30,
+          "end": 31
+        },
+        {
           "start": 35,
           "end": 35
+        },
+        {
+          "start": 44,
+          "end": 44
+        },
+        {
+          "start": 59,
+          "end": 59
+        },
+        {
+          "start": 70,
+          "end": 70
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-10T06:40:21.537Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T15:43:35.910Z"
     },
     "src/app/not-found.tsx": {
       "modifiedRanges": [
@@ -1788,10 +1848,82 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T13:18:48.987Z"
+      "lastEdit": "2026-05-11T15:48:33.549Z"
+    },
+    "src/lib/analytics.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 63
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T16:09:15.825Z"
+    },
+    "src/components/analytics-provider.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 69
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T16:09:39.239Z"
+    },
+    "src/components/providers.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 8,
+          "end": 8
+        },
+        {
+          "start": 15,
+          "end": 16
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T15:42:39.106Z"
+    },
+    "src/components/sign-up-form.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 5,
+          "end": 5
+        },
+        {
+          "start": 14,
+          "end": 14
+        },
+        {
+          "start": 25,
+          "end": 25
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T15:43:49.255Z"
+    },
+    "src/components/cookie-consent.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 101
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T15:52:29.137Z"
+    },
+    "src/app/(app)/(front)/privacy/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 203
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-11T15:58:52.872Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-11T13:19:30.864Z"
+  "lastUpdated": "2026-05-11T16:09:39.239Z"
 }

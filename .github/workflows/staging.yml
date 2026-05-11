@@ -82,6 +82,7 @@ jobs:
             NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+            NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -157,62 +158,86 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_PASSPHRASE }}
           script: |
-            # Masuk ke direktori project (sesuaikan path ini di VPS Anda atau set via secrets)
-            cd ${{ secrets.VPS_PROJECT_PATH }}
+            set -euo pipefail
 
-            # Clone atau Pull repo (menggunakan HTTPS dengan Token)
-            if [ ! -d "${{ secrets.VPS_PROJECT_PATH }}/.git" ]; then
-              git clone https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git ${{ secrets.VPS_PROJECT_PATH }}
-              cd ${{ secrets.VPS_PROJECT_PATH }}
-            else
-              cd ${{ secrets.VPS_PROJECT_PATH }}
-              git remote set-url origin https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git
-              git pull origin staging
-            fi
+            mkdir -p "${{ secrets.VPS_PROJECT_PATH }}"
+            cd "${{ secrets.VPS_PROJECT_PATH }}"
 
-            # Login ke GHCR pakai token bawaan workflow (tanpa repo/env secret tambahan)
+            # Pakai token bawaan workflow (tanpa repo/env secret tambahan)
             echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            # Convert repository name to lowercase
             REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-            # Buat file .env.staging dari secrets
-            echo "GITHUB_REPOSITORY=$REPO_LOWER" > .env.staging
-            echo "PORT_WEB=3001" >> .env.staging
-            echo "PORT_SERVER=3000" >> .env.staging
-            echo "NODE_ENV=staging" >> .env.staging
-            echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}" >> .env.staging
-            # Tambahkan variable lain sesuai kebutuhan runtime server
-            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env.staging
-            echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> .env.staging
-            echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> .env.staging
-            echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env.staging
-            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env.staging
-            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.staging
-            echo "PAYMENT_API_URL=${{ secrets.PAYMENT_API_URL }}" >> .env.staging
-            echo "PAYMENT_API_KEY=${{ secrets.PAYMENT_API_KEY }}" >> .env.staging
-            echo "UNOSEND_API_KEY=${{ secrets.UNOSEND_API_KEY }}" >> .env.staging
-            echo "UNOSEND_FROM_EMAIL=${{ secrets.UNOSEND_FROM_EMAIL }}" >> .env.staging
+            cat > docker-compose.staging.yml << 'EOF'
+            version: "3.9"
 
-            # DEBUG: Cek apakah file .env.staging terisi (Hanya tampilkan key, sembunyikan value sensitif)
-            echo "=== DEBUG: Checking .env.staging content (Values masked) ==="
-            while IFS='=' read -r key value; do
-              if [ -n "$value" ]; then
-                echo "$key=****** (Length: ${#value})"
-              else
-                echo "$key=(EMPTY)"
-              fi
-            done < .env.staging
-            echo "=========================================================="
+            services:
+              web:
+                image: ghcr.io/${GITHUB_REPOSITORY}/web:staging
+                container_name: mulai-plus-web-staging
+                ports:
+                  - "${PORT_WEB:-3001}:3000"
+                expose:
+                  - "3000"
+                environment:
+                  - PORT=3000
+                  - NEXT_PUBLIC_SERVER_URL=http://server:3000
+                  - DATABASE_URL=${DATABASE_URL}
+                restart: always
+                networks:
+                  - shared_proxy
+
+              server:
+                image: ghcr.io/${GITHUB_REPOSITORY}/server:staging
+                container_name: mulai-plus-server-staging
+                ports:
+                  - "${PORT_SERVER:-3000}:3000"
+                expose:
+                  - "3000"
+                environment:
+                  - PORT=3000
+                  - DATABASE_URL=${DATABASE_URL}
+                  - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+                  - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+                  - CORS_ORIGIN=https://staging.mulaiplus.id
+                  - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+                  - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+                  - PAYMENT_API_URL=${PAYMENT_API_URL}
+                  - PAYMENT_API_KEY=${PAYMENT_API_KEY}
+                  - UNOSEND_API_KEY=${UNOSEND_API_KEY}
+                  - UNOSEND_FROM_EMAIL=${UNOSEND_FROM_EMAIL}
+                restart: always
+                networks:
+                  - shared_proxy
+
+            networks:
+              shared_proxy:
+                external: true
+            EOF
+
+            cat > .env.staging << EOF
+            GITHUB_REPOSITORY=$REPO_LOWER
+            NODE_ENV=staging
+            PORT_WEB=3001
+            PORT_SERVER=3000
+            NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+            BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}
+            CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            PAYMENT_API_URL=${{ secrets.PAYMENT_API_URL }}
+            PAYMENT_API_KEY=${{ secrets.PAYMENT_API_KEY }}
+            UNOSEND_API_KEY=${{ secrets.UNOSEND_API_KEY }}
+            UNOSEND_FROM_EMAIL=${{ secrets.UNOSEND_FROM_EMAIL }}
+            EOF
 
             # Pull image docker terbaru
             docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging pull
 
             # Restart container
-            # Kita lakukan down dulu untuk memastikan container lama terhapus bersih
-            # dan container baru dibuat ulang dengan image terbaru
             docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging down
             docker compose -p mulaiplus-staging -f docker-compose.staging.yml --env-file .env.staging up -d --force-recreate
 
-            # Bersihkan image usang (dangling images) khusus untuk project ini
             docker image prune -f --filter "label=project=mulai-plus"
