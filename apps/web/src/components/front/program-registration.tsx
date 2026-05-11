@@ -27,6 +27,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -121,12 +122,14 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
   const applyMutation = useMutation(
     orpc.programs.apply.mutationOptions({
       onSuccess: () => {
+        trackEvent("registration_success", { program_id: programId, batch_name: batch.name });
         toast.success("Pendaftaran berhasil submitted!");
         setIsOpen(false);
         setCurrentStep(1);
         router.push("/dashboard/student/programs");
       },
       onError: (error) => {
+        trackEvent("registration_error", { program_id: programId, error_code: error.message });
         toast.error(error.message);
       },
     }),
@@ -163,6 +166,7 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
       handleLoginRedirect();
       return;
     }
+    trackEvent("registration_start", { program_id: programId, batch_name: batch.name });
     setIsOpen(true);
     setCurrentStep(1);
   };
@@ -190,6 +194,11 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
   };
 
   const onSubmit = (values: RegistrationFormValues) => {
+    trackEvent("registration_submit", {
+      program_id: programId,
+      batch_name: batch.name,
+      current_step: currentStep,
+    });
     applyMutation.mutate({
       programId,
       batchId: batch.id,
@@ -199,6 +208,12 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
 
   const nextStep = () => {
     if (currentStep < STEPS.length) {
+      trackEvent("registration_step_complete", {
+        program_id: programId,
+        step_from: currentStep,
+        step_to: currentStep + 1,
+        step_name: STEPS[currentStep - 1]?.title || `step_${currentStep}`,
+      });
       setCurrentStep(currentStep + 1);
     }
   };
@@ -382,7 +397,19 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
         {buttonState.label}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open && isOpen && currentStep > 1) {
+            trackEvent("registration_abandon", {
+              program_id: programId,
+              batch_name: batch.name,
+              last_step: currentStep,
+            });
+          }
+          setIsOpen(open);
+        }}
+      >
         <DialogContent className="flex max-h-[90vh] flex-col overflow-y-auto p-0 sm:max-w-[640px]">
           <div className="gradient-brand-navy px-6 py-5">
             <div className="flex items-center justify-between">

@@ -1,6 +1,6 @@
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-
+import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
@@ -10,6 +10,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   const { isPending } = authClient.useSession();
 
   const handleGoogleSignUp = async () => {
+    trackEvent("signup", { method: "google" });
     await authClient.signIn.social(
       {
         provider: "google",
@@ -20,6 +21,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           toast.success("Sign up successful");
         },
         onError: (error) => {
+          trackEvent("signup_error", { method: "google", error_code: error.error.message });
           toast.error(error.error.message || error.error.statusText);
         },
       },
