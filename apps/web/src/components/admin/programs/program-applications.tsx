@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/utils/orpc";
 import { ProgramApplicationAnswers } from "./program-application-answers";
 
@@ -69,12 +70,22 @@ export function ProgramApplications({ programId }: { programId: string }) {
       id,
       status,
     });
+    trackEvent(`admin_application_${status}`, {
+      program_id: programId,
+      is_bulk: false,
+      application_id: id,
+    });
   };
 
   const handleBulkUpdate = (status: "accepted" | "rejected") => {
     bulkUpdateMutation.mutate({
       ids: selectedIds,
       status,
+    });
+    trackEvent(`admin_application_${status}`, {
+      program_id: programId,
+      is_bulk: true,
+      count: selectedIds.length,
     });
   };
 
