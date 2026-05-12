@@ -1121,12 +1121,16 @@
           "end": 35
         },
         {
+          "start": 180,
+          "end": 183
+        },
+        {
           "start": 207,
           "end": 218
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-10T06:44:56.528Z"
+      "lastEdit": "2026-05-12T15:18:50.210Z"
     },
     "src/components/admin/programs/program-syllabus.tsx": {
       "modifiedRanges": [
@@ -2041,9 +2045,19 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-12T14:42:15.492Z"
+    },
+    "src/app/(internal)/admin/(infra)/email/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 708
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:38:57.068Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-12T15:01:28.198Z"
+  "lastUpdated": "2026-05-12T15:38:57.069Z"
 }

@@ -12,3 +12,4 @@
 export { getApplicationAcceptedHtml } from "./templates/application-accepted";
 export { getApplicationRejectedHtml } from "./templates/application-rejected";
 export { getRegistrationSuccessHtml } from "./templates/registration-success";
+export { getScholarshipOfferHtml } from "./templates/scholarship-offer";
