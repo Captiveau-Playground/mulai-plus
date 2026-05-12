@@ -41,6 +41,10 @@
     "src/routers/programs.ts": {
       "modifiedRanges": [
         {
+          "start": 24,
+          "end": 26
+        },
+        {
           "start": 383,
           "end": 383
         },
@@ -57,8 +61,8 @@
           "end": 1050
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-10T08:26:18.732Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:07:10.994Z"
     },
     "src/routers/lms.ts": {
       "modifiedRanges": [
@@ -69,9 +73,79 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-10T08:27:10.643Z"
+    },
+    "src/lib/email/config.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 70
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-12T15:09:14.684Z"
+    },
+    "src/lib/email/components.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 418
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:05:17.520Z"
+    },
+    "src/lib/email/templates/registration-success.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 103
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:05:34.581Z"
+    },
+    "src/lib/email/templates/application-accepted.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 112
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:09:44.359Z"
+    },
+    "src/lib/email/templates/application-rejected.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 127
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:06:26.309Z"
+    },
+    "src/lib/email/index.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 15
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-12T15:06:33.049Z"
+    },
+    "src/lib/email-templates.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 26
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-12T15:06:40.872Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-10T08:27:10.643Z"
+  "lastUpdated": "2026-05-12T15:09:44.359Z"
 }
