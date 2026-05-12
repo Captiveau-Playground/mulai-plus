@@ -3,6 +3,7 @@
 import { ContactSupport } from "@/components/contact-support";
 import DashboardFooter from "@/components/dashboard-footer";
 import DashboardHeader from "@/components/dashboard-header";
+import { StudentOnboardingTour } from "@/components/student/onboarding-tour";
 import { StudentSidebar } from "@/components/student-sidebar";
 import { PageState } from "@/components/ui/page-state";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -46,6 +47,7 @@ export default function StudentDashboardLayout({ children }: { children: React.R
       >
         <StudentDashboardContent>{children}</StudentDashboardContent>
       </SidebarProvider>
+      <StudentOnboardingTour />
     </PageState>
   );
 }

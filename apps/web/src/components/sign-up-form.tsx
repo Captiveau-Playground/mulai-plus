@@ -5,7 +5,13 @@ import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
 
-export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
+export default function SignUpForm({
+  onSwitchToSignIn,
+  callbackUrl,
+}: {
+  onSwitchToSignIn: () => void;
+  callbackUrl?: string;
+}) {
   const _router = useRouter();
   const { isPending } = authClient.useSession();
 
@@ -14,7 +20,9 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
     await authClient.signIn.social(
       {
         provider: "google",
-        callbackURL: `${window.location.origin}/dashboard`,
+        callbackURL: callbackUrl
+          ? `${window.location.origin}${decodeURIComponent(callbackUrl)}`
+          : `${window.location.origin}/dashboard`,
       },
       {
         onSuccess: () => {

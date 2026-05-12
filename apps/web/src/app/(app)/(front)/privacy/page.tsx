@@ -114,7 +114,7 @@ export default function PrivacyPage() {
   const updatedDate = "11 Mei 2026";
 
   return (
-    <div className="flex w-full flex-col">
+    <div className="mt-10 flex w-full flex-col">
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-brand-orange/5 via-amber-50/40 to-bg-light px-6 py-20 sm:px-10 lg:px-20 lg:py-24">
         <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-brand-navy/5 blur-[100px]" />

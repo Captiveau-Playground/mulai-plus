@@ -1,4 +1,5 @@
 import { useForm } from "@tanstack/react-form";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import z from "zod";
@@ -7,7 +8,13 @@ import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
 
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
+export default function SignInForm({
+  onSwitchToSignUp,
+  callbackUrl,
+}: {
+  onSwitchToSignUp: () => void;
+  callbackUrl?: string;
+}) {
   const router = useRouter();
   const { isPending } = authClient.useSession();
 
@@ -29,7 +36,9 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
 
             trackEvent("login", { method: "email", role: role || "unknown" });
 
-            if (role === "admin") {
+            if (callbackUrl) {
+              router.push(decodeURIComponent(callbackUrl) as Route);
+            } else if (role === "admin") {
               router.push("/admin");
             } else if (role === "mentor") {
               router.push("/mentor");
@@ -60,7 +69,9 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
     await authClient.signIn.social(
       {
         provider: "google",
-        callbackURL: `${window.location.origin}/dashboard`,
+        callbackURL: callbackUrl
+          ? `${window.location.origin}${decodeURIComponent(callbackUrl)}`
+          : `${window.location.origin}/dashboard`,
       },
       {
         onSuccess: () => {
