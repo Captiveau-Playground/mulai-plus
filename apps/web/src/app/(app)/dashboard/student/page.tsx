@@ -43,7 +43,7 @@ export default function StudentDashboardPage() {
         </div>
 
         {/* Stats Cards - Brand Styled */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div id="tour-stats" className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             icon={GraduationCap}
             label="My Programs"
@@ -158,7 +158,10 @@ export default function StudentDashboardPage() {
                       </div>
                       <p className="font-manrope text-white/70">No upcoming sessions</p>
                       <Link href="/dashboard/student/schedule" className="mt-3">
-                        <Button variant="outline" className="rounded-full border-white/30 text-white hover:bg-white/10">
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-white/30 bg-white text-brand-navy hover:bg-white/10 hover:text-white"
+                        >
                           View All Sessions
                         </Button>
                       </Link>
@@ -171,9 +174,11 @@ export default function StudentDashboardPage() {
 
           {/* Application History / Quick Actions / Recent Orders */}
           <div className="space-y-6">
-            <ApplicationHistory compact limit={5} />
+            <div id="tour-applications">
+              <ApplicationHistory compact limit={5} />
+            </div>
             {/* Quick Actions */}
-            <Card className="student-card">
+            <Card id="tour-quick-actions" className="student-card">
               <CardHeader className="pb-3">
                 <CardTitle className="font-bricolage text-lg text-text-main">Quick Actions</CardTitle>
               </CardHeader>
