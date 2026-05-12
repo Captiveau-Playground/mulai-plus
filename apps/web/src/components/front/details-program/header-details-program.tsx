@@ -18,7 +18,14 @@ export function HeaderDetailsProgram({
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         {/* Placeholder: Replace with actual image from Figma export */}
-        <Image src="/hero-image.png" alt={`${title} Background`} fill className="object-cover" priority />
+        <Image
+          src="/hero-image.webp"
+          alt={`${title} Background`}
+          fill
+          className="object-cover"
+          priority
+          sizes="100vw"
+        />
         {/* Gradient Overlay */}
         <div
           className="absolute inset-0 z-10"

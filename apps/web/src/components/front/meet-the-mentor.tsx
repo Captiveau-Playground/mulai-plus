@@ -93,6 +93,7 @@ export function MeetTheMentor() {
                   alt={mentor.name}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  sizes="(max-width: 640px) 40vw, 192px"
                 />
 
                 <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-55% via-[#1A1F6D]/0 to-[#1A1F6D]" />

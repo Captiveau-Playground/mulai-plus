@@ -109,7 +109,13 @@ export function Navbar() {
       ref={navRef}
       className={cn(
         "fixed top-0 right-0 left-0 z-50 flex h-[8vh] w-full items-center justify-between px-6 transition-all duration-300 lg:grid lg:grid-cols-5 lg:px-16",
-        isScrolled ? "bg-white py-4 shadow-sm backdrop-blur-md" : "py-6 lg:py-4",
+        isScrolled ||
+          pathname.startsWith("/programs") ||
+          pathname.startsWith("/courses") ||
+          pathname.startsWith("/categories") ||
+          pathname.startsWith("/privacy")
+          ? "bg-white py-4 shadow-sm backdrop-blur-md"
+          : "py-6 lg:py-4",
       )}
     >
       {/* Logo */}
