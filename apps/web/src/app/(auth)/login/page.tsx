@@ -1,6 +1,8 @@
 "use client";
 
+import type { Route } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -14,6 +16,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
+  const callbackUrl = searchParams.get("callbackUrl");
   const { data: session, isPending } = authClient.useSession();
   const [showSignIn, setShowSignIn] = useState(true);
 
@@ -25,6 +28,12 @@ function LoginContent() {
 
   useEffect(() => {
     if (!isPending && session?.user) {
+      // If there's a callbackUrl, redirect there first (e.g., program registration)
+      if (callbackUrl) {
+        router.push(decodeURIComponent(callbackUrl) as Route);
+        return;
+      }
+
       const role = session.user.role;
       if (role === "admin") {
         router.push("/admin");
@@ -36,7 +45,7 @@ function LoginContent() {
         router.push("/dashboard/student");
       }
     }
-  }, [session, isPending, router]);
+  }, [session, isPending, router, callbackUrl]);
 
   if (isPending) {
     return (
@@ -55,9 +64,9 @@ function LoginContent() {
       {/* Left Side - Branding */}
       <div className="hidden w-1/2 flex-col justify-between bg-[#1A1F6D] p-12 lg:flex">
         {/* Logo */}
-        <div className="relative z-10">
-          <Image src="/light-type-logo.svg" alt="Mulai Plus" width={160} height={48} />
-        </div>
+        <Link href="/" className="relative z-10 inline-block">
+          <Image src="/light-type-logo.svg" alt="Mulai Plus" width={160} height={48} className="cursor-pointer" />
+        </Link>
 
         {/* Content */}
         <div className="relative z-10">
@@ -93,9 +102,9 @@ function LoginContent() {
       <div className="flex w-full flex-col justify-center bg-bg-light lg:w-1/2">
         <div className="mx-auto w-full max-w-md px-6 py-12 lg:px-8">
           {showSignIn ? (
-            <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
+            <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} callbackUrl={callbackUrl ?? undefined} />
           ) : (
-            <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+            <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} callbackUrl={callbackUrl ?? undefined} />
           )}
         </div>
       </div>
@@ -105,7 +114,13 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-bg-light">
+          <Loader />
+        </div>
+      }
+    >
       <LoginContent />
     </Suspense>
   );

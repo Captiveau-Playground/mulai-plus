@@ -21,9 +21,9 @@ import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
 import { adminOrProgramManagerProcedure, protectedProcedure, publicProcedure } from "../index";
 import {
-  getApplicationAcceptedEmailHtml,
-  getApplicationRejectedEmailHtml,
-  getRegistrationEmailHtml,
+  getApplicationAcceptedHtml,
+  getApplicationRejectedHtml,
+  getRegistrationSuccessHtml,
 } from "../lib/email-templates";
 import { sendNotification } from "../lib/notification";
 import { getPathFromUrl, supabase } from "../lib/supabase";
@@ -226,7 +226,7 @@ export const programsRouter = {
         const isEmailEnabled = (emailConfig?.value as { enabled?: boolean })?.enabled ?? true;
 
         if (isEmailEnabled) {
-          const emailHtml = getRegistrationEmailHtml({
+          const emailHtml = getRegistrationSuccessHtml({
             name: input.answers.name,
             programName: programItem.name,
             batchName: batchItem.name,
@@ -1438,7 +1438,7 @@ export const programsRouter = {
               // Send Acceptance Email
               try {
                 if (isEmailEnabled) {
-                  const emailHtml = getApplicationAcceptedEmailHtml({
+                  const emailHtml = getApplicationAcceptedHtml({
                     firstName: application.user.name?.split(" ")[0] || "Applicant",
                     programName: application.program.name,
                     startDate: application.batch?.startDate
@@ -1486,7 +1486,7 @@ export const programsRouter = {
               // Send Rejection Email
               try {
                 if (isEmailEnabled) {
-                  const emailHtml = getApplicationRejectedEmailHtml({
+                  const emailHtml = getApplicationRejectedHtml({
                     firstName: application.user.name?.split(" ")[0] || "Applicant",
                     programName: application.program.name,
                     registrationId: application.id.slice(0, 8).toUpperCase(),

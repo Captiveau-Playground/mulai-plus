@@ -5,6 +5,7 @@ import type { RouterClient } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import { auditRouter } from "./audit";
+import { emailAdminRouter } from "./email-admin";
 import { lmsRouter } from "./lms";
 import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
@@ -26,6 +27,7 @@ export const appRouter = {
   programActivities: programActivitiesRouter,
   payments: paymentsRouter,
   audit: auditRouter,
+  email: emailAdminRouter,
   notification: notificationRouter,
 
   privateData: protectedProcedure.handler(({ context }) => {

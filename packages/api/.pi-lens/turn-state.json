@@ -41,6 +41,10 @@
     "src/routers/programs.ts": {
       "modifiedRanges": [
         {
+          "start": 24,
+          "end": 26
+        },
+        {
           "start": 383,
           "end": 383
         },
@@ -57,8 +61,8 @@
           "end": 1050
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-10T08:26:18.732Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:07:10.994Z"
     },
     "src/routers/lms.ts": {
       "modifiedRanges": [
@@ -69,9 +73,113 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-10T08:27:10.643Z"
+    },
+    "src/lib/email/config.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 70
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-12T15:27:04.660Z"
+    },
+    "src/lib/email/components.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 418
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:27:44.148Z"
+    },
+    "src/lib/email/templates/registration-success.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 103
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:28:02.097Z"
+    },
+    "src/lib/email/templates/application-accepted.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 112
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:28:14.416Z"
+    },
+    "src/lib/email/templates/application-rejected.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 136
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:28:33.687Z"
+    },
+    "src/lib/email/index.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 15
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:32:23.412Z"
+    },
+    "src/lib/email-templates.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 26
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:34:42.814Z"
+    },
+    "src/routers/email-admin.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 242
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:34:31.326Z"
+    },
+    "src/routers/index.ts": {
+      "modifiedRanges": [
+        {
+          "start": 8,
+          "end": 8
+        },
+        {
+          "start": 30,
+          "end": 30
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:15:39.122Z"
+    },
+    "src/lib/email/templates/scholarship-offer.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 163
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-12T15:32:12.293Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-10T08:27:10.643Z"
+  "lastUpdated": "2026-05-12T15:34:42.814Z"
 }

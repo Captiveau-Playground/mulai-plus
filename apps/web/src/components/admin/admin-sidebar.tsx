@@ -177,6 +177,10 @@ const data = {
           title: "Security",
           url: "#",
         },
+        {
+          title: "Email",
+          url: "/admin/email",
+        },
       ],
     },
   ],
