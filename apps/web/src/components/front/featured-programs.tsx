@@ -93,6 +93,7 @@ export function FeaturedPrograms() {
                   alt="Featured Program Mentor"
                   fill
                   className="object-cover object-bottom drop-shadow-2xl"
+                  sizes="(max-width: 1024px) 0vw, 35vw"
                 />
               </div>
             </div>

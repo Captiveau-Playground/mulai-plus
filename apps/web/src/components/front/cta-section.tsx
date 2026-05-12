@@ -12,10 +12,11 @@ export function CTASection() {
           {/* Background Image */}
           <div className="absolute inset-0 z-0">
             <Image
-              src="/cta.webp" // Placeholder - ideally this is a specific BG image
+              src="/cta.webp"
               alt="CTA Background"
               fill
               className="object-cover object-center opacity-50 mix-blend-overlay"
+              sizes="100vw"
             />
           </div>
 

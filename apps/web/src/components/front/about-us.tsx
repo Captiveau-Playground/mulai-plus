@@ -49,7 +49,13 @@ export function AboutUs() {
               {/* Column 1 */}
               <div className="flex flex-1 flex-col gap-4 sm:gap-6 md:gap-9">
                 <div className="relative h-[280px] w-full overflow-hidden rounded-2xl sm:h-[360px] sm:w-[220px] md:h-[454px] md:w-full">
-                  <Image src="/about-us/image-1.webp" alt="Mentoring Session" fill className="object-cover" />
+                  <Image
+                    src="/about-us/image-1.webp"
+                    alt="Mentoring Session"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 40vw, 25vw"
+                  />
                 </div>
                 <div className="flex h-[100px] w-full flex-col items-center justify-center rounded-2xl bg-[#FE9114] text-white sm:h-[120px] sm:w-[220px] md:h-[151px] md:w-full">
                   <span className="font-bold font-bricolage text-3xl md:text-5xl">10+</span>
@@ -64,7 +70,13 @@ export function AboutUs() {
                   <span className="font-inter font-medium text-sm md:text-xl">Program Terstruktur</span>
                 </div>
                 <div className="relative h-[280px] w-full overflow-hidden rounded-2xl sm:h-[360px] sm:w-[220px] md:h-[454px] md:w-full">
-                  <Image src="/about-us/image-2.webp" alt="Global Community" fill className="object-cover" />
+                  <Image
+                    src="/about-us/image-2.webp"
+                    alt="Global Community"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 40vw, 25vw"
+                  />
                 </div>
               </div>
             </div>

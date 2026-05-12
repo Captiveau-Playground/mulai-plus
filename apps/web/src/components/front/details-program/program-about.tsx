@@ -39,6 +39,7 @@ export function ProgramAbout({ title, description, image, className }: ProgramAb
               alt={title || "Program Image"}
               fill
               className="object-cover transition-transform duration-500 hover:scale-105"
+              sizes="(max-width: 1024px) 100vw, 400px"
             />
           </div>
         )}
