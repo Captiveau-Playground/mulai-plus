@@ -50,6 +50,5 @@ coverage
 .cache
 tmp
 temp
-apps/web/src/components/student/onboarding-tour.tsx
 docs/improvement-plan.md
 docs/security-checklist.md
