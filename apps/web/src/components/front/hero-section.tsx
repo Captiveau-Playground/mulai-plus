@@ -30,7 +30,7 @@ export function HeroSection() {
 
       {/* Background Image Placeholder */}
       <div className="absolute bottom-0 left-0 z-20 h-[90%] w-full">
-        <Image src="/hero-image.png" alt="Hero Background" fill className="object-cover object-bottom" priority />
+        <Image src="/hero-image.webp" alt="Hero Background" fill className="object-cover object-bottom" priority />
       </div>
     </section>
   );

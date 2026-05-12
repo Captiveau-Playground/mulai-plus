@@ -89,7 +89,7 @@ export function FeaturedPrograms() {
 
                 {/* Using hero-image.png as placeholder for '15544-depositphotos-bgremover 1' */}
                 <Image
-                  src="/featured.png"
+                  src="/featured.webp"
                   alt="Featured Program Mentor"
                   fill
                   className="object-cover object-bottom drop-shadow-2xl"
