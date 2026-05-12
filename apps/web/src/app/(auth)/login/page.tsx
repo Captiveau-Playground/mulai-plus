@@ -2,6 +2,7 @@
 
 import type { Route } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -63,9 +64,9 @@ function LoginContent() {
       {/* Left Side - Branding */}
       <div className="hidden w-1/2 flex-col justify-between bg-[#1A1F6D] p-12 lg:flex">
         {/* Logo */}
-        <div className="relative z-10">
-          <Image src="/light-type-logo.svg" alt="Mulai Plus" width={160} height={48} />
-        </div>
+        <Link href="/" className="relative z-10 inline-block">
+          <Image src="/light-type-logo.svg" alt="Mulai Plus" width={160} height={48} className="cursor-pointer" />
+        </Link>
 
         {/* Content */}
         <div className="relative z-10">
