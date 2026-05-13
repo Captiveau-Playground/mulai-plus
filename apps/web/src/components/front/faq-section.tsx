@@ -3,39 +3,9 @@
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { FAQS as FAQS_CONFIG } from "@/lib/site-config";
 
-const FAQS = [
-  {
-    id: "item-1",
-    question: "Siapa aja yang bisa mendaftar MULAI+?",
-    answer:
-      "Program MULAI+ terbuka untuk siswa SMA/SMK/MA kelas 10–12 yang sedang mencari kejelasan arah jurusan, kampus, dan rencana masa depan. Baik kamu yang masih bingung total, sudah punya pilihan tapi belum yakin, atau ingin menyusun strategi masuk PTN dengan lebih terstruktur, MULAI+ dirancang untuk membantu proses tersebut.",
-  },
-  {
-    id: "item-2",
-    question: "Apakah program ini gratis?",
-    answer:
-      "MULAI+ memiliki dua jenis program Regular Mentoring (berbayar) ⁠Beasiswa Mentoring (melalui proses seleksi) Program beasiswa tersedia bagi siswa terpilih yang memenuhi kriteria dan lolos tahap seleksi.",
-  },
-  {
-    id: "item-3",
-    question: "Bagaimana sistem seleksinya?",
-    answer:
-      "Untuk program beasiswa, peserta akan melalui beberapa tahap berikut Pengisian formulir pendaftaran ⁠Menjawab pertanyaan reflektif (non-akademik) ⁠Seleksi berbasis kebutuhan dan komitmen ⁠Pengumuman peserta terpilih secara personal Persetujuan kontrak komitmen sederhana Kami menilai berdasarkan komitmen, kesiapan berkembang, dan kesesuaian dengan program.",
-  },
-  {
-    id: "item-4",
-    question: "Berapa lama program berlangsung?",
-    answer:
-      "Durasi program umumnya berlangsung selama kurang lebih 6 minggu, tergantung batch dan jenis program yang diikuti.Selama periode tersebut, peserta akan mengikuti sesi mentoring, refleksi, dan penyusunan strategi secara bertahap.",
-  },
-  {
-    id: "item-5",
-    question: "Apakah program ini dilakukan online atau offline?",
-    answer:
-      "Seluruh sesi dalam program MULAI+ dilaksanakan secara online untuk memastikan akses yang fleksibel dan merata bagi peserta dari berbagai daerah..",
-  },
-];
+const FAQS = FAQS_CONFIG.map((faq, i) => ({ id: `item-${i + 1}`, ...faq }));
 
 export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
   return (

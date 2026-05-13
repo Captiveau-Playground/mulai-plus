@@ -6,41 +6,33 @@ import { ArrowRight, Instagram, Linkedin, Mail, MapPin, Phone, Youtube } from "l
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { CONTACT, NAV_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 const footerNavLinks = [
   {
     title: "Navigate",
-    links: [
-      { label: "About Us", href: "/#about" },
-      { label: "Featured Programs", href: "/#featured-programs" },
-      { label: "Meet The Mentors", href: "/#mentors" },
-      { label: "FAQ", href: "/#faq" },
-    ],
+    links: NAV_LINKS,
   },
   {
     title: "Programs",
-    links: [
-      { label: "Program", href: "/programs" },
-      { label: "Beasiswa Mentoring", href: "/programs/program-beasiswa-mentoring" },
-      { label: "Privacy & Policy", href: "/privacy" },
-    ],
+    links: PROGRAM_LINKS,
   },
   {
     title: "Contact",
     links: [
-      { label: "hello@mulaiplus.id", href: "mailto:hello@mulaiplus.id", icon: Mail },
-      { label: "+62 812-3456-7890", href: "tel:+6281234567890", icon: Phone },
-      { label: "Jakarta, Indonesia", href: "#", icon: MapPin },
+      { label: CONTACT.email, href: `mailto:${CONTACT.email}`, icon: Mail },
+      { label: CONTACT.phoneDisplay, href: `tel:${CONTACT.phone}`, icon: Phone },
+      { label: CONTACT.location, href: "#", icon: MapPin },
     ],
   },
 ];
 
 const socialLinks = [
-  { label: "Instagram", href: "https://instagram.com/mulaiplus", icon: Instagram },
-  { label: "LinkedIn", href: "https://linkedin.com/company/mulai-plus", icon: Linkedin },
-  { label: "YouTube", href: "https://youtube.com/@mulaiplus", icon: Youtube },
+  { label: SOCIAL.instagram.label, href: SOCIAL.instagram.url, icon: Instagram },
+  { label: SOCIAL.linkedin.label, href: SOCIAL.linkedin.url, icon: Linkedin },
+  { label: SOCIAL.youtube.label, href: SOCIAL.youtube.url, icon: Youtube },
 ];
 
 export function Footer() {
