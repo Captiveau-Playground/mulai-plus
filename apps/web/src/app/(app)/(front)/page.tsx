@@ -7,7 +7,6 @@ import { FAQSection } from "@/components/front/faq-section";
 import { FeaturedPrograms } from "@/components/front/featured-programs";
 import { HeroSection } from "@/components/front/hero-section";
 import { MeetTheMentor } from "@/components/front/meet-the-mentor";
-import { SocialProof } from "@/components/front/social-proof";
 
 export default function LandingPage() {
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
@@ -50,7 +49,7 @@ export default function LandingPage() {
         {JSON.stringify(jsonLd)}
       </Script>
       <HeroSection />
-      <SocialProof />
+      {/*<SocialProof />*/}
       <AboutUs />
       <FeaturedPrograms />
       <MeetTheMentor />

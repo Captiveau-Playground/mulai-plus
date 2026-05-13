@@ -1,6 +1,7 @@
 "use client";
 
 import { env } from "@mulai-plus/env/web";
+import { motion } from "framer-motion";
 import { ArrowRight, Instagram, Linkedin, Mail, MapPin, Phone, Youtube } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -55,7 +56,13 @@ export function Footer() {
   };
 
   return (
-    <footer className="relative overflow-hidden bg-[#0D1145]">
+    <motion.footer
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6 }}
+      className="relative overflow-hidden bg-[#1A1F6D]"
+    >
       {/* ===== Background Decorations ===== */}
       {/* Subtle grid pattern */}
       <div
@@ -266,6 +273,6 @@ export function Footer() {
           </div>
         </div>
       </div>
-    </footer>
+    </motion.footer>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -32,7 +33,13 @@ export function CTASection() {
           <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-0% from-[#1A1F6D]/80 via-25% via-45% via-[#1A1F6D]/10 via-[#1A1F6D]/30 to-60% to-transparent lg:hidden" />
 
           {/* Content */}
-          <div className="relative z-10 flex max-w-2xl flex-col justify-center gap-8 px-6 py-16 md:px-14 md:py-20 lg:px-16 lg:py-28">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] as const }}
+            className="relative z-10 flex max-w-2xl flex-col justify-center gap-8 px-6 py-16 md:px-14 md:py-20 lg:px-16 lg:py-28"
+          >
             <h2 className="font-bold font-bricolage text-4xl text-white leading-tight tracking-tight md:text-5xl lg:text-[64px] lg:leading-[1.1]">
               Siap Mulai <span className="text-[#FE9114]">Langkah Pertamamu</span>?
             </h2>
@@ -48,7 +55,7 @@ export function CTASection() {
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 md:h-6 md:w-6" />
               </Button>
             </Link>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
