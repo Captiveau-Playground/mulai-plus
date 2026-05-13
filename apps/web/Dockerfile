@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y curl unzip && \
 # ─── Layer 1: Dependency files (cached until package.json/lock change) ───
 COPY package.json bun.lock turbo.json ./
 COPY apps/web/package.json ./apps/web/package.json
+COPY apps/server/package.json ./apps/server/package.json
 COPY packages/api/package.json ./packages/api/package.json
 COPY packages/auth/package.json ./packages/auth/package.json
 COPY packages/config/package.json ./packages/config/package.json
