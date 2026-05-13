@@ -1,55 +1,53 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function CTASection() {
   return (
-    <section className="w-full bg-white py-16 lg:pt-16 lg:pb-[108px]" id="cta">
+    <section className="w-full bg-white py-16 md:py-20 lg:py-24" id="cta">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
-        <div className="relative flex h-[500px] w-full flex-col justify-center overflow-hidden rounded-none bg-[#F93447] px-8 py-12 md:h-[600px] md:rounded-[48px] md:px-4 lg:h-[700px] lg:justify-start lg:py-32">
-          {/* Background Image */}
-          <div className="absolute inset-0 z-0">
-            <Image
-              src="/cta.webp"
-              alt="CTA Background"
-              fill
-              className="object-cover object-center opacity-50 mix-blend-overlay"
-              sizes="100vw"
-            />
-          </div>
-
-          {/* Gradient Overlay */}
+        <div className="relative overflow-hidden rounded-none bg-[#1A1F6D] md:rounded-[48px]">
+          {/* Grid Pattern */}
           <div
-            className="absolute inset-0 z-10"
+            className="pointer-events-none absolute inset-0 opacity-[0.04]"
             style={{
-              background:
-                "linear-gradient(to left, rgba(254, 145, 20, 0) 22%, rgba(251, 99, 46, 0.57) 50%, #F93447 76%)",
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px)",
+              backgroundSize: "48px 48px",
             }}
           />
 
-          {/* Content */}
-          <div className="relative z-20 flex max-w-4xl flex-col gap-12 lg:ml-16">
-            <h2 className="font-bold font-bricolage text-4xl text-white leading-tight md:text-6xl lg:text-[96px]">
-              Siap Mulai Langkah Pertamamu?
-            </h2>
-
-            <Link href="#featured-programs">
-              <Button
-                size="lg"
-                className="h-auto rounded-full bg-white px-8 py-4 text-xl hover:bg-gray-100 md:px-12 md:py-6 md:text-2xl lg:text-4xl"
-              >
-                <span className="bg-linear-to-r from-[#F93447] to-[#FE9114] bg-clip-text font-inter font-semibold text-transparent">
-                  Daftar Mentoring Scholarship
-                </span>
-              </Button>
-            </Link>
+          {/* Image - full bleed behind everything */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <Image src="/cta.webp" alt="" fill className="object-cover object-center" sizes="100vw" priority />
           </div>
 
-          {/* Decorative Elements (Sketch) - Simplified representation */}
-          <div className="absolute bottom-0 left-0 z-0 hidden lg:block">
-            {/* Can add SVGs here later if assets are provided */}
+          {/* Gradient bridge: biru solid (kiri) → transparan (kanan) */}
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-0% from-[#1A1F6D] to-100% to-transparent" />
+
+          {/* Mobile: gradasi bottom-up */}
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-0% from-[#1A1F6D]/80 via-25% via-45% via-[#1A1F6D]/10 via-[#1A1F6D]/30 to-60% to-transparent lg:hidden" />
+
+          {/* Content */}
+          <div className="relative z-10 flex max-w-2xl flex-col justify-center gap-8 px-6 py-16 md:px-14 md:py-20 lg:px-16 lg:py-28">
+            <h2 className="font-bold font-bricolage text-4xl text-white leading-tight tracking-tight md:text-5xl lg:text-[64px] lg:leading-[1.1]">
+              Siap Mulai <span className="text-[#FE9114]">Langkah Pertamamu</span>?
+            </h2>
+
+            <p className="max-w-lg font-manrope text-[#BFD6FF]/60 text-base leading-relaxed md:text-lg">
+              Daftar Mentoring Scholarship sekarang. Mentor berpengalaman, program terstruktur, dan beasiswa untuk masa
+              depanmu.
+            </p>
+
+            <Link href="#featured-programs">
+              <Button className="group h-auto w-fit cursor-pointer rounded-full bg-[#FE9114] px-10 py-5 font-bold font-inter text-base text-white shadow-[#FE9114]/30 shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e68212] hover:shadow-[#FE9114]/40 hover:shadow-xl md:px-12 md:py-6 md:text-xl lg:text-2xl">
+                Daftar Sekarang
+                <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 md:h-6 md:w-6" />
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

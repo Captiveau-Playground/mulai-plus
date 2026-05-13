@@ -2085,16 +2085,12 @@
     "src/components/front/cta-section.tsx": {
       "modifiedRanges": [
         {
-          "start": 15,
-          "end": 15
-        },
-        {
-          "start": 19,
-          "end": 19
+          "start": 1,
+          "end": 169
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-12T15:48:16.053Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T15:25:00.060Z"
     },
     "src/components/front/details-program/header-details-program.tsx": {
       "modifiedRanges": [
@@ -2139,5 +2135,5 @@
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-13T15:08:23.749Z"
+  "lastUpdated": "2026-05-13T15:25:00.060Z"
 }
