@@ -21,7 +21,7 @@ const CONTACT_CHANNELS = [
     id: "wa2",
     label: "WhatsApp",
     description: "Layanan Peserta",
-    href: "https://wa.me/6285730367310",
+    href: "https://wa.me/6285746055576",
     icon: MessageCircle,
     color: "text-green-600",
     bg: "bg-green-50 hover:bg-green-100",

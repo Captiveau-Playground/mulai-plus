@@ -1,6 +1,16 @@
 "use client";
 
-import { BookOpen, Computer, ExternalLink, Key, LayoutDashboard, Settings2, Shield, Users } from "lucide-react";
+import {
+  BookOpen,
+  Computer,
+  ExternalLink,
+  Key,
+  LayoutDashboard,
+  Link as LinkIcon,
+  Settings2,
+  Shield,
+  Users,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type * as React from "react";
@@ -180,6 +190,17 @@ const data = {
         {
           title: "Email",
           url: "/admin/email",
+        },
+      ],
+    },
+    {
+      title: "Short Links",
+      url: "#",
+      icon: LinkIcon,
+      items: [
+        {
+          title: "Manage",
+          url: "/admin/links",
         },
       ],
     },

@@ -1125,12 +1125,24 @@
           "end": 183
         },
         {
+          "start": 186,
+          "end": 190
+        },
+        {
+          "start": 198,
+          "end": 198
+        },
+        {
+          "start": 200,
+          "end": 205
+        },
+        {
           "start": 207,
           "end": 218
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-12T15:18:50.210Z"
+      "lastEdit": "2026-05-13T16:37:42.461Z"
     },
     "src/components/admin/programs/program-syllabus.tsx": {
       "modifiedRanges": [
@@ -1449,23 +1461,15 @@
     "src/components/front/featured-programs.tsx": {
       "modifiedRanges": [
         {
+          "start": 4,
+          "end": 4
+        },
+        {
           "start": 23,
           "end": 23
         },
         {
-          "start": 37,
-          "end": 62
-        },
-        {
-          "start": 96,
-          "end": 96
-        },
-        {
-          "start": 112,
-          "end": 112
-        },
-        {
-          "start": 114,
+          "start": 31,
           "end": 134
         },
         {
@@ -1478,15 +1482,11 @@
         },
         {
           "start": 180,
-          "end": 216
-        },
-        {
-          "start": 218,
-          "end": 220
+          "end": 221
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-12T15:49:09.770Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T15:39:37.684Z"
     },
     "src/components/front/details-program/registration-cta.tsx": {
       "modifiedRanges": [
@@ -1704,11 +1704,23 @@
       "modifiedRanges": [
         {
           "start": 1,
-          "end": 71
+          "end": 72
+        },
+        {
+          "start": 76,
+          "end": 101
+        },
+        {
+          "start": 104,
+          "end": 105
+        },
+        {
+          "start": 110,
+          "end": 110
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-10T06:50:57.350Z"
+      "lastEdit": "2026-05-13T16:08:53.681Z"
     },
     "src/app/(app)/(front)/layout.tsx": {
       "modifiedRanges": [
@@ -1899,24 +1911,12 @@
     "src/components/front/hero-section.tsx": {
       "modifiedRanges": [
         {
-          "start": 4,
-          "end": 4
-        },
-        {
-          "start": 11,
-          "end": 11
-        },
-        {
-          "start": 23,
-          "end": 28
-        },
-        {
-          "start": 33,
-          "end": 40
+          "start": 1,
+          "end": 92
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-12T15:49:25.458Z"
+      "lastEdit": "2026-05-13T15:35:52.094Z"
     },
     "src/components/admin/programs/program-application-answers.tsx": {
       "modifiedRanges": [
@@ -2067,34 +2067,22 @@
     "src/components/front/about-us.tsx": {
       "modifiedRanges": [
         {
-          "start": 52,
-          "end": 58
-        },
-        {
-          "start": 67,
-          "end": 67
-        },
-        {
-          "start": 73,
-          "end": 79
+          "start": 1,
+          "end": 142
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-12T15:48:01.238Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T15:36:51.671Z"
     },
     "src/components/front/cta-section.tsx": {
       "modifiedRanges": [
         {
-          "start": 15,
-          "end": 15
-        },
-        {
-          "start": 19,
-          "end": 19
+          "start": 1,
+          "end": 169
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-12T15:48:16.053Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T15:37:46.596Z"
     },
     "src/components/front/details-program/header-details-program.tsx": {
       "modifiedRanges": [
@@ -2125,9 +2113,135 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-12T15:49:40.044Z"
+    },
+    "src/components/front/footer.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 283
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T16:09:15.535Z"
+    },
+    "src/components/front/faq-section.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 163
+        },
+        {
+          "start": 165,
+          "end": 181
+        },
+        {
+          "start": 184,
+          "end": 184
+        },
+        {
+          "start": 188,
+          "end": 188
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T16:10:31.129Z"
+    },
+    "src/app/(app)/(front)/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 41
+        },
+        {
+          "start": 46,
+          "end": 46
+        },
+        {
+          "start": 50,
+          "end": 51
+        },
+        {
+          "start": 56,
+          "end": 66
+        },
+        {
+          "start": 75,
+          "end": 76
+        },
+        {
+          "start": 82,
+          "end": 84
+        },
+        {
+          "start": 89,
+          "end": 118
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T16:08:29.969Z"
+    },
+    "src/lib/site-config.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 182
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-13T16:55:36.480Z"
+    },
+    "src/lib/utm.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 116
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-13T16:26:19.357Z"
+    },
+    "src/app/go/[slug]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 100
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T16:56:36.215Z"
+    },
+    "src/app/(internal)/admin/(infra)/links/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 254
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T17:02:14.213Z"
+    },
+    "src/middleware.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 36
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T16:41:00.465Z"
+    },
+    "src/proxy.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 69
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T16:58:12.918Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-12T15:49:40.045Z"
+  "lastUpdated": "2026-05-13T17:02:14.214Z"
 }
