@@ -2125,9 +2125,19 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-12T15:49:40.044Z"
+    },
+    "src/components/front/footer.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 283
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-13T15:08:23.748Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-12T15:49:40.045Z"
+  "lastUpdated": "2026-05-13T15:08:23.749Z"
 }
