@@ -158,3 +158,25 @@ export function jsonLdFAQ(faqs: FAQItem[]) {
     })),
   };
 }
+
+// ─── Short Links ─────────────────────────────────────────
+export type ShortLink = {
+  to: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+};
+
+/**
+ * Default short links — digunakan sebagai fallback kalau API gak kebaca.
+ * Juga jadi referensi buat form add di admin panel.
+ */
+export const DEFAULT_SHORT_LINKS: Record<string, ShortLink> = {
+  ig: { to: "/", utm_source: "instagram", utm_medium: "social", utm_campaign: "bio" },
+  in: { to: "/", utm_source: "linkedin", utm_medium: "social", utm_campaign: "bio" },
+  yt: { to: "/", utm_source: "youtube", utm_medium: "social", utm_campaign: "bio" },
+  tt: { to: "/", utm_source: "tiktok", utm_medium: "social", utm_campaign: "bio" },
+  wa: { to: "/", utm_source: "whatsapp", utm_medium: "social", utm_campaign: "share" },
+  programs: { to: "/programs", utm_source: "instagram", utm_medium: "social", utm_campaign: "bio" },
+  scholarship: { to: "/programs", utm_source: "instagram", utm_medium: "social", utm_campaign: "scholarship" },
+};
