@@ -1,0 +1,21 @@
+{
+  "files": {
+    "src/web.ts": {
+      "modifiedRanges": [
+        {
+          "start": 14,
+          "end": 14
+        },
+        {
+          "start": 22,
+          "end": 22
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-13T16:00:42.531Z"
+    }
+  },
+  "turnCycles": 0,
+  "maxCycles": 3,
+  "lastUpdated": "2026-05-13T16:00:42.531Z"
+}

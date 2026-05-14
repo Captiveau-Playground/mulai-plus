@@ -10,19 +10,26 @@ RUN apt-get update && apt-get install -y curl unzip && \
     curl -fsSL https://bun.sh/install | bash && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy the entire monorepo
+# ─── Layer 1: Dependency files (cached until package.json/lock change) ───
+COPY package.json bun.lock turbo.json ./
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/server/package.json ./apps/server/package.json
+COPY packages/api/package.json ./packages/api/package.json
+COPY packages/auth/package.json ./packages/auth/package.json
+COPY packages/config/package.json ./packages/config/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/env/package.json ./packages/env/package.json
+
+# Install dependencies (cached via Docker layer)
+RUN bun install --frozen-lockfile --no-progress
+
+# ─── Layer 2: Source code (invalidated on any source change) ───
 COPY . .
 
 # Ensure Next.js env file exists for build (no secrets)
 COPY apps/web/.env.example apps/web/.env.production
 
-# Install dependencies using Bun
-# We need to ensure we use the same lockfile format
-RUN bun install --no-progress
-
-# Build Next.js app using Node (via npm run build)
-# npm run build executes "next build" using the node executable
-# npm handles finding the binary in node_modules/.bin (including parent dirs)
+# ─── Layer 3: Build ───
 WORKDIR /app/apps/web
 
 # Add build arguments for Next.js public variables
@@ -39,11 +46,10 @@ ENV NEXT_PUBLIC_GA_MEASUREMENT_ID=$NEXT_PUBLIC_GA_MEASUREMENT_ID
 
 RUN npm run build
 
-# Runner stage
+# ─── Runner stage ───
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-# PORT will be overridden by docker-compose or runtime env
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 

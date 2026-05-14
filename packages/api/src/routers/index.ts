@@ -12,6 +12,7 @@ import { paymentsRouter } from "./payments";
 import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
+import { shortLinksRouter } from "./short-links";
 import { testimonialsRouter } from "./testimonials";
 import { userRouter } from "./user";
 
@@ -28,6 +29,7 @@ export const appRouter = {
   payments: paymentsRouter,
   audit: auditRouter,
   email: emailAdminRouter,
+  shortLinks: shortLinksRouter,
   notification: notificationRouter,
 
   privateData: protectedProcedure.handler(({ context }) => {
