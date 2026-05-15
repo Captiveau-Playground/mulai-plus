@@ -1491,6 +1491,10 @@
     "src/components/front/details-program/registration-cta.tsx": {
       "modifiedRanges": [
         {
+          "start": 13,
+          "end": 14
+        },
+        {
           "start": 20,
           "end": 20
         },
@@ -1508,7 +1512,7 @@
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-10T06:27:01.245Z"
+      "lastEdit": "2026-05-15T11:33:10.267Z"
     },
     "src/components/front/program-registration.tsx": {
       "modifiedRanges": [
@@ -1591,12 +1595,16 @@
     "src/app/(app)/(front)/programs/[slug]/page.tsx": {
       "modifiedRanges": [
         {
+          "start": 200,
+          "end": 201
+        },
+        {
           "start": 204,
-          "end": 213
+          "end": 215
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-10T06:28:08.776Z"
+      "lastEdit": "2026-05-15T11:33:25.940Z"
     },
     "src/app/(auth)/login/page.tsx": {
       "modifiedRanges": [
@@ -2243,5 +2251,5 @@
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-13T17:02:14.214Z"
+  "lastUpdated": "2026-05-15T11:33:25.941Z"
 }

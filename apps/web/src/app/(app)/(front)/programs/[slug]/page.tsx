@@ -197,6 +197,8 @@ export default function ProgramDetailPage() {
                     id: batch.id,
                     name: batch.name,
                     status: batch.status,
+                    startDate: batch.startDate,
+                    endDate: batch.endDate,
                     registrationStartDate: batch.registrationStartDate,
                     registrationEndDate: batch.registrationEndDate,
                     quota: batch.quota,
@@ -209,8 +211,8 @@ export default function ProgramDetailPage() {
                       registrationStartDate: Date | string;
                       registrationEndDate: Date | string;
                       quota: number;
-                      startDate?: Date | string;
-                      endDate?: Date | string;
+                      startDate: Date | string;
+                      endDate: Date | string;
                     }) => ({
                       id: b.id,
                       name: b.name,
