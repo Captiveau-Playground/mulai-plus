@@ -10,8 +10,8 @@ interface Batch {
   registrationStartDate: Date | string;
   registrationEndDate: Date | string;
   quota: number;
-  startDate?: Date | string;
-  endDate?: Date | string;
+  startDate: Date | string;
+  endDate: Date | string;
 }
 
 interface RegistrationCTAProps {
@@ -50,16 +50,12 @@ export function RegistrationCTA({ programId, batch, allBatches, className }: Reg
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <span className="font-inter font-normal text-[#BFD6FF] text-base">Start</span>
-              <span className="font-manrope font-medium text-base text-white">
-                {formatDate(batch.startDate || batch.registrationStartDate)}
-              </span>
+              <span className="font-manrope font-medium text-base text-white">{formatDate(batch.startDate)}</span>
             </div>
 
             <div className="flex items-center justify-between">
               <span className="font-inter font-normal text-[#BFD6FF] text-base">End</span>
-              <span className="font-manrope font-medium text-base text-white">
-                {formatDate(batch.endDate || batch.registrationEndDate)}
-              </span>
+              <span className="font-manrope font-medium text-base text-white">{formatDate(batch.endDate)}</span>
             </div>
 
             <div className="flex items-center justify-between">
