@@ -55,7 +55,7 @@ export const cmsAuthor = pgTable(
   "cms_author",
   {
     id: text("id").primaryKey(),
-    userId: text("user_id").references(() => null as any), // Will link to user in index.ts
+    userId: text("user_id"), // References user.id - set up manually in migration
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
     bio: text("bio"),
@@ -73,7 +73,7 @@ export const cmsAuthor = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [uniqueIndex("cms_author_slug_idx").on(table.slug), uniqueIndex("cms_author_userId_idx").on(table.userId)],
+  (table) => [uniqueIndex("cms_author_slug_idx").on(table.slug), index("cms_author_userId_idx").on(table.userId)],
 );
 
 // ─── Article ────────────────────────────────────────────────────────────────
@@ -186,7 +186,7 @@ export const cmsMedia = pgTable(
     width: integer("width"),
     height: integer("height"),
     alt: text("alt"),
-    uploadedBy: text("uploaded_by").references(() => null as any), // Will link to user in index.ts
+    uploadedBy: text("uploaded_by"), // References user.id - set up manually in migration
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
