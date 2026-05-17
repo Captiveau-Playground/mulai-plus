@@ -171,10 +171,14 @@
         {
           "start": 32,
           "end": 32
+        },
+        {
+          "start": 35,
+          "end": 42
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-13T16:33:43.111Z"
+      "lastEdit": "2026-05-17T14:29:05.892Z"
     },
     "src/lib/email/templates/scholarship-offer.ts": {
       "modifiedRanges": [
@@ -195,9 +199,19 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-13T16:33:35.524Z"
+    },
+    "src/routers/cms.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 1129
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T14:36:31.991Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-13T16:33:43.111Z"
+  "lastUpdated": "2026-05-17T14:36:31.992Z"
 }
