@@ -1,5 +1,6 @@
 "use client";
 
+import { env } from "@mulai-plus/env/web";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { File, FileImage, FileText, Upload } from "lucide-react";
 import Image from "next/image";
@@ -98,6 +99,8 @@ export function MediaLibrary() {
   };
 
   // Handle file upload
+  const UPLOAD_ENDPOINT = `${env.NEXT_PUBLIC_SERVER_URL}/api/upload`;
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -111,7 +114,7 @@ export function MediaLibrary() {
         formData.append("file", file);
         formData.append("key", "cms/media");
 
-        const response = await fetch("/api/upload", {
+        const response = await fetch(UPLOAD_ENDPOINT, {
           method: "POST",
           body: formData,
         });
@@ -259,6 +262,7 @@ export function MediaLibrary() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    unoptimized
                   />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-2 p-4">

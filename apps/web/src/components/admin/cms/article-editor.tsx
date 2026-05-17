@@ -68,8 +68,10 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   const { data: tags } = useQuery(orpc.cms.tags.admin.list.queryOptions());
 
   // Fetch article if editing
-  const articleQuery = orpc.cms.articles.admin.get.queryOptions({ id: articleId ?? "" } as any);
-  const { data: article, isLoading: isLoadingArticle } = useQuery({ ...articleQuery });
+  const { data: article, isLoading: isLoadingArticle } = useQuery({
+    ...orpc.cms.articles.admin.get.queryOptions({ id: articleId ?? "" }),
+    enabled: Boolean(articleId),
+  });
 
   // Create mutation
   const createMutation = useMutation(

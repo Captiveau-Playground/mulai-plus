@@ -11,7 +11,7 @@ import {
   newsletterSubscriber,
 } from "@mulai-plus/db/schema/cms";
 import { z } from "zod";
-import { adminOrProgramManagerProcedure, publicProcedure } from "../index";
+import { adminProcedure, publicProcedure } from "../index";
 
 function slugify(text: string) {
   return text
@@ -168,7 +168,7 @@ export const articlesRouter = {
   // ─── Admin Articles ─────────────────────────────────────────────────────────
 
   admin: {
-    list: adminOrProgramManagerProcedure
+    list: adminProcedure
       .input(
         z
           .object({
@@ -248,7 +248,7 @@ export const articlesRouter = {
         };
       }),
 
-    get: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       const item = await db.query.cmsArticle.findFirst({
         where: eq(cmsArticle.id, input.id),
         with: {
@@ -270,7 +270,7 @@ export const articlesRouter = {
       return item;
     }),
 
-    create: adminOrProgramManagerProcedure
+    create: adminProcedure
       .input(
         z.object({
           title: z.string().min(1),
@@ -368,7 +368,7 @@ export const articlesRouter = {
         return { id, slug };
       }),
 
-    update: adminOrProgramManagerProcedure
+    update: adminProcedure
       .input(
         z.object({
           id: z.string(),
@@ -480,13 +480,13 @@ export const articlesRouter = {
         return { success: true };
       }),
 
-    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       // Soft delete
       await db.update(cmsArticle).set({ deletedAt: new Date() }).where(eq(cmsArticle.id, input.id));
       return { success: true };
     }),
 
-    publish: adminOrProgramManagerProcedure
+    publish: adminProcedure
       .input(z.object({ id: z.string(), scheduledAt: z.string().optional() }))
       .handler(async ({ input }) => {
         const now = new Date();
@@ -501,7 +501,7 @@ export const articlesRouter = {
         return { success: true };
       }),
 
-    unpublish: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    unpublish: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db
         .update(cmsArticle)
         .set({
@@ -513,29 +513,25 @@ export const articlesRouter = {
       return { success: true };
     }),
 
-    bulkPublish: adminOrProgramManagerProcedure
-      .input(z.object({ ids: z.array(z.string()) }))
-      .handler(async ({ input }) => {
-        const now = new Date();
-        await db
-          .update(cmsArticle)
-          .set({
-            status: "published",
-            publishedAt: now,
-          })
-          .where(inArray(cmsArticle.id, input.ids));
-        return { success: true };
-      }),
+    bulkPublish: adminProcedure.input(z.object({ ids: z.array(z.string()) })).handler(async ({ input }) => {
+      const now = new Date();
+      await db
+        .update(cmsArticle)
+        .set({
+          status: "published",
+          publishedAt: now,
+        })
+        .where(inArray(cmsArticle.id, input.ids));
+      return { success: true };
+    }),
 
-    bulkDelete: adminOrProgramManagerProcedure
-      .input(z.object({ ids: z.array(z.string()) }))
-      .handler(async ({ input }) => {
-        const now = new Date();
-        await db.update(cmsArticle).set({ deletedAt: now }).where(inArray(cmsArticle.id, input.ids));
-        return { success: true };
-      }),
+    bulkDelete: adminProcedure.input(z.object({ ids: z.array(z.string()) })).handler(async ({ input }) => {
+      const now = new Date();
+      await db.update(cmsArticle).set({ deletedAt: now }).where(inArray(cmsArticle.id, input.ids));
+      return { success: true };
+    }),
 
-    generateSlug: adminOrProgramManagerProcedure
+    generateSlug: adminProcedure
       .input(z.object({ title: z.string(), currentSlug: z.string().optional() }))
       .handler(async ({ input }) => {
         const baseSlug = slugify(input.title);
@@ -576,7 +572,7 @@ export const categoriesRouter = {
   },
 
   admin: {
-    list: adminOrProgramManagerProcedure.handler(async () => {
+    list: adminProcedure.handler(async () => {
       return await db.query.cmsCategory.findMany({
         orderBy: [asc(cmsCategory.sortOrder), asc(cmsCategory.name)],
         with: {
@@ -587,7 +583,7 @@ export const categoriesRouter = {
       });
     }),
 
-    get: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       return await db.query.cmsCategory.findFirst({
         where: eq(cmsCategory.id, input.id),
         with: {
@@ -597,7 +593,7 @@ export const categoriesRouter = {
       });
     }),
 
-    create: adminOrProgramManagerProcedure
+    create: adminProcedure
       .input(
         z.object({
           name: z.string().min(1),
@@ -638,7 +634,7 @@ export const categoriesRouter = {
         return { id, slug };
       }),
 
-    update: adminOrProgramManagerProcedure
+    update: adminProcedure
       .input(
         z.object({
           id: z.string(),
@@ -673,12 +669,12 @@ export const categoriesRouter = {
         return { success: true };
       }),
 
-    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(cmsCategory).where(eq(cmsCategory.id, input.id));
       return { success: true };
     }),
 
-    reorder: adminOrProgramManagerProcedure
+    reorder: adminProcedure
       .input(
         z.array(
           z.object({
@@ -719,13 +715,13 @@ export const tagsRouter = {
   },
 
   admin: {
-    list: adminOrProgramManagerProcedure.handler(async () => {
+    list: adminProcedure.handler(async () => {
       return await db.query.cmsTag.findMany({
         orderBy: [asc(cmsTag.name)],
       });
     }),
 
-    create: adminOrProgramManagerProcedure
+    create: adminProcedure
       .input(
         z.object({
           name: z.string().min(1),
@@ -757,7 +753,7 @@ export const tagsRouter = {
         return { id, slug };
       }),
 
-    update: adminOrProgramManagerProcedure
+    update: adminProcedure
       .input(
         z.object({
           id: z.string(),
@@ -782,7 +778,7 @@ export const tagsRouter = {
         return { success: true };
       }),
 
-    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(cmsTag).where(eq(cmsTag.id, input.id));
       return { success: true };
     }),
@@ -814,13 +810,13 @@ export const authorsRouter = {
   },
 
   admin: {
-    list: adminOrProgramManagerProcedure.handler(async () => {
+    list: adminProcedure.handler(async () => {
       return await db.query.cmsAuthor.findMany({
         orderBy: [asc(cmsAuthor.name)],
       });
     }),
 
-    create: adminOrProgramManagerProcedure
+    create: adminProcedure
       .input(
         z.object({
           name: z.string().min(1),
@@ -869,7 +865,7 @@ export const authorsRouter = {
         return { id, slug };
       }),
 
-    update: adminOrProgramManagerProcedure
+    update: adminProcedure
       .input(
         z.object({
           id: z.string(),
@@ -905,7 +901,7 @@ export const authorsRouter = {
         return { success: true };
       }),
 
-    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(cmsAuthor).where(eq(cmsAuthor.id, input.id));
       return { success: true };
     }),
@@ -916,7 +912,7 @@ export const authorsRouter = {
 
 export const mediaRouter = {
   admin: {
-    list: adminOrProgramManagerProcedure
+    list: adminProcedure
       .input(
         z
           .object({
@@ -957,13 +953,13 @@ export const mediaRouter = {
         };
       }),
 
-    get: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       return await db.query.cmsMedia.findFirst({
         where: eq(cmsMedia.id, input.id),
       });
     }),
 
-    create: adminOrProgramManagerProcedure
+    create: adminProcedure
       .input(
         z.object({
           url: z.string(),
@@ -994,7 +990,7 @@ export const mediaRouter = {
         return { id };
       }),
 
-    delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       // Get the media record first to delete the R2 file
       const media = await db.query.cmsMedia.findFirst({
         where: eq(cmsMedia.id, input.id),
@@ -1017,31 +1013,29 @@ export const mediaRouter = {
       return { success: true };
     }),
 
-    bulkDelete: adminOrProgramManagerProcedure
-      .input(z.object({ ids: z.array(z.string()) }))
-      .handler(async ({ input }) => {
-        // Get all media records to delete R2 files
-        const mediaRecords = await db.query.cmsMedia.findMany({
-          where: inArray(cmsMedia.id, input.ids),
-        });
+    bulkDelete: adminProcedure.input(z.object({ ids: z.array(z.string()) })).handler(async ({ input }) => {
+      // Get all media records to delete R2 files
+      const mediaRecords = await db.query.cmsMedia.findMany({
+        where: inArray(cmsMedia.id, input.ids),
+      });
 
-        // Try to delete from R2
-        try {
-          const { deleteManyFromR2, extractKeyFromUrl } = await import("@mulai-plus/r2/server");
-          const keys = mediaRecords.map((m) => extractKeyFromUrl(m.url)).filter((k): k is string => k !== null);
-          if (keys.length > 0) {
-            await deleteManyFromR2(keys);
-          }
-        } catch (err) {
-          console.warn("Failed to delete some files from R2:", err);
+      // Try to delete from R2
+      try {
+        const { deleteManyFromR2, extractKeyFromUrl } = await import("@mulai-plus/r2/server");
+        const keys = mediaRecords.map((m) => extractKeyFromUrl(m.url)).filter((k): k is string => k !== null);
+        if (keys.length > 0) {
+          await deleteManyFromR2(keys);
         }
+      } catch (err) {
+        console.warn("Failed to delete some files from R2:", err);
+      }
 
-        await db.delete(cmsMedia).where(inArray(cmsMedia.id, input.ids));
-        return { success: true };
-      }),
+      await db.delete(cmsMedia).where(inArray(cmsMedia.id, input.ids));
+      return { success: true };
+    }),
 
     // Upload endpoint - uploads to R2 and creates media record
-    upload: adminOrProgramManagerProcedure
+    upload: adminProcedure
       .input(
         z.object({
           filename: z.string(),
@@ -1074,7 +1068,7 @@ export const mediaRouter = {
         return { id };
       }),
 
-    updateUrl: adminOrProgramManagerProcedure
+    updateUrl: adminProcedure
       .input(
         z.object({
           id: z.string(),
@@ -1145,7 +1139,7 @@ export const newsletterRouter = {
   }),
 
   admin: {
-    list: adminOrProgramManagerProcedure
+    list: adminProcedure
       .input(
         z
           .object({
@@ -1186,7 +1180,7 @@ export const newsletterRouter = {
         };
       }),
 
-    stats: adminOrProgramManagerProcedure.handler(async () => {
+    stats: adminProcedure.handler(async () => {
       const [total] = await db.select({ count: count() }).from(newsletterSubscriber);
       const [active] = await db
         .select({ count: count() })

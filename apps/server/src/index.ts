@@ -19,6 +19,10 @@ import { logger } from "hono/logger";
 initR2Client();
 
 const app = new Hono();
+
+// Mount R2 upload routes FIRST (before middleware catches all)
+app.route("/api/upload", uploadRouter);
+
 // Force reload for api router changes
 app.use(logger());
 app.use(
@@ -102,8 +106,6 @@ app.use("/*", async (c, next) => {
 });
 
 // Mount R2 upload routes
-app.route("/api/upload", uploadRouter);
-
 app.get("/", (c) => {
   return c.text("OK");
 });

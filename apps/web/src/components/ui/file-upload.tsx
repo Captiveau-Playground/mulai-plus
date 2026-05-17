@@ -1,11 +1,14 @@
 "use client";
 
+import { env } from "@mulai-plus/env/web";
 import { Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const UPLOAD_ENDPOINT = `${env.NEXT_PUBLIC_SERVER_URL}/api/upload`;
 
 interface FileUploadProps {
   value?: string;
@@ -44,7 +47,7 @@ export function FileUpload({
         formData.append("key", path);
       }
 
-      const response = await fetch("/api/upload", {
+      const response = await fetch(UPLOAD_ENDPOINT, {
         method: "POST",
         body: formData,
       });
@@ -59,7 +62,14 @@ export function FileUpload({
       toast.success("File uploaded successfully");
     } catch (err: unknown) {
       console.error("Upload error:", err);
-      const message = err instanceof Error ? err.message : "Failed to upload file";
+      let message = "Failed to upload file";
+      if (err instanceof Error) {
+        message = err.message;
+      }
+      // Check if error is from fetch with non-JSON response
+      if (err instanceof TypeError && err.message.includes("JSON")) {
+        message = "Server error: Invalid response";
+      }
       setError(message);
       toast.error(message);
     } finally {
@@ -77,7 +87,7 @@ export function FileUpload({
     <div className={cn("flex flex-col gap-2", className)}>
       {value ? (
         <div className="group relative aspect-video w-full max-w-sm overflow-hidden rounded-lg border bg-muted">
-          <Image src={value} alt="Upload preview" fill className="object-cover" />
+          <Image src={value} alt="Upload preview" fill className="object-cover" unoptimized />
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
             <Button type="button" variant="destructive" size="sm" onClick={handleRemove} disabled={disabled}>
               <X className="mr-2 h-4 w-4" />

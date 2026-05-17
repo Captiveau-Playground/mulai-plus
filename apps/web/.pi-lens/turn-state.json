@@ -2284,11 +2284,11 @@
       "modifiedRanges": [
         {
           "start": 71,
-          "end": 71
+          "end": 77
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-17T15:41:48.666Z"
+      "lastEdit": "2026-05-17T17:17:01.648Z"
     },
     "src/components/ui/file-upload.tsx": {
       "modifiedRanges": [
@@ -2298,12 +2298,12 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-17T16:11:30.853Z"
+      "lastEdit": "2026-05-17T17:52:07.885Z"
     },
     "src/components/admin/cms/media-library.tsx": {
       "modifiedRanges": [
         {
-          "start": 4,
+          "start": 3,
           "end": 4
         },
         {
@@ -2325,13 +2325,37 @@
         {
           "start": 174,
           "end": 192
+        },
+        {
+          "start": 265,
+          "end": 265
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-17T16:14:59.069Z"
+      "lastEdit": "2026-05-17T17:52:56.095Z"
+    },
+    "next.config.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 29
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T17:47:13.482Z"
+    },
+    "src/lib/image-loader.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 27
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T17:47:33.568Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-17T16:14:59.069Z"
+  "lastUpdated": "2026-05-17T17:52:56.098Z"
 }

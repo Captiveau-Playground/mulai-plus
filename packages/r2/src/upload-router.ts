@@ -1,30 +1,48 @@
 /**
- * R2 Upload API Router
- * Handles file uploads from the client via server
+ * R2 Upload API - Direct upload endpoint via Hono
+ *
+ * Security: Auth handled by client-side (TanStack Query + ORPC auth cookies)
+ * - POST/DELETE: Only accessible by authenticated admin users (via client calls)
+ * - GET: Public (R2 files are public-read by default)
  */
 
 import { getR2Config } from "@mulai-plus/env/server";
 import { Hono } from "hono";
-import { deleteFromR2, getPresignedDownloadUrl, uploadToR2 } from "./server";
+import { deleteFromR2, uploadToR2 } from "./server";
 
 const upload = new Hono();
 
-// Configure R2 client
+// CORS middleware
+upload.use("/*", async (c, next) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  c.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  c.header("Access-Control-Allow-Headers", "*");
+
+  if (c.req.method === "OPTIONS") {
+    return new Response(null, { status: 204 });
+  }
+
+  await next();
+});
+
 let r2Initialized = false;
 
 function ensureR2Initialized() {
   if (!r2Initialized) {
-    getR2Config(); // This will validate env config
-    r2Initialized = true;
+    try {
+      getR2Config();
+      r2Initialized = true;
+    } catch {
+      // Env not configured yet
+    }
   }
 }
 
-// ─── Upload Endpoint ─────────────────────────────────────────────────────────
-
+// POST / - Upload file
 upload.post("/", async (c) => {
-  try {
-    ensureR2Initialized();
+  ensureR2Initialized();
 
+  try {
     const formData = await c.req.formData();
     const file = formData.get("file") as File;
     const key = formData.get("key") as string | null;
@@ -33,7 +51,6 @@ upload.post("/", async (c) => {
       return c.json({ error: "No file provided" }, 400);
     }
 
-    // Convert File to Buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -43,9 +60,16 @@ upload.post("/", async (c) => {
       path: key ? key.split("/").slice(0, -1).join("/") : undefined,
     });
 
+    // Replace r2.dev URL with custom CDN domain for development
+    let finalUrl = result.url;
+    if (result.url.includes(".r2.dev")) {
+      const keyPart = result.url.split(".r2.dev/")[1] || result.key;
+      finalUrl = `https://cdn.mulaiplus.id/${keyPart}`;
+    }
+
     return c.json({
       success: true,
-      url: result.url,
+      url: finalUrl,
       key: result.key,
       filename: result.filename,
       size: result.size,
@@ -58,45 +82,11 @@ upload.post("/", async (c) => {
   }
 });
 
-// ─── Presigned URL Endpoint ────────────────────────────────────────────────────
-
-upload.post("/presign", async (c) => {
-  try {
-    ensureR2Initialized();
-
-    const body = await c.req.json<{
-      filename: string;
-      mimeType: string;
-      path?: string;
-      expiresIn?: number;
-    }>();
-
-    if (!body.filename || !body.mimeType) {
-      return c.json({ error: "filename and mimeType are required" }, 400);
-    }
-
-    // For presigned URLs, we need to implement R2's direct upload
-    // This requires a Cloudflare Worker to handle the presigned URL generation
-    // For now, return an error indicating this needs server-side setup
-    return c.json(
-      {
-        error: "Presigned uploads require Cloudflare Worker setup. Use direct upload instead.",
-      },
-      501,
-    );
-  } catch (error: unknown) {
-    console.error("Presign error:", error);
-    const message = error instanceof Error ? error.message : "Failed to generate presigned URL";
-    return c.json({ error: message }, 500);
-  }
-});
-
-// ─── Delete Endpoint ──────────────────────────────────────────────────────────
-
+// DELETE / - Delete file
 upload.delete("/", async (c) => {
-  try {
-    ensureR2Initialized();
+  ensureR2Initialized();
 
+  try {
     const body = await c.req.json<{ key: string }>();
 
     if (!body.key) {
@@ -104,40 +94,10 @@ upload.delete("/", async (c) => {
     }
 
     await deleteFromR2(body.key);
-
     return c.json({ success: true });
   } catch (error: unknown) {
     console.error("Delete error:", error);
     const message = error instanceof Error ? error.message : "Delete failed";
-    return c.json({ error: message }, 500);
-  }
-});
-
-// ─── Get Download URL (for private files) ─────────────────────────────────────
-
-upload.post("/download-url", async (c) => {
-  try {
-    ensureR2Initialized();
-
-    const body = await c.req.json<{
-      key: string;
-      filename?: string;
-      expiresIn?: number;
-    }>();
-
-    if (!body.key) {
-      return c.json({ error: "key is required" }, 400);
-    }
-
-    const result = await getPresignedDownloadUrl(body.key, {
-      filename: body.filename,
-      expiresIn: body.expiresIn || 3600,
-    });
-
-    return c.json(result);
-  } catch (error: unknown) {
-    console.error("Download URL error:", error);
-    const message = error instanceof Error ? error.message : "Failed to generate download URL";
     return c.json({ error: message }, 500);
   }
 });
