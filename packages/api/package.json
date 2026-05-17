@@ -14,6 +14,7 @@
     "@mulai-plus/auth": "workspace:*",
     "@mulai-plus/db": "workspace:*",
     "@mulai-plus/env": "workspace:*",
+    "@mulai-plus/r2": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",

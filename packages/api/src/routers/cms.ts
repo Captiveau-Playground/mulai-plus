@@ -995,6 +995,24 @@ export const mediaRouter = {
       }),
 
     delete: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      // Get the media record first to delete the R2 file
+      const media = await db.query.cmsMedia.findFirst({
+        where: eq(cmsMedia.id, input.id),
+      });
+
+      if (media) {
+        // Try to delete from R2 if it's an R2 URL
+        try {
+          const { deleteFromR2, extractKeyFromUrl } = await import("@mulai-plus/r2/server");
+          const key = extractKeyFromUrl(media.url);
+          if (key) {
+            await deleteFromR2(key);
+          }
+        } catch (err) {
+          console.warn("Failed to delete file from R2:", err);
+        }
+      }
+
       await db.delete(cmsMedia).where(eq(cmsMedia.id, input.id));
       return { success: true };
     }),
@@ -1002,7 +1020,69 @@ export const mediaRouter = {
     bulkDelete: adminOrProgramManagerProcedure
       .input(z.object({ ids: z.array(z.string()) }))
       .handler(async ({ input }) => {
+        // Get all media records to delete R2 files
+        const mediaRecords = await db.query.cmsMedia.findMany({
+          where: inArray(cmsMedia.id, input.ids),
+        });
+
+        // Try to delete from R2
+        try {
+          const { deleteManyFromR2, extractKeyFromUrl } = await import("@mulai-plus/r2/server");
+          const keys = mediaRecords.map((m) => extractKeyFromUrl(m.url)).filter((k): k is string => k !== null);
+          if (keys.length > 0) {
+            await deleteManyFromR2(keys);
+          }
+        } catch (err) {
+          console.warn("Failed to delete some files from R2:", err);
+        }
+
         await db.delete(cmsMedia).where(inArray(cmsMedia.id, input.ids));
+        return { success: true };
+      }),
+
+    // Upload endpoint - uploads to R2 and creates media record
+    upload: adminOrProgramManagerProcedure
+      .input(
+        z.object({
+          filename: z.string(),
+          mimeType: z.string(),
+          size: z.number(),
+          width: z.number().optional(),
+          height: z.number().optional(),
+          alt: z.string().optional(),
+          path: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input, context }) => {
+        // This endpoint is called after the file is uploaded to R2
+        // The actual upload is handled by the /api/upload endpoint
+        // This just creates the database record
+        const id = randomUUID();
+
+        await db.insert(cmsMedia).values({
+          id,
+          url: "", // Will be updated after R2 upload
+          filename: input.filename,
+          mimeType: input.mimeType,
+          size: input.size,
+          width: input.width,
+          height: input.height,
+          alt: input.alt,
+          uploadedBy: context.session?.user?.id,
+        });
+
+        return { id };
+      }),
+
+    updateUrl: adminOrProgramManagerProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          url: z.string(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        await db.update(cmsMedia).set({ url: input.url }).where(eq(cmsMedia.id, input.id));
         return { success: true };
       }),
   },

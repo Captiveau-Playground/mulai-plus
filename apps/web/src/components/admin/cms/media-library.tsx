@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { File, FileImage, FileText } from "lucide-react";
+import { File, FileImage, FileText, Upload } from "lucide-react";
 import Image from "next/image";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +16,18 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { orpc } from "@/utils/orpc";
+
+// Define media type interface
+interface MediaItem {
+  id: string;
+  url: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  width?: number;
+  height?: number;
+  alt?: string;
+}
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -35,8 +47,9 @@ export function MediaLibrary() {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<{ mimeType?: string }>({});
   const [page, setPage] = useState(0);
-  const [selectedMedia, setSelectedMedia] = useState<any>(null);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const pageSize = 30;
 
   const { data, isLoading } = useQuery({
@@ -50,6 +63,15 @@ export function MediaLibrary() {
 
   const mediaItems = data?.data || [];
   const total = data?.pagination?.total || 0;
+
+  // Create media record mutation
+  const createMediaMutation = useMutation(
+    orpc.cms.media.admin.create.mutationOptions({
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    }),
+  );
 
   const deleteMutation = useMutation(
     orpc.cms.media.admin.delete.mutationOptions({
@@ -65,7 +87,7 @@ export function MediaLibrary() {
     }),
   );
 
-  const openPreview = (media: any) => {
+  const openPreview = (media: MediaItem) => {
     setSelectedMedia(media);
     setIsPreviewOpen(true);
   };
@@ -73,6 +95,83 @@ export function MediaLibrary() {
   const copyUrl = (url: string) => {
     navigator.clipboard.writeText(url);
     toast.success("URL copied to clipboard");
+  };
+
+  // Handle file upload
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+
+    try {
+      for (const file of Array.from(files)) {
+        // Upload to R2
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("key", "cms/media");
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Upload failed");
+        }
+
+        const result = await response.json();
+
+        // Get image dimensions if it's an image
+        let width: number | undefined;
+        let height: number | undefined;
+
+        if (file.type.startsWith("image/")) {
+          const dimensions = await getImageDimensions(file);
+          width = dimensions.width;
+          height = dimensions.height;
+        }
+
+        // Create media record
+        await createMediaMutation.mutateAsync({
+          url: result.url,
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size,
+          width,
+          height,
+        });
+      }
+
+      toast.success("File(s) uploaded successfully");
+      queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.list.key() });
+    } catch (err: unknown) {
+      console.error("Upload error:", err);
+      const message = err instanceof Error ? err.message : "Failed to upload file";
+      toast.error(message);
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  // Get image dimensions helper
+  const getImageDimensions = (file: File): Promise<{ width?: number; height?: number }> => {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith("image/")) {
+        resolve({});
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = () => resolve({});
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   return (
@@ -83,6 +182,31 @@ export function MediaLibrary() {
           <p className="font-manrope text-text-muted-custom">
             Manage images and files for your content. {total > 0 && `${total} files uploaded`}
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label
+            className="cursor-pointer"
+            onClick={() => setIsUploading(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setIsUploading(true);
+              }
+            }}
+          >
+            <input
+              type="file"
+              className="hidden"
+              multiple
+              accept="image/*,video/*,application/pdf"
+              onChange={handleUpload}
+              disabled={isUploading}
+            />
+            <Button disabled={isUploading}>
+              <Upload className="mr-2 h-4 w-4" />
+              {isUploading ? "Uploading..." : "Upload"}
+            </Button>
+          </label>
         </div>
       </div>
 
@@ -116,8 +240,9 @@ export function MediaLibrary() {
             <p className="text-muted-foreground text-sm">No media files yet</p>
           </div>
         ) : (
-          mediaItems.map((media: any) => {
-            const FileIcon = getFileIcon(media.mimeType);
+          mediaItems.map((media) => {
+            const mediaItem = media as MediaItem;
+            const FileIcon = getFileIcon(mediaItem.mimeType);
             const isImage = media.mimeType?.startsWith("image/");
 
             return (

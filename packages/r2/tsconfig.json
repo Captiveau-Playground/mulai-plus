@@ -1,0 +1,8 @@
+{
+  "extends": "@mulai-plus/config/base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"]
+}

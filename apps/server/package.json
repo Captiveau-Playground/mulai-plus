@@ -20,7 +20,8 @@
     "@mulai-plus/env": "workspace:*",
     "@mulai-plus/api": "workspace:*",
     "@mulai-plus/auth": "workspace:*",
-    "@mulai-plus/db": "workspace:*"
+    "@mulai-plus/db": "workspace:*",
+    "@mulai-plus/r2": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

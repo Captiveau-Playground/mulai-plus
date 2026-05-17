@@ -4,6 +4,8 @@ import { createContext } from "@mulai-plus/api/context";
 import { appRouter } from "@mulai-plus/api/routers/index";
 import { auth } from "@mulai-plus/auth";
 import { env } from "@mulai-plus/env/server";
+import { uploadRouter } from "@mulai-plus/r2";
+import { initR2Client } from "@mulai-plus/r2/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -12,6 +14,9 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+
+// Initialize R2 client
+initR2Client();
 
 const app = new Hono();
 // Force reload for api router changes
@@ -95,6 +100,9 @@ app.use("/*", async (c, next) => {
 
   await next();
 });
+
+// Mount R2 upload routes
+app.route("/api/upload", uploadRouter);
 
 app.get("/", (c) => {
   return c.text("OK");

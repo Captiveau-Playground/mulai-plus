@@ -2289,9 +2289,49 @@
       ],
       "importsChanged": false,
       "lastEdit": "2026-05-17T15:41:48.666Z"
+    },
+    "src/components/ui/file-upload.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 120
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T16:11:30.853Z"
+    },
+    "src/components/admin/cms/media-library.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 4,
+          "end": 4
+        },
+        {
+          "start": 17,
+          "end": 17
+        },
+        {
+          "start": 41,
+          "end": 41
+        },
+        {
+          "start": 56,
+          "end": 64
+        },
+        {
+          "start": 89,
+          "end": 164
+        },
+        {
+          "start": 174,
+          "end": 192
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T16:14:59.069Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-17T15:44:51.266Z"
+  "lastUpdated": "2026-05-17T16:14:59.069Z"
 }
