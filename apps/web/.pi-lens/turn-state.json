@@ -1117,8 +1117,16 @@
           "end": 5
         },
         {
+          "start": 7,
+          "end": 7
+        },
+        {
           "start": 35,
           "end": 35
+        },
+        {
+          "start": 141,
+          "end": 165
         },
         {
           "start": 180,
@@ -1139,10 +1147,14 @@
         {
           "start": 207,
           "end": 218
+        },
+        {
+          "start": 255,
+          "end": 255
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-13T16:37:42.461Z"
+      "lastEdit": "2026-05-17T15:44:51.266Z"
     },
     "src/components/admin/programs/program-syllabus.tsx": {
       "modifiedRanges": [
@@ -2247,9 +2259,39 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-13T16:58:12.918Z"
+    },
+    "src/app/(internal)/admin/(core)/cms/articles/new/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 23
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T15:39:26.880Z"
+    },
+    "src/app/(internal)/admin/(core)/cms/articles/[id]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 23
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T15:39:46.270Z"
+    },
+    "src/components/admin/cms/article-editor.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 71,
+          "end": 71
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-17T15:41:48.666Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-15T11:33:25.941Z"
+  "lastUpdated": "2026-05-17T15:44:51.266Z"
 }

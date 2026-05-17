@@ -68,7 +68,6 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   const { data: tags } = useQuery(orpc.cms.tags.admin.list.queryOptions());
 
   // Fetch article if editing
-  // @ts-expect-error - queryOptions typing issue
   const articleQuery = orpc.cms.articles.admin.get.queryOptions({ id: articleId ?? "" } as any);
   const { data: article, isLoading: isLoadingArticle } = useQuery({ ...articleQuery });
 
