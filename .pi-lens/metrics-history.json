@@ -25,7 +25,32 @@
         }
       ],
       "trend": "stable"
+    },
+    "apps\\web\\src\\components\\admin\\cms\\tiptap-extensions.tsx": {
+      "latest": {
+        "commit": "d0a96da",
+        "timestamp": "2026-05-18T14:27:16.132Z",
+        "mi": 38,
+        "cognitive": 0,
+        "nesting": 1,
+        "lines": 87,
+        "maxCyclomatic": 1,
+        "entropy": 4.93
+      },
+      "history": [
+        {
+          "commit": "d0a96da",
+          "timestamp": "2026-05-18T14:27:16.132Z",
+          "mi": 38,
+          "cognitive": 0,
+          "nesting": 1,
+          "lines": 87,
+          "maxCyclomatic": 1,
+          "entropy": 4.93
+        }
+      ],
+      "trend": "stable"
     }
   },
-  "capturedAt": "2026-05-18T13:33:35.262Z"
+  "capturedAt": "2026-05-18T14:27:21.143Z"
 }
