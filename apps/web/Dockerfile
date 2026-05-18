@@ -19,6 +19,7 @@ COPY packages/auth/package.json ./packages/auth/package.json
 COPY packages/config/package.json ./packages/config/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/env/package.json ./packages/env/package.json
+COPY packages/r2/package.json ./packages/r2/package.json
 
 # Install dependencies (cached via Docker layer)
 RUN bun install --frozen-lockfile --no-progress

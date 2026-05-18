@@ -23,8 +23,6 @@ export const env = createEnv({
     R2_SECRET_ACCESS_KEY: z.string().min(1),
     R2_BUCKET_NAME: z.string().min(1),
     R2_PUBLIC_URL: z.string().min(1),
-    // R2 Client Config (public)
-    NEXT_PUBLIC_R2_UPLOAD_URL: z.string().min(1).default("/api/upload"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

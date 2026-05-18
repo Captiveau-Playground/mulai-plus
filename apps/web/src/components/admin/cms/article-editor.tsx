@@ -88,7 +88,6 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
       onSuccess: ({ id }) => {
         toast.success("Article created");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
-        // @ts-expect-error - dynamic route typing
         router.push(`/admin/cms/articles/${id}`);
       },
       onError: (error) => {
