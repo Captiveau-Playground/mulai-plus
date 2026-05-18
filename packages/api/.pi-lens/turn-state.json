@@ -209,9 +209,39 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-18T11:50:07.060Z"
+    },
+    "src/lib/resend.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 119
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:17:54.345Z"
+    },
+    "src/lib/mail.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 106
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:19:47.853Z"
+    },
+    "src/index.ts": {
+      "modifiedRanges": [
+        {
+          "start": 74,
+          "end": 74
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:21:05.883Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-18T11:50:07.060Z"
+  "lastUpdated": "2026-05-18T12:21:05.883Z"
 }
