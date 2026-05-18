@@ -4,6 +4,7 @@ import {
   BookOpen,
   Computer,
   ExternalLink,
+  FileText,
   Key,
   LayoutDashboard,
   Link as LinkIcon,
@@ -138,6 +139,31 @@ const data = {
       ],
     },
   ],
+  navCms: [
+    {
+      title: "CMS",
+      url: "#",
+      icon: FileText,
+      items: [
+        {
+          title: "Articles",
+          url: "/admin/cms/articles",
+        },
+        {
+          title: "Categories",
+          url: "/admin/cms/categories",
+        },
+        {
+          title: "Tags",
+          url: "/admin/cms/tags",
+        },
+        {
+          title: "Media",
+          url: "/admin/cms/media",
+        },
+      ],
+    },
+  ],
   navSystem: [
     {
       title: "Audit",
@@ -227,6 +253,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
         <NavMain items={data.navGeneral} />
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
+        <NavMain label="CMS" items={data.navCms} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
 

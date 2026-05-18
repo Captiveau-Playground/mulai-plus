@@ -6,11 +6,22 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
   images: {
+    unoptimized: true,
+    // Custom loader untuk R2/CDN - bypass optimization proxy
+    loader: "custom",
+    loaderFile: "./src/lib/image-loader.ts",
     remotePatterns: [
       {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
-        port: "",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.mulaiplus.id",
+      },
+      {
+        protocol: "https",
+        hostname: "*.r2.dev",
       },
     ],
   },

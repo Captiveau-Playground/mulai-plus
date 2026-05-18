@@ -29,7 +29,8 @@ const linkSchema = z.object({
   utm_campaign: z.string().min(1),
 });
 
-const _linksMapSchema = z.record(z.string(), linkSchema);
+// Schema kept for reference
+// const _linksMapSchema = z.record(z.string(), linkSchema);
 
 export const shortLinksRouter = {
   /**
