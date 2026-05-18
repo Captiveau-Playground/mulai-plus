@@ -6,7 +6,8 @@ import {
   getRegistrationSuccessHtml,
   getScholarshipOfferHtml,
 } from "../lib/email";
-import { unosend } from "../lib/unosend";
+import { mail } from "../lib/mail";
+import { resend } from "../lib/resend";
 
 // ─── Template Registry ─────────────────────────────────────────────────────
 
@@ -146,6 +147,7 @@ export const emailAdminRouter = {
         to: z.string().email(),
         variables: z.record(z.string(), z.string()).optional(),
         subject: z.string().optional(),
+        provider: z.enum(["resend", "auto"]).default("auto"),
       }),
     )
     .handler(async ({ input }) => {
@@ -166,19 +168,27 @@ export const emailAdminRouter = {
         }[input.templateId] ??
         "Pesan dari MULAI+";
 
-      const result = await unosend.send({
-        to: input.to,
-        subject,
-        html,
-      });
+      let result: { success: boolean; id?: string; provider: string; error?: unknown };
+
+      if (input.provider === "resend") {
+        const r = await resend.emails.send({ to: input.to, subject, html });
+        result = { success: r.success, id: r.data?.id, provider: "resend", error: r.error };
+      } else {
+        result = await mail.send({ to: input.to, subject, html });
+      }
 
       if (!result.success) {
-        throw new Error(result.error?.message || result.error?.error || "Failed to send email");
+        throw new Error(
+          typeof result.error === "object"
+            ? JSON.stringify(result.error)
+            : String(result.error ?? "Failed to send email"),
+        );
       }
 
       return {
         success: true,
-        emailId: result.data?.id,
+        emailId: result.id,
+        provider: result.provider,
         sentTo: input.to,
         subject,
       };
@@ -222,40 +232,44 @@ export const emailAdminRouter = {
         };
       });
 
-      const results = await unosend.emails.sendBatch(items, 10);
+      const batch = await mail.sendBatch(items);
 
-      const successCount = results.filter((r) => r.success).length;
-      const failCount = results.filter((r) => !r.success).length;
+      const successCount = batch.results.filter((r) => r.success).length;
+      const failCount = batch.results.filter((r) => !r.success).length;
 
       return {
         success: true,
-        total: results.length,
+        total: batch.results.length,
         sent: successCount,
         failed: failCount,
-        results: results.map((r, i) => ({
+        results: batch.results.map((r, i) => ({
           index: r.index,
           email: input.recipients[i]?.to,
           success: r.success,
-          error: r.error?.message || r.error?.error || null,
+          provider: r.provider,
+          error: null,
         })),
       };
     }),
 
-  /** Get unosend account/email statistics */
+  /** Get mail provider statistics & configuration status */
   getStats: protectedProcedure.handler(async () => {
-    try {
-      const templates = await unosend.templates.list();
-      return {
-        templateCount: templates.success ? (templates.data ?? []).length : null,
-        unosendConfigured: true,
-        message: "Untuk statistik lengkap (delivery, open, click), buka dashboard Unosend di https://app.unosend.co",
-      };
-    } catch {
-      return {
-        templateCount: null,
-        unosendConfigured: false,
-        message: "Unosend tidak terkonfigurasi atau API key tidak valid.",
-      };
-    }
+    const providers: { name: string; configured: boolean; templateCount: number | null }[] = [];
+
+    // Check Resend
+    providers.push({
+      name: "resend",
+      configured: resend.isConfigured,
+      templateCount: null,
+    });
+
+    return {
+      providers,
+      primaryProvider: "resend",
+      localTemplates: EMAIL_TEMPLATES.length,
+      message: resend.isConfigured
+        ? "Resend active. Dashboard: https://resend.com"
+        : "Set RESEND_API_KEY to enable email sending",
+    };
   }),
 };

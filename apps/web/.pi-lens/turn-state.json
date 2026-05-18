@@ -2082,7 +2082,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-12T15:38:57.068Z"
+      "lastEdit": "2026-05-18T13:05:03.310Z"
     },
     "src/components/front/about-us.tsx": {
       "modifiedRanges": [
@@ -2439,9 +2439,29 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-18T10:47:08.842Z"
+    },
+    "src/components/admin/settings/mail-settings.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 400
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:27:49.904Z"
+    },
+    "src/app/(internal)/admin/(core)/settings/mail/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 20
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:28:37.052Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-18T12:09:08.151Z"
+  "lastUpdated": "2026-05-18T13:05:03.310Z"
 }

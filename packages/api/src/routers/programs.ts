@@ -25,9 +25,9 @@ import {
   getApplicationRejectedHtml,
   getRegistrationSuccessHtml,
 } from "../lib/email-templates";
+import { mail } from "../lib/mail";
 import { sendNotification } from "../lib/notification";
 import { getPathFromUrl, supabase } from "../lib/supabase";
-import { unosend } from "../lib/unosend";
 
 function slugify(text: string) {
   return text
@@ -232,7 +232,7 @@ export const programsRouter = {
             batchName: batchItem.name,
           });
 
-          await unosend.send({
+          await mail.send({
             to: input.answers.email,
             subject: `Registration Confirmed: ${programItem.name}`,
             html: emailHtml,
@@ -1450,7 +1450,7 @@ export const programsRouter = {
                       : "TBA",
                   });
 
-                  await unosend.send({
+                  await mail.send({
                     to: application.user.email,
                     subject: `Selamat! Anda Diterima di Program ${application.program.name}`,
                     html: emailHtml,
@@ -1493,7 +1493,7 @@ export const programsRouter = {
                     rejectionReason: input.rejectionReason || "Tidak memenuhi kriteria seleksi administrasi.",
                   });
 
-                  await unosend.send({
+                  await mail.send({
                     to: application.user.email,
                     subject: `Update Status Aplikasi Program ${application.program.name}`,
                     html: emailHtml,

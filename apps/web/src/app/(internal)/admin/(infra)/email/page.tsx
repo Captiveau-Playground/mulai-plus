@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
   CheckCircle2,
-  ExternalLink,
   Eye,
   FileText,
   Loader2,
@@ -25,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageState } from "@/components/ui/page-state";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +55,7 @@ export default function AdminEmailPage() {
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [showPreview, setShowPreview] = useState(false);
   const [sendTo, setSendTo] = useState("");
+  const [testProvider, setTestProvider] = useState<"auto" | "resend" | "unosend">("auto");
 
   // Batch state
   const [csvInput, setCsvInput] = useState("");
@@ -336,10 +337,20 @@ export default function AdminEmailPage() {
                       <div className="flex flex-1 items-center gap-2">
                         <Input
                           placeholder="email@contoh.com"
+                          style={{ flex: 1 }}
                           value={sendTo}
                           onChange={(e) => setSendTo(e.target.value)}
                           className="h-9 rounded-xl border-gray-200 font-manrope text-sm placeholder:text-[#888888]/50 focus:border-[#1A1F6D] focus:ring-[#1A1F6D]/10"
                         />
+                        <Select value={testProvider} onValueChange={(v) => setTestProvider(v as any)}>
+                          <SelectTrigger className="h-9 w-[130px] rounded-xl border-gray-200 font-manrope text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Auto</SelectItem>
+                            <SelectItem value="resend">Resend</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <Button
                           onClick={() => {
                             if (!selectedTemplateId || !sendTo) {
@@ -350,6 +361,7 @@ export default function AdminEmailPage() {
                               templateId: selectedTemplateId,
                               to: sendTo,
                               variables: variableValues,
+                              provider: testProvider,
                             });
                           }}
                           disabled={sendTemplate.isPending || !sendTo}
@@ -547,9 +559,7 @@ export default function AdminEmailPage() {
                       </Button>
 
                       {parsedRecipients.length > 0 && !sendBatch.isPending && (
-                        <p className="font-manrope text-[#888888] text-[10px]">
-                          Akan dikirim via Unosend dengan concurrency 10
-                        </p>
+                        <p className="font-manrope text-[#888888] text-[10px]">Akan dikirim via Resend</p>
                       )}
                     </div>
 
@@ -603,10 +613,10 @@ export default function AdminEmailPage() {
             <CardHeader className="border-gray-100 border-b pb-4">
               <CardTitle className="flex items-center gap-2 font-bricolage text-[#1A1F6D] text-base">
                 <Settings className="h-4 w-4 text-[#FE9114]" />
-                Konfigurasi Email
+                Konfigurasi Email (Resend)
               </CardTitle>
               <CardDescription className="font-manrope text-[#888888] text-xs">
-                Pengaturan integrasi Unosend untuk pengiriman email
+                Resend sebagai provider pengiriman email
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5 pt-4">
@@ -617,14 +627,14 @@ export default function AdminEmailPage() {
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label className="font-manrope text-[#888888] text-xs">Unosend API Key</Label>
+                <Label className="font-manrope text-[#888888] text-xs">Resend API Key (Primary)</Label>
                 <Input
                   value="••••••••••••••••"
                   disabled
                   className="h-9 rounded-xl border-gray-200 bg-gray-50 font-manrope text-[#888888] text-xs"
                 />
                 <p className="font-manrope text-[#888888]/60 text-[10px]">
-                  Diatur via <code className="rounded bg-gray-100 px-1 py-0.5 text-[#1A1F6D]">UNOSEND_API_KEY</code>
+                  Diatur via <code className="rounded bg-gray-100 px-1 py-0.5 text-[#1A1F6D]">RESEND_API_KEY</code>
                 </p>
               </div>
               <div className="space-y-1.5">
@@ -638,6 +648,17 @@ export default function AdminEmailPage() {
                   Diatur via <code className="rounded bg-gray-100 px-1 py-0.5 text-[#1A1F6D]">UNOSEND_FROM_EMAIL</code>
                 </p>
               </div>
+              <div className="mt-4 space-y-1.5">
+                <Label className="font-manrope text-[#888888] text-xs">Unosend API Key (Fallback)</Label>
+                <Input
+                  value="••••••••••••••••"
+                  disabled
+                  className="h-9 rounded-xl border-gray-200 bg-gray-50 font-manrope text-[#888888] text-xs"
+                />
+                <p className="font-manrope text-[#888888]/60 text-[10px]">
+                  Diatur via <code className="rounded bg-gray-100 px-1 py-0.5 text-[#1A1F6D]">UNOSEND_API_KEY</code>
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -648,10 +669,10 @@ export default function AdminEmailPage() {
             <CardHeader className="border-gray-100 border-b pb-4">
               <CardTitle className="flex items-center gap-2 font-bricolage text-[#1A1F6D] text-base">
                 <BarChart3 className="h-4 w-4 text-[#FE9114]" />
-                Statistik Unosend
+                Mail Providers
               </CardTitle>
               <CardDescription className="font-manrope text-[#888888] text-xs">
-                Ringkasan status pengiriman email
+                Status provider email dan template lokal
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
@@ -662,23 +683,25 @@ export default function AdminEmailPage() {
               ) : stats ? (
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-gray-200 bg-white p-4">
-                      <p className="font-manrope text-[#888888] text-xs">Koneksi Unosend</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        {stats.unosendConfigured ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        )}
-                        <span className="font-bricolage font-semibold text-gray-900 text-sm">
-                          {stats.unosendConfigured ? "Terhubung" : "Belum Terkonfigurasi"}
-                        </span>
+                    {stats.providers?.map((p) => (
+                      <div key={p.name} className="rounded-xl border border-gray-200 bg-white p-4">
+                        <p className="font-manrope text-[#888888] text-xs uppercase">{p.name}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          {p.configured ? (
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="font-bricolage font-semibold text-gray-900 text-sm">
+                            {p.configured ? "Active" : "Inactive"}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                     <div className="rounded-xl border border-gray-200 bg-white p-4">
                       <p className="font-manrope text-[#888888] text-xs">Template Lokal</p>
                       <p className="mt-2 font-bricolage font-semibold text-gray-900 text-sm">
-                        {templates?.length ?? 0} template
+                        {stats.localTemplates ?? templates?.length ?? 0} template
                       </p>
                     </div>
                   </div>
@@ -686,17 +709,10 @@ export default function AdminEmailPage() {
                     <div className="flex items-start gap-3">
                       <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                       <div>
-                        <p className="font-manrope font-semibold text-blue-800 text-xs">Dashboard Unosend</p>
+                        <p className="font-manrope font-semibold text-blue-800 text-xs">
+                          Primary: {stats.primaryProvider}
+                        </p>
                         <p className="mt-1 font-manrope text-blue-700 text-xs leading-relaxed">{stats.message}</p>
-                        <a
-                          href="https://app.unosend.co"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-flex items-center gap-1 font-manrope font-medium text-blue-700 text-xs hover:underline"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          Buka Dashboard Unosend
-                        </a>
                       </div>
                     </div>
                   </div>
