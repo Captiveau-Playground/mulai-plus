@@ -746,7 +746,7 @@ export function MediaLibrary() {
             <Button
               variant="destructive"
               onClick={() => {
-                if (confirm("Delete this file? This cannot be undone.")) {
+                if (confirm("Delete this file? This cannot be undone.") && selectedMedia) {
                   deleteMutation.mutate({ id: selectedMedia.id });
                 }
               }}
