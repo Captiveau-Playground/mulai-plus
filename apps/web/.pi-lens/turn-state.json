@@ -1117,8 +1117,16 @@
           "end": 5
         },
         {
+          "start": 7,
+          "end": 7
+        },
+        {
           "start": 35,
           "end": 35
+        },
+        {
+          "start": 141,
+          "end": 165
         },
         {
           "start": 180,
@@ -1139,10 +1147,14 @@
         {
           "start": 207,
           "end": 218
+        },
+        {
+          "start": 255,
+          "end": 255
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-13T16:37:42.461Z"
+      "lastEdit": "2026-05-17T15:44:51.266Z"
     },
     "src/components/admin/programs/program-syllabus.tsx": {
       "modifiedRanges": [
@@ -2070,7 +2082,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-12T15:38:57.068Z"
+      "lastEdit": "2026-05-18T13:05:03.310Z"
     },
     "src/components/front/about-us.tsx": {
       "modifiedRanges": [
@@ -2247,9 +2259,217 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-13T16:58:12.918Z"
+    },
+    "src/app/(internal)/admin/(core)/cms/articles/new/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 23
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T15:39:26.880Z"
+    },
+    "src/app/(internal)/admin/(core)/cms/articles/[id]/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 23
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T15:39:46.270Z"
+    },
+    "src/components/admin/cms/article-editor.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 7,
+          "end": 7
+        },
+        {
+          "start": 21,
+          "end": 22
+        },
+        {
+          "start": 31,
+          "end": 31
+        },
+        {
+          "start": 65,
+          "end": 69
+        },
+        {
+          "start": 71,
+          "end": 82
+        },
+        {
+          "start": 91,
+          "end": 91
+        },
+        {
+          "start": 119,
+          "end": 119
+        },
+        {
+          "start": 135,
+          "end": 160
+        },
+        {
+          "start": 193,
+          "end": 202
+        },
+        {
+          "start": 206,
+          "end": 207
+        },
+        {
+          "start": 209,
+          "end": 212
+        },
+        {
+          "start": 214,
+          "end": 214
+        },
+        {
+          "start": 239,
+          "end": 244
+        },
+        {
+          "start": 259,
+          "end": 292
+        },
+        {
+          "start": 313,
+          "end": 316
+        },
+        {
+          "start": 319,
+          "end": 349
+        },
+        {
+          "start": 351,
+          "end": 355
+        },
+        {
+          "start": 381,
+          "end": 381
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T14:05:01.684Z"
+    },
+    "src/components/ui/file-upload.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 120
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T17:52:07.885Z"
+    },
+    "src/components/admin/cms/media-library.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 626
+        },
+        {
+          "start": 749,
+          "end": 749
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T14:08:58.255Z"
+    },
+    "next.config.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 29
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T17:47:13.482Z"
+    },
+    "src/lib/image-loader.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 27
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-17T17:47:33.568Z"
+    },
+    "src/components/ui/dropdown-menu.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 58,
+          "end": 58
+        },
+        {
+          "start": 62,
+          "end": 62
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-18T10:41:42.140Z"
+    },
+    "src/components/admin/cms/article-list.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 5,
+          "end": 5
+        },
+        {
+          "start": 28,
+          "end": 28
+        },
+        {
+          "start": 225,
+          "end": 228
+        },
+        {
+          "start": 230,
+          "end": 233
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T10:43:28.651Z"
+    },
+    "src/hooks/use-form-draft.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 81
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T10:47:08.842Z"
+    },
+    "src/components/admin/settings/mail-settings.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 400
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:27:49.904Z"
+    },
+    "src/app/(internal)/admin/(core)/settings/mail/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 20
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:28:37.052Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-15T11:33:25.941Z"
+  "lastUpdated": "2026-05-18T14:08:58.255Z"
 }

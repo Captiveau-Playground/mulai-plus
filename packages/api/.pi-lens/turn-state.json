@@ -45,6 +45,10 @@
           "end": 26
         },
         {
+          "start": 30,
+          "end": 30
+        },
+        {
           "start": 383,
           "end": 383
         },
@@ -62,7 +66,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-12T15:07:10.994Z"
+      "lastEdit": "2026-05-18T13:34:27.232Z"
     },
     "src/routers/lms.ts": {
       "modifiedRanges": [
@@ -149,10 +153,30 @@
         {
           "start": 1,
           "end": 242
+        },
+        {
+          "start": 246,
+          "end": 246
+        },
+        {
+          "start": 249,
+          "end": 249
+        },
+        {
+          "start": 253,
+          "end": 254
+        },
+        {
+          "start": 258,
+          "end": 258
+        },
+        {
+          "start": 260,
+          "end": 292
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-12T15:34:31.326Z"
+      "lastEdit": "2026-05-18T13:39:47.112Z"
     },
     "src/routers/index.ts": {
       "modifiedRanges": [
@@ -171,10 +195,14 @@
         {
           "start": 32,
           "end": 32
+        },
+        {
+          "start": 35,
+          "end": 42
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-13T16:33:43.111Z"
+      "lastEdit": "2026-05-17T14:29:05.892Z"
     },
     "src/lib/email/templates/scholarship-offer.ts": {
       "modifiedRanges": [
@@ -195,9 +223,49 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-13T16:33:35.524Z"
+    },
+    "src/routers/cms.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 1210
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T11:50:07.060Z"
+    },
+    "src/lib/resend.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 119
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:17:54.345Z"
+    },
+    "src/lib/mail.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 106
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T13:38:13.263Z"
+    },
+    "src/index.ts": {
+      "modifiedRanges": [
+        {
+          "start": 74,
+          "end": 74
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:21:05.883Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-13T16:33:43.111Z"
+  "lastUpdated": "2026-05-18T13:39:47.113Z"
 }
