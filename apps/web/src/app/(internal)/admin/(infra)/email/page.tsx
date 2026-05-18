@@ -55,7 +55,7 @@ export default function AdminEmailPage() {
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [showPreview, setShowPreview] = useState(false);
   const [sendTo, setSendTo] = useState("");
-  const [testProvider, setTestProvider] = useState<"auto" | "resend" | "unosend">("auto");
+  const [testProvider, setTestProvider] = useState<"auto" | "resend">("auto");
 
   // Batch state
   const [csvInput, setCsvInput] = useState("");
