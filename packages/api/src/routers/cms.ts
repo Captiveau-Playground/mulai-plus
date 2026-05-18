@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, count, db, desc, eq, inArray, isNull, like, ne, or } from "@mulai-plus/db";
+import { role as roleTable, user } from "@mulai-plus/db/schema/auth";
 import {
   cmsArticle,
   cmsArticleSeo,
@@ -248,7 +249,8 @@ export const articlesRouter = {
         };
       }),
 
-    get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    get: adminProcedure.input(z.object({ id: z.coerce.string() })).handler(async ({ input, context }) => {
+      console.log("[article.get] input:", input, "id type:", typeof input.id);
       const item = await db.query.cmsArticle.findFirst({
         where: eq(cmsArticle.id, input.id),
         with: {
@@ -281,7 +283,8 @@ export const articlesRouter = {
           coverImageAlt: z.string().optional(),
           type: z.enum(["news", "article"]).default("article"),
           status: z.enum(["draft", "scheduled", "published", "archived"]).default("draft"),
-          authorId: z.string(),
+          authorId: z.string().optional(),
+          authorUserId: z.string().optional(),
           categoryId: z.string().optional(),
           featured: z.boolean().default(false),
           scheduledAt: z
@@ -319,6 +322,39 @@ export const articlesRouter = {
         const readingTimeMinutes = calculateReadingTime(input.content ?? null);
         const now = new Date();
 
+        // Resolve authorUserId -> cmsAuthor.id
+        let resolvedAuthorId = input.authorId || undefined;
+        if (input.authorUserId && !resolvedAuthorId) {
+          const linkedAuthor = await db.query.cmsAuthor.findFirst({
+            where: eq(cmsAuthor.userId, input.authorUserId),
+            columns: { id: true, userId: true },
+          });
+          if (linkedAuthor) {
+            resolvedAuthorId = linkedAuthor.id;
+          } else {
+            // Auto-create cmsAuthor record for this user
+            const targetUser = await db.query.user.findFirst({
+              where: eq(user.id, input.authorUserId),
+              columns: { id: true, name: true },
+            });
+            if (targetUser) {
+              const authorId = randomUUID();
+              const authorSlug = slugify(targetUser.name);
+              await db.insert(cmsAuthor).values({
+                id: authorId,
+                name: targetUser.name,
+                slug: `${authorSlug}-${authorId.substring(0, 6)}`,
+                userId: targetUser.id,
+              });
+              resolvedAuthorId = authorId;
+            }
+          }
+        }
+
+        if (!resolvedAuthorId) {
+          throw new Error("Author is required");
+        }
+
         // Start transaction
         await db.transaction(async (tx) => {
           // Create article
@@ -332,7 +368,7 @@ export const articlesRouter = {
             coverImageAlt: input.coverImageAlt,
             type: input.type,
             status: input.status,
-            authorId: input.authorId,
+            authorId: resolvedAuthorId,
             categoryId: input.categoryId,
             featured: input.featured,
             scheduledAt: input.scheduledAt,
@@ -381,6 +417,7 @@ export const articlesRouter = {
           type: z.enum(["news", "article"]).optional(),
           status: z.enum(["draft", "scheduled", "published", "archived"]).optional(),
           authorId: z.string().optional(),
+          authorUserId: z.string().optional(),
           categoryId: z.string().optional(),
           featured: z.boolean().optional(),
           scheduledAt: z
@@ -425,6 +462,34 @@ export const articlesRouter = {
               data.slug = `${data.slug}-${id.substring(0, 8)}`;
             }
           }
+        }
+
+        // Resolve authorUserId -> cmsAuthor.id
+        if (data.authorUserId) {
+          const linkedAuthor = await db.query.cmsAuthor.findFirst({
+            where: eq(cmsAuthor.userId, data.authorUserId),
+            columns: { id: true, userId: true },
+          });
+          if (linkedAuthor) {
+            data.authorId = linkedAuthor.id;
+          } else {
+            const targetUser = await db.query.user.findFirst({
+              where: eq(user.id, data.authorUserId),
+              columns: { id: true, name: true },
+            });
+            if (targetUser) {
+              const authorId = randomUUID();
+              const authorSlug = slugify(targetUser.name);
+              await db.insert(cmsAuthor).values({
+                id: authorId,
+                name: targetUser.name,
+                slug: `${authorSlug}-${authorId.substring(0, 6)}`,
+                userId: targetUser.id,
+              });
+              data.authorId = authorId;
+            }
+          }
+          delete data.authorUserId;
         }
 
         await db.transaction(async (tx) => {
@@ -810,11 +875,36 @@ export const authorsRouter = {
   },
 
   admin: {
-    list: adminProcedure.handler(async () => {
-      return await db.query.cmsAuthor.findMany({
-        orderBy: [asc(cmsAuthor.name)],
-      });
-    }),
+    list: adminProcedure
+      .input(
+        z
+          .object({
+            roles: z.array(z.string()).optional(),
+          })
+          .optional(),
+      )
+      .handler(async ({ input }) => {
+        const roleFilter = input?.roles?.filter(Boolean) || [];
+
+        const conditions: any[] = [];
+        if (roleFilter.length > 0) {
+          conditions.push(inArray(roleTable.name, roleFilter));
+        }
+
+        // Query users directly from user table, joined with role
+        return await db
+          .select({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+            roleName: roleTable.name,
+          })
+          .from(user)
+          .innerJoin(roleTable, eq(user.role, roleTable.id))
+          .where(conditions.length > 0 ? and(...conditions) : undefined)
+          .orderBy(asc(user.name));
+      }),
 
     create: adminProcedure
       .input(

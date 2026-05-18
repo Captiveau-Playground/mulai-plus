@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Eye, FileText, Globe, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ type CmsArticleType = "news" | "article";
 
 export function ArticleList() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [filters, setFilters] = useState<{
     type?: CmsArticleType;
     status?: CmsArticleStatus;
@@ -220,15 +222,11 @@ export function ArticleList() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <a href={`/admin/cms/articles/${article.id}`}>
-                            <Pencil className="mr-2 inline h-4 w-4" /> Edit
-                          </a>
+                        <DropdownMenuItem onClick={() => router.push(`/admin/cms/articles/${article.id}`)}>
+                          <Pencil className="mr-2 inline h-4 w-4" /> Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <a href={`/articles/${article.slug}`} target="_blank" rel="noopener noreferrer">
-                            <Eye className="mr-2 inline h-4 w-4" /> View
-                          </a>
+                        <DropdownMenuItem onClick={() => window.open(`/articles/${article.slug}`, "_blank")}>
+                          <Eye className="mr-2 inline h-4 w-4" /> View
                         </DropdownMenuItem>
                         {article.status === "published" ? (
                           <DropdownMenuItem onClick={() => unpublishMutation.mutate({ id: article.id })}>

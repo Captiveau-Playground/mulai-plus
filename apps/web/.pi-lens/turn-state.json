@@ -2283,12 +2283,76 @@
     "src/components/admin/cms/article-editor.tsx": {
       "modifiedRanges": [
         {
+          "start": 7,
+          "end": 7
+        },
+        {
+          "start": 21,
+          "end": 22
+        },
+        {
+          "start": 31,
+          "end": 31
+        },
+        {
+          "start": 65,
+          "end": 69
+        },
+        {
           "start": 71,
-          "end": 77
+          "end": 82
+        },
+        {
+          "start": 119,
+          "end": 119
+        },
+        {
+          "start": 135,
+          "end": 160
+        },
+        {
+          "start": 193,
+          "end": 202
+        },
+        {
+          "start": 206,
+          "end": 207
+        },
+        {
+          "start": 209,
+          "end": 212
+        },
+        {
+          "start": 214,
+          "end": 214
+        },
+        {
+          "start": 239,
+          "end": 244
+        },
+        {
+          "start": 259,
+          "end": 292
+        },
+        {
+          "start": 313,
+          "end": 316
+        },
+        {
+          "start": 319,
+          "end": 349
+        },
+        {
+          "start": 351,
+          "end": 355
+        },
+        {
+          "start": 381,
+          "end": 381
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-17T17:17:01.648Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T12:09:08.150Z"
     },
     "src/components/ui/file-upload.tsx": {
       "modifiedRanges": [
@@ -2329,9 +2393,55 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-17T17:47:33.568Z"
+    },
+    "src/components/ui/dropdown-menu.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 58,
+          "end": 58
+        },
+        {
+          "start": 62,
+          "end": 62
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-18T10:41:42.140Z"
+    },
+    "src/components/admin/cms/article-list.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 5,
+          "end": 5
+        },
+        {
+          "start": 28,
+          "end": 28
+        },
+        {
+          "start": 225,
+          "end": 228
+        },
+        {
+          "start": 230,
+          "end": 233
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T10:43:28.651Z"
+    },
+    "src/hooks/use-form-draft.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 81
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-18T10:47:08.842Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-18T10:12:43.791Z"
+  "lastUpdated": "2026-05-18T12:09:08.151Z"
 }

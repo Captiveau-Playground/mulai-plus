@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Eye, Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -16,7 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { orpc } from "@/utils/orpc";
+import { useFormDraft } from "@/hooks/use-form-draft";
+import { client, orpc } from "@/utils/orpc";
 import { RichTextEditor } from "./rich-text-editor";
 
 const articleSchema = z.object({
@@ -28,7 +29,7 @@ const articleSchema = z.object({
   coverImageAlt: z.string().optional(),
   type: z.enum(["news", "article"]),
   status: z.enum(["draft", "scheduled", "published", "archived"]),
-  authorId: z.string().min(1, "Author is required"),
+  authorUserId: z.string().optional(),
   categoryId: z.string().optional(),
   featured: z.boolean().default(false),
   scheduledAt: z.string().optional(),
@@ -62,14 +63,22 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   const { data: categories } = useQuery(orpc.cms.categories.admin.list.queryOptions());
 
   // Fetch authors
-  const { data: authors } = useQuery(orpc.cms.authors.admin.list.queryOptions());
+  const { data: authors } = useQuery(
+    orpc.cms.authors.admin.list.queryOptions({
+      roles: ["mentor", "program_manager"],
+    }),
+  );
 
   // Fetch tags
   const { data: tags } = useQuery(orpc.cms.tags.admin.list.queryOptions());
 
-  // Fetch article if editing
+  // Fetch article if editing — raw client bypass queryOptions empty body bug
   const { data: article, isLoading: isLoadingArticle } = useQuery({
-    ...orpc.cms.articles.admin.get.queryOptions({ id: articleId ?? "" }),
+    queryKey: ["article", "get", articleId],
+    queryFn: async () => {
+      if (!articleId) return null;
+      return await client.cms.articles.admin.get({ id: articleId });
+    },
     enabled: Boolean(articleId),
   });
 
@@ -112,7 +121,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
       coverImageAlt: "",
       type: defaultType,
       status: "draft",
-      authorId: "",
+      authorUserId: "",
       categoryId: "",
       featured: false,
       scheduledAt: "",
@@ -126,7 +135,38 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
     },
   });
 
-  // Set form values when article is loaded
+  const { draftSavedAt, restoreDraft, clearDraft, useAutoSave } = useFormDraft(articleId);
+
+  // Watched content for live preview
+  const watchedContent = form.watch("content") || "";
+  const previewHtml = useMemo(
+    () =>
+      `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:system-ui,-apple-system,sans-serif;padding:16px;line-height:1.7;color:#1a1a2e;max-width:100%;word-wrap:break-word;font-size:15px}img,video{max-width:100%;height:auto}h1{font-size:1.6em;margin:.5em 0}h2{font-size:1.3em}h3{font-size:1.1em}p{margin:0 0 .8em}blockquote{border-left:3px solid #e2e8f0;padding-left:1em;margin-left:0;color:#64748b}a{color:#2563eb}pre{background:#f1f5f9;padding:12px;border-radius:8px;overflow-x:auto}code{font-size:.9em}</style></head><body>${watchedContent || '<p style="color:#94a3b8;font-style:italic">Start writing to see preview…</p>'}</body></html>`,
+    [watchedContent],
+  );
+
+  // Auto-save draft every 3s
+  useAutoSave(
+    () => form.getValues(),
+    activeTab,
+    !articleId, // only auto-save for new articles
+  );
+
+  // Restore draft on mount for new articles
+  useEffect(() => {
+    if (articleId) return;
+    const draft = restoreDraft();
+    if (draft?.values && Object.keys(draft.values).length > 0) {
+      const hasContent = draft.values.title || draft.values.content;
+      if (hasContent) {
+        form.reset(draft.values as ArticleFormValues);
+        if (draft.values.tagIds) {
+          setSelectedTagIds(draft.values.tagIds as string[]);
+        }
+        toast.info("Draft restored", { description: `Last saved ${new Date(draft.savedAt).toLocaleTimeString()}` });
+      }
+    }
+  }, [restoreDraft, form.reset, articleId]);
   useEffect(() => {
     if (article && (article as any).id) {
       const art = article as any;
@@ -139,7 +179,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
         coverImageAlt: art.coverImageAlt || "",
         type: art.type as CmsArticleType,
         status: art.status as CmsArticleStatus,
-        authorId: art.authorId ?? "",
+        authorUserId: art.author?.userId ?? "",
         categoryId: art.categoryId || "",
         featured: art.featured ?? false,
         scheduledAt: art.scheduledAt
@@ -161,16 +201,25 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   }, [article, form]);
 
   const onSubmit = (values: ArticleFormValues) => {
+    // Strip empty strings that should be undefined
+    const cleanValues = { ...values };
+    if (!cleanValues.authorUserId || cleanValues.authorUserId.trim() === "") {
+      delete cleanValues.authorUserId;
+    }
+    if (cleanValues.slug === "") delete cleanValues.slug;
+
     const payload = {
-      ...values,
+      ...cleanValues,
       tagIds: selectedTagIds,
       scheduledAt: values.scheduledAt ? new Date(values.scheduledAt).toISOString() : undefined,
     };
 
+    const onSuccess = () => clearDraft();
+
     if (articleId) {
-      updateMutation.mutate({ id: articleId, ...payload });
+      updateMutation.mutate({ id: articleId, ...payload }, { onSuccess });
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate(payload, { onSuccess });
     }
   };
 
@@ -198,6 +247,12 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
             </h2>
             <p className="font-manrope text-sm text-text-muted-custom">
               {articleId ? "Update your article content and settings" : "Create a new article or news item"}
+              {draftSavedAt && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 text-xs">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                  Draft saved {new Date(draftSavedAt).toLocaleTimeString()}
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -224,8 +279,16 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="content">
+            Content
+            {!form.getValues().title && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500" />}
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            Settings
+            {!form.getValues().authorUserId && (
+              <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500" />
+            )}
+          </TabsTrigger>
           <TabsTrigger value="seo">SEO</TabsTrigger>
         </TabsList>
 
@@ -256,12 +319,27 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
                       <FormItem>
                         <FormLabel>Content</FormLabel>
                         <FormControl>
-                          <RichTextEditor
-                            content={field.value || ""}
-                            onChange={field.onChange}
-                            placeholder="Start writing your article..."
-                            minHeight="500px"
-                          />
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="min-h-[500px]">
+                              <RichTextEditor
+                                content={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder="Start writing your article..."
+                                minHeight="500px"
+                              />
+                            </div>
+                            <div className="overflow-hidden rounded-lg border bg-white">
+                              <div className="border-b px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                                Preview
+                              </div>
+                              <iframe
+                                title="Content preview"
+                                srcDoc={previewHtml}
+                                className="h-[500px] w-full border-0"
+                                sandbox="allow-same-origin"
+                              />
+                            </div>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -374,7 +452,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
 
                   <FormField
                     control={form.control}
-                    name="authorId"
+                    name="authorUserId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Author</FormLabel>
