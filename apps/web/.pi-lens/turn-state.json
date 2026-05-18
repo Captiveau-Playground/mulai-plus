@@ -2303,36 +2303,12 @@
     "src/components/admin/cms/media-library.tsx": {
       "modifiedRanges": [
         {
-          "start": 3,
-          "end": 4
-        },
-        {
-          "start": 17,
-          "end": 17
-        },
-        {
-          "start": 41,
-          "end": 41
-        },
-        {
-          "start": 56,
-          "end": 64
-        },
-        {
-          "start": 89,
-          "end": 164
-        },
-        {
-          "start": 174,
-          "end": 192
-        },
-        {
-          "start": 265,
-          "end": 265
+          "start": 1,
+          "end": 626
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-17T17:52:56.095Z"
+      "lastEdit": "2026-05-18T10:12:43.790Z"
     },
     "next.config.ts": {
       "modifiedRanges": [
@@ -2357,5 +2333,5 @@
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-17T17:52:56.098Z"
+  "lastUpdated": "2026-05-18T10:12:43.791Z"
 }

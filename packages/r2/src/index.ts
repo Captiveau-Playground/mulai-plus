@@ -4,7 +4,7 @@
  * Server-side exports
  */
 
-export type { CleanupResult, UploadResult } from "./server";
+export type { CleanupResult, R2ObjectMeta, UploadResult } from "./server";
 // Re-export server functions
 export {
   cleanupOrphanedFiles,
@@ -15,6 +15,7 @@ export {
   getPublicUrl,
   initR2Client,
   listR2Objects,
+  listR2ObjectsDetailed,
   uploadToR2,
 } from "./server";
 

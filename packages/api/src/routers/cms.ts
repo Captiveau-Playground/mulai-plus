@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNull, ne } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, inArray, isNull, like, ne, or } from "@mulai-plus/db";
 import {
   cmsArticle,
   cmsArticleSeo,
@@ -917,6 +917,7 @@ export const mediaRouter = {
         z
           .object({
             mimeType: z.string().optional(),
+            prefix: z.string().optional(),
             limit: z.number().default(50),
             offset: z.number().default(0),
           })
@@ -929,6 +930,10 @@ export const mediaRouter = {
         const conditions: any[] = [];
         if (input?.mimeType) {
           conditions.push(eq(cmsMedia.mimeType, input.mimeType));
+        }
+        if (input?.prefix) {
+          // Match URLs that contain this prefix path segment
+          conditions.push(like(cmsMedia.url, `%/${input.prefix}/%`));
         }
 
         const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -952,6 +957,27 @@ export const mediaRouter = {
           },
         };
       }),
+
+    /** Extract distinct folder names from media URLs */
+    listFolders: adminProcedure.handler(async () => {
+      const all = await db.select({ url: cmsMedia.url }).from(cmsMedia);
+      const folders = new Set<string>();
+
+      for (const { url } of all) {
+        try {
+          const pathname = new URL(url).pathname.replace(/^\//, "");
+          const parts = pathname.split("/");
+          // Get the first folder segment (e.g., "cms" from "cms/media/file.webp")
+          if (parts.length > 1 && parts[0]) {
+            folders.add(parts[0]);
+          }
+        } catch {
+          // Skip invalid URLs
+        }
+      }
+
+      return Array.from(folders).sort();
+    }),
 
     get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       return await db.query.cmsMedia.findFirst({
@@ -1079,6 +1105,131 @@ export const mediaRouter = {
         await db.update(cmsMedia).set({ url: input.url }).where(eq(cmsMedia.id, input.id));
         return { success: true };
       }),
+
+    // ── R2 Bucket Management ────────────────────────────────────────────
+
+    /** List all files directly from R2 bucket */
+    listBucket: adminProcedure
+      .input(
+        z
+          .object({
+            prefix: z.string().optional(),
+            limit: z.number().default(100),
+            offset: z.number().default(0),
+          })
+          .optional(),
+      )
+      .handler(async ({ input }) => {
+        const { listR2ObjectsDetailed } = await import("@mulai-plus/r2/server");
+        const allObjects = await listR2ObjectsDetailed(input?.prefix);
+
+        // Paginate
+        const offset = input?.offset ?? 0;
+        const limit = input?.limit ?? 100;
+        const paginated = allObjects.slice(offset, offset + limit);
+
+        return {
+          data: paginated,
+          pagination: {
+            total: allObjects.length,
+            limit,
+            offset,
+          },
+        };
+      }),
+
+    /** Sync R2 files into the media library database */
+    syncFromR2: adminProcedure
+      .input(
+        z
+          .object({
+            prefix: z.string().optional(),
+          })
+          .optional(),
+      )
+      .handler(async ({ input, context }) => {
+        const { listR2ObjectsDetailed } = await import("@mulai-plus/r2/server");
+        const r2Objects = await listR2ObjectsDetailed(input?.prefix);
+
+        // Get all existing URLs from DB
+        const existingRecords = await db.select({ url: cmsMedia.url }).from(cmsMedia);
+        const existingUrls = new Set(existingRecords.map((r) => r.url));
+
+        let created = 0;
+        let skipped = 0;
+
+        for (const obj of r2Objects) {
+          // Also check cdn.mulaiplus.id URL variant
+          const cdnUrl = `https://cdn.mulaiplus.id/${obj.key}`;
+          if (existingUrls.has(obj.publicUrl) || existingUrls.has(cdnUrl)) {
+            skipped++;
+            continue;
+          }
+
+          // Create DB record for this R2 file
+          const id = randomUUID();
+          await db.insert(cmsMedia).values({
+            id,
+            url: obj.publicUrl,
+            filename: obj.filename,
+            mimeType: obj.mimeType,
+            size: obj.size,
+            uploadedBy: context.session?.user?.id,
+          });
+          created++;
+        }
+
+        return {
+          total: r2Objects.length,
+          created,
+          skipped,
+          message:
+            created > 0 ? `Synced ${created} new files from R2 bucket` : "All R2 files are already in the library",
+        };
+      }),
+
+    /** Delete a file directly from R2 bucket */
+    deleteFromBucket: adminProcedure
+      .input(
+        z.object({
+          key: z.string(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { deleteFromR2, getPublicUrl } = await import("@mulai-plus/r2/server");
+        await deleteFromR2(input.key);
+
+        // Also delete from DB if it exists
+        const publicUrl = getPublicUrl(input.key);
+        const cdnUrl = `https://cdn.mulaiplus.id/${input.key}`;
+        await db.delete(cmsMedia).where(or(eq(cmsMedia.url, publicUrl), eq(cmsMedia.url, cdnUrl)));
+
+        return { success: true, message: `Deleted ${input.key} from R2` };
+      }),
+
+    /** Get bucket stats */
+    bucketStats: adminProcedure.handler(async () => {
+      const { listR2ObjectsDetailed } = await import("@mulai-plus/r2/server");
+      const r2Objects = await listR2ObjectsDetailed();
+
+      const totalFiles = r2Objects.length;
+      const totalSize = r2Objects.reduce((sum, obj) => sum + obj.size, 0);
+
+      // Count by mime type prefix
+      const images = r2Objects.filter((o) => o.mimeType.startsWith("image/")).length;
+      const videos = r2Objects.filter((o) => o.mimeType.startsWith("video/")).length;
+      const docs = r2Objects.filter(
+        (o) => o.mimeType.startsWith("application/") || o.mimeType.startsWith("text/"),
+      ).length;
+
+      // Count DB records
+      const [dbCount] = await db.select({ count: count() }).from(cmsMedia);
+
+      return {
+        bucket: { totalFiles, totalSize, images, videos, docs },
+        database: { totalRecords: dbCount?.count ?? 0 },
+      };
+    }),
   },
 };
 

@@ -188,6 +188,109 @@ export interface CleanupResult {
   failedKeys: string[];
 }
 
+export interface R2ObjectMeta {
+  key: string;
+  size: number;
+  lastModified: Date;
+  eTag?: string;
+  publicUrl: string;
+  filename: string;
+  mimeType: string;
+}
+
+/**
+ * Guess MIME type from file extension
+ */
+function guessMimeType(key: string): string {
+  const ext = key.split(".").pop()?.toLowerCase() || "";
+  const mimeMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+    avif: "image/avif",
+    bmp: "image/bmp",
+    ico: "image/x-icon",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    avi: "video/x-msvideo",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    ogg: "audio/ogg",
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    zip: "application/zip",
+    rar: "application/x-rar-compressed",
+    txt: "text/plain",
+    csv: "text/csv",
+    json: "application/json",
+    xml: "application/xml",
+    html: "text/html",
+    css: "text/css",
+    js: "application/javascript",
+    ts: "application/typescript",
+  };
+  return mimeMap[ext] || "application/octet-stream";
+}
+
+/**
+ * Convert R2 public URL to CDN URL (cdn.mulaiplus.id)
+ */
+function toCdnUrl(key: string, publicUrl: string): string {
+  // If URL uses r2.dev, replace with CDN
+  if (publicUrl.includes(".r2.dev")) {
+    return `https://cdn.mulaiplus.id/${key}`;
+  }
+  return publicUrl;
+}
+
+/**
+ * List all R2 objects with detailed metadata.
+ * Filters out folder placeholders (keys ending with / or zero-size).
+ */
+export async function listR2ObjectsDetailed(prefix = ""): Promise<R2ObjectMeta[]> {
+  const client = getClient();
+  const config = getConfig();
+
+  const command = new ListObjectsV2Command({
+    Bucket: config.bucketName,
+    Prefix: prefix,
+  });
+
+  const response = await client.send(command);
+
+  const baseUrl = config.publicUrl.replace(/\/$/, "");
+
+  return (
+    response.Contents?.filter((obj) => {
+      // Skip folder placeholders (keys ending with / or zero-size)
+      const key = obj.Key || "";
+      return key.length > 0 && !key.endsWith("/") && (obj.Size ?? 0) > 0;
+    }).map((obj) => {
+      const key = obj.Key!;
+      const filename = key.split("/").pop() || key;
+      const rawPublicUrl = `${baseUrl}/${key}`;
+      return {
+        key,
+        size: obj.Size ?? 0,
+        lastModified: obj.LastModified ?? new Date(),
+        eTag: obj.ETag,
+        publicUrl: toCdnUrl(key, rawPublicUrl),
+        filename,
+        mimeType: guessMimeType(key),
+      };
+    }) || []
+  );
+}
+
 export async function cleanupOrphanedFiles(validKeys: Set<string>): Promise<CleanupResult> {
   const allKeys = await listR2Objects();
   const toDelete = allKeys.filter((key) => !validKeys.has(key));
