@@ -206,6 +206,13 @@ jobs:
                   - PAYMENT_API_KEY=${PAYMENT_API_KEY}
                   - UNOSEND_API_KEY=${UNOSEND_API_KEY}
                   - UNOSEND_FROM_EMAIL=${UNOSEND_FROM_EMAIL}
+                  - RESEND_API_KEY=${RESEND_API_KEY}
+                  - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+                  - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+                  - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+                  - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+                  - R2_BUCKET_NAME=${R2_BUCKET_NAME}
+                  - R2_PUBLIC_URL=${R2_PUBLIC_URL}
                 restart: always
                 networks:
                   - shared_proxy
@@ -231,6 +238,13 @@ jobs:
             PAYMENT_API_KEY=${{ secrets.PAYMENT_API_KEY }}
             UNOSEND_API_KEY=${{ secrets.UNOSEND_API_KEY }}
             UNOSEND_FROM_EMAIL=${{ secrets.UNOSEND_FROM_EMAIL }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
+            R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
+            R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}
+            R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}
+            R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
+            R2_PUBLIC_URL=${{ secrets.R2_PUBLIC_URL }}
             EOF
 
             # Pull image docker terbaru
