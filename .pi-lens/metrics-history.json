@@ -525,7 +525,57 @@
         }
       ],
       "trend": "stable"
+    },
+    "packages\\env\\src\\server.ts": {
+      "latest": {
+        "commit": "9b3d933",
+        "timestamp": "2026-05-19T08:20:21.523Z",
+        "mi": 46.5,
+        "cognitive": 0,
+        "nesting": 1,
+        "lines": 43,
+        "maxCyclomatic": 1,
+        "entropy": 5.1
+      },
+      "history": [
+        {
+          "commit": "9b3d933",
+          "timestamp": "2026-05-19T08:20:21.523Z",
+          "mi": 46.5,
+          "cognitive": 0,
+          "nesting": 1,
+          "lines": 43,
+          "maxCyclomatic": 1,
+          "entropy": 5.1
+        }
+      ],
+      "trend": "stable"
+    },
+    "packages\\db\\src\\schema\\newsletter.ts": {
+      "latest": {
+        "commit": "9b3d933",
+        "timestamp": "2026-05-19T08:54:34.797Z",
+        "mi": 60,
+        "cognitive": 0,
+        "nesting": 0,
+        "lines": 29,
+        "maxCyclomatic": 1,
+        "entropy": 3.9
+      },
+      "history": [
+        {
+          "commit": "9b3d933",
+          "timestamp": "2026-05-19T08:54:34.797Z",
+          "mi": 60,
+          "cognitive": 0,
+          "nesting": 0,
+          "lines": 29,
+          "maxCyclomatic": 1,
+          "entropy": 3.9
+        }
+      ],
+      "trend": "stable"
     }
   },
-  "capturedAt": "2026-05-19T07:30:23.810Z"
+  "capturedAt": "2026-05-19T08:54:39.808Z"
 }

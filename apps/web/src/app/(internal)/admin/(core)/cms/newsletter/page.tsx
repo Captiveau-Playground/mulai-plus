@@ -8,6 +8,7 @@ import {
   Clock,
   Eye,
   FileText,
+  Hash,
   Loader2,
   Mail,
   Megaphone,
@@ -737,35 +738,145 @@ function SubscribersTab() {
 // ═══════════════════════════ SETTINGS ═══════════════════════════
 
 function SettingsTab() {
-  const { data: stats, isLoading, refetch } = useQuery(orpc.newsletter.stats.queryOptions());
+  const { data: stats, isLoading, refetch: refetchStats } = useQuery(orpc.newsletter.stats.queryOptions());
+  const {
+    data: segments,
+    isLoading: segsLoading,
+    refetch: refetchSegs,
+  } = useQuery(orpc.newsletter.segment.list.queryOptions());
+
   const ensureSegment = useMutation(
     orpc.newsletter.segment.ensure.mutationOptions({
       onSuccess: (data) => {
         toast.success(`Segment siap: ${data.segmentId}`);
-        refetch();
+        refetchStats();
+        refetchSegs();
       },
       onError: (err) => toast.error(`Gagal: ${err.message}`),
     }),
   );
 
+  const deleteSegment = useMutation(
+    orpc.newsletter.segment.delete.mutationOptions({
+      onSuccess: () => {
+        toast.success("Segment dihapus");
+        refetchSegs();
+        refetchStats();
+      },
+      onError: (err) => toast.error(`Gagal hapus: ${err.message}`),
+    }),
+  );
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      {/* ─ Segment Management ─ */}
       <Card className="border-0 shadow-sm ring-1 ring-gray-200">
-        <CardHeader className="border-gray-100 border-b pb-4">
-          <CardTitle className="flex items-center gap-2 font-bricolage text-[#1A1F6D] text-base">
-            <Settings className="h-4 w-4 text-[#FE9114]" /> Konfigurasi Resend
-          </CardTitle>
-          <CardDescription className="font-manrope text-[#888888] text-xs">Status koneksi dan segment</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between border-gray-100 border-b pb-4">
+          <div>
+            <CardTitle className="flex items-center gap-2 font-bricolage text-[#1A1F6D] text-base">
+              <Hash className="h-4 w-4 text-[#FE9114]" /> Segment
+            </CardTitle>
+            <CardDescription className="font-manrope text-[#888888] text-xs">
+              Kelola segment / audience untuk broadcast
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            className="rounded-xl bg-[#1A1F6D] font-manrope text-white text-xs hover:bg-[#1A1F6D]/90"
+            onClick={() => ensureSegment.mutate()}
+            disabled={ensureSegment.isPending}
+          >
+            {ensureSegment.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Buat Segment Default
+          </Button>
         </CardHeader>
-        <CardContent className="space-y-4 pt-4">
-          {isLoading ? (
-            <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#888888]" />
+        <CardContent className="pt-4">
+          {segsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-5 w-5 animate-spin text-[#888888]" />
+            </div>
+          ) : !segments?.length ? (
+            <div className="flex flex-col items-center justify-center py-12 text-[#888888]">
+              <Hash className="mb-3 h-10 w-10 text-[#888888]/20" />
+              <p className="font-manrope text-sm">Belum ada segment</p>
+              <p className="font-manrope text-[#888888]/60 text-xs">Klik "Buat Segment Default"</p>
+            </div>
           ) : (
-            <>
+            <ScrollArea className="h-[350px] pr-2">
+              <div className="space-y-2">
+                {segments.map((seg) => {
+                  const isActive = seg.id === stats?.segmentId;
+                  return (
+                    <div
+                      key={seg.id}
+                      className={cn(
+                        "flex items-center justify-between rounded-xl border p-3",
+                        isActive ? "border-[#1A1F6D] bg-[#1A1F6D]/5" : "border-gray-200",
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate font-bricolage font-semibold text-gray-900 text-sm">
+                            {seg.name}
+                          </span>
+                          {isActive && (
+                            <Badge className="border-0 bg-green-100 font-manrope text-[10px] text-green-700">
+                              Aktif
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="font-mono text-[#888888] text-[10px]">{seg.id}</p>
+                        <p className="font-manrope text-[#888888] text-[10px]">
+                          Dibuat: {new Date(seg.created_at).toLocaleDateString("id-ID")}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 shrink-0 rounded-lg font-manrope text-red-600 text-xs hover:bg-red-50"
+                        onClick={() => {
+                          if (confirm(`Hapus segment "${seg.name}"?`)) deleteSegment.mutate({ id: seg.id });
+                        }}
+                        disabled={deleteSegment.isPending}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
+          <Separator className="mt-4" />
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+            <p className="font-manrope text-blue-700 text-xs leading-relaxed">
+              <strong>Environment:</strong> Production →{" "}
+              <code className="rounded bg-blue-100 px-1 py-0.5">Newsletter Subscribers</code>, Dev/Staging →{" "}
+              <code className="rounded bg-blue-100 px-1 py-0.5">Newsletter Subscribers (dev)</code>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─ Config & Stats ─ */}
+      <div className="space-y-6">
+        <Card className="border-0 shadow-sm ring-1 ring-gray-200">
+          <CardHeader className="border-gray-100 border-b pb-4">
+            <CardTitle className="flex items-center gap-2 font-bricolage text-[#1A1F6D] text-base">
+              <Settings className="h-4 w-4 text-[#FE9114]" /> Koneksi
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-4">
+            {isLoading ? (
+              <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#888888]" />
+            ) : (
               <div className="flex items-center justify-between rounded-xl border border-gray-200 p-4">
                 <div>
                   <p className="font-manrope font-semibold text-gray-900 text-sm">Resend API</p>
-                  <p className="font-manrope text-[#888888] text-xs">Status koneksi API</p>
                 </div>
                 <Badge
                   className={cn(
@@ -776,84 +887,46 @@ function SettingsTab() {
                   {stats?.resendConfigured ? "Connected" : "Disconnected"}
                 </Badge>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-gray-200 p-4">
-                <div>
-                  <p className="font-manrope font-semibold text-gray-900 text-sm">Segment</p>
-                  <p className="font-manrope text-[#888888] text-xs">
-                    {stats?.segmentId ? `ID: ${stats.segmentId.slice(0, 8)}...` : "Belum dibuat"}
-                  </p>
-                </div>
-                <Badge
-                  className={cn(
-                    "font-manrope text-xs",
-                    stats?.segmentId ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700",
-                  )}
-                >
-                  {stats?.segmentId ? (stats.segmentName ?? "Active") : "Not Ready"}
-                </Badge>
-              </div>
-              {!stats?.segmentId && (
-                <Button
-                  size="sm"
-                  className="w-full rounded-xl bg-[#1A1F6D] font-manrope text-white text-xs hover:bg-[#1A1F6D]/90"
-                  onClick={() => ensureSegment.mutate()}
-                  disabled={ensureSegment.isPending}
-                >
-                  {ensureSegment.isPending ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  )}{" "}
-                  Buat Segment
-                </Button>
-              )}
-              <Separator />
-              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                <p className="font-manrope text-blue-700 text-xs leading-relaxed">
-                  <strong>Info:</strong> Segment "Newsletter Subscribers" digunakan untuk mengelompokkan kontak penerima
-                  broadcast. API Key diatur via <code>RESEND_API_KEY</code> environment variable.
-                </p>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
 
-      <Card className="border-0 shadow-sm ring-1 ring-gray-200">
-        <CardHeader className="border-gray-100 border-b pb-4">
-          <CardTitle className="flex items-center gap-2 font-bricolage text-[#1A1F6D] text-base">
-            <BarChart3 className="h-4 w-4 text-[#FE9114]" /> Ringkasan
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-4">
-          {isLoading ? (
-            <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#888888]" />
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                <Users className="mb-2 h-5 w-5 text-blue-600" />
-                <p className="font-bold font-bricolage text-2xl text-blue-800">{stats?.totalUsers ?? 0}</p>
-                <p className="font-manrope text-blue-700 text-xs">Total User</p>
+        <Card className="border-0 shadow-sm ring-1 ring-gray-200">
+          <CardHeader className="border-gray-100 border-b pb-4">
+            <CardTitle className="flex items-center gap-2 font-bricolage text-[#1A1F6D] text-base">
+              <BarChart3 className="h-4 w-4 text-[#FE9114]" /> Ringkasan
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-4">
+            {isLoading ? (
+              <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#888888]" />
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <Users className="mb-2 h-5 w-5 text-blue-600" />
+                  <p className="font-bold font-bricolage text-2xl text-blue-800">{stats?.totalUsers ?? 0}</p>
+                  <p className="font-manrope text-blue-700 text-xs">Total User</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <Users className="mb-2 h-5 w-5 text-[#1A1F6D]" />
+                  <p className="font-bold font-bricolage text-2xl text-gray-900">{stats?.totalSubscribers ?? 0}</p>
+                  <p className="font-manrope text-[#888888] text-xs">Subscribers</p>
+                </div>
+                <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+                  <CheckCircle2 className="mb-2 h-5 w-5 text-green-600" />
+                  <p className="font-bold font-bricolage text-2xl text-green-800">{stats?.activeSubscribers ?? 0}</p>
+                  <p className="font-manrope text-green-700 text-xs">Aktif</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <Megaphone className="mb-2 h-5 w-5 text-[#FE9114]" />
+                  <p className="font-bold font-bricolage text-2xl text-gray-900">{stats?.totalBroadcasts ?? 0}</p>
+                  <p className="font-manrope text-[#888888] text-xs">Broadcasts</p>
+                </div>
               </div>
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <Users className="mb-2 h-5 w-5 text-[#1A1F6D]" />
-                <p className="font-bold font-bricolage text-2xl text-gray-900">{stats?.totalSubscribers ?? 0}</p>
-                <p className="font-manrope text-[#888888] text-xs">Subscribers</p>
-              </div>
-              <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-                <CheckCircle2 className="mb-2 h-5 w-5 text-green-600" />
-                <p className="font-bold font-bricolage text-2xl text-green-800">{stats?.activeSubscribers ?? 0}</p>
-                <p className="font-manrope text-green-700 text-xs">Aktif</p>
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <Megaphone className="mb-2 h-5 w-5 text-[#FE9114]" />
-                <p className="font-bold font-bricolage text-2xl text-gray-900">{stats?.totalBroadcasts ?? 0}</p>
-                <p className="font-manrope text-[#888888] text-xs">Broadcasts</p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

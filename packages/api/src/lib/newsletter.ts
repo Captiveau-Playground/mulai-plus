@@ -7,9 +7,34 @@ import { resend } from "./resend";
 
 /**
  * Newsletter Manager — High-level provider for newsletter broadcasts.
+ *
+ * Environment separation:
+ *   - Production: segment name is clean ("Newsletter Subscribers")
+ *   - Dev/Staging: segment name gets env suffix ("Newsletter Subscribers (dev)")
+ *   - This prevents mixing dev test contacts with production subscribers
+ *   - Combined with separate RESEND_API_KEY per env for full isolation
  */
 
-const NEWSLETTER_SEGMENT_NAME = "Newsletter Subscribers";
+/**
+ * Detect environment from BETTER_AUTH_URL (more reliable than NODE_ENV).
+ * - localhost → dev
+ * - staging in URL → staging
+ * - otherwise → production
+ */
+function detectEnv(): "production" | "staging" | "development" {
+  const url = env.BETTER_AUTH_URL;
+  if (url.includes("localhost") || url.includes("127.0.0.1")) return "development";
+  if (url.includes("staging")) return "staging";
+  return "production";
+}
+
+/** Get environment-aware segment name. Dev & staging share `(dev)` suffix, production is clean. */
+function getSegmentName(): string {
+  const base = "Newsletter Subscribers";
+  const env = detectEnv();
+  if (env === "production") return base;
+  return `${base} Dev`;
+}
 
 function formatError(err: unknown): string {
   if (!err) return "Unknown error";
@@ -44,23 +69,32 @@ class NewsletterManager {
   // ── Segment ──────────────────────────────────────────────────────────
 
   async getOrCreateSegment(): Promise<{ success: boolean; segmentId?: string; error?: string }> {
-    const existing = await db.query.newsletterSegment.findFirst();
+    const targetName = getSegmentName();
+
+    // 1. Check local cache — MUST match THIS environment's segment name
+    const existing = await db.query.newsletterSegment.findFirst({
+      where: eq(schema.newsletterSegment.name, targetName),
+    });
     if (existing) {
       const check = await resend.segments.get(existing.id);
-      if (check.success) return { success: true, segmentId: existing.id };
+      if (check.success && check.data?.name === targetName) {
+        return { success: true, segmentId: existing.id };
+      }
       await db.delete(schema.newsletterSegment).where(eq(schema.newsletterSegment.id, existing.id));
     }
 
+    // 2. Search Resend by this environment's segment name
     const list = await resend.segments.list();
     if (list.success && list.data) {
-      const found = list.data.find((s) => s.name === NEWSLETTER_SEGMENT_NAME);
+      const found = list.data.find((s) => s.name === targetName);
       if (found) {
         await db.insert(schema.newsletterSegment).values({ id: found.id, name: found.name }).onConflictDoNothing();
         return { success: true, segmentId: found.id };
       }
     }
 
-    const created = await resend.segments.create({ name: NEWSLETTER_SEGMENT_NAME });
+    // 3. Create new segment for this environment
+    const created = await resend.segments.create({ name: targetName });
     if (!created.success || !created.data) {
       return { success: false, error: formatError(created.error ?? "Failed to create segment") };
     }
@@ -308,7 +342,9 @@ class NewsletterManager {
       .from(newsletterSubscriber)
       .where(eq(newsletterSubscriber.status, "active"));
     const [totalUsers] = await db.select({ count: count() }).from(user);
-    const seg = await db.query.newsletterSegment.findFirst();
+    const seg = await db.query.newsletterSegment.findFirst({
+      where: eq(schema.newsletterSegment.name, getSegmentName()),
+    });
 
     return {
       resendConfigured: resend.isConfigured,
