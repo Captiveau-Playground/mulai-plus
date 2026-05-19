@@ -575,7 +575,57 @@
         }
       ],
       "trend": "stable"
+    },
+    "packages\\api\\src\\lib\\email\\templates\\newsletter.ts": {
+      "latest": {
+        "commit": "914aa73",
+        "timestamp": "2026-05-19T09:00:01.505Z",
+        "mi": 31.6,
+        "cognitive": 0,
+        "nesting": 2,
+        "lines": 274,
+        "maxCyclomatic": 1,
+        "entropy": 6.52
+      },
+      "history": [
+        {
+          "commit": "914aa73",
+          "timestamp": "2026-05-19T09:00:01.505Z",
+          "mi": 31.6,
+          "cognitive": 0,
+          "nesting": 2,
+          "lines": 274,
+          "maxCyclomatic": 1,
+          "entropy": 6.52
+        }
+      ],
+      "trend": "stable"
+    },
+    "packages\\api\\src\\lib\\unosend.ts": {
+      "latest": {
+        "commit": "914aa73",
+        "timestamp": "2026-05-19T09:07:13.811Z",
+        "mi": 32.6,
+        "cognitive": 39,
+        "nesting": 6,
+        "lines": 162,
+        "maxCyclomatic": 5,
+        "entropy": 5.06
+      },
+      "history": [
+        {
+          "commit": "914aa73",
+          "timestamp": "2026-05-19T09:07:13.811Z",
+          "mi": 32.6,
+          "cognitive": 39,
+          "nesting": 6,
+          "lines": 162,
+          "maxCyclomatic": 5,
+          "entropy": 5.06
+        }
+      ],
+      "trend": "stable"
     }
   },
-  "capturedAt": "2026-05-19T08:54:39.808Z"
+  "capturedAt": "2026-05-19T09:07:18.821Z"
 }

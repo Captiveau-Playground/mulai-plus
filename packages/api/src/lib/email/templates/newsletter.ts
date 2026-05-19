@@ -21,30 +21,103 @@ const BRAND = {
   supportEmail: "hello@mulaiplus.id",
 };
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MULAI+ Design System — Newsletter Templates
+ * Mobile-first: default styles for mobile (<600px), min-width for desktop.
+ * ═════════════════════════════════════════════════════════════════════════ */
 const css = `
-  body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f4f4; }
-  .wrapper { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-  .header { background: ${BRAND.color}; padding: 32px 24px; text-align: center; }
-  .header h1 { color: #ffffff; font-size: 22px; margin: 12px 0 4px; font-weight: 700; line-height: 1.3; }
-  .header p { color: rgba(255,255,255,0.75); font-size: 14px; }
-  .body { padding: 32px 24px; }
-  .body h2 { color: ${BRAND.color}; font-size: 18px; margin: 0 0 16px; font-weight: 700; }
-  .body p { color: #333; font-size: 15px; line-height: 1.65; margin: 0 0 16px; }
+  /* ── Reset & Base (Mobile Default) ──────────────────────────────── */
+  body {
+    margin: 0; padding: 0; width: 100% !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #f4f4f4; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;
+  }
+  img { border: 0; outline: none; text-decoration: none; display: block; max-width: 100%; }
+
+  /* ── Wrapper (full-width on mobile) ─────────────────────────────── */
+  .wrapper {
+    width: 100% !important; max-width: 600px; margin: 0 auto;
+    background: #ffffff; border-radius: 0; overflow: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────────── */
+  .header {
+    background: ${BRAND.color}; padding: 28px 16px; text-align: center;
+  }
+  .header h1 {
+    color: #ffffff; font-size: 20px; margin: 8px 0 4px;
+    font-weight: 700; line-height: 1.3; letter-spacing: -0.3px;
+  }
+  .header p {
+    color: rgba(255,255,255,0.75); font-size: 13px; margin: 0;
+  }
+
+  /* ── Body ───────────────────────────────────────────────────────── */
+  .body {
+    padding: 24px 16px;
+  }
+  .body h2 {
+    color: ${BRAND.color}; font-size: 17px; margin: 0 0 12px; font-weight: 700; line-height: 1.3;
+  }
+  .body p {
+    color: #333; font-size: 14px; line-height: 1.6; margin: 0 0 14px;
+  }
   .body a { color: ${BRAND.color}; text-decoration: underline; }
-  .cta { display: inline-block; background: ${BRAND.accent}; color: #ffffff !important; text-decoration: none !important; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 700; margin: 8px 0 16px; }
-  .card { background: #f8f9fc; border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
-  .card h3 { color: ${BRAND.color}; font-size: 16px; margin: 0 0 8px; font-weight: 600; }
-  .card p { font-size: 14px; margin: 0; color: #555; }
-  .divider { border-top: 1px solid #e2e8f0; margin: 24px 0; }
-  .footer { background: #f8f9fc; padding: 24px; text-align: center; }
-  .footer p { font-size: 12px; color: #9ca3af; margin: 0 0 6px; line-height: 1.5; }
+
+  /* ── CTA Button (full-width on mobile) ──────────────────────────── */
+  .cta {
+    display: block; width: 100%; box-sizing: border-box;
+    background: ${BRAND.accent}; color: #ffffff !important; text-decoration: none !important;
+    padding: 14px 24px; border-radius: 8px; font-size: 15px; font-weight: 700;
+    margin: 12px 0 16px; text-align: center;
+  }
+
+  /* ── Card ───────────────────────────────────────────────────────── */
+  .card {
+    background: #f8f9fc; border-radius: 12px; padding: 16px;
+    margin: 14px 0;
+  }
+  .card h3 {
+    color: ${BRAND.color}; font-size: 15px; margin: 0 0 6px; font-weight: 600;
+  }
+  .card p { font-size: 13px; margin: 0 0 6px; color: #555; line-height: 1.55; }
+  .card p:last-child { margin-bottom: 0; }
+
+  /* ── Divider ────────────────────────────────────────────────────── */
+  .divider { border-top: 1px solid #e2e8f0; margin: 20px 0; }
+
+  /* ── Highlight ──────────────────────────────────────────────────── */
+  .highlight {
+    background: #fef3c7; border-left: 4px solid #f59e0b;
+    padding: 12px 14px; border-radius: 0 8px 8px 0; margin: 14px 0;
+  }
+  .highlight p { font-size: 13px; color: #92400e; margin: 0; line-height: 1.5; }
+
+  /* ── Footer ─────────────────────────────────────────────────────── */
+  .footer {
+    background: #f8f9fc; padding: 20px 16px; text-align: center;
+  }
+  .footer p {
+    font-size: 11px; color: #9ca3af; margin: 0 0 4px; line-height: 1.5;
+  }
   .footer a { color: #9ca3af; text-decoration: underline; }
-  .highlight { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
-  .highlight p { font-size: 14px; color: #92400e; margin: 0; }
-  @media only screen and (max-width: 600px) {
-    .wrapper { width: 100% !important; border-radius: 0 !important; }
-    .header { padding: 24px 16px !important; }
-    .body { padding: 24px 16px !important; }
+
+  /* ── Desktop enhancements (≥600px) ──────────────────────────────── */
+  @media only screen and (min-width: 600px) {
+    body { padding: 40px 20px; }
+    .wrapper { border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .header { padding: 32px 32px; }
+    .header h1 { font-size: 22px; }
+    .header p { font-size: 14px; }
+    .body { padding: 32px 32px; }
+    .body h2 { font-size: 18px; }
+    .body p { font-size: 15px; }
+    .cta { display: inline-block; width: auto; padding: 14px 36px; }
+    .card { padding: 20px 24px; }
+    .card h3 { font-size: 16px; }
+    .card p { font-size: 14px; }
+    .footer { padding: 24px 32px; }
+    .footer p { font-size: 12px; }
   }
 `;
 

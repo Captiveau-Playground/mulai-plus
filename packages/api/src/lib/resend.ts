@@ -51,7 +51,10 @@ class ResendClient {
 
   constructor() {
     this.apiKey = env.RESEND_API_KEY;
-    this.defaultFrom = env.RESEND_FROM_EMAIL || env.UNOSEND_FROM_EMAIL || "noreply@captiveau.fun";
+    const rawEmail = env.RESEND_FROM_EMAIL || env.UNOSEND_FROM_EMAIL || "hello@mulaiplus.id";
+    // Always use consistent display name — strip any existing display name first
+    const emailOnly = rawEmail.includes("<") ? rawEmail.match(/<(.+)>/)?.[1] : rawEmail;
+    this.defaultFrom = `MULAI+ <${emailOnly}>`;
   }
 
   get isConfigured(): boolean {

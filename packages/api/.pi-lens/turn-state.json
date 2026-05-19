@@ -21,12 +21,16 @@
     "src/lib/unosend.ts": {
       "modifiedRanges": [
         {
+          "start": 54,
+          "end": 54
+        },
+        {
           "start": 77,
           "end": 88
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-05T06:27:44.923Z"
+      "lastEdit": "2026-05-19T09:07:23.852Z"
     },
     "src/routers/user.ts": {
       "modifiedRanges": [
@@ -246,7 +250,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-19T06:44:41.760Z"
+      "lastEdit": "2026-05-19T09:06:44.760Z"
     },
     "src/lib/mail.ts": {
       "modifiedRanges": [
@@ -276,7 +280,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-19T08:56:00.504Z"
+      "lastEdit": "2026-05-19T09:07:02.553Z"
     },
     "src/routers/newsletter-admin.ts": {
       "modifiedRanges": [
@@ -296,10 +300,10 @@
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-19T07:29:39.523Z"
+      "lastEdit": "2026-05-19T09:01:23.084Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-19T08:56:00.504Z"
+  "lastUpdated": "2026-05-19T09:07:23.852Z"
 }

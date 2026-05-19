@@ -51,7 +51,7 @@ class UnosendClient {
 
   constructor() {
     this.apiKey = env.UNOSEND_API_KEY;
-    this.defaultFrom = env.UNOSEND_FROM_EMAIL || "noreply@captiveau.fun";
+    this.defaultFrom = env.UNOSEND_FROM_EMAIL || "hello@mulaiplus.id";
   }
 
   private async request<T>(

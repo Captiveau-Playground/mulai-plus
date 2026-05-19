@@ -47,11 +47,12 @@ function formatError(err: unknown): string {
   }
 }
 
-/** Resend requires "Name <email>" format for the from field */
+/** Resend requires "Name <email>" format. Source email from env, name always "MULAI+". */
 function formatFrom(): string {
-  const raw = env.RESEND_FROM_EMAIL || "noreply@captiveau.fun";
-  if (raw.includes("<")) return raw;
-  return `MULAI+ <${raw}>`;
+  const email = env.RESEND_FROM_EMAIL || "hello@mulaiplus.id";
+  // Strip any existing display name to keep only the email part
+  const cleanEmail = email.includes("<") ? email.match(/<(.+)>/)?.[1] : email;
+  return `MULAI+ <${cleanEmail}>`;
 }
 
 export interface BroadcastOptions {
