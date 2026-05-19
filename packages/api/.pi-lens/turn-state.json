@@ -96,11 +96,11 @@
       "modifiedRanges": [
         {
           "start": 1,
-          "end": 418
+          "end": 501
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-12T15:27:44.148Z"
+      "lastEdit": "2026-05-19T09:10:35.909Z"
     },
     "src/lib/email/templates/registration-success.ts": {
       "modifiedRanges": [
@@ -299,11 +299,11 @@
           "end": 310
         }
       ],
-      "importsChanged": false,
-      "lastEdit": "2026-05-19T09:01:23.084Z"
+      "importsChanged": true,
+      "lastEdit": "2026-05-19T09:14:11.796Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-19T09:07:23.852Z"
+  "lastUpdated": "2026-05-19T09:14:11.796Z"
 }
