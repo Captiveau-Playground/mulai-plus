@@ -50,7 +50,82 @@
         }
       ],
       "trend": "stable"
+    },
+    "packages\\api\\src\\lib\\mail.ts": {
+      "latest": {
+        "commit": "08f7cde",
+        "timestamp": "2026-05-19T06:28:22.117Z",
+        "mi": 52.3,
+        "cognitive": 14,
+        "nesting": 4,
+        "lines": 44,
+        "maxCyclomatic": 4,
+        "entropy": 5.48
+      },
+      "history": [
+        {
+          "commit": "08f7cde",
+          "timestamp": "2026-05-19T06:28:22.117Z",
+          "mi": 52.3,
+          "cognitive": 14,
+          "nesting": 4,
+          "lines": 44,
+          "maxCyclomatic": 4,
+          "entropy": 5.48
+        }
+      ],
+      "trend": "stable"
+    },
+    "packages\\api\\src\\lib\\resend.ts": {
+      "latest": {
+        "commit": "08f7cde",
+        "timestamp": "2026-05-19T06:28:22.253Z",
+        "mi": 38.9,
+        "cognitive": 50,
+        "nesting": 4,
+        "lines": 97,
+        "maxCyclomatic": 23,
+        "entropy": 6
+      },
+      "history": [
+        {
+          "commit": "08f7cde",
+          "timestamp": "2026-05-19T06:28:22.253Z",
+          "mi": 38.9,
+          "cognitive": 50,
+          "nesting": 4,
+          "lines": 97,
+          "maxCyclomatic": 23,
+          "entropy": 6
+        }
+      ],
+      "trend": "stable"
+    },
+    "packages\\api\\src\\routers\\email-admin.ts": {
+      "latest": {
+        "commit": "08f7cde",
+        "timestamp": "2026-05-19T06:28:22.452Z",
+        "mi": 25.2,
+        "cognitive": 19,
+        "nesting": 2,
+        "lines": 237,
+        "maxCyclomatic": 13,
+        "entropy": 4.86
+      },
+      "history": [
+        {
+          "commit": "08f7cde",
+          "timestamp": "2026-05-19T06:28:22.452Z",
+          "mi": 25.2,
+          "cognitive": 19,
+          "nesting": 2,
+          "lines": 237,
+          "maxCyclomatic": 13,
+          "entropy": 4.86
+        }
+      ],
+      "trend": "stable"
     }
   },
-  "capturedAt": "2026-05-18T14:27:21.143Z"
+  "capturedAt": "2026-05-19T06:28:27.465Z"
 }

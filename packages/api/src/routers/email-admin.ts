@@ -247,7 +247,7 @@ export const emailAdminRouter = {
           email: input.recipients[i]?.to,
           success: r.success,
           provider: r.provider,
-          error: null,
+          error: r.error ?? null,
         })),
       };
     }),

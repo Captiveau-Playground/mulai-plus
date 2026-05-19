@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "type": "TODO",
+      "message": "Make dynamic",
+      "file": "apps\\web\\src\\app\\(app)\\(front)\\courses\\[slug]\\_components\\order-actions.tsx",
+      "line": 60,
+      "column": 60
+    }
+  ]
+}
