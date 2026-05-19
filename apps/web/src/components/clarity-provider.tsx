@@ -19,7 +19,15 @@ declare global {
 
 const EXCLUDED_PATTERNS = ["/admin", "/mentor", "/program-manager", "/api", "/_next", "/rpc"];
 
+function isLocalhost(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host.includes(".local");
+}
+
 function shouldTrackClarity(pathname: string): boolean {
+  // Skip on localhost unless GA_DEBUG_MODE is on
+  if (isLocalhost() && !env.NEXT_PUBLIC_GA_DEBUG_MODE) return false;
   return !EXCLUDED_PATTERNS.some((p) => pathname.startsWith(p));
 }
 
