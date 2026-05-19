@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash, User } from "lucide-react";
 import { useState } from "react";
@@ -288,7 +288,7 @@ function TestimonialForm({
   defaultValues?: Partial<TestimonialFormValues>;
 }) {
   const form = useForm<TestimonialFormValues>({
-    resolver: zodResolver(testimonialSchema),
+    resolver: standardSchemaResolver(testimonialSchema),
     defaultValues: {
       userId: "",
       content: "",

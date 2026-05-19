@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useState } from "react";
@@ -101,7 +101,7 @@ export function ProgramFaqs({ programId }: { programId: string }) {
 
   const form = useForm<FaqFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(faqSchema) as any,
+    resolver: standardSchemaResolver(faqSchema) as any,
     defaultValues: {
       question: "",
       answer: "",
@@ -305,7 +305,7 @@ function EditFaqDialog({
 }) {
   const form = useForm<FaqFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(faqSchema) as any,
+    resolver: standardSchemaResolver(faqSchema) as any,
     defaultValues: {
       question: faq.question,
       answer: faq.answer,

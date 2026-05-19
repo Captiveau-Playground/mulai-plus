@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useState } from "react";
@@ -98,7 +98,7 @@ export function CategoryList() {
   );
 
   const form = useForm<CategoryFormValues>({
-    resolver: zodResolver(categorySchema),
+    resolver: standardSchemaResolver(categorySchema),
     defaultValues: {
       name: "",
       slug: "",
@@ -107,7 +107,7 @@ export function CategoryList() {
   });
 
   const editForm = useForm<CategoryFormValues>({
-    resolver: zodResolver(categorySchema),
+    resolver: standardSchemaResolver(categorySchema),
     defaultValues: {
       name: "",
       slug: "",

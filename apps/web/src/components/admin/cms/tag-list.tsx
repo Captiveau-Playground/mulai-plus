@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hash, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useState } from "react";
@@ -93,7 +93,7 @@ export function TagList() {
   );
 
   const form = useForm<TagFormValues>({
-    resolver: zodResolver(tagSchema) as any,
+    resolver: standardSchemaResolver(tagSchema) as any,
     defaultValues: {
       name: "",
       slug: "",

@@ -625,7 +625,32 @@
         }
       ],
       "trend": "stable"
+    },
+    "apps\\web\\src\\app\\(app)\\dashboard\\student\\settings\\page.tsx": {
+      "latest": {
+        "commit": "d53ae80",
+        "timestamp": "2026-05-19T09:58:53.232Z",
+        "mi": 21.3,
+        "cognitive": 17,
+        "nesting": 4,
+        "lines": 285,
+        "maxCyclomatic": 21,
+        "entropy": 5.91
+      },
+      "history": [
+        {
+          "commit": "d53ae80",
+          "timestamp": "2026-05-19T09:58:53.232Z",
+          "mi": 21.3,
+          "cognitive": 17,
+          "nesting": 4,
+          "lines": 285,
+          "maxCyclomatic": 21,
+          "entropy": 5.91
+        }
+      ],
+      "trend": "stable"
     }
   },
-  "capturedAt": "2026-05-19T09:07:18.821Z"
+  "capturedAt": "2026-05-19T09:58:58.239Z"
 }

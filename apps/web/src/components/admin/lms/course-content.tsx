@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
@@ -287,11 +287,11 @@ export function CourseContent({ courseId }: { courseId: string }) {
 
   // Forms
   const sectionForm = useForm<SectionFormValues>({
-    resolver: zodResolver(sectionSchema),
+    resolver: standardSchemaResolver(sectionSchema),
   });
 
   const lessonForm = useForm<LessonFormValues>({
-    resolver: zodResolver(lessonSchema),
+    resolver: standardSchemaResolver(lessonSchema),
   });
 
   // Mutations

@@ -1,0 +1,3 @@
+{
+  "signature": "package.json::📐 Cascade errors in 1 neighbor file(s) — fix before finishing turn:\n<diagnostics file=\"apps/web/src/app/(internal)/admin/(core)/cms/newsletter/page.tsx\" reason=\"fallback\">\n  line 646, col 45 rule=cascade:2554: Expected 1-2 arguments, but got 0.\n  line 660, col 45 rule=cascade:2554: Expected 1-2 arguments, but got 0.\n  line 787, col 42 rule=cascade:2554: Expected 1-2 arguments, but got 0.\n</diagnostics>"
+}

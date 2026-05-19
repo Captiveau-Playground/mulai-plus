@@ -374,6 +374,7 @@ function ComposeTab() {
             <Select
               value={selectedTemplateId}
               onValueChange={async (id) => {
+                if (!id) return;
                 setSelectedTemplateId(id);
                 if (!id || id === "_blank") return;
                 try {
@@ -642,7 +643,7 @@ function SubscribersTab() {
                 size="sm"
                 variant="outline"
                 className="w-full rounded-xl font-manrope text-xs"
-                onClick={() => syncContacts.mutate()}
+                onClick={() => syncContacts.mutate(void 0)}
                 disabled={syncContacts.isPending || !stats?.resendConfigured}
               >
                 {syncContacts.isPending ? (
@@ -656,7 +657,7 @@ function SubscribersTab() {
                 size="sm"
                 variant="default"
                 className="w-full rounded-xl bg-[#FE9114] font-manrope text-white text-xs hover:bg-[#FE9114]/90"
-                onClick={() => syncAllUsers.mutate()}
+                onClick={() => syncAllUsers.mutate(void 0)}
                 disabled={syncAllUsers.isPending || !stats?.resendConfigured}
               >
                 {syncAllUsers.isPending ? (
@@ -783,7 +784,7 @@ function SettingsTab() {
           <Button
             size="sm"
             className="rounded-xl bg-[#1A1F6D] font-manrope text-white text-xs hover:bg-[#1A1F6D]/90"
-            onClick={() => ensureSegment.mutate()}
+            onClick={() => ensureSegment.mutate(void 0)}
             disabled={ensureSegment.isPending}
           >
             {ensureSegment.isPending ? (
