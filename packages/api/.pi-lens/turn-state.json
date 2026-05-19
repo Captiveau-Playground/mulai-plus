@@ -132,11 +132,11 @@
       "modifiedRanges": [
         {
           "start": 1,
-          "end": 15
+          "end": 17
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-12T15:32:23.412Z"
+      "lastEdit": "2026-05-19T07:30:43.578Z"
     },
     "src/lib/email-templates.ts": {
       "modifiedRanges": [
@@ -276,7 +276,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-19T06:56:51.555Z"
+      "lastEdit": "2026-05-19T07:52:15.178Z"
     },
     "src/routers/newsletter-admin.ts": {
       "modifiedRanges": [
@@ -286,10 +286,20 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-19T06:59:06.731Z"
+      "lastEdit": "2026-05-19T07:52:51.398Z"
+    },
+    "src/lib/email/templates/newsletter.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 310
+        }
+      ],
+      "importsChanged": false,
+      "lastEdit": "2026-05-19T07:29:39.523Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-19T06:59:38.038Z"
+  "lastUpdated": "2026-05-19T07:52:51.399Z"
 }

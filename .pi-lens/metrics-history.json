@@ -300,7 +300,232 @@
         }
       ],
       "trend": "stable"
+    },
+    "apps\\web\\src\\app\\(internal)\\admin\\(infra)\\email\\page.tsx": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:02:30.098Z",
+        "mi": 10.2,
+        "cognitive": 92,
+        "nesting": 5,
+        "lines": 695,
+        "maxCyclomatic": 83,
+        "entropy": 6.4
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:02:30.098Z",
+          "mi": 10.2,
+          "cognitive": 92,
+          "nesting": 5,
+          "lines": 695,
+          "maxCyclomatic": 83,
+          "entropy": 6.4
+        }
+      ],
+      "trend": "stable"
+    },
+    "apps\\web\\src\\app\\(internal)\\admin\\layout.tsx": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:03:17.890Z",
+        "mi": 51.7,
+        "cognitive": 0,
+        "nesting": 1,
+        "lines": 28,
+        "maxCyclomatic": 1,
+        "entropy": 4.26
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:03:17.890Z",
+          "mi": 51.7,
+          "cognitive": 0,
+          "nesting": 1,
+          "lines": 28,
+          "maxCyclomatic": 1,
+          "entropy": 4.26
+        }
+      ],
+      "trend": "stable"
+    },
+    "apps\\web\\src\\components\\admin\\admin-sidebar.tsx": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:03:34.156Z",
+        "mi": 23.2,
+        "cognitive": 3,
+        "nesting": 1,
+        "lines": 269,
+        "maxCyclomatic": 3,
+        "entropy": 4.68
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:03:34.156Z",
+          "mi": 23.2,
+          "cognitive": 3,
+          "nesting": 1,
+          "lines": 269,
+          "maxCyclomatic": 3,
+          "entropy": 4.68
+        }
+      ],
+      "trend": "stable"
+    },
+    "apps\\web\\src\\utils\\orpc.ts": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:03:54.984Z",
+        "mi": 47.9,
+        "cognitive": 2,
+        "nesting": 2,
+        "lines": 37,
+        "maxCyclomatic": 2,
+        "entropy": 4.86
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:03:54.984Z",
+          "mi": 47.9,
+          "cognitive": 2,
+          "nesting": 2,
+          "lines": 37,
+          "maxCyclomatic": 2,
+          "entropy": 4.86
+        }
+      ],
+      "trend": "stable"
+    },
+    "apps\\web\\src\\app\\(internal)\\admin\\(core)\\cms\\newsletter\\page.tsx": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:12:55.036Z",
+        "mi": 8.3,
+        "cognitive": 109,
+        "nesting": 4,
+        "lines": 801,
+        "maxCyclomatic": 49,
+        "entropy": 6.05
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:12:55.036Z",
+          "mi": 8.3,
+          "cognitive": 109,
+          "nesting": 4,
+          "lines": 801,
+          "maxCyclomatic": 49,
+          "entropy": 6.05
+        }
+      ],
+      "trend": "stable"
+    },
+    "packages\\api\\src\\lib\\email\\templates\\registration-success.ts": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:22:12.660Z",
+        "mi": 50.8,
+        "cognitive": 0,
+        "nesting": 1,
+        "lines": 66,
+        "maxCyclomatic": 1,
+        "entropy": 6.09
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:22:12.660Z",
+          "mi": 50.8,
+          "cognitive": 0,
+          "nesting": 1,
+          "lines": 66,
+          "maxCyclomatic": 1,
+          "entropy": 6.09
+        }
+      ],
+      "trend": "stable"
+    },
+    "packages\\api\\src\\lib\\email\\config.ts": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:22:21.562Z",
+        "mi": 53.6,
+        "cognitive": 0,
+        "nesting": 0,
+        "lines": 56,
+        "maxCyclomatic": 1,
+        "entropy": 5.05
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:22:21.562Z",
+          "mi": 53.6,
+          "cognitive": 0,
+          "nesting": 0,
+          "lines": 56,
+          "maxCyclomatic": 1,
+          "entropy": 5.05
+        }
+      ],
+      "trend": "stable"
+    },
+    "packages\\api\\src\\lib\\email\\components.ts": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:22:21.762Z",
+        "mi": 24.6,
+        "cognitive": 18,
+        "nesting": 2,
+        "lines": 312,
+        "maxCyclomatic": 7,
+        "entropy": 5.97
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:22:21.762Z",
+          "mi": 24.6,
+          "cognitive": 18,
+          "nesting": 2,
+          "lines": 312,
+          "maxCyclomatic": 7,
+          "entropy": 5.97
+        }
+      ],
+      "trend": "stable"
+    },
+    "packages\\api\\src\\lib\\email\\index.ts": {
+      "latest": {
+        "commit": "5655c48",
+        "timestamp": "2026-05-19T07:30:18.795Z",
+        "mi": 75.2,
+        "cognitive": 0,
+        "nesting": 0,
+        "lines": 14,
+        "maxCyclomatic": 1,
+        "entropy": 2.5
+      },
+      "history": [
+        {
+          "commit": "5655c48",
+          "timestamp": "2026-05-19T07:30:18.795Z",
+          "mi": 75.2,
+          "cognitive": 0,
+          "nesting": 0,
+          "lines": 14,
+          "maxCyclomatic": 1,
+          "entropy": 2.5
+        }
+      ],
+      "trend": "stable"
     }
   },
-  "capturedAt": "2026-05-19T06:59:00.821Z"
+  "capturedAt": "2026-05-19T07:30:23.810Z"
 }

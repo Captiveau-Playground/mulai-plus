@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { adminProcedure } from "../index";
+import { getNewsletterTemplateList, NEWSLETTER_TEMPLATES } from "../lib/email";
 import { mail } from "../lib/mail";
 import { newsletter } from "../lib/newsletter";
 
@@ -13,12 +14,32 @@ import { newsletter } from "../lib/newsletter";
  *   newsletter.segment.*     — Manage Resend segments
  *   newsletter.contacts.*    — Sync/Manage Resend contacts
  *   newsletter.broadcasts.*  — CRUD broadcasts
+ *   newsletter.templates.*   — Newsletter template listing
  *   newsletter.sendNow       — Quick send (create + send in one step)
  *   newsletter.schedule       — Schedule a broadcast
  *   newsletter.sendTest       — Send test email to single recipient
  */
 
 export const newsletterAdminRouter = {
+  // ── Templates ──────────────────────────────────────────────────────────
+
+  /** List available newsletter broadcast templates */
+  listTemplates: adminProcedure.handler(async () => {
+    return getNewsletterTemplateList();
+  }),
+
+  /** Get a specific template's full HTML */
+  getTemplate: adminProcedure.input(z.object({ templateId: z.string() })).handler(async ({ input }) => {
+    const template = NEWSLETTER_TEMPLATES[input.templateId];
+    if (!template) throw new Error(`Template "${input.templateId}" not found`);
+    return {
+      id: template.id,
+      label: template.label,
+      description: template.description,
+      html: template.html,
+    };
+  }),
+
   // ── Stats ────────────────────────────────────────────────────────────────
 
   stats: adminProcedure.handler(async () => {
@@ -54,6 +75,15 @@ export const newsletterAdminRouter = {
         throw new Error(seg.error ?? "No segment available. Create one first.");
       }
       return await newsletter.syncContacts(seg.segmentId);
+    }),
+
+    /** Sync ALL registered users to Resend (bukan cuma newsletter subscriber) */
+    syncAllUsers: adminProcedure.handler(async () => {
+      const seg = await newsletter.getOrCreateSegment();
+      if (!seg.success || !seg.segmentId) {
+        throw new Error(seg.error ?? "No segment available. Create one first.");
+      }
+      return await newsletter.syncAllUsers(seg.segmentId);
     }),
 
     /** Manually add a contact */

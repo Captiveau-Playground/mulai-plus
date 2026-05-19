@@ -161,6 +161,10 @@ const data = {
           title: "Media",
           url: "/admin/cms/media",
         },
+        {
+          title: "Newsletter",
+          url: "/admin/cms/newsletter",
+        },
       ],
     },
   ],
