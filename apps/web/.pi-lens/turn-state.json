@@ -1980,7 +1980,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T16:09:39.239Z"
+      "lastEdit": "2026-05-19T10:30:10.013Z"
     },
     "src/components/providers.tsx": {
       "modifiedRanges": [
@@ -2026,7 +2026,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T15:52:29.137Z"
+      "lastEdit": "2026-05-19T10:29:44.116Z"
     },
     "src/app/(app)/(front)/privacy/page.tsx": {
       "modifiedRanges": [
@@ -2036,7 +2036,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T15:58:52.872Z"
+      "lastEdit": "2026-05-19T10:32:22.829Z"
     },
     "src/app/(app)/(front)/programs/layout.tsx": {
       "modifiedRanges": [
@@ -2481,9 +2481,19 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-19T09:17:13.835Z"
+    },
+    "src/components/clarity-provider.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 100
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-19T10:31:39.001Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-19T09:17:13.835Z"
+  "lastUpdated": "2026-05-19T10:32:22.829Z"
 }
