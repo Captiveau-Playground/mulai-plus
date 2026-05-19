@@ -185,6 +185,10 @@
           "end": 8
         },
         {
+          "start": 11,
+          "end": 11
+        },
+        {
           "start": 15,
           "end": 15
         },
@@ -202,7 +206,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-17T14:29:05.892Z"
+      "lastEdit": "2026-05-19T06:58:24.798Z"
     },
     "src/lib/email/templates/scholarship-offer.ts": {
       "modifiedRanges": [
@@ -238,23 +242,11 @@
       "modifiedRanges": [
         {
           "start": 1,
-          "end": 120
-        },
-        {
-          "start": 149,
-          "end": 150
-        },
-        {
-          "start": 154,
-          "end": 158
-        },
-        {
-          "start": 161,
-          "end": 163
+          "end": 403
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-19T06:30:09.135Z"
+      "lastEdit": "2026-05-19T06:44:41.760Z"
     },
     "src/lib/mail.ts": {
       "modifiedRanges": [
@@ -270,14 +262,34 @@
       "modifiedRanges": [
         {
           "start": 74,
-          "end": 74
+          "end": 75
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-18T12:21:05.883Z"
+      "lastEdit": "2026-05-19T06:59:38.038Z"
+    },
+    "src/lib/newsletter.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 373
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-19T06:56:51.555Z"
+    },
+    "src/routers/newsletter-admin.ts": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 240
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-19T06:59:06.731Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-19T06:31:14.385Z"
+  "lastUpdated": "2026-05-19T06:59:38.038Z"
 }
