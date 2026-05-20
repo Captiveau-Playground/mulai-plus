@@ -49,6 +49,7 @@ type CategoryWithChildren = {
   parentId?: string | null;
   sortOrder: number;
   isActive: boolean;
+  articleCount?: number;
   children?: CategoryWithChildren[];
 };
 
@@ -77,6 +78,7 @@ function CategoryItem({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <span className="font-medium text-muted-foreground text-xs">{category.articleCount ?? 0} articles</span>
           {hasChildren && (
             <span className="text-muted-foreground text-xs">{category.children?.length} subcategories</span>
           )}

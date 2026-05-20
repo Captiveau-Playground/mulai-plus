@@ -3,10 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Eye, FileText, Globe, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ export function ArticleList() {
   }>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const pageSize = 20;
 
   const { data, isLoading } = useQuery({
@@ -56,6 +58,28 @@ export function ArticleList() {
 
   const articles = data?.data || [];
   const total = data?.pagination?.total || 0;
+
+  const allOnPageSelected = articles.length > 0 && articles.every((a) => selected.has(a.id));
+
+  const toggleSelectAll = useCallback(() => {
+    if (allOnPageSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(articles.map((a) => a.id)));
+    }
+  }, [allOnPageSelected, articles]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
 
   const deleteMutation = useMutation(
     orpc.cms.articles.admin.delete.mutationOptions({
@@ -85,6 +109,32 @@ export function ArticleList() {
     orpc.cms.articles.admin.unpublish.mutationOptions({
       onSuccess: () => {
         toast.success("Article unpublished");
+        queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    }),
+  );
+
+  const bulkPublishMutation = useMutation(
+    orpc.cms.articles.admin.bulkPublish.mutationOptions({
+      onSuccess: () => {
+        toast.success("Articles published");
+        setSelected(new Set());
+        queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    }),
+  );
+
+  const bulkDeleteMutation = useMutation(
+    orpc.cms.articles.admin.bulkDelete.mutationOptions({
+      onSuccess: () => {
+        toast.success("Articles deleted");
+        setSelected(new Set());
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
@@ -205,11 +255,50 @@ export function ArticleList() {
         />
       </div>
 
+      {/* Batch Action Bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3">
+          <span className="font-medium text-primary text-sm">{selected.size} selected</span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-green-200 text-green-700 hover:bg-green-50"
+              onClick={() => bulkPublishMutation.mutate({ ids: Array.from(selected) })}
+              disabled={bulkPublishMutation.isPending}
+            >
+              <Globe className="mr-1.5 h-3.5 w-3.5" />
+              Publish All
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50"
+              onClick={() => {
+                if (confirm(`Delete ${selected.size} articles? This cannot be undone.`)) {
+                  bulkDeleteMutation.mutate({ ids: Array.from(selected) });
+                }
+              }}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              <Trash className="mr-1.5 h-3.5 w-3.5" />
+              Delete All
+            </Button>
+          </div>
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox checked={allOnPageSelected} onCheckedChange={toggleSelectAll} />
+              </TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Type</TableHead>
@@ -222,13 +311,13 @@ export function ArticleList() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : articles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   No articles found.{" "}
                   <Button variant="link" className="text-primary" onClick={() => setIsCreateOpen(true)}>
                     Create your first article
@@ -237,7 +326,10 @@ export function ArticleList() {
               </TableRow>
             ) : (
               articles.map((article) => (
-                <TableRow key={article.id}>
+                <TableRow key={article.id} className={selected.has(article.id) ? "bg-primary/5" : undefined}>
+                  <TableCell>
+                    <Checkbox checked={selected.has(article.id)} onCheckedChange={() => toggleSelect(article.id)} />
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <button

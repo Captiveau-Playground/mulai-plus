@@ -150,6 +150,10 @@ const data = {
           url: "/admin/cms/articles",
         },
         {
+          title: "Authors",
+          url: "/admin/cms/authors",
+        },
+        {
           title: "Categories",
           url: "/admin/cms/categories",
         },

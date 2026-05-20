@@ -142,19 +142,20 @@ export function TagList() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Slug</TableHead>
+              <TableHead className="w-[80px] text-center">Articles</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : tags?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   No tags yet.
                 </TableCell>
               </TableRow>
@@ -169,6 +170,9 @@ export function TagList() {
                   </TableCell>
                   <TableCell>
                     <span className="text-muted-foreground text-xs">{tag.slug}</span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="font-medium text-muted-foreground text-sm">{tag.articleCount ?? 0}</span>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

@@ -638,7 +638,7 @@ export const categoriesRouter = {
 
   admin: {
     list: adminProcedure.handler(async () => {
-      return await db.query.cmsCategory.findMany({
+      const categories = await db.query.cmsCategory.findMany({
         orderBy: [asc(cmsCategory.sortOrder), asc(cmsCategory.name)],
         with: {
           children: {
@@ -646,6 +646,25 @@ export const categoriesRouter = {
           },
         },
       });
+
+      // Get article counts per category
+      const counts = await db
+        .select({ categoryId: cmsArticle.categoryId, count: count() })
+        .from(cmsArticle)
+        .where(and(isNull(cmsArticle.deletedAt), isNotNull(cmsArticle.categoryId)))
+        .groupBy(cmsArticle.categoryId);
+
+      const countMap = new Map(counts.filter((c) => c.categoryId).map((c) => [c.categoryId!, c.count]));
+
+      // Attach counts to categories and their children
+      const attachCounts = (cats: any[]): any[] =>
+        cats.map((cat) => ({
+          ...cat,
+          articleCount: countMap.get(cat.id) ?? 0,
+          children: cat.children ? attachCounts(cat.children) : [],
+        }));
+
+      return attachCounts(categories);
     }),
 
     get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
@@ -781,9 +800,24 @@ export const tagsRouter = {
 
   admin: {
     list: adminProcedure.handler(async () => {
-      return await db.query.cmsTag.findMany({
+      const tags = await db.query.cmsTag.findMany({
         orderBy: [asc(cmsTag.name)],
       });
+
+      // Get article counts per tag
+      const counts = await db
+        .select({ tagId: cmsArticleTag.tagId, count: count() })
+        .from(cmsArticleTag)
+        .innerJoin(cmsArticle, eq(cmsArticleTag.articleId, cmsArticle.id))
+        .where(isNull(cmsArticle.deletedAt))
+        .groupBy(cmsArticleTag.tagId);
+
+      const countMap = new Map(counts.map((c) => [c.tagId, c.count]));
+
+      return tags.map((tag) => ({
+        ...tag,
+        articleCount: countMap.get(tag.id) ?? 0,
+      }));
     }),
 
     create: adminProcedure
@@ -905,6 +939,13 @@ export const authorsRouter = {
           .where(conditions.length > 0 ? and(...conditions) : undefined)
           .orderBy(asc(user.name));
       }),
+
+    // List cmsAuthor records (for admin author management page)
+    listAuthors: adminProcedure.handler(async () => {
+      return await db.query.cmsAuthor.findMany({
+        orderBy: [asc(cmsAuthor.name)],
+      });
+    }),
 
     create: adminProcedure
       .input(
