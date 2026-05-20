@@ -46,6 +46,28 @@ const sections = [
     ),
   },
   {
+    id: "microsoft-clarity",
+    title: "Microsoft Clarity",
+    content: [
+      "Platform ini menggunakan Microsoft Clarity untuk merekam sesi pengguna secara anonim, termasuk heatmap dan rekaman interaksi. Data ini membantu kami memahami bagaimana pengguna berinteraksi dengan platform dan mengidentifikasi area yang perlu ditingkatkan.",
+      "Microsoft Clarity tidak mengumpulkan informasi yang dapat diidentifikasi secara pribadi. Semua data disamarkan secara otomatis. Anda dapat memilih untuk menolak pelacakan Clarity melalui banner consent yang muncul saat pertama kali mengunjungi platform.",
+    ],
+    extra: (
+      <p className="font-manrope text-base text-text-main/85 leading-relaxed">
+        Informasi lebih lanjut tentang Microsoft Clarity dapat ditemukan di{" "}
+        <a
+          href="https://clarity.microsoft.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-brand-orange underline hover:text-brand-navy"
+        >
+          Situs Resmi Microsoft Clarity
+        </a>
+        .
+      </p>
+    ),
+  },
+  {
     id: "penyimpanan-keamanan-data",
     title: "Penyimpanan & Keamanan Data",
     content: [

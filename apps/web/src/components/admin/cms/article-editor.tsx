@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Eye, Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -110,7 +110,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   );
 
   const form = useForm<ArticleFormValues>({
-    resolver: zodResolver(articleSchema) as any,
+    resolver: standardSchemaResolver(articleSchema) as any,
     defaultValues: {
       title: "",
       slug: "",

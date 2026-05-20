@@ -8,6 +8,7 @@ import { auditRouter } from "./audit";
 import { articlesRouter, authorsRouter, categoriesRouter, mediaRouter, newsletterRouter, tagsRouter } from "./cms";
 import { emailAdminRouter } from "./email-admin";
 import { lmsRouter } from "./lms";
+import { newsletterAdminRouter } from "./newsletter-admin";
 import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
 import { programActivitiesRouter } from "./program-activities";
@@ -32,6 +33,7 @@ export const appRouter = {
   email: emailAdminRouter,
   shortLinks: shortLinksRouter,
   notification: notificationRouter,
+  newsletter: newsletterAdminRouter,
   cms: {
     articles: articlesRouter,
     categories: categoriesRouter,

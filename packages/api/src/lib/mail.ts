@@ -31,16 +31,34 @@ class MailProvider {
     return { success: false, provider: "resend", error: result.error };
   }
 
-  async sendBatch(
-    items: SendOptions[],
-  ): Promise<{ success: boolean; results: { index: number; success: boolean; provider: string; id?: string }[] }> {
-    const results: { index: number; success: boolean; provider: string; id?: string }[] = [];
+  async sendBatch(items: SendOptions[]): Promise<{
+    success: boolean;
+    results: { index: number; success: boolean; provider: string; id?: string; error?: string }[];
+  }> {
+    const results: { index: number; success: boolean; provider: string; id?: string; error?: string }[] = [];
+
+    console.log(`Mail batch: sending ${items.length} emails`);
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (!item) continue;
       const result = await this.send(item);
-      results.push({ index: i, success: result.success, provider: result.provider, id: result.id });
+      results.push({
+        index: i,
+        success: result.success,
+        provider: result.provider,
+        id: result.id,
+        error: result.error ? String(result.error) : undefined,
+      });
+
+      if (items.length > 5 && (i + 1) % 5 === 0) {
+        console.log(`Mail batch progress: ${i + 1}/${items.length}`);
+      }
     }
+
+    const successCount = results.filter((r) => r.success).length;
+    console.log(`Mail batch complete: ${successCount}/${items.length} sent successfully`);
+
     return { success: results.every((r) => r.success), results };
   }
 

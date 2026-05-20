@@ -72,4 +72,5 @@ export const adminOrProgramManagerProcedure = protectedProcedure.use(
 
 export * from "./lib/email-templates";
 export * from "./lib/mail";
+export * from "./lib/newsletter";
 export * from "./lib/unosend";

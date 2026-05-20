@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import Link from "next/link";
@@ -105,7 +105,7 @@ export function ProgramList() {
 
   const form = useForm<ProgramFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(programSchema) as any,
+    resolver: standardSchemaResolver(programSchema) as any,
     defaultValues: {
       name: "",
       description: "",
@@ -328,7 +328,7 @@ function EditProgramForm({
 }) {
   const form = useForm<ProgramFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(programSchema) as any,
+    resolver: standardSchemaResolver(programSchema) as any,
     defaultValues: {
       name: program?.name ?? "",
       description: program?.description ?? "",

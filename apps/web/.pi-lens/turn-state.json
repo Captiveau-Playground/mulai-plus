@@ -1118,7 +1118,11 @@
         },
         {
           "start": 7,
-          "end": 7
+          "end": 8
+        },
+        {
+          "start": 11,
+          "end": 11
         },
         {
           "start": 35,
@@ -1126,7 +1130,7 @@
         },
         {
           "start": 141,
-          "end": 165
+          "end": 168
         },
         {
           "start": 180,
@@ -1154,7 +1158,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-17T15:44:51.266Z"
+      "lastEdit": "2026-05-19T07:13:11.775Z"
     },
     "src/components/admin/programs/program-syllabus.tsx": {
       "modifiedRanges": [
@@ -1976,7 +1980,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T16:09:39.239Z"
+      "lastEdit": "2026-05-19T10:30:10.013Z"
     },
     "src/components/providers.tsx": {
       "modifiedRanges": [
@@ -2022,7 +2026,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T15:52:29.137Z"
+      "lastEdit": "2026-05-19T10:29:44.116Z"
     },
     "src/app/(app)/(front)/privacy/page.tsx": {
       "modifiedRanges": [
@@ -2032,7 +2036,7 @@
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-11T15:58:52.872Z"
+      "lastEdit": "2026-05-19T10:32:22.829Z"
     },
     "src/app/(app)/(front)/programs/layout.tsx": {
       "modifiedRanges": [
@@ -2467,9 +2471,29 @@
       ],
       "importsChanged": true,
       "lastEdit": "2026-05-18T12:28:37.052Z"
+    },
+    "src/app/(internal)/admin/(core)/cms/newsletter/page.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 878
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-19T09:17:13.835Z"
+    },
+    "src/components/clarity-provider.tsx": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 100
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-19T10:38:33.956Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-18T14:08:58.255Z"
+  "lastUpdated": "2026-05-19T10:38:33.956Z"
 }

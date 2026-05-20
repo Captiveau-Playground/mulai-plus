@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -46,7 +46,7 @@ export function ProgramInfo({ program }: { program: Program }) {
 
   const form = useForm<ProgramFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(programSchema) as any,
+    resolver: standardSchemaResolver(programSchema) as any,
     defaultValues: {
       name: program.name,
       slug: program.slug,

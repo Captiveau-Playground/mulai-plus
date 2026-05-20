@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Globe, Loader2, MapPin, Phone, School, User } from "lucide-react";
 import { useEffect } from "react";
@@ -41,7 +41,7 @@ export default function StudentSettingsPage() {
   const updateProfile = useMutation(orpc.user.updateProfile.mutationOptions());
 
   const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
+    resolver: standardSchemaResolver(profileFormSchema),
     defaultValues: {
       name: "",
       address: "",

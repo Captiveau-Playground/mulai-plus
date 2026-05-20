@@ -66,8 +66,8 @@ export function CookieConsentBanner({
     >
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-4 sm:flex-row sm:px-6 sm:py-3">
         <p className="flex-1 text-center font-manrope text-sm text-text-main sm:text-left">
-          Kami menggunakan cookie dari Google Analytics untuk memahami cara Anda menggunakan platform ini dan
-          meningkatkan pengalaman Anda.{" "}
+          Kami menggunakan cookie dari Google Analytics dan Microsoft Clarity untuk memahami cara Anda meningkatkan
+          pengalaman Anda.{" "}
           <a
             href="/privacy"
             target="_blank"

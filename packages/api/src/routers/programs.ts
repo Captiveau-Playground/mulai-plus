@@ -55,9 +55,6 @@ export const programsRouter = {
       .handler(async ({ input }) => {
         const limit = input?.limit ?? 50;
         const offset = input?.offset ?? 0;
-
-        console.log("Programs list input:", { limit, offset });
-
         // Show open and running programs for public
         const whereClause = isNull(program.deletedAt);
 
@@ -78,9 +75,6 @@ export const programsRouter = {
             },
           },
         });
-
-        console.log("Programs found:", items.length);
-
         const [total] = await db.select({ count: count() }).from(program).where(whereClause);
 
         return {

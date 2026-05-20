@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import Link from "next/link";
@@ -101,7 +101,7 @@ export function CourseList() {
   );
 
   const form = useForm<CourseFormValues>({
-    resolver: zodResolver(courseSchema),
+    resolver: standardSchemaResolver(courseSchema),
     defaultValues: {
       title: "",
       slug: "",
@@ -111,7 +111,7 @@ export function CourseList() {
   });
 
   const editForm = useForm<CourseFormValues>({
-    resolver: zodResolver(courseSchema),
+    resolver: standardSchemaResolver(courseSchema),
     defaultValues: {
       title: "",
       slug: "",
