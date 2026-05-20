@@ -181,7 +181,9 @@ export function ArticleList() {
       <div className="flex flex-wrap items-center gap-3">
         <Select
           value={filters.type || "all"}
-          onValueChange={(v) => setFilters((f) => ({ ...f, type: v === "all" ? undefined : (v as CmsArticleType) }))}
+          onValueChange={(v) =>
+            setFilters((f) => ({ ...f, type: !v || v === "all" ? undefined : (v as CmsArticleType) }))
+          }
         >
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Type" />
@@ -196,7 +198,7 @@ export function ArticleList() {
         <Select
           value={filters.status || "all"}
           onValueChange={(v) =>
-            setFilters((f) => ({ ...f, status: v === "all" ? undefined : (v as CmsArticleStatus) }))
+            setFilters((f) => ({ ...f, status: !v || v === "all" ? undefined : (v as CmsArticleStatus) }))
           }
         >
           <SelectTrigger className="w-[140px]">
@@ -213,7 +215,7 @@ export function ArticleList() {
 
         <Select
           value={filters.authorId || "all"}
-          onValueChange={(v) => setFilters((f) => ({ ...f, authorId: v === "all" ? undefined : v }))}
+          onValueChange={(v) => setFilters((f) => ({ ...f, authorId: !v || v === "all" ? undefined : v }))}
         >
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Author" />
@@ -230,7 +232,7 @@ export function ArticleList() {
 
         <Select
           value={filters.categoryId || "all"}
-          onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v === "all" ? undefined : v }))}
+          onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: !v || v === "all" ? undefined : v }))}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Category" />

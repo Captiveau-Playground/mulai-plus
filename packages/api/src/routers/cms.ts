@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNull, like, ne, or } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, inArray, isNotNull, isNull, like, ne, or } from "@mulai-plus/db";
 import { role as roleTable, user } from "@mulai-plus/db/schema/auth";
 import {
   cmsArticle,
@@ -249,7 +249,7 @@ export const articlesRouter = {
         };
       }),
 
-    get: adminProcedure.input(z.object({ id: z.coerce.string() })).handler(async ({ input, context }) => {
+    get: adminProcedure.input(z.object({ id: z.coerce.string() })).handler(async ({ input }) => {
       console.log("[article.get] input:", input, "id type:", typeof input.id);
       const item = await db.query.cmsArticle.findFirst({
         where: eq(cmsArticle.id, input.id),
