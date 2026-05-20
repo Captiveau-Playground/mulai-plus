@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useState } from "react";
@@ -106,7 +106,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
 
   const form = useForm<BenefitFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(benefitSchema) as any,
+    resolver: standardSchemaResolver(benefitSchema) as any,
     defaultValues: {
       title: "",
       description: "",
@@ -332,7 +332,7 @@ function EditBenefitDialog({
 }) {
   const form = useForm<BenefitFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(benefitSchema) as any,
+    resolver: standardSchemaResolver(benefitSchema) as any,
     defaultValues: {
       title: benefit.title,
       description: benefit.description || "",

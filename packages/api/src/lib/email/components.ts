@@ -368,3 +368,134 @@ export function spacer(height = 20): string {
       <td style="padding: 0; height: ${height}px;">&nbsp;</td>
     </tr>`;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Newsletter-specific components (reuse brand tokens, mobile-first)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Newsletter header — compact, mobile-first */
+export function newsletterHeader(title: string, subtitle?: string): string {
+  return `
+    <tr>
+      <td style="background: ${COLORS.navy}; padding: 28px 16px; text-align: center;">
+        <h1 style="margin: 8px 0 4px; font-size: 20px; font-weight: 700; color: #ffffff; line-height: 1.3; font-family: ${FONTS.family}; letter-spacing: -0.3px;">${title}</h1>
+        ${subtitle ? `<p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.75); font-family: ${FONTS.family};">${subtitle}</p>` : ""}
+      </td>
+    </tr>`;
+}
+
+/** Newsletter card — content block with heading */
+export function newsletterCard(heading: string, children: string): string {
+  return `
+    <tr>
+      <td style="padding: 0 16px 14px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fc; border-radius: 12px;">
+          <tr>
+            <td style="padding: 16px;">
+              <h3 style="margin: 0 0 6px; font-size: 15px; font-weight: 600; color: ${COLORS.navy}; font-family: ${FONTS.family};">${heading}</h3>
+              <p style="margin: 0; font-size: 13px; color: #555; line-height: 1.55; font-family: ${FONTS.family};">${children}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+}
+
+/** Newsletter highlight — attention box */
+export function newsletterHighlight(text: string): string {
+  return `
+    <tr>
+      <td style="padding: 0 16px 14px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: ${COLORS.warningBg}; border-left: 4px solid ${COLORS.warningBorder}; border-radius: 0 8px 8px 0;">
+          <tr>
+            <td style="padding: 12px 14px; font-size: 13px; color: ${COLORS.warningText}; line-height: 1.5; font-family: ${FONTS.family};">${text}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+}
+
+/** Newsletter CTA — full-width on mobile, inline on desktop */
+export function newsletterCta(href: string, label: string): string {
+  return `
+    <tr>
+      <td align="center" style="padding: 0 16px 20px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" class="mobile-full-width">
+          <tr>
+            <td style="border-radius: 8px; background: ${COLORS.orange};">
+              <a href="${href}" style="display: block; padding: 14px 24px; font-size: 15px; font-weight: 700; color: #ffffff; text-decoration: none; text-align: center; font-family: ${FONTS.family}; border-radius: 8px;">${label}</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+}
+
+/** Newsletter body text */
+export function newsletterText(content: string): string {
+  return `
+    <tr>
+      <td style="padding: 0 16px 14px 16px;">
+        <p style="margin: 0; font-size: 14px; color: ${COLORS.textBody}; line-height: 1.6; font-family: ${FONTS.family};">${content}</p>
+      </td>
+    </tr>`;
+}
+
+/** Newsletter body heading */
+export function newsletterHeading(text: string): string {
+  return `
+    <tr>
+      <td style="padding: 0 16px 12px 16px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: ${COLORS.navy}; line-height: 1.3; font-family: ${FONTS.family};">${text}</h2>
+      </td>
+    </tr>`;
+}
+
+/** Newsletter divider */
+export function newsletterDivider(): string {
+  return `
+    <tr>
+      <td style="padding: 0 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="height: 1px; background-color: ${COLORS.borderLight};"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+}
+
+/** Newsletter footer with unsubscribe link */
+export function newsletterFooter(): string {
+  return `
+    <tr>
+      <td style="padding: 20px 16px; background: #f8f9fc; text-align: center;">
+        <p style="margin: 0 0 4px; font-size: 11px; color: #9ca3af; line-height: 1.5; font-family: ${FONTS.family};">
+          ${BRAND.name} &mdash; Platform Mentoring &amp; Pembelajaran
+        </p>
+        <p style="margin: 0; font-size: 11px; color: #9ca3af; line-height: 1.5; font-family: ${FONTS.family};">
+          <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a> kapan saja &middot; ${BRAND.supportEmail}
+        </p>
+      </td>
+    </tr>`;
+}
+
+/** Desktop enhancements via media query (min-width: 600px) */
+export const NEWSLETTER_RESPONSIVE_CSS = `
+  @media only screen and (min-width: 600px) {
+    body { padding: 40px 20px; }
+    .wrapper { border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .header { padding: 32px 32px; }
+    .header h1 { font-size: 22px; }
+    .header p { font-size: 14px; }
+    .body { padding: 32px 32px; }
+    .body h2 { font-size: 18px; }
+    .body p { font-size: 15px; }
+    .cta { display: inline-block; width: auto; padding: 14px 36px; }
+    .card { padding: 20px 24px; }
+    .card h3 { font-size: 16px; }
+    .card p { font-size: 14px; }
+    .footer { padding: 24px 32px; }
+    .footer p { font-size: 12px; }
+  }
+`;

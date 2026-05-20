@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
@@ -69,7 +69,7 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
   });
 
   const form = useForm<CreateSessionFormValues>({
-    resolver: zodResolver(createSessionSchema) as unknown as Resolver<CreateSessionFormValues>,
+    resolver: standardSchemaResolver(createSessionSchema) as unknown as Resolver<CreateSessionFormValues>,
     defaultValues: {
       batchId: defaultBatchId || "",
       studentId: "",

@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
 import { Suspense } from "react";
 import { usePageViewTracking } from "@/lib/analytics";
+import { ClarityProvider } from "./clarity-provider";
 import { CookieConsentBanner, useConsent } from "./cookie-consent";
 
 /**
@@ -56,6 +57,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       )}
 
       {children}
+
+      {/* Microsoft Clarity — only loaded after consent, front/student pages only */}
+      <ClarityProvider consent={consent} />
 
       {/* Consent banner — floating bottom bar */}
       <CookieConsentBanner consent={consent} onAccept={accept} onReject={reject} />

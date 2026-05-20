@@ -2,6 +2,7 @@ export * from "./audit";
 export * from "./auth";
 export * from "./cms";
 export * from "./lms";
+export * from "./newsletter";
 export * from "./notification";
 export * from "./programs";
 export * from "./settings";

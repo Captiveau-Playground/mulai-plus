@@ -277,7 +277,6 @@ export function UserSessionsDialog({ userId, open, onOpenChange }: UserSessionsD
         userId,
       });
       if (data) {
-        console.log("Sessions data:", data.sessions);
         setSessions(
           data.sessions.map((s) => ({
             ...s,

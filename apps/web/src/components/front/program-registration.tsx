@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CalendarCheck,
@@ -136,7 +136,7 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
   );
 
   const form = useForm<RegistrationFormValues>({
-    resolver: zodResolver(registrationSchema),
+    resolver: standardSchemaResolver(registrationSchema),
     defaultValues: {
       name: session.data?.user.name || "",
       email: session.data?.user.email || "",

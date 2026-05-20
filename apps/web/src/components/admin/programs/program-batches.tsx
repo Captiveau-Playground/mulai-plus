@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Calendar, Clock, File, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
@@ -544,7 +544,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
 
   const form = useForm<BatchFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(batchSchema) as any,
+    resolver: standardSchemaResolver(batchSchema) as any,
     defaultValues: {
       name: "",
       startDate: "",
@@ -1097,7 +1097,7 @@ function EditBatchDialog({
 }) {
   const form = useForm<BatchFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(batchSchema) as any,
+    resolver: standardSchemaResolver(batchSchema) as any,
     defaultValues: {
       name: batch.name,
       startDate: batch.startDate,

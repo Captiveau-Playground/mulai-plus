@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { File, Link as LinkIcon, Loader2, Pencil, Plus, Trash, Video } from "lucide-react";
@@ -106,7 +106,7 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
 
   const form = useForm<AttachmentFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(attachmentSchema) as any,
+    resolver: standardSchemaResolver(attachmentSchema) as any,
     defaultValues: {
       name: "",
       type: "link",

@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -65,7 +65,7 @@ export function CourseSettings({ courseId }: CourseSettingsProps) {
   const [tagSearch, setTagSearch] = useState("");
 
   const form = useForm({
-    resolver: zodResolver(courseSchema),
+    resolver: standardSchemaResolver(courseSchema),
     defaultValues: {
       title: "",
       slug: "",

@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addMinutes, format } from "date-fns";
 import {
@@ -196,7 +196,7 @@ export function BatchSessionsDialog({
 
   const form = useForm<SessionFormValues>({
     // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: zodResolver(sessionSchema) as any,
+    resolver: standardSchemaResolver(sessionSchema) as any,
     defaultValues: {
       week: 1,
       type: "group_mentoring",

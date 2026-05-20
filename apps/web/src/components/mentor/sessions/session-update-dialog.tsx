@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { type Resolver, type SubmitHandler, useForm } from "react-hook-form";
@@ -66,7 +66,7 @@ export function SessionUpdateDialog({ session, open, onOpenChange }: SessionUpda
   const isOneOnOne = session.type === "one_on_one";
 
   const form = useForm<SessionFormValues>({
-    resolver: zodResolver(sessionSchema) as unknown as Resolver<SessionFormValues>,
+    resolver: standardSchemaResolver(sessionSchema) as unknown as Resolver<SessionFormValues>,
     defaultValues: {
       status: session.status as any,
       meetingLink: session.meetingLink || "",
