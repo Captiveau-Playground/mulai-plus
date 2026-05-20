@@ -20,6 +20,18 @@ import { useFormDraft } from "@/hooks/use-form-draft";
 import { client, orpc } from "@/utils/orpc";
 import { RichTextEditor } from "./rich-text-editor";
 
+function slugify(text: string) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]+/g, "")
+    .replace(/--+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
+
 const articleSchema = z.object({
   title: z.string().min(1, "Title is required"),
   slug: z.string().optional(),
@@ -136,6 +148,17 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
 
   const { draftSavedAt, restoreDraft, clearDraft, useAutoSave } = useFormDraft(articleId);
 
+  // Watch title & slug for auto-slug generation
+  const watchedTitle = form.watch("title") || "";
+  const watchedSlug = form.watch("slug") || "";
+
+  // Auto-generate slug from title when slug is empty (only for new articles)
+  useEffect(() => {
+    if (!articleId && watchedTitle && !watchedSlug) {
+      form.setValue("slug", slugify(watchedTitle));
+    }
+  }, [watchedTitle, watchedSlug, articleId, form]);
+
   // Watched content for live preview
   const watchedContent = form.watch("content") || "";
   const previewHtml = useMemo(
@@ -244,13 +267,18 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
             </h2>
             <p className="font-manrope text-sm text-text-muted-custom">
               {articleId ? "Update your article content and settings" : "Create a new article or news item"}
-              {draftSavedAt && (
-                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 text-xs">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-                  Draft saved {new Date(draftSavedAt).toLocaleTimeString()}
-                </span>
-              )}
             </p>
+            {draftSavedAt && (
+              <div className="mt-1.5 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 shadow-sm">
+                <span className="flex h-2 w-2">
+                  <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                </span>
+                <span className="font-medium text-amber-800 text-xs">
+                  Draft auto-saved {new Date(draftSavedAt).toLocaleTimeString()}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
