@@ -30,6 +30,8 @@ export function ArticleList() {
     type?: CmsArticleType;
     status?: CmsArticleStatus;
     search?: string;
+    authorId?: string;
+    categoryId?: string;
   }>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [page, setPage] = useState(0);
@@ -40,11 +42,17 @@ export function ArticleList() {
       type: filters.type,
       status: filters.status,
       search: filters.search,
+      authorId: filters.authorId,
+      categoryId: filters.categoryId,
       limit: pageSize,
       offset: page * pageSize,
     }),
     staleTime: 1000 * 60 * 2,
   });
+
+  // Fetch categories & authors for filter dropdowns
+  const { data: categories } = useQuery(orpc.cms.categories.admin.list.queryOptions());
+  const { data: authors } = useQuery(orpc.cms.authors.admin.list.queryOptions({ input: { roles: [] } }));
 
   const articles = data?.data || [];
   const total = data?.pagination?.total || 0;
@@ -153,6 +161,42 @@ export function ArticleList() {
           </SelectContent>
         </Select>
 
+        <Select
+          value={filters.authorId || "all"}
+          onValueChange={(v) => setFilters((f) => ({ ...f, authorId: v === "all" ? undefined : v }))}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Author" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Authors</SelectItem>
+            {authors?.map((author: any) => (
+              <SelectItem key={author.id} value={author.id}>
+                {author.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filters.categoryId || "all"}
+          onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v === "all" ? undefined : v }))}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories
+              ?.flatMap((cat: any) => [cat, ...(cat.children || [])])
+              ?.map((cat: any) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+
         <Input
           placeholder="Search title..."
           className="w-[200px]"
@@ -167,6 +211,7 @@ export function ArticleList() {
           <TableHeader>
             <TableRow>
               <TableHead>Title</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Author</TableHead>
@@ -177,13 +222,13 @@ export function ArticleList() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : articles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No articles found.{" "}
                   <Button variant="link" className="text-primary" onClick={() => setIsCreateOpen(true)}>
                     Create your first article
@@ -195,14 +240,18 @@ export function ArticleList() {
                 <TableRow key={article.id}>
                   <TableCell>
                     <div className="flex flex-col">
-                      <a
-                        href={`/admin/cms/articles/${article.id}`}
-                        className="font-medium hover:text-primary hover:underline"
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/admin/cms/articles/${article.id}`)}
+                        className="text-left font-medium hover:text-primary hover:underline"
                       >
                         {article.title}
-                      </a>
+                      </button>
                       <span className="text-muted-foreground text-xs">{article.slug}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-muted-foreground text-xs">{article.categoryName || "-"}</span>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
@@ -297,7 +346,7 @@ export function ArticleList() {
               className="h-auto justify-start py-4 text-left"
               onClick={() => {
                 setIsCreateOpen(false);
-                window.location.href = "/admin/cms/articles/new?type=article";
+                router.push("/admin/cms/articles/new?type=article");
               }}
             >
               <FileText className="mr-3 h-5 w-5 text-primary" />
@@ -313,7 +362,7 @@ export function ArticleList() {
               className="h-auto justify-start py-4 text-left"
               onClick={() => {
                 setIsCreateOpen(false);
-                window.location.href = "/admin/cms/articles/new?type=news";
+                router.push("/admin/cms/articles/new?type=news");
               }}
             >
               <FileText className="mr-3 h-5 w-5 text-primary" />

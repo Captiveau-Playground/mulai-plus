@@ -235,11 +235,9 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <a href="/admin/cms/articles">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </a>
+          <Button variant="ghost" size="icon" onClick={() => router.push("/admin/cms/articles")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">
               {articleId ? "Edit Article" : "New Article"}

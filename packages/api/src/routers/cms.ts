@@ -207,7 +207,7 @@ export const articlesRouter = {
 
         if (input?.search) {
           conditions.push(
-            // Simple search on title - could enhance with full-text search
+            or(like(cmsArticle.title, `%${input.search}%`), like(cmsArticle.excerpt, `%${input.search}%`)),
           );
         }
 
@@ -771,7 +771,7 @@ export const tagsRouter = {
 
     search: publicProcedure.input(z.object({ query: z.string() })).handler(async ({ input }) => {
       const results = await db.query.cmsTag.findMany({
-        where: `${cmsTag.name} ILIKE ${`%${input.query}%`}` as any, // Simple like search
+        where: like(cmsTag.name, `%${input.query}%`),
         orderBy: [asc(cmsTag.name)],
         limit: 10,
       });
