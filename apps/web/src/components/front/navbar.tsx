@@ -171,7 +171,7 @@ export function Navbar() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-36 rounded-xl border p-1.5 shadow-lg">
                   {item.children.map((child) => (
-                    <DropdownMenuItem key={child.href} asChild>
+                    <DropdownMenuItem key={child.href}>
                       <Link
                         href={child.href as Route}
                         className="cursor-pointer rounded-lg px-3 py-2 font-manrope text-[#333333] text-sm hover:bg-[#1A1F6D] hover:text-white"
@@ -189,18 +189,19 @@ export function Navbar() {
               key={item.href}
               href={item.href as Route}
               className="font-manrope text-[#333333] text-sm transition-colors hover:text-[#FE9114] lg:text-base"
-              onClick={(e) => {
-                if (item.href.startsWith("#")) {
-                  const element = document.querySelector(item.href) as HTMLElement | null;
+              onClick={(e: React.MouseEvent) => {
+                const h = item.href;
+                if (h?.startsWith("#")) {
+                  const element = document.querySelector(h) as HTMLElement | null;
                   if (!element) return;
                   e.preventDefault();
                   const navHeight = navRef.current?.offsetHeight ?? 0;
                   const absoluteY = element.getBoundingClientRect().top + window.scrollY;
                   const top = Math.max(0, absoluteY - navHeight - 100);
-                  window.history.replaceState(null, "", item.href);
+                  window.history.replaceState(null, "", h);
                   window.scrollTo({ top, behavior: "smooth" });
-                } else if (item.href.includes("/#")) {
-                  const [path, anchor] = item.href.split("#");
+                } else if (h?.includes("/#")) {
+                  const [path, anchor] = h.split("#");
                   if (pathname === path) {
                     e.preventDefault();
                     const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
@@ -208,7 +209,7 @@ export function Navbar() {
                     const navHeight = navRef.current?.offsetHeight ?? 0;
                     const absoluteY = element.getBoundingClientRect().top + window.scrollY;
                     const top = Math.max(0, absoluteY - navHeight - 16);
-                    window.history.replaceState(null, "", item.href);
+                    window.history.replaceState(null, "", h);
                     window.scrollTo({ top, behavior: "smooth" });
                   }
                 }
@@ -404,18 +405,19 @@ export function Navbar() {
                         key={item.href}
                         href={item.href as Route}
                         className="font-bricolage font-semibold text-2xl text-[#333333] transition-colors hover:text-[#FE9114]"
-                        onClick={(e) => {
-                          if (item.href.startsWith("#")) {
-                            const element = document.querySelector(item.href) as HTMLElement | null;
+                        onClick={(e: React.MouseEvent) => {
+                          const h = item.href;
+                          if (h?.startsWith("#")) {
+                            const element = document.querySelector(h) as HTMLElement | null;
                             if (!element) return;
                             e.preventDefault();
                             const navHeight = navRef.current?.offsetHeight ?? 0;
                             const absoluteY = element.getBoundingClientRect().top + window.scrollY;
                             const top = Math.max(0, absoluteY - navHeight - 90);
-                            window.history.replaceState(null, "", item.href);
+                            window.history.replaceState(null, "", h);
                             window.scrollTo({ top, behavior: "smooth" });
-                          } else if (item.href.includes("/#")) {
-                            const [path, anchor] = item.href.split("#");
+                          } else if (h?.includes("/#")) {
+                            const [path, anchor] = h.split("#");
                             if (pathname === path) {
                               e.preventDefault();
                               const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
@@ -423,7 +425,7 @@ export function Navbar() {
                               const navHeight = navRef.current?.offsetHeight ?? 0;
                               const absoluteY = element.getBoundingClientRect().top + window.scrollY;
                               const top = Math.max(0, absoluteY - navHeight - 90);
-                              window.history.replaceState(null, "", item.href);
+                              window.history.replaceState(null, "", h);
                               window.scrollTo({ top, behavior: "smooth" });
                             }
                           }

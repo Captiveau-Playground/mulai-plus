@@ -21,7 +21,7 @@ export function ProgramNavigation() {
               key={item.label}
               href={item.href as any}
               className="whitespace-nowrap font-manrope font-normal text-[#333333] text-base transition-colors hover:text-[#1A1F6D]"
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 e.preventDefault();
                 const element = document.querySelector(item.href) as HTMLElement | null;
                 if (!element) return;

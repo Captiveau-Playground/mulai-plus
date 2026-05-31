@@ -106,7 +106,7 @@ export function MeetTheMentor() {
             ))}
           </div>
 
-          <style jsx>{`
+          <style>{`
             .marquee__inner {
               animation: marquee-scroll 35s linear infinite;
             }

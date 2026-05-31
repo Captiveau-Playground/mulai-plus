@@ -43,6 +43,9 @@
       "correctness": {
         "useExhaustiveDependencies": "info"
       },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
       "nursery": {
         "useSortedClasses": {
           "level": "warn",

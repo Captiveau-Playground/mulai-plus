@@ -1,6 +1,5 @@
 import { env } from "@mulai-plus/env/web";
 import type { Metadata } from "next";
-import Script from "next/script";
 
 export const metadata: Metadata = {
   robots:
@@ -35,9 +34,11 @@ export default function ProgramSlugLayout({ children }: { children: React.ReactN
 
   return (
     <>
-      <Script id="jsonld-org-website" type="application/ld+json">
-        {JSON.stringify(jsonLd)}
-      </Script>
+      <script
+        id="jsonld-org-website"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {children}
     </>
   );
