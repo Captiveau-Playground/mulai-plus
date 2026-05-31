@@ -2,6 +2,7 @@
 import Script from "next/script";
 
 import { AboutUs } from "@/components/front/about-us";
+import { BlogSection } from "@/components/front/blog-section";
 import { CTASection } from "@/components/front/cta-section";
 import { FAQSection } from "@/components/front/faq-section";
 import { FeaturedPrograms } from "@/components/front/featured-programs";
@@ -32,6 +33,7 @@ export default function LandingPage() {
       <HeroSection />
       <AboutUs />
       <FeaturedPrograms />
+      <BlogSection />
       <MeetTheMentor />
       <FAQSection />
       <CTASection />

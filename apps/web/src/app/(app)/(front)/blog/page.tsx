@@ -215,9 +215,11 @@ export default function BlogPage() {
               </Link>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              {articles.slice(0, 4).map((a) => (
-                <MiniCard key={a.id} article={a} />
-              ))}
+              {articles.length > 0 ? (
+                articles.slice(0, 4).map((a) => <MiniCard key={a.id} article={a} />)
+              ) : (
+                <p className="col-span-2 py-8 text-center font-manrope text-gray-400 text-sm">Belum ada artikel.</p>
+              )}
             </div>
           </section>
 
@@ -230,9 +232,11 @@ export default function BlogPage() {
               </Link>
             </div>
             <div className="space-y-3">
-              {news.slice(0, 4).map((n) => (
-                <MiniCard key={n.id} article={n} />
-              ))}
+              {news.length > 0 ? (
+                news.slice(0, 4).map((n) => <MiniCard key={n.id} article={n} />)
+              ) : (
+                <p className="py-8 text-center font-manrope text-gray-400 text-sm">Belum ada news.</p>
+              )}
             </div>
           </section>
         </div>
