@@ -161,6 +161,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   }, [watchedTitle, watchedSlug, articleId, form]);
 
   // Watched content for live preview
+  const watchedContent = form.watch("content") || "";
   useAutoSave(
     () => form.getValues(),
     activeTab,
@@ -181,7 +182,8 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
         toast.info("Draft restored", { description: `Last saved ${new Date(draft.savedAt).toLocaleTimeString()}` });
       }
     }
-  }, [restoreDraft, form.reset, articleId]);
+    // Only run on mount for new articles
+  }, [articleId, restoreDraft, form.reset]);
   useEffect(() => {
     // biome-ignore lint/suspicious/noExplicitAny: dynamic article shape from API
     if (article && (article as any).id) {

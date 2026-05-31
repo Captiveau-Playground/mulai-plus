@@ -69,6 +69,17 @@ export const articlesRouter = {
           conditions.push(eq(cmsArticle.featured, true));
         }
 
+        // Filter by category slug
+        if (input?.categorySlug) {
+          const cat = await db.query.cmsCategory.findFirst({
+            where: eq(cmsCategory.slug, input.categorySlug),
+            columns: { id: true },
+          });
+          if (cat) {
+            conditions.push(eq(cmsArticle.categoryId, cat.id));
+          }
+        }
+
         const whereClause = and(...conditions);
 
         const items = await db.query.cmsArticle.findMany({

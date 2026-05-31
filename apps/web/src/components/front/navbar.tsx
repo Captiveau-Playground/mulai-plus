@@ -113,7 +113,8 @@ export function Navbar() {
           pathname.startsWith("/programs") ||
           pathname.startsWith("/courses") ||
           pathname.startsWith("/categories") ||
-          pathname.startsWith("/privacy")
+          pathname.startsWith("/privacy") ||
+          pathname.startsWith("/blog")
           ? "bg-white py-4 shadow-sm backdrop-blur-md"
           : "py-6 lg:py-4",
       )}
