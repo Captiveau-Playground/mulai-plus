@@ -165,6 +165,7 @@ export function CategoryList() {
   );
 
   const form = useForm<CategoryFormValues>({
+    // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch between zod v4 and hookform
     resolver: standardSchemaResolver(categorySchema) as any,
     defaultValues: {
       name: "",
@@ -312,7 +313,12 @@ export function CategoryList() {
                     <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="None (top-level)" />
+                          <SelectValue placeholder="None (top-level)">
+                            {field.value && flatCategories.length > 0
+                              ? (flatCategories.find((c: CategoryWithChildren) => c.id === field.value)?.name ??
+                                field.value)
+                              : "None (top-level)"}
+                          </SelectValue>
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>

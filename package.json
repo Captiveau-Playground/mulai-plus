@@ -2,10 +2,18 @@
   "name": "mulai-plus",
   "private": true,
   "resolutions": {
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "prosemirror-model": "1.25.7",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-view": "1.41.8",
+    "prosemirror-transform": "1.12.0"
   },
   "overrides": {
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "prosemirror-model": "1.25.7",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-view": "1.41.8",
+    "prosemirror-transform": "1.12.0"
   },
   "workspaces": {
     "packages": [
