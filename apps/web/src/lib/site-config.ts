@@ -42,16 +42,25 @@ export interface NavLink {
 
 export const NAV_LINKS: NavLink[] = [
   { label: "About Us", href: "/#about" },
-  { label: "Featured Programs", href: "/#featured-programs" },
-  { label: "Meet The Mentors", href: "/#mentors" },
+  { label: "Programs", href: "/programs" },
+  { label: "Mentors", href: "/#mentors" },
   { label: "FAQ", href: "/#faq" },
 ];
 
 export const PROGRAM_LINKS: NavLink[] = [
-  { label: "Lihat Semua Program", href: "/programs" },
-  { label: "Info Beasiswa", href: "/programs" },
-  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Program", href: "/programs" },
+  { label: "Beasiswa", href: "/programs/beasiswa-mentoring" },
+  { label: "Reguler", href: "/programs/reguler-mentoring" },
 ];
+
+// ─── Blog Links ────────────────────────────────────────────
+export const BLOG_LINKS: NavLink[] = [
+  { label: "Blog", href: "/blog" },
+  { label: "Artikel", href: "/blog/articles" },
+  { label: "News", href: "/blog/news" },
+];
+
+export const OTHER_LINKS: NavLink[] = [{ label: "Privacy & Policy", href: "/privacy" }];
 
 // ─── FAQ (used in both component & JSON-LD) ──────────────
 export interface FAQItem {

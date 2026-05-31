@@ -6,7 +6,7 @@ import { ArrowRight, Instagram, Linkedin, Mail, MapPin, Phone, Youtube } from "l
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { CONTACT, NAV_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
+import { BLOG_LINKS, CONTACT, NAV_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -26,6 +26,14 @@ const footerNavLinks = [
       { label: CONTACT.phoneDisplay, href: `tel:${CONTACT.phone}`, icon: Phone },
       { label: CONTACT.location, href: "#", icon: MapPin },
     ],
+  },
+  {
+    title: "Blog",
+    links: BLOG_LINKS,
+  },
+  {
+    title: "Other",
+    links: OTHER_LINKS,
   },
 ];
 
