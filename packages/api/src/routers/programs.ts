@@ -17,6 +17,8 @@ import {
   programSession,
   programSyllabus,
   requestStatusEnum,
+  summaryReport,
+  summaryReportItem,
 } from "@mulai-plus/db/schema/programs";
 import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
@@ -1857,6 +1859,214 @@ export const programsRouter = {
         return { success: true };
       }),
     },
+
+    summaryReports: {
+      list: adminOrProgramManagerProcedure
+        .input(
+          z.object({ batchId: z.string().optional(), status: z.string().optional(), programId: z.string().optional() }),
+        )
+        .handler(async ({ input }) => {
+          const conditions = [];
+          if (input.batchId) conditions.push(eq(summaryReport.batchId, input.batchId));
+          if (input.status) conditions.push(eq(summaryReport.status, input.status as any));
+          if (input.programId) {
+            const batchIds = await db
+              .select({ id: programBatch.id })
+              .from(programBatch)
+              .where(eq(programBatch.programId, input.programId));
+            conditions.push(
+              inArray(
+                summaryReport.batchId,
+                batchIds.map((b) => b.id),
+              ),
+            );
+          }
+
+          const reports = await db.query.summaryReport.findMany({
+            where: conditions.length > 0 ? and(...conditions) : undefined,
+            with: {
+              mentor: { columns: { id: true, name: true, email: true } },
+              student: { columns: { id: true, name: true, email: true, image: true } },
+              batch: { columns: { id: true, name: true } },
+              items: { orderBy: asc(summaryReportItem.order) },
+            },
+            orderBy: desc(summaryReport.createdAt),
+          });
+
+          return { data: reports };
+        }),
+
+      get: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+        const report = await db.query.summaryReport.findFirst({
+          where: eq(summaryReport.id, input.id),
+          with: {
+            mentor: { columns: { id: true, name: true, email: true } },
+            student: { columns: { id: true, name: true, email: true, image: true } },
+            batch: { columns: { id: true, name: true } },
+            items: { orderBy: asc(summaryReportItem.order) },
+          },
+        });
+        if (!report) throw new Error("Report not found");
+        return report;
+      }),
+
+      review: adminOrProgramManagerProcedure
+        .input(z.object({ id: z.string(), action: z.enum(["approved", "revision"]), notes: z.string().optional() }))
+        .handler(async ({ input }) => {
+          await db
+            .update(summaryReport)
+            .set({ status: input.action, reviewNotes: input.notes || null })
+            .where(eq(summaryReport.id, input.id));
+          return { success: true };
+        }),
+    },
+  },
+
+  mentorSummaryReports: {
+    list: protectedProcedure
+      .input(z.object({ batchId: z.string().optional(), status: z.string().optional() }))
+      .handler(async ({ input, context }) => {
+        const mentorId = context.session.user.id;
+        const conditions = [eq(summaryReport.mentorId, mentorId)];
+        if (input.batchId) conditions.push(eq(summaryReport.batchId, input.batchId));
+        if (input.status) conditions.push(eq(summaryReport.status, input.status as any));
+
+        const reports = await db.query.summaryReport.findMany({
+          where: and(...conditions),
+          with: {
+            student: { columns: { id: true, name: true, email: true, image: true } },
+            batch: { columns: { id: true, name: true } },
+            items: { orderBy: asc(summaryReportItem.order) },
+          },
+          orderBy: desc(summaryReport.createdAt),
+        });
+
+        return { data: reports };
+      }),
+
+    get: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
+      const report = await db.query.summaryReport.findFirst({
+        where: and(eq(summaryReport.id, input.id), eq(summaryReport.mentorId, context.session.user.id)),
+        with: {
+          student: { columns: { id: true, name: true, email: true, image: true } },
+          batch: { columns: { id: true, name: true } },
+          items: { orderBy: asc(summaryReportItem.order) },
+        },
+      });
+      if (!report) throw new Error("Report not found");
+      return report;
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          batchId: z.string(),
+          studentId: z.string(),
+          items: z.array(z.object({ title: z.string().min(1), description: z.string().min(1) })).length(5),
+        }),
+      )
+      .handler(async ({ input, context }) => {
+        const mentorId = context.session.user.id;
+
+        // Check if report already exists
+        const existing = await db.query.summaryReport.findFirst({
+          where: and(
+            eq(summaryReport.mentorId, mentorId),
+            eq(summaryReport.studentId, input.studentId),
+            eq(summaryReport.batchId, input.batchId),
+          ),
+        });
+
+        if (existing) {
+          // Update existing draft/revision
+          await db
+            .update(summaryReport)
+            .set({ status: "draft", mentorNotes: null, updatedAt: new Date() })
+            .where(eq(summaryReport.id, existing.id));
+
+          await db.delete(summaryReportItem).where(eq(summaryReportItem.reportId, existing.id));
+          await db.insert(summaryReportItem).values(
+            input.items.map((item, i) => ({
+              id: randomUUID(),
+              reportId: existing.id,
+              title: item.title,
+              description: item.description,
+              order: i + 1,
+            })),
+          );
+
+          return { id: existing.id, status: "draft" };
+        }
+
+        const reportId = randomUUID();
+        await db.insert(summaryReport).values({
+          id: reportId,
+          batchId: input.batchId,
+          mentorId,
+          studentId: input.studentId,
+          status: "draft",
+        });
+
+        await db.insert(summaryReportItem).values(
+          input.items.map((item, i) => ({
+            id: randomUUID(),
+            reportId,
+            title: item.title,
+            description: item.description,
+            order: i + 1,
+          })),
+        );
+
+        return { id: reportId, status: "draft" };
+      }),
+
+    submit: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
+      const report = await db.query.summaryReport.findFirst({
+        where: and(eq(summaryReport.id, input.id), eq(summaryReport.mentorId, context.session.user.id)),
+      });
+      if (!report) throw new Error("Report not found");
+      if (report.status !== "draft" && report.status !== "revision") throw new Error("Cannot submit in current status");
+
+      await db.update(summaryReport).set({ status: "submitted" }).where(eq(summaryReport.id, input.id));
+      return { success: true };
+    }),
+  },
+
+  studentSummaryReports: {
+    list: protectedProcedure.input(z.object({ batchId: z.string().optional() })).handler(async ({ input, context }) => {
+      const studentId = context.session.user.id;
+      const conditions = [eq(summaryReport.studentId, studentId), eq(summaryReport.status, "approved")];
+      if (input.batchId) conditions.push(eq(summaryReport.batchId, input.batchId));
+
+      const reports = await db.query.summaryReport.findMany({
+        where: and(...conditions),
+        with: {
+          mentor: { columns: { id: true, name: true } },
+          batch: { columns: { id: true, name: true } },
+          items: { orderBy: asc(summaryReportItem.order) },
+        },
+        orderBy: desc(summaryReport.createdAt),
+      });
+
+      return { data: reports };
+    }),
+
+    get: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
+      const report = await db.query.summaryReport.findFirst({
+        where: and(
+          eq(summaryReport.id, input.id),
+          eq(summaryReport.studentId, context.session.user.id),
+          eq(summaryReport.status, "approved"),
+        ),
+        with: {
+          mentor: { columns: { id: true, name: true } },
+          batch: { columns: { id: true, name: true } },
+          items: { orderBy: asc(summaryReportItem.order) },
+        },
+      });
+      if (!report) throw new Error("Report not found");
+      return report;
+    }),
   },
 
   myMentees: protectedProcedure
@@ -1874,7 +2084,7 @@ export const programsRouter = {
           student: {
             columns: { id: true, name: true, email: true, image: true },
           },
-          batch: { columns: { id: true, name: true, programId: true } },
+          batch: { columns: { id: true, name: true, programId: true, durationWeeks: true } },
         },
       });
 
@@ -1922,6 +2132,7 @@ export const programsRouter = {
           batchId: r.batchId,
           batchName: r.batch.name,
           programId: r.batch.programId,
+          durationWeeks: r.batch.durationWeeks,
           assignedAt: r.assignedAt,
           student: r.student,
           application: appMap.get(r.student.id) || null,

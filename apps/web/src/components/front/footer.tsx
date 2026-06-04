@@ -23,8 +23,17 @@ const footerNavLinks = [
     title: "Contact",
     links: [
       { label: CONTACT.email, href: `mailto:${CONTACT.email}`, icon: Mail },
-      { label: CONTACT.phoneDisplay, href: `tel:${CONTACT.phone}`, icon: Phone },
-      { label: CONTACT.locationDetail, href: CONTACT.mapsUrl, icon: MapPin, external: true },
+      {
+        label: CONTACT.phoneDisplay,
+        href: `tel:${CONTACT.phone}`,
+        icon: Phone,
+      },
+      {
+        label: CONTACT.locationDetail,
+        href: CONTACT.mapsUrl,
+        icon: MapPin,
+        external: true,
+      },
     ],
   },
   {
@@ -38,7 +47,11 @@ const footerNavLinks = [
 ];
 
 const socialLinks = [
-  { label: SOCIAL.instagram.label, href: SOCIAL.instagram.url, icon: Instagram },
+  {
+    label: SOCIAL.instagram.label,
+    href: SOCIAL.instagram.url,
+    icon: Instagram,
+  },
   { label: SOCIAL.linkedin.label, href: SOCIAL.linkedin.url, icon: Linkedin },
   { label: SOCIAL.facebook.label, href: SOCIAL.facebook.url, icon: Facebook },
 ];

@@ -3,8 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { BookOpen, Calendar, GraduationCap, Mail, User, Users } from "lucide-react";
+import { BookOpen, Calendar, FileText, GraduationCap, Mail, User, Users } from "lucide-react";
 import Image from "next/image";
+import { useState } from "react";
+import { SummaryReportDialog } from "@/components/mentor/summary-report-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +19,7 @@ export default function MentorMyMenteesPage() {
   const { isAuthorized, isLoading: authLoading } = useAuthorizePage({ mentor_dashboard: ["access"] });
 
   // Fetch my mentees
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     ...orpc.programs.myMentees.queryOptions({ input: {} }),
   });
 
@@ -37,6 +39,14 @@ export default function MentorMyMenteesPage() {
   // Statistics
   const totalMentees = mentees.length;
   const totalBatches = Object.keys(groupedByBatch).length;
+
+  const [reportMentee, setReportMentee] = useState<{
+    id: string;
+    student: { id: string; name: string | null; email: string | null };
+    batchId: string;
+    batchName: string;
+    durationWeeks?: number;
+  } | null>(null);
 
   return (
     <PageState isLoading={authLoading} isAuthorized={isAuthorized}>
@@ -232,15 +242,34 @@ export default function MentorMyMenteesPage() {
                         })()}
 
                         {/* Quick Actions */}
-                        <div className="mt-4 flex gap-2">
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 rounded-lg font-manrope text-xs"
+                            className="flex-1 rounded-lg border-gray-200 font-manrope text-text-muted-custom text-xs hover:text-text-main"
                             onClick={() => window.open(`mailto:${mentee.student.email}`, "_blank")}
                           >
                             <Mail className="mr-1.5 h-3.5 w-3.5" />
                             Contact
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 rounded-lg bg-gradient-to-r from-brand-navy to-mentor-teal font-manrope text-white text-xs shadow-sm transition-all hover:shadow-md hover:brightness-110"
+                            onClick={() =>
+                              setReportMentee({
+                                id: mentee.id,
+                                student: mentee.student,
+                                batchId: mentee.batchId,
+                                batchName: mentee.batchName,
+                                durationWeeks: (mentee as any).durationWeeks || 0,
+                              })
+                            }
+                          >
+                            <FileText className="mr-1.5 h-3.5 w-3.5" />
+                            <span className="font-semibold">Summary Report</span>
+                            <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[9px]">
+                              +
+                            </span>
                           </Button>
                         </div>
                       </CardContent>
@@ -252,6 +281,14 @@ export default function MentorMyMenteesPage() {
           </div>
         )}
       </div>
+
+      {reportMentee && (
+        <SummaryReportDialog
+          mentee={reportMentee}
+          open={!!reportMentee}
+          onOpenChange={(open) => !open && setReportMentee(null)}
+        />
+      )}
     </PageState>
   );
 }
