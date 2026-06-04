@@ -3,7 +3,19 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, Clock, File, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  File,
+  Loader2,
+  MessageSquare,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash,
+  UserCheck,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -38,9 +50,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { orpc } from "@/utils/orpc";
-
 import { BatchAttachmentsDialog } from "./batch-attachments";
 import { BatchSessionsDialog } from "./batch-sessions";
+import { MentorMenteeAssignDialog } from "./mentor-mentee-assign";
+import { SummaryReportsReview } from "./summary-reports-review";
 
 function BatchAttendanceDialog({
   batch,
@@ -459,6 +472,12 @@ export function ProgramBatches({ programId }: { programId: string }) {
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   } | null>(null);
   const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
+  const [menteeAssignBatch, setMenteeAssignBatch] = useState<{ id: string; name: string } | null>(null);
+  const [summaryReportsBatch, setSummaryReportsBatch] = useState<{
+    id: string;
+    name: string;
+    programId: string;
+  } | null>(null);
   const [attendanceBatch, setAttendanceBatch] = useState<{
     id: string;
     name: string;
@@ -655,6 +674,14 @@ export function ProgramBatches({ programId }: { programId: string }) {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setMentorBatchId(batch.id)}>
                             <Users className="mr-2 h-4 w-4" /> Manage Mentors
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setMenteeAssignBatch({ id: batch.id, name: batch.name })}>
+                            <UserCheck className="mr-2 h-4 w-4" /> Assign Mentees
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setSummaryReportsBatch({ id: batch.id, name: batch.name, programId })}
+                          >
+                            <MessageSquare className="mr-2 h-4 w-4" /> Summary Reports
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() =>
@@ -1044,6 +1071,21 @@ export function ProgramBatches({ programId }: { programId: string }) {
           batch={timelineBatch}
           open={!!timelineBatch}
           onOpenChange={(open) => !open && setTimelineBatch(null)}
+        />
+      )}
+      {menteeAssignBatch && (
+        <MentorMenteeAssignDialog
+          batch={menteeAssignBatch}
+          programId={programId}
+          open={!!menteeAssignBatch}
+          onOpenChange={(open) => !open && setMenteeAssignBatch(null)}
+        />
+      )}
+      {summaryReportsBatch && (
+        <SummaryReportsReview
+          batch={summaryReportsBatch}
+          open={!!summaryReportsBatch}
+          onOpenChange={(open) => !open && setSummaryReportsBatch(null)}
         />
       )}
       {sessionsBatch && (

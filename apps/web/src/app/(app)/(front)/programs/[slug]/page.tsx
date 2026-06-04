@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import Script from "next/script";
 
 import { HeaderDetailsProgram } from "@/components/front/details-program/header-details-program";
 import { ProgramAbout } from "@/components/front/details-program/program-about";
@@ -153,9 +152,11 @@ export default function ProgramDetailPage() {
 
   return (
     <div className="bg-white">
-      <Script id={`jsonld-program-${slug}`} type="application/ld+json">
-        {JSON.stringify(jsonLd)}
-      </Script>
+      <script
+        id={`jsonld-program-${slug}`}
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <HeaderDetailsProgram
         title={`${program.name} Program ${batch ? new Date(batch.startDate).getFullYear() : ""}`}
         batch={

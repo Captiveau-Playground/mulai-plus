@@ -231,6 +231,64 @@ export const programBatchMentor = pgTable(
   }),
 );
 
+export const mentorMentee = pgTable(
+  "mentor_mentee",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => programBatch.id, { onDelete: "cascade" }),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    unq: { columns: [t.batchId, t.mentorId, t.studentId] },
+  }),
+);
+
+export const summaryReportStatusEnum = pgEnum("summary_report_status", ["draft", "submitted", "approved", "revision"]);
+
+export const summaryReport = pgTable("summary_report", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  mentorId: text("mentor_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  studentId: text("student_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  status: summaryReportStatusEnum("status").notNull().default("draft"),
+  mentorNotes: text("mentor_notes"),
+  reviewNotes: text("review_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const summaryReportItem = pgTable("summary_report_item", {
+  id: text("id").primaryKey(),
+  reportId: text("report_id")
+    .notNull()
+    .references(() => summaryReport.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 export const programAttendance = pgTable(
   "program_attendance",
   {
@@ -275,6 +333,7 @@ export const programBatchRelations = relations(programBatch, ({ one, many }) => 
   participants: many(programParticipant),
   sessions: many(programSession),
   mentors: many(programBatchMentor),
+  mentorMentees: many(mentorMentee),
   attendance: many(programAttendance),
   attachments: many(programAttachment),
   attachmentRequests: many(programAttachmentRequest),
@@ -309,6 +368,44 @@ export const programBatchMentorRelations = relations(programBatchMentor, ({ one 
   user: one(user, {
     fields: [programBatchMentor.userId],
     references: [user.id],
+  }),
+}));
+
+export const mentorMenteeRelations = relations(mentorMentee, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [mentorMentee.batchId],
+    references: [programBatch.id],
+  }),
+  mentor: one(user, {
+    fields: [mentorMentee.mentorId],
+    references: [user.id],
+  }),
+  student: one(user, {
+    fields: [mentorMentee.studentId],
+    references: [user.id],
+  }),
+}));
+
+export const summaryReportRelations = relations(summaryReport, ({ one, many }) => ({
+  batch: one(programBatch, {
+    fields: [summaryReport.batchId],
+    references: [programBatch.id],
+  }),
+  mentor: one(user, {
+    fields: [summaryReport.mentorId],
+    references: [user.id],
+  }),
+  student: one(user, {
+    fields: [summaryReport.studentId],
+    references: [user.id],
+  }),
+  items: many(summaryReportItem),
+}));
+
+export const summaryReportItemRelations = relations(summaryReportItem, ({ one }) => ({
+  report: one(summaryReport, {
+    fields: [summaryReportItem.reportId],
+    references: [summaryReport.id],
   }),
 }));
 

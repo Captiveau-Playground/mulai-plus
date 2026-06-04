@@ -63,33 +63,53 @@ export function Navbar() {
   };
 
   // Different nav items based on current page and screen size
-  const getNavItems = () => {
-    // For homepage (/) and root path
-    if (pathname === "/" || pathname === "") {
+  type NavItem = {
+    label: string;
+    href?: string;
+    children?: { label: string; href: string }[];
+  };
+
+  const getNavItems = (): NavItem[] => {
+    const isOnHomepage = pathname === "/" || pathname === "";
+    const isOnPrograms = pathname.startsWith("/programs");
+
+    if (isOnHomepage) {
       return [
         { label: "About", href: "#about" },
-        { label: "Featured Programs", href: "#featured-programs" },
-        { label: "Meet The Mentors", href: "#mentors" },
+        { label: "Programs", href: "#featured-programs" },
+        { label: "Mentors", href: "#mentors" },
+        {
+          label: "Blog",
+          children: [
+            { label: "Artikel", href: "/blog/articles" },
+            { label: "News", href: "/blog/news" },
+          ],
+        },
         { label: "FAQ", href: "#faq" },
       ];
     }
 
-    // For programs pages - use default for desktop, special for mobile
-    if (pathname.startsWith("/programs")) {
+    if (isOnPrograms) {
       if (isMobile) {
         return [
           { label: "About", href: "#about" },
           { label: "Timeline", href: "#timeline" },
           { label: "What You Will Get", href: "#benefits" },
-          { label: "Syallabus", href: "#syllabus" },
+          { label: "Syllabus", href: "#syllabus" },
           { label: "FAQ", href: "#faq" },
         ];
       }
-      // Desktop uses default navigation
       return [
         { label: "About", href: "/#about" },
         { label: "Programs", href: "/programs" },
         { label: "Mentors", href: "/#mentors" },
+        {
+          label: "Blog",
+          children: [
+            { label: "Artikel", href: "/blog/articles" },
+            { label: "News", href: "/blog/news" },
+          ],
+        },
         { label: "FAQ", href: "/#faq" },
       ];
     }
@@ -99,6 +119,13 @@ export function Navbar() {
       { label: "About", href: "/#about" },
       { label: "Programs", href: "/programs" },
       { label: "Mentors", href: "/#mentors" },
+      {
+        label: "Blog",
+        children: [
+          { label: "Artikel", href: "/blog/articles" },
+          { label: "News", href: "/blog/news" },
+        ],
+      },
       { label: "FAQ", href: "/#faq" },
     ];
   };
@@ -113,7 +140,8 @@ export function Navbar() {
           pathname.startsWith("/programs") ||
           pathname.startsWith("/courses") ||
           pathname.startsWith("/categories") ||
-          pathname.startsWith("/privacy")
+          pathname.startsWith("/privacy") ||
+          pathname.startsWith("/blog")
           ? "bg-white py-4 shadow-sm backdrop-blur-md"
           : "py-6 lg:py-4",
       )}
@@ -134,45 +162,64 @@ export function Navbar() {
 
       {/* Desktop Navigation Links */}
       <div className="hidden w-full items-center justify-center gap-8 lg:col-span-3 lg:flex lg:gap-12 lg:justify-self-center">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href as Route}
-            className="font-manrope text-[#333333] text-sm transition-colors hover:text-[#FE9114] lg:text-base"
-            onClick={(e) => {
-              // Handle anchor links on the same page
-              if (item.href.startsWith("#")) {
-                const element = document.querySelector(item.href) as HTMLElement | null;
-                if (!element) return;
-                e.preventDefault();
-                const navHeight = navRef.current?.offsetHeight ?? 0;
-                const absoluteY = element.getBoundingClientRect().top + window.scrollY;
-                const top = Math.max(0, absoluteY - navHeight - 100);
-                window.history.replaceState(null, "", item.href);
-                window.scrollTo({ top, behavior: "smooth" });
-              }
-              // Handle links to homepage with anchors
-              else if (item.href.includes("/#")) {
-                const [path, anchor] = item.href.split("#");
-                if (pathname === path) {
-                  e.preventDefault();
-                  const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
+        {navItems.map((item) => {
+          if (item.children) {
+            return (
+              <DropdownMenu key={item.label}>
+                <DropdownMenuTrigger className="font-manrope text-sm text-text-main transition-colors hover:text-brand-orange focus-visible:text-brand-orange lg:text-base">
+                  {item.label}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-36 rounded-xl border p-1.5 shadow-lg">
+                  {item.children.map((child) => (
+                    <DropdownMenuItem
+                      key={child.href}
+                      render={<Link href={child.href as Route} />}
+                      className="cursor-pointer rounded-lg px-3 py-2 font-manrope text-sm text-text-main transition-colors hover:bg-brand-navy hover:text-white focus-visible:bg-brand-navy focus-visible:text-white"
+                    >
+                      {child.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          }
+          return (
+            <Link
+              key={item.href}
+              href={item.href as Route}
+              className="font-manrope text-sm text-text-main transition-colors hover:text-brand-orange focus-visible:text-brand-orange lg:text-base"
+              onClick={(e: React.MouseEvent) => {
+                const h = item.href;
+                if (h?.startsWith("#")) {
+                  const element = document.querySelector(h) as HTMLElement | null;
                   if (!element) return;
+                  e.preventDefault();
                   const navHeight = navRef.current?.offsetHeight ?? 0;
                   const absoluteY = element.getBoundingClientRect().top + window.scrollY;
-                  const top = Math.max(0, absoluteY - navHeight - 16);
-                  window.history.replaceState(null, "", item.href);
+                  const top = Math.max(0, absoluteY - navHeight - 100);
+                  window.history.replaceState(null, "", h);
                   window.scrollTo({ top, behavior: "smooth" });
+                } else if (h?.includes("/#")) {
+                  const [path, anchor] = h.split("#");
+                  if (pathname === path) {
+                    e.preventDefault();
+                    const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
+                    if (!element) return;
+                    const navHeight = navRef.current?.offsetHeight ?? 0;
+                    const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                    const top = Math.max(0, absoluteY - navHeight - 16);
+                    window.history.replaceState(null, "", h);
+                    window.scrollTo({ top, behavior: "smooth" });
+                  }
                 }
-              }
-            }}
-          >
-            {item.label}
-          </Link>
-        ))}
+              }}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
       </div>
 
-      {/* Desktop Auth Section */}
       <div className="hidden items-center gap-2.5 font-manrope lg:flex lg:justify-self-end">
         {session?.user ? (
           <DropdownMenu>
@@ -323,42 +370,70 @@ export function Navbar() {
               {/* Menu Links */}
               <div className="mt-12 flex flex-1 flex-col gap-8 pt-12">
                 <div className="flex flex-col gap-6">
-                  {navItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href as Route}
-                      className="font-bricolage font-semibold text-2xl text-[#333333] transition-colors hover:text-[#FE9114]"
-                      onClick={(e) => {
-                        // Handle anchor links on the same page
-                        if (item.href.startsWith("#")) {
-                          const element = document.querySelector(item.href) as HTMLElement | null;
-                          if (!element) return;
-                          e.preventDefault();
-                          const navHeight = navRef.current?.offsetHeight ?? 0;
-                          const absoluteY = element.getBoundingClientRect().top + window.scrollY;
-                          const top = Math.max(0, absoluteY - navHeight - 90);
-                          window.history.replaceState(null, "", item.href);
-                          window.scrollTo({ top, behavior: "smooth" });
-                        }
-                        // Handle links to homepage with anchors
-                        else if (item.href.includes("/#")) {
-                          const [path, anchor] = item.href.split("#");
-                          if (pathname === path) {
-                            e.preventDefault();
-                            const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
+                  {navItems.map((item) => {
+                    if (item.children) {
+                      return (
+                        <details key={item.label} className="group">
+                          <summary className="flex cursor-pointer items-center justify-between font-bricolage font-semibold text-2xl text-text-main transition-colors [&::-webkit-details-marker]:hidden">
+                            {item.label}
+                            <svg
+                              className="h-5 w-5 text-gray-400 transition-transform group-open:rotate-180"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </summary>
+                          <div className="mt-3 ml-4 flex flex-col gap-3 border-gray-100 border-l-2 pl-4">
+                            {item.children.map((child) => (
+                              <Link
+                                key={child.href}
+                                href={child.href as Route}
+                                className="font-manrope text-[#555555] text-base transition-colors hover:text-brand-orange focus-visible:text-brand-orange"
+                              >
+                                {child.label}
+                              </Link>
+                            ))}
+                          </div>
+                        </details>
+                      );
+                    }
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href as Route}
+                        className="font-bricolage font-semibold text-2xl text-text-main transition-colors hover:text-brand-orange focus-visible:text-brand-orange"
+                        onClick={(e: React.MouseEvent) => {
+                          const h = item.href;
+                          if (h?.startsWith("#")) {
+                            const element = document.querySelector(h) as HTMLElement | null;
                             if (!element) return;
+                            e.preventDefault();
                             const navHeight = navRef.current?.offsetHeight ?? 0;
                             const absoluteY = element.getBoundingClientRect().top + window.scrollY;
                             const top = Math.max(0, absoluteY - navHeight - 90);
-                            window.history.replaceState(null, "", item.href);
+                            window.history.replaceState(null, "", h);
                             window.scrollTo({ top, behavior: "smooth" });
+                          } else if (h?.includes("/#")) {
+                            const [path, anchor] = h.split("#");
+                            if (pathname === path) {
+                              e.preventDefault();
+                              const element = document.querySelector(`#${anchor}`) as HTMLElement | null;
+                              if (!element) return;
+                              const navHeight = navRef.current?.offsetHeight ?? 0;
+                              const absoluteY = element.getBoundingClientRect().top + window.scrollY;
+                              const top = Math.max(0, absoluteY - navHeight - 90);
+                              window.history.replaceState(null, "", h);
+                              window.scrollTo({ top, behavior: "smooth" });
+                            }
                           }
-                        }
-                      }}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
+                        }}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
 

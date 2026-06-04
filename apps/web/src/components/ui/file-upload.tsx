@@ -25,6 +25,7 @@ export function FileUpload({
   value,
   onChange,
   onRemove,
+  bucket,
   path = "media",
   className,
   disabled,
@@ -43,8 +44,9 @@ export function FileUpload({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      if (path) {
-        formData.append("key", path);
+      const uploadKey = bucket ? `${bucket}/${path}` : path;
+      if (uploadKey) {
+        formData.append("key", uploadKey);
       }
 
       const response = await fetch(UPLOAD_ENDPOINT, {

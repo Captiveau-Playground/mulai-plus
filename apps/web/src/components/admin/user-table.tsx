@@ -86,7 +86,7 @@ export function UserTable() {
           router.refresh();
           return "Impersonation started";
         },
-        error: (err) => `Failed to impersonate user: ${err.message}`,
+        error: (err: any) => `Failed to impersonate user: ${err.message}`,
       },
     );
   };
@@ -141,7 +141,7 @@ export function UserTable() {
           fetchUsers();
           return "Role updated successfully";
         },
-        error: (err) => `Failed to update role: ${err.message}`,
+        error: (err: any) => `Failed to update role: ${err.message}`,
       },
     );
   };
@@ -158,7 +158,7 @@ export function UserTable() {
           fetchUsers();
           return "User banned successfully";
         },
-        error: (err) => `Failed to ban user: ${err.message}`,
+        error: (err: any) => `Failed to ban user: ${err.message}`,
       },
     );
   };
@@ -174,7 +174,7 @@ export function UserTable() {
           fetchUsers();
           return "User unbanned successfully";
         },
-        error: (err) => `Failed to unban user: ${err.message}`,
+        error: (err: any) => `Failed to unban user: ${err.message}`,
       },
     );
   };

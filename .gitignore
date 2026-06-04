@@ -53,3 +53,6 @@ temp
 docs/improvement-plan.md
 docs/security-checklist.md
 docs/*
+
+.pi-lens
+.agents/
