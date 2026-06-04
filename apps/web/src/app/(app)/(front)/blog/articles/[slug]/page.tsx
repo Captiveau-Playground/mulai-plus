@@ -15,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
+
 type ArticleDetail = {
   id: string;
   title: string;
@@ -131,8 +133,39 @@ export default function ArticleDetailPage() {
 
   return (
     <>
-      <title>{article.seo?.metaTitle || article.title}</title>
-      {article.seo?.metaDescription && <meta name="description" content={article.seo.metaDescription} />}
+      <script
+        id="jsonld-article"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: article.seo?.metaTitle || article.title,
+            description: article.seo?.metaDescription || article.excerpt,
+            image: article.seo?.ogImageUrl || article.coverImageUrl,
+            datePublished: article.publishedAt,
+            dateModified: article.publishedAt,
+            author: article.author
+              ? {
+                  "@type": "Person",
+                  name: article.author.name,
+                }
+              : undefined,
+            publisher: {
+              "@type": "Organization",
+              name: "MULAI+",
+              logo: {
+                "@type": "ImageObject",
+                url: "https://mulaiplus.id/letter-icon-logo.svg",
+              },
+            },
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `${typeof window !== "undefined" ? window.location.href : baseUrl}/blog/articles/${article.slug}`,
+            },
+          }),
+        }}
+      />
       <article className="min-h-screen bg-white pt-20">
         <nav className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-0">
           <Link href="/blog" className="font-manrope text-gray-400 text-xs hover:text-brand-navy">

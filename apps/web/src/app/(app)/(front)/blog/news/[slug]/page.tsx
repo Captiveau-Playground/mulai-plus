@@ -15,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
+
 type ArticleDetail = {
   id: string;
   title: string;
@@ -121,18 +123,49 @@ export default function ArticleDetailPage() {
         <BookOpen className="mb-4 h-16 w-16 text-gray-300" />
         <h1 className="mb-2 font-bold font-bricolage text-2xl text-gray-900">Artikel tidak ditemukan</h1>
         <p className="mb-6 font-manrope text-gray-500 text-sm">Artikel yang kamu cari mungkin sudah dihapus.</p>
-        <Button onClick={() => router.push("/blog/news")} variant="outline" className="rounded-xl">
+        <Button onClick={() => router.push("/blog/articles")} variant="outline" className="rounded-xl">
           <span>←</span> Kembali
         </Button>
       </div>
     );
 
-  const articlePath = article.type === "news" ? "/blog/news" : "/blog/news";
+  const articlePath = article.type === "news" ? "/blog/news" : "/blog/articles";
 
   return (
     <>
-      <title>{article.seo?.metaTitle || article.title}</title>
-      {article.seo?.metaDescription && <meta name="description" content={article.seo.metaDescription} />}
+      <script
+        id="jsonld-article"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: article.seo?.metaTitle || article.title,
+            description: article.seo?.metaDescription || article.excerpt,
+            image: article.seo?.ogImageUrl || article.coverImageUrl,
+            datePublished: article.publishedAt,
+            dateModified: article.publishedAt,
+            author: article.author
+              ? {
+                  "@type": "Person",
+                  name: article.author.name,
+                }
+              : undefined,
+            publisher: {
+              "@type": "Organization",
+              name: "MULAI+",
+              logo: {
+                "@type": "ImageObject",
+                url: "https://mulaiplus.id/letter-icon-logo.svg",
+              },
+            },
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `${typeof window !== "undefined" ? window.location.href : baseUrl}/blog/articles/${article.slug}`,
+            },
+          }),
+        }}
+      />
       <article className="min-h-screen bg-white pt-20">
         <nav className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-0">
           <Link href="/blog" className="font-manrope text-gray-400 text-xs hover:text-brand-navy">
@@ -301,7 +334,7 @@ export default function ArticleDetailPage() {
 function RelatedArticleCard({ article }: { article: any }) {
   return (
     <Link
-      href={`/blog/news/${article.slug}`}
+      href={`/blog/articles/${article.slug}`}
       className="group flex gap-4 rounded-xl border p-3 transition-all hover:border-brand-orange/30 hover:shadow-sm"
     >
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
@@ -383,7 +416,7 @@ function SidebarLatestArticles({ currentSlug, type }: { currentSlug: string; typ
     .filter((a: any) => a.slug !== currentSlug && a.type === type)
     .slice(0, 3);
   if (latest.length === 0) return null;
-  const prefix = type === "news" ? "/blog/news" : "/blog/news";
+  const prefix = type === "news" ? "/blog/news" : "/blog/articles";
   return (
     <div className="overflow-hidden rounded-xl bg-white shadow-sm">
       <div className="border-gray-100 border-b px-4 py-3">
