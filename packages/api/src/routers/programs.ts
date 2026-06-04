@@ -3,6 +3,7 @@ import { and, asc, count, db, desc, eq, gt, inArray, isNotNull, isNull, ne, or, 
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
+  mentorMentee,
   program,
   programApplication,
   programAttachment,
@@ -1808,5 +1809,125 @@ export const programsRouter = {
           return { success: true };
         }),
     },
+
+    mentorMentee: {
+      assign: adminOrProgramManagerProcedure
+        .input(
+          z.object({
+            batchId: z.string(),
+            assignments: z.array(z.object({ mentorId: z.string(), studentId: z.string() })),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const { batchId, assignments } = input;
+
+          await db.transaction(async (tx) => {
+            // Replace all assignments for this batch
+            await tx.delete(mentorMentee).where(eq(mentorMentee.batchId, batchId));
+
+            if (assignments.length > 0) {
+              await tx.insert(mentorMentee).values(
+                assignments.map((a) => ({
+                  id: randomUUID(),
+                  batchId,
+                  mentorId: a.mentorId,
+                  studentId: a.studentId,
+                })),
+              );
+            }
+          });
+
+          return { success: true };
+        }),
+
+      list: adminOrProgramManagerProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+        const result = await db.query.mentorMentee.findMany({
+          where: eq(mentorMentee.batchId, input.batchId),
+          with: {
+            mentor: { columns: { id: true, name: true, email: true, image: true } },
+            student: { columns: { id: true, name: true, email: true, image: true } },
+          },
+        });
+
+        return { data: result };
+      }),
+
+      remove: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+        await db.delete(mentorMentee).where(eq(mentorMentee.id, input.id));
+        return { success: true };
+      }),
+    },
   },
+
+  myMentees: protectedProcedure
+    .input(z.object({ batchId: z.string().optional() }))
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+
+      const where = input?.batchId
+        ? and(eq(mentorMentee.mentorId, userId), eq(mentorMentee.batchId, input.batchId))
+        : eq(mentorMentee.mentorId, userId);
+
+      const result = await db.query.mentorMentee.findMany({
+        where,
+        with: {
+          student: {
+            columns: { id: true, name: true, email: true, image: true },
+          },
+          batch: { columns: { id: true, name: true, programId: true } },
+        },
+      });
+
+      // Also fetch application data for each mentee
+      const menteeIds = result.map((r) => r.student.id);
+      const applications =
+        menteeIds.length > 0
+          ? await db
+              .select({
+                userId: programApplication.userId,
+                status: programApplication.status,
+                createdAt: programApplication.createdAt,
+                programId: programApplication.programId,
+                batchId: programApplication.batchId,
+              })
+              .from(programApplication)
+              .where(and(inArray(programApplication.userId, menteeIds), eq(programApplication.status, "accepted")))
+          : [];
+
+      // Fetch registration answers (reflectiveAnswers) from the most recent application per mentee
+      const allAnswers =
+        menteeIds.length > 0
+          ? await db
+              .select({
+                userId: programApplication.userId,
+                reflectiveAnswers: programApplication.reflectiveAnswers,
+                createdAt: programApplication.createdAt,
+              })
+              .from(programApplication)
+              .where(inArray(programApplication.userId, menteeIds))
+              .orderBy(desc(programApplication.createdAt))
+          : [];
+
+      const appMap = new Map(applications.map((a) => [a.userId, a]));
+      const answersMap = new Map<string, (typeof allAnswers)[number]>();
+      for (const ans of allAnswers) {
+        if (!answersMap.has(ans.userId)) {
+          answersMap.set(ans.userId, ans);
+        }
+      }
+
+      return {
+        data: result.map((r) => ({
+          id: r.id,
+          batchId: r.batchId,
+          batchName: r.batch.name,
+          programId: r.batch.programId,
+          assignedAt: r.assignedAt,
+          student: r.student,
+          application: appMap.get(r.student.id) || null,
+          registrationAnswers:
+            (answersMap.get(r.student.id)?.reflectiveAnswers as Record<string, string> | null) || null,
+        })),
+      };
+    }),
 };

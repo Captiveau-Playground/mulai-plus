@@ -231,6 +231,26 @@ export const programBatchMentor = pgTable(
   }),
 );
 
+export const mentorMentee = pgTable(
+  "mentor_mentee",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => programBatch.id, { onDelete: "cascade" }),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    unq: { columns: [t.batchId, t.mentorId, t.studentId] },
+  }),
+);
+
 export const programAttendance = pgTable(
   "program_attendance",
   {
@@ -275,6 +295,7 @@ export const programBatchRelations = relations(programBatch, ({ one, many }) => 
   participants: many(programParticipant),
   sessions: many(programSession),
   mentors: many(programBatchMentor),
+  mentorMentees: many(mentorMentee),
   attendance: many(programAttendance),
   attachments: many(programAttachment),
   attachmentRequests: many(programAttachmentRequest),
@@ -308,6 +329,21 @@ export const programBatchMentorRelations = relations(programBatchMentor, ({ one 
   }),
   user: one(user, {
     fields: [programBatchMentor.userId],
+    references: [user.id],
+  }),
+}));
+
+export const mentorMenteeRelations = relations(mentorMentee, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [mentorMentee.batchId],
+    references: [programBatch.id],
+  }),
+  mentor: one(user, {
+    fields: [mentorMentee.mentorId],
+    references: [user.id],
+  }),
+  student: one(user, {
+    fields: [mentorMentee.studentId],
     references: [user.id],
   }),
 }));
