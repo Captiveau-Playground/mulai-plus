@@ -16,10 +16,7 @@ export default function LandingPage() {
       jsonLdOrganization(),
       jsonLdWebsite(),
       jsonLdWebpage(),
-      jsonLdBreadcrumb([
-        { name: "Home", href: "/" },
-        { name: "Programs", href: "/programs" },
-      ]),
+      jsonLdBreadcrumb([{ name: "Home", href: "/" }]),
       jsonLdFAQ(FAQS),
     ],
   };
