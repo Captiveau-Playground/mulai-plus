@@ -43,7 +43,24 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ReviewPreview({ report }: { report: any }) {
+interface ReportItem {
+  id: string;
+  title: string;
+  description: string;
+}
+
+interface Report {
+  id: string;
+  status: string;
+  student?: { name?: string | null; image?: string | null };
+  mentor?: { name?: string | null };
+  batch?: { name?: string | null };
+  mentorNotes?: string | null;
+  reviewNotes?: string | null;
+  items?: ReportItem[];
+}
+
+function ReviewPreview({ report }: { report: Report }) {
   if (!report) return null;
   return (
     <div className="space-y-5">
@@ -306,9 +323,7 @@ export function SummaryReportsReview({
             </div>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[50vh] pr-4">
-            <ReviewPreview report={reviewing} />
-          </ScrollArea>
+          <ScrollArea className="max-h-[50vh] pr-4">{reviewing && <ReviewPreview report={reviewing} />}</ScrollArea>
 
           <Separator />
 
