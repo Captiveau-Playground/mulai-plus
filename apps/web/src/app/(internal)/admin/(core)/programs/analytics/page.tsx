@@ -133,7 +133,7 @@ export default function ProgramAnalyticsPage() {
                         />
                         <Tooltip
                           cursor={{ fill: "transparent" }}
-                          content={({ active, payload }) => {
+                          content={({ active, payload }: any) => {
                             if (active && payload?.length) {
                               return (
                                 <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-lg">

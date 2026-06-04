@@ -2,9 +2,9 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Eye, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Maximize2, RotateCcw, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -19,6 +19,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useFormDraft } from "@/hooks/use-form-draft";
 import { client, orpc } from "@/utils/orpc";
 import { RichTextEditor } from "./rich-text-editor";
+
+function slugify(text: string) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]+/g, "")
+    .replace(/--+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
 
 const articleSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -110,6 +122,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   );
 
   const form = useForm<ArticleFormValues>({
+    // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch between zod v4 and hookform
     resolver: standardSchemaResolver(articleSchema) as any,
     defaultValues: {
       title: "",
@@ -136,15 +149,19 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
 
   const { draftSavedAt, restoreDraft, clearDraft, useAutoSave } = useFormDraft(articleId);
 
+  // Watch title & slug for auto-slug generation
+  const watchedTitle = form.watch("title") || "";
+  const watchedSlug = form.watch("slug") || "";
+
+  // Auto-generate slug from title when slug is empty (only for new articles)
+  useEffect(() => {
+    if (!articleId && watchedTitle && !watchedSlug) {
+      form.setValue("slug", slugify(watchedTitle));
+    }
+  }, [watchedTitle, watchedSlug, articleId, form]);
+
   // Watched content for live preview
   const watchedContent = form.watch("content") || "";
-  const previewHtml = useMemo(
-    () =>
-      `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:system-ui,-apple-system,sans-serif;padding:16px;line-height:1.7;color:#1a1a2e;max-width:100%;word-wrap:break-word;font-size:15px}img,video{max-width:100%;height:auto}h1{font-size:1.6em;margin:.5em 0}h2{font-size:1.3em}h3{font-size:1.1em}p{margin:0 0 .8em}blockquote{border-left:3px solid #e2e8f0;padding-left:1em;margin-left:0;color:#64748b}a{color:#2563eb}pre{background:#f1f5f9;padding:12px;border-radius:8px;overflow-x:auto}code{font-size:.9em}</style></head><body>${watchedContent || '<p style="color:#94a3b8;font-style:italic">Start writing to see preview…</p>'}</body></html>`,
-    [watchedContent],
-  );
-
-  // Auto-save draft every 3s
   useAutoSave(
     () => form.getValues(),
     activeTab,
@@ -165,9 +182,12 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
         toast.info("Draft restored", { description: `Last saved ${new Date(draft.savedAt).toLocaleTimeString()}` });
       }
     }
-  }, [restoreDraft, form.reset, articleId]);
+    // Only run on mount for new articles
+  }, [articleId, restoreDraft, form.reset]);
   useEffect(() => {
+    // biome-ignore lint/suspicious/noExplicitAny: dynamic article shape from API
     if (article && (article as any).id) {
+      // biome-ignore lint/suspicious/noExplicitAny: dynamic article shape from API
       const art = article as any;
       const values: ArticleFormValues = {
         title: art.title ?? "",
@@ -186,6 +206,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
               .toISOString()
               .slice(0, 16)
           : "",
+        // biome-ignore lint/suspicious/noExplicitAny: tag type from API
         tagIds: art.tags?.map((t: any) => t.tagId) || [],
         metaTitle: art.seo?.metaTitle || "",
         metaDescription: art.seo?.metaDescription || "",
@@ -235,42 +256,47 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <a href="/admin/cms/articles">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </a>
+          <Button variant="ghost" size="icon" onClick={() => router.push("/admin/cms/articles")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">
               {articleId ? "Edit Article" : "New Article"}
             </h2>
             <p className="font-manrope text-sm text-text-muted-custom">
               {articleId ? "Update your article content and settings" : "Create a new article or news item"}
-              {draftSavedAt && (
-                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 text-xs">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-                  Draft saved {new Date(draftSavedAt).toLocaleTimeString()}
-                </span>
-              )}
             </p>
+            {draftSavedAt && (
+              <div className="mt-1.5 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 shadow-sm">
+                <span className="flex h-2 w-2">
+                  <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                </span>
+                <span className="font-medium text-amber-800 text-xs">
+                  Draft auto-saved {new Date(draftSavedAt).toLocaleTimeString()}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* biome-ignore lint/suspicious/noExplicitAny: dynamic article shape */}
           {(article as any)?.slug && (
+            /* biome-ignore lint/suspicious/noExplicitAny: dynamic article shape */
             <a href={`/articles/${(article as any).slug}`} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline">
-                <Eye className="mr-2 h-4 w-4" /> Preview
+              <Button variant="ghost" size="icon" title="Open live page">
+                <Maximize2 className="h-4 w-4" />
               </Button>
             </a>
           )}
           <Button
             onClick={() => form.handleSubmit(onSubmit)()}
             disabled={createMutation.isPending || updateMutation.isPending}
+            className="gap-2"
           >
-            {(createMutation.isPending || updateMutation.isPending) && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            <Save className="mr-2 h-4 w-4" /> Save
+            {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
+            <Save className="h-4 w-4" />
+            <span className="hidden sm:inline">Save</span>
           </Button>
         </div>
       </div>
@@ -293,88 +319,21 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
-            {/* Content Tab */}
-            <TabsContent value="content" className="mt-4 space-y-4">
-              <div className="grid gap-4 lg:grid-cols-3">
-                <div className="space-y-4 lg:col-span-2">
+            {/* Content Tab — editor kiri, live preview kanan */}
+            <TabsContent value="content" className="mt-0 space-y-0">
+              <div className="grid grid-cols-1 gap-0 xl:grid-cols-[1fr_420px]">
+                {/* ── Left: Editor ── */}
+                <div className="min-w-0 py-4 pr-0 xl:pr-6">
                   <FormField
                     control={form.control}
                     name="title"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title</FormLabel>
+                      <FormItem className="mb-2">
                         <FormControl>
-                          <Input placeholder="Enter article title" {...field} className="font-medium text-lg" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="content"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Content</FormLabel>
-                        <FormControl>
-                          <div className="grid gap-4 lg:grid-cols-2">
-                            <div className="min-h-[500px]">
-                              <RichTextEditor
-                                content={field.value || ""}
-                                onChange={field.onChange}
-                                placeholder="Start writing your article..."
-                                minHeight="500px"
-                              />
-                            </div>
-                            <div className="overflow-hidden rounded-lg border bg-white">
-                              <div className="border-b px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                                Preview
-                              </div>
-                              <iframe
-                                title="Content preview"
-                                srcDoc={previewHtml}
-                                className="h-[500px] w-full border-0"
-                                sandbox="allow-same-origin"
-                              />
-                            </div>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="slug"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Slug</FormLabel>
-                        <div className="flex gap-2">
-                          <FormControl>
-                            <Input placeholder="article-slug" {...field} />
-                          </FormControl>
-                        </div>
-                        <FormDescription>URL-friendly version of the title</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="excerpt"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Excerpt</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Brief summary of the article..."
+                          <input
                             {...field}
-                            className="min-h-[100px]"
+                            placeholder="Tulis judul artikel..."
+                            className="w-full border-0 bg-transparent p-0 font-bold font-bricolage text-3xl text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-0"
                           />
                         </FormControl>
                         <FormMessage />
@@ -382,19 +341,161 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
                     )}
                   />
 
+                  <div className="mb-6 border-t" />
+
                   <FormField
                     control={form.control}
-                    name="coverImageUrl"
+                    name="content"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cover Image</FormLabel>
                         <FormControl>
-                          <FileUpload value={field.value} onChange={field.onChange} bucket="cms" path="articles" />
+                          <RichTextEditor
+                            content={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Mulai menulis..."
+                            minHeight="600px"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  {/* Meta section */}
+                  <details className="group mt-8 rounded-xl border p-4">
+                    <summary className="flex cursor-pointer items-center gap-2 font-medium text-muted-foreground text-sm hover:text-foreground">
+                      <svg
+                        className="h-4 w-4 transition-transform group-open:rotate-90"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      Meta artikel &amp; cover
+                    </summary>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="slug"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Slug</FormLabel>
+                            <div className="flex gap-2">
+                              <FormControl className="flex-1">
+                                <Input placeholder="article-slug" {...field} />
+                              </FormControl>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-9 shrink-0 gap-1.5 rounded-xl"
+                                onClick={() => {
+                                  const title = form.getValues("title");
+                                  if (title) {
+                                    form.setValue("slug", slugify(title));
+                                  }
+                                }}
+                                title="Generate slug from title"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                Generate
+                              </Button>
+                            </div>
+                            <FormDescription>URL-friendly version of the title</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="excerpt"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Excerpt</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Brief summary of the article..."
+                                {...field}
+                                className="min-h-[80px]"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="coverImageUrl"
+                        render={({ field }) => (
+                          <FormItem className="sm:col-span-2">
+                            <FormLabel>Cover Image</FormLabel>
+                            <FormControl>
+                              <FileUpload value={field.value} onChange={field.onChange} bucket="cms" path="articles" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </details>
+                </div>
+
+                {/* ── Right: Live Preview Panel ── */}
+                <div className="hidden border-l bg-muted/30 xl:block">
+                  <div className="sticky top-0 flex h-[calc(100vh-8rem)] flex-col">
+                    <div className="flex items-center gap-2 border-b px-4 py-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#1A1F6D]/10">
+                        <Eye className="h-3.5 w-3.5 text-[#1A1F6D]" />
+                      </div>
+                      <span className="font-manrope font-semibold text-[#888888] text-xs uppercase tracking-wider">
+                        Live Preview
+                      </span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      <div className="p-5">
+                        {/* Cover */}
+                        {form.watch("coverImageUrl") && (
+                          <div className="mb-6 overflow-hidden rounded-lg">
+                            {/* biome-ignore lint/performance/noImgElement: preview panel uses dynamic URL */}
+                            <img src={form.watch("coverImageUrl")} alt="" className="w-full object-cover" />
+                          </div>
+                        )}
+                        {/* Title */}
+                        <h1 className="mb-3 font-bold font-bricolage text-xl leading-tight tracking-tight">
+                          {form.watch("title") || "Judul Artikel"}
+                        </h1>
+                        {/* Excerpt */}
+                        {form.watch("excerpt") && (
+                          <p className="mb-5 font-manrope text-muted-foreground text-sm leading-relaxed">
+                            {form.watch("excerpt")}
+                          </p>
+                        )}
+                        {/* Preview content styles */}
+                        <style>{`
+                          .preview-content h1 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.75rem; line-height: 1.3; }
+                          .preview-content h2 { font-size: 1.25rem; font-weight: 600; margin: 1.25rem 0 0.5rem; line-height: 1.35; }
+                          .preview-content h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+                          .preview-content p { margin: 0 0 0.875rem; line-height: 1.7; color: #374151; font-size: 0.875rem; }
+                          .preview-content ul, .preview-content ol { margin: 0 0 0.875rem; padding-left: 1.25rem; }
+                          .preview-content li { margin-bottom: 0.25rem; line-height: 1.6; font-size: 0.875rem; }
+                          .preview-content blockquote { border-left: 3px solid #e5e7eb; margin: 0 0 0.875rem; padding: 0.5rem 1rem; color: #6b7280; font-style: italic; }
+                          .preview-content pre { background: #f3f4f6; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0 0 0.875rem; font-size: 0.8rem; }
+                          .preview-content code { background: #f3f4f6; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.8rem; }
+                          .preview-content img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1rem 0; }
+                          .preview-content table { width: 100%; border-collapse: collapse; margin: 0 0 0.875rem; font-size: 0.8rem; }
+                          .preview-content th, .preview-content td { border: 1px solid #e5e7eb; padding: 0.5rem 0.75rem; text-align: left; }
+                          .preview-content th { background: #f9fafb; font-weight: 600; }
+                          .preview-content a { color: #2563eb; text-decoration: underline; }
+                          .preview-content iframe { max-width: 100%; border-radius: 0.5rem; margin: 0.75rem 0; }
+                        `}</style>
+                        {/* Rendered content */}
+                        <LivePreviewContent html={watchedContent} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -458,11 +559,15 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select author" />
+                              <SelectValue placeholder="Select author">
+                                {field.value && authors
+                                  ? (authors.find((a) => a.id === field.value)?.name ?? field.value)
+                                  : "Select author"}
+                              </SelectValue>
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {authors?.map((author: any) => (
+                            {authors?.map((author) => (
                               <SelectItem key={author.id} value={author.id}>
                                 {author.name}
                               </SelectItem>
@@ -483,11 +588,15 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
+                              <SelectValue placeholder="Select category">
+                                {field.value && categories
+                                  ? (categories.find((c) => c.id === field.value)?.name ?? field.value)
+                                  : "Select category"}
+                              </SelectValue>
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {categories?.map((cat: any) => (
+                            {categories?.map((cat) => (
                               <SelectItem key={cat.id} value={cat.id}>
                                 {cat.name}
                               </SelectItem>
@@ -536,7 +645,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
                   <div className="space-y-2">
                     <span className="font-medium text-sm">Tags</span>
                     <div className="flex min-h-[100px] flex-wrap gap-2 rounded-lg border p-3">
-                      {tags?.map((tag: any) => (
+                      {tags?.map((tag) => (
                         <button
                           key={tag.id}
                           type="button"
@@ -679,4 +788,19 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
       </Tabs>
     </div>
   );
+}
+
+/** Separate component to render HTML content without biome lint errors */
+function LivePreviewContent({ html }: { html: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.innerHTML =
+        html ||
+        '<p style="color:#94a3b8;font-style:italic;font-size:0.875rem">Mulai menulis untuk melihat preview...</p>';
+    }
+  }, [html]);
+
+  return <div ref={ref} className="preview-content" />;
 }

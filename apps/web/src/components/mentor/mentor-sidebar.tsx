@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Calendar, ExternalLink, LayoutDashboard, Loader2, LogOut } from "lucide-react";
+import { BookOpen, Calendar, ExternalLink, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,6 +48,7 @@ function NavLink({ item, onNavigate }: { item: (typeof navItems)[number]; onNavi
 const navItems = [
   { title: "Dashboard", url: "/mentor", icon: LayoutDashboard },
   { title: "My Sessions", url: "/mentor/sessions", icon: Calendar },
+  { title: "My Mentees", url: "/mentor/my-mentees", icon: Users },
   { title: "My Batches", url: "/mentor/batches", icon: BookOpen },
   // { title: "Settings", url: "/mentor/settings", icon: Settings },
 ];

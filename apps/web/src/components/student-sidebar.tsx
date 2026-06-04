@@ -51,7 +51,7 @@ const navItems = [
   { title: "Schedule", url: "/dashboard/student/schedule", icon: Calendar },
   // { title: "My Courses", url: "/dashboard/student/courses", icon: BookOpen },
   // { title: "My Orders", url: "/dashboard/student/orders", icon: ShoppingCart },
-  { title: "Certificates", url: "/dashboard/student/certificates", icon: Award },
+  { title: "Summary Report", url: "/dashboard/student/summary-report", icon: Award },
   { title: "Settings", url: "/dashboard/student/settings", icon: Settings },
 ];
 

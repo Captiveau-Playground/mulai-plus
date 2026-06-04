@@ -194,7 +194,7 @@ export default function SignInForm({
         </div>
 
         <form.Subscribe>
-          {(state) => (
+          {(state: any) => (
             <button
               type="submit"
               disabled={!state.canSubmit || state.isSubmitting}

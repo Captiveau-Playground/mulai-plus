@@ -203,7 +203,7 @@ export default function AdminPage() {
                 <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                 <Pie data={activeData} dataKey="visitors" nameKey="browser" innerRadius={60} strokeWidth={5}>
                   <Label
-                    content={({ viewBox }) => {
+                    content={({ viewBox }: any) => {
                       if (viewBox && "cx" in viewBox && "cy" in viewBox) {
                         return (
                           <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">

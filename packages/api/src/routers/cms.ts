@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNull, like, ne, or } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, inArray, isNotNull, isNull, like, ne, or } from "@mulai-plus/db";
 import { role as roleTable, user } from "@mulai-plus/db/schema/auth";
 import {
   cmsArticle,
@@ -67,6 +67,17 @@ export const articlesRouter = {
 
         if (input?.featured) {
           conditions.push(eq(cmsArticle.featured, true));
+        }
+
+        // Filter by category slug
+        if (input?.categorySlug) {
+          const cat = await db.query.cmsCategory.findFirst({
+            where: eq(cmsCategory.slug, input.categorySlug),
+            columns: { id: true },
+          });
+          if (cat) {
+            conditions.push(eq(cmsArticle.categoryId, cat.id));
+          }
         }
 
         const whereClause = and(...conditions);
@@ -207,7 +218,7 @@ export const articlesRouter = {
 
         if (input?.search) {
           conditions.push(
-            // Simple search on title - could enhance with full-text search
+            or(like(cmsArticle.title, `%${input.search}%`), like(cmsArticle.excerpt, `%${input.search}%`)),
           );
         }
 
@@ -249,7 +260,7 @@ export const articlesRouter = {
         };
       }),
 
-    get: adminProcedure.input(z.object({ id: z.coerce.string() })).handler(async ({ input, context }) => {
+    get: adminProcedure.input(z.object({ id: z.coerce.string() })).handler(async ({ input }) => {
       console.log("[article.get] input:", input, "id type:", typeof input.id);
       const item = await db.query.cmsArticle.findFirst({
         where: eq(cmsArticle.id, input.id),
@@ -638,7 +649,7 @@ export const categoriesRouter = {
 
   admin: {
     list: adminProcedure.handler(async () => {
-      return await db.query.cmsCategory.findMany({
+      const categories = await db.query.cmsCategory.findMany({
         orderBy: [asc(cmsCategory.sortOrder), asc(cmsCategory.name)],
         with: {
           children: {
@@ -646,6 +657,25 @@ export const categoriesRouter = {
           },
         },
       });
+
+      // Get article counts per category
+      const counts = await db
+        .select({ categoryId: cmsArticle.categoryId, count: count() })
+        .from(cmsArticle)
+        .where(and(isNull(cmsArticle.deletedAt), isNotNull(cmsArticle.categoryId)))
+        .groupBy(cmsArticle.categoryId);
+
+      const countMap = new Map(counts.filter((c) => c.categoryId).map((c) => [c.categoryId!, c.count]));
+
+      // Attach counts to categories and their children
+      const attachCounts = (cats: any[]): any[] =>
+        cats.map((cat) => ({
+          ...cat,
+          articleCount: countMap.get(cat.id) ?? 0,
+          children: cat.children ? attachCounts(cat.children) : [],
+        }));
+
+      return attachCounts(categories);
     }),
 
     get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
@@ -771,7 +801,7 @@ export const tagsRouter = {
 
     search: publicProcedure.input(z.object({ query: z.string() })).handler(async ({ input }) => {
       const results = await db.query.cmsTag.findMany({
-        where: `${cmsTag.name} ILIKE ${`%${input.query}%`}` as any, // Simple like search
+        where: like(cmsTag.name, `%${input.query}%`),
         orderBy: [asc(cmsTag.name)],
         limit: 10,
       });
@@ -781,9 +811,24 @@ export const tagsRouter = {
 
   admin: {
     list: adminProcedure.handler(async () => {
-      return await db.query.cmsTag.findMany({
+      const tags = await db.query.cmsTag.findMany({
         orderBy: [asc(cmsTag.name)],
       });
+
+      // Get article counts per tag
+      const counts = await db
+        .select({ tagId: cmsArticleTag.tagId, count: count() })
+        .from(cmsArticleTag)
+        .innerJoin(cmsArticle, eq(cmsArticleTag.articleId, cmsArticle.id))
+        .where(isNull(cmsArticle.deletedAt))
+        .groupBy(cmsArticleTag.tagId);
+
+      const countMap = new Map(counts.map((c) => [c.tagId, c.count]));
+
+      return tags.map((tag) => ({
+        ...tag,
+        articleCount: countMap.get(tag.id) ?? 0,
+      }));
     }),
 
     create: adminProcedure
@@ -905,6 +950,13 @@ export const authorsRouter = {
           .where(conditions.length > 0 ? and(...conditions) : undefined)
           .orderBy(asc(user.name));
       }),
+
+    // List cmsAuthor records (for admin author management page)
+    listAuthors: adminProcedure.handler(async () => {
+      return await db.query.cmsAuthor.findMany({
+        orderBy: [asc(cmsAuthor.name)],
+      });
+    }),
 
     create: adminProcedure
       .input(

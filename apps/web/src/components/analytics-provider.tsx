@@ -2,7 +2,7 @@
 
 import { env } from "@mulai-plus/env/web";
 import { usePathname, useSearchParams } from "next/navigation";
-import Script from "next/script";
+
 import { Suspense } from "react";
 import { usePageViewTracking } from "@/lib/analytics";
 import { ClarityProvider } from "./clarity-provider";
@@ -42,8 +42,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       {/* GA4 script — only loaded after consent */}
       {shouldLoadGa && (
         <>
-          <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
-          <Script id="ga-init" strategy="afterInteractive">
+          <script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+          <script id="ga-init">
             {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
@@ -52,7 +52,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
                 debug_mode: ${env.NEXT_PUBLIC_GA_DEBUG_MODE},
               });
             `}
-          </Script>
+          </script>
         </>
       )}
 

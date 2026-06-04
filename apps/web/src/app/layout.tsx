@@ -71,7 +71,9 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
   metadataBase: new URL(SITE.url),
   alternates: {
-    canonical: "/",
+    languages: {
+      "id-ID": "/",
+    },
   },
   openGraph: {
     type: "website",

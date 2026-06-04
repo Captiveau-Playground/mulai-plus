@@ -141,7 +141,7 @@ export function ProgramList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead className="w-1/2">Name</TableHead>
               <TableHead>Quota</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
@@ -165,7 +165,9 @@ export function ProgramList() {
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium">{program.name}</span>
-                      <span className="line-clamp-1 text-muted-foreground text-xs">{program.description}</span>
+                      <span className="line-clamp-2 break-words text-muted-foreground text-xs">
+                        {program.description}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -25,7 +25,7 @@ import {
   Undo,
   Youtube,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -98,10 +98,18 @@ export function RichTextEditor({
     extensions: getTiptapExtensions({ placeholder, editable }),
     content,
     editable,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
     },
   });
+
+  // Sync content prop changes to editor (e.g., when article data loads from API)
+  useEffect(() => {
+    if (editor && content && editor.getHTML() !== content) {
+      editor.commands.setContent(content, false);
+    }
+  }, [editor, content]);
 
   const insertLink = useCallback(() => {
     if (linkUrl && editor) {
