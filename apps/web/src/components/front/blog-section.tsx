@@ -113,13 +113,7 @@ export function BlogSection() {
   const articles = ((data?.data ?? []) as ArticleItem[]).slice(0, 3);
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-white to-gray-50/50 py-16 sm:py-20 lg:py-24">
-      {/* Decorative bg */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-brand-orange/[0.03] blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-brand-navy/[0.03] blur-3xl" />
-      </div>
-
+    <section className="relative bg-white py-16 sm:py-20 lg:py-24">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-10 flex flex-col items-center justify-between gap-4 sm:flex-row">

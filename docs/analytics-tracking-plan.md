@@ -245,6 +245,19 @@ Next.js auto-generate robots.txt, tapi belum dicek isinya.
 
 ---
 
+## 📍 Informasi Kantor
+
+| Field | Value |
+|-------|-------|
+| Alamat | Techno Park UPN Veteran Jawa Timur, Jl. Taman Gianyar I, Gunung Anyar, Surabaya, Jawa Timur 60294 |
+| Google Maps | [Lihat di Maps](https://maps.google.com/?q=Techno+Park+UPN+Veteran+Jawa+Timur) |
+| Email | hello@mulaiplus.id |
+| Phone | +62 85730367310 |
+
+> **Catatan:** Alamat udah diupdate di `site-config.ts` (`CONTACT.locationDetail`, `CONTACT.mapsUrl`) dan footer otomatis pake `target="_blank"` untuk link external.
+
+---
+
 ## 🔧 UTM Parameter Convention
 
 Berdasarkan skill **analytics tracking**:

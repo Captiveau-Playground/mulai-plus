@@ -55,7 +55,6 @@
         "@hookform/resolvers": "^5.2.2",
         "@mulai-plus/api": "workspace:*",
         "@mulai-plus/auth": "workspace:*",
-        "@mulai-plus/db": "workspace:*",
         "@mulai-plus/env": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/server": "catalog:",

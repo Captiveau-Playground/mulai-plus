@@ -22,14 +22,16 @@ export const CONTACT = {
   email: "hello@mulaiplus.id",
   phone: "+62 85730367310",
   phoneDisplay: "+62 85730367310",
-  location: "Jakarta, Indonesia",
+  location: "Techno Park UPN Veteran Jawa Timur, Surabaya",
+  locationDetail: "Techno Park UPN Veteran Jawa Timur, Jl. Taman Gianyar I, Gunung Anyar, Surabaya, Jawa Timur 60294",
+  mapsUrl: "https://maps.google.com/?q=Techno+Park+UPN+Veteran+Jawa+Timur",
 } as const;
 
 // ─── Social Media ────────────────────────────────────────
 export const SOCIAL = {
   instagram: { label: "Instagram", url: "https://instagram.com/mulaiplus.id" },
   linkedin: { label: "LinkedIn", url: "https://linkedin.com/company/mulai-plus" },
-  youtube: { label: "YouTube", url: "https://youtube.com/@mulaiplus" },
+  facebook: { label: "Facebook", url: "https://www.facebook.com/share/1JScon8NNn/?mibextid=wwXIfr" },
 } as const;
 
 export const SOCIAL_LINKS = Object.values(SOCIAL);

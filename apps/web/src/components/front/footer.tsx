@@ -2,7 +2,7 @@
 
 import { env } from "@mulai-plus/env/web";
 import { motion } from "framer-motion";
-import { ArrowRight, Instagram, Linkedin, Mail, MapPin, Phone, Youtube } from "lucide-react";
+import { ArrowRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -24,7 +24,7 @@ const footerNavLinks = [
     links: [
       { label: CONTACT.email, href: `mailto:${CONTACT.email}`, icon: Mail },
       { label: CONTACT.phoneDisplay, href: `tel:${CONTACT.phone}`, icon: Phone },
-      { label: CONTACT.location, href: "#", icon: MapPin },
+      { label: CONTACT.locationDetail, href: CONTACT.mapsUrl, icon: MapPin, external: true },
     ],
   },
   {
@@ -40,7 +40,7 @@ const footerNavLinks = [
 const socialLinks = [
   { label: SOCIAL.instagram.label, href: SOCIAL.instagram.url, icon: Instagram },
   { label: SOCIAL.linkedin.label, href: SOCIAL.linkedin.url, icon: Linkedin },
-  { label: SOCIAL.youtube.label, href: SOCIAL.youtube.url, icon: Youtube },
+  { label: SOCIAL.facebook.label, href: SOCIAL.facebook.url, icon: Facebook },
 ];
 
 export function Footer() {
@@ -170,24 +170,6 @@ export function Footer() {
                 </Link>
               ))}
             </div>
-
-            {/* Partner badges */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              {["google", "microsoft", "meta", "tokopedia", "discord"].map((partner) => (
-                <div
-                  key={partner}
-                  className="flex h-8 items-center rounded-lg border border-white/5 bg-white/[0.03] px-3 transition-all duration-200 hover:border-white/10 hover:bg-white/[0.06]"
-                >
-                  <Image
-                    src={`/partners/${partner}.svg`}
-                    alt={partner}
-                    width={60}
-                    height={20}
-                    className="h-4 w-auto opacity-40 grayscale transition-all duration-300 hover:opacity-70 hover:grayscale-0"
-                  />
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* ===== Link Columns ===== */}
@@ -204,10 +186,12 @@ export function Footer() {
                       <li key={link.label}>
                         <Link
                           href={link.href as any}
-                          className="group inline-flex items-center gap-2 font-manrope text-[#BFD6FF]/70 text-sm transition-all duration-200 hover:text-white lg:text-base"
+                          target={link.href.startsWith("http") ? "_blank" : undefined}
+                          rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                          className="group inline-flex items-start gap-2 font-manrope text-[#BFD6FF]/70 text-sm transition-all duration-200 hover:text-white lg:text-base"
                         >
                           {Icon && (
-                            <Icon className="h-4 w-4 shrink-0 text-[#BFD6FF]/40 transition-colors group-hover:text-[#FE9114]" />
+                            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#BFD6FF]/40 transition-colors group-hover:text-[#FE9114]" />
                           )}
                           <span>{link.label}</span>
                         </Link>
