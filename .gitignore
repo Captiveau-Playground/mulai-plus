@@ -55,3 +55,4 @@ docs/security-checklist.md
 docs/*
 
 .pi-lens
+.agents/

@@ -166,18 +166,17 @@ export function Navbar() {
           if (item.children) {
             return (
               <DropdownMenu key={item.label}>
-                <DropdownMenuTrigger className="font-manrope text-[#333333] text-sm transition-colors hover:text-[#FE9114] focus:outline-none lg:text-base">
+                <DropdownMenuTrigger className="font-manrope text-sm text-text-main transition-colors hover:text-brand-orange focus-visible:text-brand-orange lg:text-base">
                   {item.label}
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-36 rounded-xl border p-1.5 shadow-lg">
                   {item.children.map((child) => (
-                    <DropdownMenuItem key={child.href}>
-                      <Link
-                        href={child.href as Route}
-                        className="cursor-pointer rounded-lg px-3 py-2 font-manrope text-[#333333] text-sm hover:bg-[#1A1F6D] hover:text-white"
-                      >
-                        {child.label}
-                      </Link>
+                    <DropdownMenuItem
+                      key={child.href}
+                      render={<Link href={child.href as Route} />}
+                      className="cursor-pointer rounded-lg px-3 py-2 font-manrope text-sm text-text-main transition-colors hover:bg-brand-navy hover:text-white focus-visible:bg-brand-navy focus-visible:text-white"
+                    >
+                      {child.label}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -188,7 +187,7 @@ export function Navbar() {
             <Link
               key={item.href}
               href={item.href as Route}
-              className="font-manrope text-[#333333] text-sm transition-colors hover:text-[#FE9114] lg:text-base"
+              className="font-manrope text-sm text-text-main transition-colors hover:text-brand-orange focus-visible:text-brand-orange lg:text-base"
               onClick={(e: React.MouseEvent) => {
                 const h = item.href;
                 if (h?.startsWith("#")) {
@@ -375,7 +374,7 @@ export function Navbar() {
                     if (item.children) {
                       return (
                         <details key={item.label} className="group">
-                          <summary className="flex cursor-pointer items-center justify-between font-bricolage font-semibold text-2xl text-[#333333] transition-colors [&::-webkit-details-marker]:hidden">
+                          <summary className="flex cursor-pointer items-center justify-between font-bricolage font-semibold text-2xl text-text-main transition-colors [&::-webkit-details-marker]:hidden">
                             {item.label}
                             <svg
                               className="h-5 w-5 text-gray-400 transition-transform group-open:rotate-180"
@@ -391,7 +390,7 @@ export function Navbar() {
                               <Link
                                 key={child.href}
                                 href={child.href as Route}
-                                className="font-manrope text-[#555555] text-base transition-colors hover:text-[#FE9114]"
+                                className="font-manrope text-[#555555] text-base transition-colors hover:text-brand-orange focus-visible:text-brand-orange"
                               >
                                 {child.label}
                               </Link>
@@ -404,7 +403,7 @@ export function Navbar() {
                       <Link
                         key={item.href}
                         href={item.href as Route}
-                        className="font-bricolage font-semibold text-2xl text-[#333333] transition-colors hover:text-[#FE9114]"
+                        className="font-bricolage font-semibold text-2xl text-text-main transition-colors hover:text-brand-orange focus-visible:text-brand-orange"
                         onClick={(e: React.MouseEvent) => {
                           const h = item.href;
                           if (h?.startsWith("#")) {
