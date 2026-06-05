@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { utimes } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createContext } from "@mulai-plus/api/context";
@@ -5,6 +6,7 @@ import { newsletter } from "@mulai-plus/api/lib/newsletter";
 import { appRouter } from "@mulai-plus/api/routers/index";
 import { auth } from "@mulai-plus/auth";
 import { and, db, eq, lte } from "@mulai-plus/db";
+import { auditLog } from "@mulai-plus/db/schema/audit";
 import { cmsArticle } from "@mulai-plus/db/schema/cms";
 import { env } from "@mulai-plus/env/server";
 import { uploadRouter } from "@mulai-plus/r2";
@@ -127,6 +129,22 @@ setInterval(
       for (const article of scheduled) {
         // Update status to published
         await db.update(cmsArticle).set({ status: "published", publishedAt: now }).where(eq(cmsArticle.id, article.id));
+
+        // Audit log
+        await db.insert(auditLog).values({
+          id: randomUUID(),
+          action: "SCHEDULED_PUBLISH",
+          resource: "cms_article",
+          resourceId: article.id,
+          details: {
+            title: article.title,
+            type: article.type,
+            slug: article.slug,
+            scheduledAt: article.scheduledAt?.toISOString(),
+            publishedAt: now.toISOString(),
+          },
+          createdAt: now,
+        });
 
         // Send newsletter broadcast
         try {
