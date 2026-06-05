@@ -1,5 +1,6 @@
 import { env } from "@mulai-plus/env/web";
 import type { Metadata } from "next";
+import { client } from "@/lib/client";
 
 export const dynamic = "force-dynamic";
 
@@ -7,21 +8,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const slug = (await params).slug;
 
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:3000";
-    const res = await fetch(`${apiUrl}/rpc/programs.public.get`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify([{ slug }]),
-      next: { revalidate: 300 },
-    });
-
-    if (!res.ok) return { alternates: { canonical: `/programs/${slug}` } };
-
-    const program = (await res.json()) as {
-      name: string;
-      description: string | null;
-      bannerUrl: string | null;
-    };
+    const program = await client.programs.public.get({ slug });
 
     if (!program) return { alternates: { canonical: `/programs/${slug}` } };
 

@@ -23,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const articlesRes = await fetch(`${apiUrl}/rpc/cms.articles.public.list`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify([{ limit: 500, offset: 0 }]),
+      body: JSON.stringify({ limit: 500, offset: 0 }),
       next: { revalidate: 3600 },
     });
 
@@ -46,7 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const newsRes = await fetch(`${apiUrl}/rpc/cms.articles.public.list`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify([{ type: "news", limit: 500, offset: 0 }]),
+      body: JSON.stringify({ type: "news", limit: 500, offset: 0 }),
       next: { revalidate: 3600 },
     });
 
@@ -69,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const programsRes = await fetch(`${apiUrl}/rpc/programs.public.list`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify([{ limit: 100, offset: 0 }]),
+      body: JSON.stringify({ limit: 100, offset: 0 }),
       next: { revalidate: 3600 },
     });
 
