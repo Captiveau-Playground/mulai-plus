@@ -8,6 +8,7 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    APP_URL: z.string().url().default("https://mulaiplus.id"),
     PAYMENT_API_URL: z.string().min(1),
     PAYMENT_API_KEY: z.string().min(1),
     UNOSEND_API_KEY: z.string().min(1).optional(),

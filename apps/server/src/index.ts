@@ -1,8 +1,11 @@
 import { utimes } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createContext } from "@mulai-plus/api/context";
+import { newsletter } from "@mulai-plus/api/lib/newsletter";
 import { appRouter } from "@mulai-plus/api/routers/index";
 import { auth } from "@mulai-plus/auth";
+import { and, db, eq, lte } from "@mulai-plus/db";
+import { cmsArticle } from "@mulai-plus/db/schema/cms";
 import { env } from "@mulai-plus/env/server";
 import { uploadRouter } from "@mulai-plus/r2";
 import { initR2Client } from "@mulai-plus/r2/server";
@@ -109,6 +112,70 @@ app.use("/*", async (c, next) => {
 app.get("/", (c) => {
   return c.text("OK");
 });
+
+// ── Cron: Auto-publish scheduled articles every 5 minutes ──
+setInterval(
+  async () => {
+    try {
+      const now = new Date();
+      const scheduled = await db
+        .select()
+        .from(cmsArticle)
+        .where(and(eq(cmsArticle.status, "scheduled"), lte(cmsArticle.scheduledAt, now)))
+        .limit(20);
+
+      for (const article of scheduled) {
+        // Update status to published
+        await db.update(cmsArticle).set({ status: "published", publishedAt: now }).where(eq(cmsArticle.id, article.id));
+
+        // Send newsletter broadcast
+        try {
+          const typeLabel = article.type === "news" ? "News" : "Artikel";
+          const siteUrl = env.APP_URL;
+          const articleUrl = `${siteUrl}/blog/${article.type === "news" ? "news" : "articles"}/${article.slug}`;
+          const coverImage = article.coverImageUrl
+            ? `<img src="${article.coverImageUrl}" alt="${article.title}" style="width:100%;max-width:600px;border-radius:12px;margin:16px 0" />`
+            : "";
+
+          await newsletter.sendBroadcastNow({
+            name: `${typeLabel} Baru: ${article.title}`,
+            subject: `${typeLabel} Baru — ${article.title}`,
+            html: `
+            <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+              <div style="text-align:center;padding:16px 0;border-bottom:2px solid #1A1F6D">
+                <h1 style="color:#1A1F6D;font-size:24px;margin:0">MULAI+</h1>
+                <p style="color:#888;font-size:12px">Bimbingan Universitas, Jurusan & Beasiswa</p>
+              </div>
+              ${coverImage}
+              <h2 style="color:#1A1F6D;font-size:20px;margin:16px 0 8px">${article.title}</h2>
+              ${article.excerpt ? `<p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 16px">${article.excerpt}</p>` : ""}
+              <div style="margin:24px 0;text-align:center">
+                <a href="${articleUrl}" style="display:inline-block;background:#1A1F6D;color:#fff;padding:12px 32px;border-radius:999px;text-decoration:none;font-size:14px">
+                  Baca ${typeLabel} Lengkap →
+                </a>
+              </div>
+              <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#aaa">
+                <p>Dikirim oleh MULAI+ — ${siteUrl}</p>
+                <p><a href="{{{{RESEND_UNSUBSCRIBE_URL}}}}" style="color:#888">Berhenti berlangganan</a></p>
+              </div>
+            </div>
+          `,
+            articleId: article.id,
+          });
+        } catch (err) {
+          console.error(`[Cron] Failed to send newsletter for ${article.id}:`, err);
+        }
+      }
+
+      if (scheduled.length > 0) {
+        console.log(`[Cron] Auto-published ${scheduled.length} articles`);
+      }
+    } catch (err) {
+      console.error("[Cron] Error auto-publishing articles:", err);
+    }
+  },
+  5 * 60 * 1000,
+); // every 5 minutes
 
 export default {
   port: env.PORT,

@@ -558,6 +558,53 @@ export const articlesRouter = {
           }
         });
 
+        // Auto-send newsletter when article is published via update
+        if (data.status === "published") {
+          try {
+            const fullArticle = await db.query.cmsArticle.findFirst({
+              where: eq(cmsArticle.id, id),
+              with: { author: true },
+            });
+            if (fullArticle) {
+              const typeLabel = fullArticle.type === "news" ? "News" : "Artikel";
+              const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
+              const articleUrl = `${siteUrl}/blog/${fullArticle.type === "news" ? "news" : "articles"}/${fullArticle.slug}`;
+              const coverImage = fullArticle.coverImageUrl
+                ? `<img src="${fullArticle.coverImageUrl}" alt="${fullArticle.title}" style="width:100%;max-width:600px;border-radius:12px;margin:16px 0" />`
+                : "";
+
+              await newsletter.sendBroadcastNow({
+                name: `${typeLabel} Baru: ${fullArticle.title}`,
+                subject: `${typeLabel} Baru — ${fullArticle.title}`,
+                html: `
+                  <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+                    <div style="text-align:center;padding:16px 0;border-bottom:2px solid #1A1F6D">
+                      <h1 style="color:#1A1F6D;font-size:24px;margin:0">MULAI+</h1>
+                      <p style="color:#888;font-size:12px">Bimbingan Universitas, Jurusan & Beasiswa</p>
+                    </div>
+                    ${coverImage}
+                    <h2 style="color:#1A1F6D;font-size:20px;margin:16px 0 8px">${fullArticle.title}</h2>
+                    ${fullArticle.excerpt ? `<p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 16px">${fullArticle.excerpt}</p>` : ""}
+                    ${fullArticle.author?.name ? `<p style="color:#888;font-size:12px">Oleh: ${fullArticle.author.name}</p>` : ""}
+                    <div style="margin:24px 0;text-align:center">
+                      <a href="${articleUrl}" style="display:inline-block;background:#1A1F6D;color:#fff;padding:12px 32px;border-radius:999px;text-decoration:none;font-size:14px">
+                        Baca ${typeLabel} Lengkap →
+                      </a>
+                    </div>
+                    <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#aaa">
+                      <p>Dikirim oleh MULAI+ — ${siteUrl}</p>
+                      <p><a href="{{{{RESEND_UNSUBSCRIBE_URL}}}}" style="color:#888">Berhenti berlangganan</a></p>
+                    </div>
+                  </div>
+                `,
+                articleId: fullArticle.id,
+              });
+            }
+          } catch (err) {
+            console.error("Failed to send newsletter for updated/published article:", err);
+          }
+        }
+
         return { success: true };
       }),
 
