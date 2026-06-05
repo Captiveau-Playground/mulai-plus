@@ -110,27 +110,31 @@ export const articlesRouter = {
         };
       }),
 
-    get: publicProcedure.input(z.object({ slug: z.string() })).handler(async ({ input }) => {
-      const item = await db.query.cmsArticle.findFirst({
-        where: and(eq(cmsArticle.slug, input.slug), eq(cmsArticle.status, "published")),
-        with: {
-          author: true,
-          category: true,
-          tags: {
-            with: {
-              tag: true,
+    get: publicProcedure
+      .input(z.object({ slug: z.string(), type: z.enum(["news", "article"]).optional() }))
+      .handler(async ({ input }) => {
+        const conditions = [eq(cmsArticle.slug, input.slug), eq(cmsArticle.status, "published")];
+        if (input.type) conditions.push(eq(cmsArticle.type, input.type));
+        const item = await db.query.cmsArticle.findFirst({
+          where: and(...conditions),
+          with: {
+            author: true,
+            category: true,
+            tags: {
+              with: {
+                tag: true,
+              },
             },
+            seo: true,
           },
-          seo: true,
-        },
-      });
+        });
 
-      if (!item) {
-        throw new Error("Article not found");
-      }
+        if (!item) {
+          throw new Error("Article not found");
+        }
 
-      return item;
-    }),
+        return item;
+      }),
 
     getRelated: publicProcedure
       .input(
