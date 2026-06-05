@@ -25,7 +25,7 @@ import {
   Undo,
   Youtube,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -94,20 +94,33 @@ export function RichTextEditor({
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [isVideoDialogOpen, setIsVideoDialogOpen] = useState(false);
 
+  // Ref to prevent sync loop: when editor update fires, skip effect sync
+  const isEditorUpdate = useRef(false);
+
   const editor = useEditor({
     extensions: getTiptapExtensions({ placeholder, editable }),
     content,
     editable,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
+      isEditorUpdate.current = true;
       onChange?.(editor.getHTML());
     },
   });
 
   // Sync content prop changes to editor (e.g., when article data loads from API)
+  // Only sync when the change came from OUTSIDE the editor (e.g., draft restore)
   useEffect(() => {
-    if (editor && content && editor.getHTML() !== content) {
-      editor.commands.setContent(content, false);
+    if (!editor) return;
+    if (isEditorUpdate.current) {
+      isEditorUpdate.current = false;
+      return;
+    }
+    const currentHtml = editor.getHTML();
+    const newContent = content || "";
+    if (currentHtml !== newContent) {
+      // biome-ignore lint/suspicious/noExplicitAny: Tiptap setContent accepts emitUpdate option
+      (editor.commands as any).setContent(newContent, { emitUpdate: false });
     }
   }, [editor, content]);
 

@@ -134,6 +134,30 @@ export default function ArticleDetailPage() {
   return (
     <>
       <script
+        id="jsonld-breadcrumb"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "@id": `${typeof window !== "undefined" ? window.location.href : baseUrl}/#breadcrumbs`,
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "News",
+                item: `${baseUrl}/blog/news`,
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: article.title,
+              },
+            ],
+          }),
+        }}
+      />
+      <script
         id="jsonld-article"
         type="application/ld+json"
         dangerouslySetInnerHTML={{
