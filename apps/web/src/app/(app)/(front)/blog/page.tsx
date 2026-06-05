@@ -78,7 +78,7 @@ function HeroFeatured({ article }: { article: ArticleItem }) {
                 </Badge>
               )}
             </div>
-            <h2 className="mb-3 max-w-2xl font-bold font-bricolage text-2xl text-white leading-tight md:text-3xl">
+            <h2 className="mb-3 line-clamp-2 max-w-2xl font-bold font-bricolage text-2xl text-white leading-tight md:text-3xl">
               {article.title}
             </h2>
             {article.excerpt && (
@@ -116,7 +116,10 @@ function MiniCard({ article }: { article: ArticleItem }) {
         <h4 className="line-clamp-2 font-bold font-bricolage text-brand-navy text-xs leading-snug transition-colors group-hover:text-brand-orange">
           {article.title}
         </h4>
-        <p className="mt-1 font-manrope text-[10px] text-gray-400">
+        {article.excerpt && (
+          <p className="mt-0.5 line-clamp-2 font-manrope text-[9px] text-gray-400 leading-relaxed">{article.excerpt}</p>
+        )}
+        <p className="mt-0.5 font-manrope text-[9px] text-gray-300">
           {article.publishedAt && formatDate(article.publishedAt)}
         </p>
       </div>
