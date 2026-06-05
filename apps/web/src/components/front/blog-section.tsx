@@ -116,7 +116,7 @@ export function BlogSection() {
     <section className="relative bg-white py-16 sm:py-20 lg:py-24">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-10 flex flex-col items-center justify-between gap-4 sm:flex-row">
+        <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <Badge className="mb-3 inline-flex border-0 bg-brand-orange/10 font-manrope font-semibold text-[10px] text-brand-orange">
               Blog
@@ -129,7 +129,7 @@ export function BlogSection() {
             </p>
           </div>
           <Link href="/blog">
-            <Button variant="outline" className="group rounded-xl font-manrope text-sm">
+            <Button className="group rounded-full bg-brand-navy font-manrope text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90 hover:shadow-md">
               Lihat Semua
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Button>
