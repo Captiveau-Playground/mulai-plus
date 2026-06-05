@@ -50,6 +50,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     // Fetch published articles
     const articlesData = await client.cms.articles.public.list({
+      type: "article",
       limit: 500,
       offset: 0,
     });
