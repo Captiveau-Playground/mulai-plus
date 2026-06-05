@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const slug = (await params).slug;
 
@@ -18,6 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: string;
       excerpt: string | null;
       publishedAt: string | null;
+      coverImageUrl: string | null;
       author: { name: string } | null;
       seo: { metaTitle: string | null; metaDescription: string | null; ogImageUrl: string | null } | null;
     };
@@ -26,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
     const title = article.seo?.metaTitle || article.title;
     const description = article.seo?.metaDescription || article.excerpt || undefined;
-    const ogImage = article.seo?.ogImageUrl || undefined;
+    const ogImage = article.seo?.ogImageUrl || article.coverImageUrl || undefined;
 
     return {
       title,

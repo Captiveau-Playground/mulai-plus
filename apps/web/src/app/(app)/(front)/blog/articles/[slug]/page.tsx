@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 
@@ -82,6 +83,31 @@ export default function ArticleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
+
+  // Track article view
+  useEffect(() => {
+    trackEvent("article_viewed", { article_slug: slug });
+  }, [slug]);
+
+  // Track scroll depth (75% = read)
+  // Track scroll depth milestones
+  useEffect(() => {
+    const milestones = new Set();
+    const handleScroll = () => {
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollHeight <= 0) return;
+      const scrolled = window.scrollY / scrollHeight;
+      [0.25, 0.5, 0.75, 0.9].forEach((threshold) => {
+        if (scrolled >= threshold && !milestones.has(threshold)) {
+          milestones.add(threshold);
+          trackEvent("article_scroll", { article_slug: slug, depth: `${Math.round(threshold * 100)}%` });
+        }
+      });
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [slug]);
+
   const {
     data: article,
     isLoading,
@@ -298,6 +324,7 @@ export default function ArticleDetailPage() {
                     href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => trackEvent("share_article", { article_slug: slug, platform: "facebook" })}
                     className="flex h-8 w-8 items-center justify-center rounded-full border transition-all hover:bg-blue-50"
                   >
                     <Facebook className="h-3.5 w-3.5" />
@@ -306,6 +333,7 @@ export default function ArticleDetailPage() {
                     href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => trackEvent("share_article", { article_slug: slug, platform: "linkedin" })}
                     className="flex h-8 w-8 items-center justify-center rounded-full border transition-all hover:bg-blue-50"
                   >
                     <Linkedin className="h-3.5 w-3.5" />
@@ -313,6 +341,7 @@ export default function ArticleDetailPage() {
                   <button
                     type="button"
                     onClick={() => {
+                      trackEvent("share_article", { article_slug: slug, platform: "copy" });
                       navigator.clipboard.writeText(typeof window !== "undefined" ? window.location.href : "");
                       toast.success("Link copied!");
                     }}

@@ -131,7 +131,7 @@ function FeaturedHero({ article }: { article: ArticleItem }) {
               ))}
             </div>
 
-            <h2 className="mb-3 max-w-2xl font-bold font-bricolage text-2xl text-white leading-tight md:text-3xl lg:text-4xl">
+            <h2 className="mb-3 line-clamp-2 max-w-2xl font-bold font-bricolage text-2xl text-white leading-tight md:text-3xl lg:text-4xl">
               {article.title}
             </h2>
 
