@@ -1,27 +1,13 @@
 import type { Metadata } from "next";
+import { client } from "@/lib/client";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const slug = (await params).slug;
 
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:3000";
-    const res = await fetch(`${apiUrl}/rpc/cms.articles.public.get`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify([{ slug }]),
-      next: { revalidate: 300 },
-    });
-
-    if (!res.ok) return { alternates: { canonical: `/blog/articles/${slug}` } };
-
-    const article = (await res.json()) as {
-      title: string;
-      excerpt: string | null;
-      publishedAt: string | null;
-      coverImageUrl: string | null;
-      author: { name: string } | null;
-      seo: { metaTitle: string | null; metaDescription: string | null; ogImageUrl: string | null } | null;
-    };
+    const article = await client.cms.articles.public.get({ slug });
 
     if (!article) return { alternates: { canonical: `/blog/articles/${slug}` } };
 
@@ -37,7 +23,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         title,
         description,
         type: "article",
-        publishedTime: article.publishedAt || undefined,
+        publishedTime:
+          typeof article.publishedAt === "string"
+            ? article.publishedAt
+            : article.publishedAt?.toISOString?.() || undefined,
         authors: article.author?.name ? [article.author.name] : undefined,
         images: ogImage ? [{ url: ogImage, width: 1200, height: 630 }] : undefined,
       },
