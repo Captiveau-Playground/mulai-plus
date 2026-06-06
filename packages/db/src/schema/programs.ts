@@ -92,6 +92,10 @@ export const programSyllabus = pgTable("program_syllabus", {
   week: integer("week").notNull(),
   title: text("title").notNull(),
   outcome: text("outcome"),
+  tujuan: text("tujuan"),
+  kegiatanUtama: text("kegiatan_utama"),
+  fokusUtama: text("fokus_utama"),
+  output: text("output"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

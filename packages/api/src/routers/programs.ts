@@ -933,6 +933,10 @@ export const programsRouter = {
                 week: z.number(),
                 title: z.string(),
                 outcome: z.string().optional(),
+                tujuan: z.string().optional(),
+                kegiatanUtama: z.string().optional(),
+                fokusUtama: z.string().optional(),
+                output: z.string().optional(),
               }),
             ),
           }),
@@ -958,6 +962,10 @@ export const programsRouter = {
                     week: item.week,
                     title: item.title,
                     outcome: item.outcome,
+                    tujuan: item.tujuan,
+                    kegiatanUtama: item.kegiatanUtama,
+                    fokusUtama: item.fokusUtama,
+                    output: item.output,
                   })
                   .where(eq(programSyllabus.id, item.id));
               } else {
@@ -967,6 +975,10 @@ export const programsRouter = {
                   week: item.week,
                   title: item.title,
                   outcome: item.outcome,
+                  tujuan: item.tujuan,
+                  kegiatanUtama: item.kegiatanUtama,
+                  fokusUtama: item.fokusUtama,
+                  output: item.output,
                 });
               }
             }

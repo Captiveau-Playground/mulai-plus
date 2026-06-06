@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, CheckCircle, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { MentorBatchTabs } from "@/components/mentor/mentor-batch-tabs";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,59 +71,16 @@ export default function MentorBatchCurriculumPage() {
                   // Check if there's a session for this week
                   const weekSession = sessions.find((s: any) => s.week === item.week);
                   const hasSession = !!weekSession;
+                  const hasDetail = item.tujuan || item.kegiatanUtama || item.fokusUtama || item.output;
 
                   return (
-                    <div key={item.id} className="relative flex gap-6">
-                      {/* Timeline Dot */}
-                      <div
-                        className={cn(
-                          "relative z-10 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full shadow-md",
-                          hasSession ? "bg-mentor-teal" : "bg-gray-200",
-                        )}
-                      >
-                        {hasSession ? (
-                          <CheckCircle className="h-5 w-5 text-white" />
-                        ) : (
-                          <span className="font-bold font-bricolage text-gray-500 text-sm">{item.week}</span>
-                        )}
-                      </div>
-
-                      {/* Content Card */}
-                      <Card className="mentor-card flex-1">
-                        <CardContent className="flex items-center justify-between p-4">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center rounded-full px-2.5 py-0.5 font-manrope font-medium text-xs",
-                                  hasSession ? "bg-mentor-teal/10 text-mentor-teal" : "bg-gray-100 text-gray-500",
-                                )}
-                              >
-                                Week {item.week}
-                              </span>
-                              {hasSession && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 font-manrope text-green-700 text-xs">
-                                  <CheckCircle className="h-3 w-3" />
-                                  Scheduled
-                                </span>
-                              )}
-                            </div>
-                            <h3 className="mt-2 font-bold font-bricolage text-base text-text-main">{item.title}</h3>
-                            {item.outcome && (
-                              <p className="mt-1 font-manrope text-sm text-text-muted-custom">{item.outcome}</p>
-                            )}
-                          </div>
-
-                          {hasSession && (
-                            <Link href={`/mentor/sessions?batchId=${batchId}`}>
-                              <Button variant="ghost" size="icon" className="shrink-0 text-gray-400">
-                                <ChevronRight className="h-5 w-5" />
-                              </Button>
-                            </Link>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
+                    <SyllabusWeekCard
+                      key={item.id}
+                      item={item}
+                      hasSession={hasSession}
+                      hasDetail={hasDetail}
+                      batchId={batchId}
+                    />
                   );
                 })}
               </div>
@@ -139,5 +97,110 @@ export default function MentorBatchCurriculumPage() {
         )}
       </div>
     </PageState>
+  );
+}
+
+function SyllabusWeekCard({
+  item,
+  hasSession,
+  hasDetail,
+  batchId,
+}: {
+  item: any;
+  hasSession: boolean;
+  hasDetail: boolean;
+  batchId: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const detailFields: { label: string; value: string | null }[] = [
+    { label: "Tujuan", value: item.tujuan },
+    { label: "Kegiatan Utama", value: item.kegiatanUtama },
+    { label: "Fokus Utama", value: item.fokusUtama },
+    { label: "Output", value: item.output },
+  ];
+
+  return (
+    <div className="relative flex gap-6">
+      {/* Timeline Dot */}
+      <div
+        className={cn(
+          "relative z-10 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full shadow-md",
+          hasSession ? "bg-mentor-teal" : "bg-gray-200",
+        )}
+      >
+        {hasSession ? (
+          <CheckCircle className="h-5 w-5 text-white" />
+        ) : (
+          <span className="font-bold font-bricolage text-gray-500 text-sm">{item.week}</span>
+        )}
+      </div>
+
+      {/* Content Card */}
+      <Card className="mentor-card flex-1">
+        <CardContent className="p-4">
+          {/* Always visible: title + outcome */}
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2.5 py-0.5 font-manrope font-medium text-xs",
+                    hasSession ? "bg-mentor-teal/10 text-mentor-teal" : "bg-gray-100 text-gray-500",
+                  )}
+                >
+                  Week {item.week}
+                </span>
+                {hasSession && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 font-manrope text-green-700 text-xs">
+                    <CheckCircle className="h-3 w-3" />
+                    Scheduled
+                  </span>
+                )}
+              </div>
+              <h3 className="mt-2 font-bold font-bricolage text-base text-text-main">{item.title}</h3>
+              {item.outcome && <p className="mt-1 font-manrope text-sm text-text-muted-custom">{item.outcome}</p>}
+            </div>
+
+            <div className="ml-4 flex shrink-0 items-center gap-2">
+              {hasDetail && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpanded(!expanded)}
+                  className="text-mentor-teal hover:text-mentor-teal/80"
+                >
+                  <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", expanded && "rotate-180")} />
+                  <span className="ml-1 text-xs">Detail</span>
+                </Button>
+              )}
+              {hasSession && (
+                <Link href={`/mentor/sessions?batchId=${batchId}`}>
+                  <Button variant="ghost" size="icon" className="text-gray-400">
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Expanded detail section */}
+          {expanded && hasDetail && (
+            <div className="mt-4 space-y-4 border-gray-100 border-t pt-4">
+              {detailFields
+                .filter((f) => f.value)
+                .map((field) => (
+                  <div key={field.label}>
+                    <h4 className="font-bold font-bricolage text-brand-navy text-sm">{field.label}</h4>
+                    <div className="mt-1 whitespace-pre-wrap font-manrope text-sm text-text-muted-custom">
+                      {field.value}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
