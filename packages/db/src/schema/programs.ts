@@ -293,6 +293,27 @@ export const summaryReportItem = pgTable("summary_report_item", {
     .notNull(),
 });
 
+export const batchReportTemplateItem = pgTable("batch_report_template_item", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const batchReportTemplateItemRelations = relations(batchReportTemplateItem, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [batchReportTemplateItem.batchId],
+    references: [programBatch.id],
+  }),
+}));
+
 export const programAttendance = pgTable(
   "program_attendance",
   {

@@ -7,6 +7,7 @@ import {
   Calendar,
   Clock,
   File,
+  FileText,
   Loader2,
   MessageSquare,
   MoreHorizontal,
@@ -49,6 +50,7 @@ import { BatchAttachmentsDialog } from "./batch-attachments";
 import { BatchSessionsDialog } from "./batch-sessions";
 import { BatchAttendanceDialog } from "./dialogs/batch-attendance";
 import { BatchMentorsDialog } from "./dialogs/batch-mentors";
+import { BatchReportTemplateDialog } from "./dialogs/batch-report-template";
 import { BatchTimelineDialog } from "./dialogs/batch-timeline";
 import { EditBatchDialog } from "./dialogs/edit-batch";
 import { MentorMenteeAssignDialog } from "./mentor-mentee-assign";
@@ -97,6 +99,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
   } | null>(null);
   const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
   const [menteeAssignBatch, setMenteeAssignBatch] = useState<{ id: string; name: string } | null>(null);
+  const [reportTemplateBatch, setReportTemplateBatch] = useState<{ id: string; name: string } | null>(null);
   const [summaryReportsBatch, setSummaryReportsBatch] = useState<{
     id: string;
     name: string;
@@ -301,6 +304,9 @@ export function ProgramBatches({ programId }: { programId: string }) {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setMenteeAssignBatch({ id: batch.id, name: batch.name })}>
                             <UserCheck className="mr-2 h-4 w-4" /> Assign Mentees
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setReportTemplateBatch({ id: batch.id, name: batch.name })}>
+                            <FileText className="mr-2 h-4 w-4" /> Report Template
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => setSummaryReportsBatch({ id: batch.id, name: batch.name, programId })}
@@ -703,6 +709,13 @@ export function ProgramBatches({ programId }: { programId: string }) {
           programId={programId}
           open={!!menteeAssignBatch}
           onOpenChange={(open) => !open && setMenteeAssignBatch(null)}
+        />
+      )}
+      {reportTemplateBatch && (
+        <BatchReportTemplateDialog
+          batch={reportTemplateBatch}
+          open={!!reportTemplateBatch}
+          onOpenChange={(open) => !open && setReportTemplateBatch(null)}
         />
       )}
       {summaryReportsBatch && (

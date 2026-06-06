@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, gt, inArray, isNotNull, isNull, ne, or, sql } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, gt, inArray, isNotNull, isNull, ne, not, or, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
+  batchReportTemplateItem,
   mentorMentee,
   program,
   programApplication,
@@ -1929,6 +1930,64 @@ export const programsRouter = {
             .update(summaryReport)
             .set({ status: input.action, reviewNotes: input.notes || null })
             .where(eq(summaryReport.id, input.id));
+          return { success: true };
+        }),
+    },
+
+    batchReportTemplate: {
+      list: adminOrProgramManagerProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+        const items = await db.query.batchReportTemplateItem.findMany({
+          where: eq(batchReportTemplateItem.batchId, input.batchId),
+          orderBy: asc(batchReportTemplateItem.order),
+        });
+        return items;
+      }),
+
+      update: adminOrProgramManagerProcedure
+        .input(
+          z.object({
+            batchId: z.string(),
+            items: z.array(
+              z.object({
+                id: z.string().optional(),
+                title: z.string(),
+                order: z.number(),
+              }),
+            ),
+          }),
+        )
+        .handler(async ({ input }) => {
+          await db.transaction(async (tx) => {
+            const existingIds = input.items.filter((i) => i.id).map((i) => i.id as string);
+            if (existingIds.length > 0) {
+              await tx
+                .delete(batchReportTemplateItem)
+                .where(
+                  and(
+                    eq(batchReportTemplateItem.batchId, input.batchId),
+                    not(inArray(batchReportTemplateItem.id, existingIds)),
+                  ),
+                );
+            } else {
+              await tx.delete(batchReportTemplateItem).where(eq(batchReportTemplateItem.batchId, input.batchId));
+            }
+
+            for (const item of input.items) {
+              if (item.id) {
+                await tx
+                  .update(batchReportTemplateItem)
+                  .set({ title: item.title, order: item.order })
+                  .where(eq(batchReportTemplateItem.id, item.id));
+              } else {
+                await tx.insert(batchReportTemplateItem).values({
+                  id: randomUUID(),
+                  batchId: input.batchId,
+                  title: item.title,
+                  order: item.order,
+                });
+              }
+            }
+          });
           return { success: true };
         }),
     },
