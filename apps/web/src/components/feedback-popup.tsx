@@ -89,7 +89,7 @@ export function FeedbackPopup({
       });
       setAnswers(initial);
     }
-  }, [feedback?.id, feedback.questions.forEach, feedback]);
+  }, [feedback?.id, feedback?.questions?.forEach, feedback]);
 
   const submitMutation = useMutation({
     ...orpc.feedback.response.submit.mutationOptions(),

@@ -41,10 +41,12 @@ export function BatchAttachmentsDialog({
   batch,
   open,
   onOpenChange,
+  embedded,
 }: {
   batch: { id: string; name: string; durationWeeks: number };
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  embedded?: boolean;
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<any>(null);
@@ -373,6 +375,178 @@ export function BatchAttachmentsDialog({
     );
   }
 
+  const mainContent = (
+    <Tabs defaultValue="active" className="w-full">
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <TabsList>
+          <TabsTrigger value="active">Active Attachments</TabsTrigger>
+          <TabsTrigger value="requests">
+            Requests
+            {requests?.data && requests.data.length > 0 && (
+              <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                {requests.data.length}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+        <Button onClick={handleCreate}>
+          <Plus className="mr-2 h-4 w-4" /> Add Attachment
+        </Button>
+      </div>
+
+      <TabsContent value="active">
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Week</TableHead>
+                <TableHead>Linked Session</TableHead>
+                <TableHead className="w-[100px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                  </TableCell>
+                </TableRow>
+              ) : attachments?.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No attachments found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                attachments?.map((attachment) => (
+                  <TableRow key={attachment.id}>
+                    <TableCell>
+                      <a
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center font-medium hover:underline"
+                      >
+                        {attachment.type === "video" ? (
+                          <Video className="mr-2 h-4 w-4" />
+                        ) : attachment.type === "file" ? (
+                          <File className="mr-2 h-4 w-4" />
+                        ) : (
+                          <LinkIcon className="mr-2 h-4 w-4" />
+                        )}
+                        {attachment.name}
+                      </a>
+                    </TableCell>
+                    <TableCell className="capitalize">{attachment.type}</TableCell>
+                    <TableCell>{attachment.week ? `Week ${attachment.week}` : "All Weeks"}</TableCell>
+                    <TableCell>
+                      {attachment.sessionId ? <span className="text-muted-foreground text-xs">Linked</span> : "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(attachment)} className="mr-1">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600"
+                        onClick={() => {
+                          if (confirm("Are you sure?")) deleteMutation.mutate({ id: attachment.id });
+                        }}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="requests">
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Action</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead>Requested By</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[100px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoadingRequests ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                  </TableCell>
+                </TableRow>
+              ) : requests?.data?.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No pending requests.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                requests?.data?.map((req: any) => (
+                  <TableRow key={req.id}>
+                    <TableCell className="font-medium capitalize">{req.action}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col text-sm">
+                        {req.action === "create" || req.action === "update" ? (
+                          <>
+                            <span className="font-medium">{(req.data as any).name}</span>
+                            <span className="text-muted-foreground">{(req.data as any).type}</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">ID: {req.attachmentId}</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{req.requestedBy?.name || "Unknown"}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center rounded-full bg-yellow-500 px-2.5 py-0.5 font-semibold text-white text-xs">
+                        {req.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          className="h-8 w-8 bg-green-600 p-0 hover:bg-green-700"
+                          onClick={() => approveMutation.mutate({ requestId: req.id })}
+                          disabled={approveMutation.isPending}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-8 w-8 p-0"
+                          onClick={() => rejectMutation.mutate({ requestId: req.id, reason: "Admin rejected" })}
+                          disabled={rejectMutation.isPending}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </TabsContent>
+    </Tabs>
+  );
+
+  if (embedded) return mainContent;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-[95vw] sm:max-w-4xl">
@@ -380,186 +554,7 @@ export function BatchAttachmentsDialog({
           <DialogTitle>Attachments: {batch.name}</DialogTitle>
           <DialogDescription>Manage resources and links.</DialogDescription>
         </DialogHeader>
-
-        <Tabs defaultValue="active" className="w-full">
-          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <TabsList>
-              <TabsTrigger value="active">Active Attachments</TabsTrigger>
-              <TabsTrigger value="requests">
-                Requests
-                {requests?.data && requests.data.length > 0 && (
-                  <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-                    {requests.data.length}
-                  </span>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            <Button onClick={handleCreate}>
-              <Plus className="mr-2 h-4 w-4" /> Add Attachment
-            </Button>
-          </div>
-
-          <TabsContent value="active">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Week</TableHead>
-                    <TableHead>Linked Session</TableHead>
-                    <TableHead className="w-[100px]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                      </TableCell>
-                    </TableRow>
-                  ) : attachments?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        No attachments found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    attachments?.map((attachment) => (
-                      <TableRow key={attachment.id}>
-                        <TableCell>
-                          <a
-                            href={attachment.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center font-medium hover:underline"
-                          >
-                            {attachment.type === "video" ? (
-                              <Video className="mr-2 h-4 w-4" />
-                            ) : attachment.type === "file" ? (
-                              <File className="mr-2 h-4 w-4" />
-                            ) : (
-                              <LinkIcon className="mr-2 h-4 w-4" />
-                            )}
-                            {attachment.name}
-                          </a>
-                        </TableCell>
-                        <TableCell className="capitalize">{attachment.type}</TableCell>
-                        <TableCell>{attachment.week ? `Week ${attachment.week}` : "All Weeks"}</TableCell>
-                        <TableCell>
-                          {attachment.sessionId ? (
-                            <span className="text-muted-foreground text-xs">Linked to session</span>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(attachment)} className="mr-2">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600"
-                            onClick={() => {
-                              if (confirm("Are you sure?")) {
-                                deleteMutation.mutate({ id: attachment.id });
-                              }
-                            }}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="requests">
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Details</TableHead>
-                    <TableHead>Requested By</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-[100px]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoadingRequests ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                      </TableCell>
-                    </TableRow>
-                  ) : requests?.data?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        No pending requests.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    requests?.data?.map((req: any) => (
-                      <TableRow key={req.id}>
-                        <TableCell className="font-medium capitalize">{req.action}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col text-sm">
-                            {req.action === "create" || req.action === "update" ? (
-                              <>
-                                <span className="font-medium">{(req.data as any).name}</span>
-                                <span className="text-muted-foreground">{(req.data as any).type}</span>
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">Attachment ID: {req.attachmentId}</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{req.requestedBy?.name || "Unknown"}</TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center rounded-full border border-transparent bg-yellow-500 px-2.5 py-0.5 font-semibold text-white text-xs shadow transition-colors hover:bg-yellow-500/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                            {req.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              className="h-8 w-8 bg-green-600 p-0 hover:bg-green-700"
-                              onClick={() => approveMutation.mutate({ requestId: req.id })}
-                              disabled={approveMutation.isPending}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-8 w-8 p-0"
-                              onClick={() =>
-                                rejectMutation.mutate({
-                                  requestId: req.id,
-                                  reason: "Admin rejected",
-                                })
-                              }
-                              disabled={rejectMutation.isPending}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
-        </Tabs>
-
+        {mainContent}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close

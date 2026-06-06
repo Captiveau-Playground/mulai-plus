@@ -5,14 +5,7 @@ import { Loader2, Plus, Save, Trash } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { orpc } from "@/utils/orpc";
@@ -27,10 +20,12 @@ export function BatchReportTemplateDialog({
   batch,
   open,
   onOpenChange,
+  embedded,
 }: {
   batch: { id: string; name: string } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  embedded?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [items, setItems] = useState<TemplateItem[]>([]);
@@ -40,15 +35,13 @@ export function BatchReportTemplateDialog({
     ...orpc.programs.admin.batchReportTemplate.list.queryOptions({
       input: { batchId: batch?.id ?? "" },
     }),
-    enabled: !!batch?.id && open,
+    enabled: !!batch?.id && (embedded || open),
   });
 
-  // Init from existing template
-  if (!initialized && templateItems && open) {
+  if (!initialized && templateItems && (embedded || open)) {
     if (templateItems.length > 0) {
       setItems(templateItems.map((i: any) => ({ id: i.id, title: i.title, order: i.order })));
     } else {
-      // Default 5 items
       setItems([
         { title: "", order: 1 },
         { title: "", order: 2 },
@@ -60,7 +53,6 @@ export function BatchReportTemplateDialog({
     setInitialized(true);
   }
 
-  // Reset when dialog closes
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setInitialized(false);
@@ -78,7 +70,7 @@ export function BatchReportTemplateDialog({
           input: { batchId: batch?.id ?? "" },
         }),
       });
-      handleOpenChange(false);
+      if (!embedded) handleOpenChange(false);
     },
     onError: (error) => toast.error(error.message || "Failed to save template"),
   });
@@ -119,6 +111,74 @@ export function BatchReportTemplateDialog({
     });
   };
 
+  const content = (
+    <>
+      {isLoading ? (
+        <div className="flex h-48 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-mentor-teal" />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-xs">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-navy font-bold text-white text-xs">
+                {i + 1}
+              </span>
+              <div className="flex-1">
+                <Label className="font-manrope font-medium text-text-muted-custom text-xs">Title</Label>
+                <Input
+                  value={item.title}
+                  onChange={(e) => handleChange(i, e.target.value)}
+                  placeholder="e.g. Percaya Diri, Komunikasi, dll"
+                  className="mt-1 rounded-xl border-gray-200 font-manrope text-sm"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleRemove(i)}
+                className="mt-5 shrink-0"
+                disabled={items.length <= 1}
+              >
+                <Trash className="h-4 w-4 text-brand-red" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={handleAdd} className="rounded-full text-xs">
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Item
+          </Button>
+        </div>
+      )}
+      <div className="mt-6 flex justify-end gap-2">
+        {!embedded && (
+          <Button
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            className="rounded-xl border-gray-200 font-manrope text-sm"
+          >
+            Cancel
+          </Button>
+        )}
+        <Button
+          onClick={handleSave}
+          disabled={updateMutation.isPending}
+          className="rounded-xl bg-brand-navy font-manrope text-sm text-white shadow-xs hover:bg-brand-navy/90"
+        >
+          {updateMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+          Save Template
+        </Button>
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="space-y-4">{content}</div>;
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-xl lg:max-w-2xl">
@@ -128,66 +188,7 @@ export function BatchReportTemplateDialog({
             {batch?.name} — Set the assessment titles that mentors will fill descriptions for.
           </DialogDescription>
         </DialogHeader>
-
-        {isLoading ? (
-          <div className="flex h-48 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-mentor-teal" />
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {items.map((item, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-xs">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-navy font-bold text-white text-xs">
-                  {i + 1}
-                </span>
-                <div className="flex-1">
-                  <Label className="font-manrope font-medium text-text-muted-custom text-xs">Title</Label>
-                  <Input
-                    value={item.title}
-                    onChange={(e) => handleChange(i, e.target.value)}
-                    placeholder="e.g. Percaya Diri, Komunikasi, dll"
-                    className="mt-1 rounded-xl border-gray-200 font-manrope text-sm"
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemove(i)}
-                  className="mt-5 shrink-0"
-                  disabled={items.length <= 1}
-                >
-                  <Trash className="h-4 w-4 text-brand-red" />
-                </Button>
-              </div>
-            ))}
-
-            <Button variant="outline" size="sm" onClick={handleAdd} className="rounded-full text-xs">
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Item
-            </Button>
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            className="rounded-xl border-gray-200 font-manrope text-sm"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={updateMutation.isPending}
-            className="rounded-xl bg-brand-navy font-manrope text-sm text-white shadow-xs hover:bg-brand-navy/90"
-          >
-            {updateMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Save Template
-          </Button>
-        </DialogFooter>
+        {content}
       </DialogContent>
     </Dialog>
   );

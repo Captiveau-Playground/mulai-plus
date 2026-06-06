@@ -3,26 +3,14 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import {
-  Calendar,
-  Clock,
-  File,
-  FileText,
-  Loader2,
-  MessageSquare,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Trash,
-  UserCheck,
-  Users,
-} from "lucide-react";
+import { ArrowRight, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -45,6 +33,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 import { BatchAttachmentsDialog } from "./batch-attachments";
 import { BatchSessionsDialog } from "./batch-sessions";
@@ -284,100 +273,75 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <Badge variant={batch.status === "open" ? "default" : "secondary"}>{batch.status}</Badge>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuGroup>
-                        <DropdownMenuTrigger>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setSessionsBatch(batch)}>
-                            <Calendar className="mr-2 h-4 w-4" /> Manage Sessions
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setAttachmentsBatch(batch)}>
-                            <File className="mr-2 h-4 w-4" /> Manage Attachments
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setMentorBatchId(batch.id)}>
-                            <Users className="mr-2 h-4 w-4" /> Manage Mentors
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setMenteeAssignBatch({ id: batch.id, name: batch.name })}>
-                            <UserCheck className="mr-2 h-4 w-4" /> Assign Mentees
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setReportTemplateBatch({ id: batch.id, name: batch.name })}>
-                            <FileText className="mr-2 h-4 w-4" /> Report Template
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setSummaryReportsBatch({ id: batch.id, name: batch.name, programId })}
-                          >
-                            <MessageSquare className="mr-2 h-4 w-4" /> Summary Reports
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setAttendanceBatch({
-                                id: batch.id,
-                                name: batch.name,
-                                durationWeeks: batch.durationWeeks,
-                              })
-                            }
-                          >
-                            <Calendar className="mr-2 h-4 w-4" /> Attendance
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setTimelineBatch(batch)}>
-                            <Clock className="mr-2 h-4 w-4" /> Timeline
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setEditingBatch({
-                                id: batch.id,
-                                name: batch.name,
-                                startDate: new Date(batch.startDate).toISOString().split("T")[0],
-                                endDate: new Date(batch.endDate).toISOString().split("T")[0],
-                                registrationStartDate: new Date(batch.registrationStartDate)
-                                  .toISOString()
-                                  .split("T")[0],
-                                registrationEndDate: new Date(batch.registrationEndDate).toISOString().split("T")[0],
-                                verificationStartDate: batch.verificationStartDate
-                                  ? new Date(batch.verificationStartDate).toISOString().split("T")[0]
-                                  : "",
-                                verificationEndDate: batch.verificationEndDate
-                                  ? new Date(batch.verificationEndDate).toISOString().split("T")[0]
-                                  : "",
-                                assessmentStartDate: batch.assessmentStartDate
-                                  ? new Date(batch.assessmentStartDate).toISOString().split("T")[0]
-                                  : "",
-                                assessmentEndDate: batch.assessmentEndDate
-                                  ? new Date(batch.assessmentEndDate).toISOString().split("T")[0]
-                                  : "",
-                                announcementDate: batch.announcementDate
-                                  ? new Date(batch.announcementDate).toISOString().split("T")[0]
-                                  : "",
-                                onboardingDate: batch.onboardingDate
-                                  ? new Date(batch.onboardingDate).toISOString().split("T")[0]
-                                  : "",
-                                quota: batch.quota,
-                                durationWeeks: batch.durationWeeks,
-                                bannerUrl: batch.bannerUrl,
-                                status: batch.status as "upcoming" | "open" | "closed" | "running" | "completed",
-                              })
-                            }
-                          >
-                            <Pencil className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => {
-                              if (confirm("Are you sure?")) {
-                                deleteMutation.mutate({ id: batch.id });
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/admin/programs/${programId}/batches/${batch.id}` as any}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-full text-xs")}
+                      >
+                        Manage
+                        <ArrowRight className="ml-1 h-3 w-3" />
+                      </Link>
+                      <DropdownMenu>
+                        <DropdownMenuGroup>
+                          <DropdownMenuTrigger>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setEditingBatch({
+                                  id: batch.id,
+                                  name: batch.name,
+                                  startDate: new Date(batch.startDate).toISOString().split("T")[0],
+                                  endDate: new Date(batch.endDate).toISOString().split("T")[0],
+                                  registrationStartDate: new Date(batch.registrationStartDate)
+                                    .toISOString()
+                                    .split("T")[0],
+                                  registrationEndDate: new Date(batch.registrationEndDate).toISOString().split("T")[0],
+                                  verificationStartDate: batch.verificationStartDate
+                                    ? new Date(batch.verificationStartDate).toISOString().split("T")[0]
+                                    : "",
+                                  verificationEndDate: batch.verificationEndDate
+                                    ? new Date(batch.verificationEndDate).toISOString().split("T")[0]
+                                    : "",
+                                  assessmentStartDate: batch.assessmentStartDate
+                                    ? new Date(batch.assessmentStartDate).toISOString().split("T")[0]
+                                    : "",
+                                  assessmentEndDate: batch.assessmentEndDate
+                                    ? new Date(batch.assessmentEndDate).toISOString().split("T")[0]
+                                    : "",
+                                  announcementDate: batch.announcementDate
+                                    ? new Date(batch.announcementDate).toISOString().split("T")[0]
+                                    : "",
+                                  onboardingDate: batch.onboardingDate
+                                    ? new Date(batch.onboardingDate).toISOString().split("T")[0]
+                                    : "",
+                                  quota: batch.quota,
+                                  durationWeeks: batch.durationWeeks,
+                                  bannerUrl: batch.bannerUrl,
+                                  status: batch.status as "upcoming" | "open" | "closed" | "running" | "completed",
+                                })
                               }
-                            }}
-                          >
-                            <Trash className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenuGroup>
-                    </DropdownMenu>
+                            >
+                              <Pencil className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => {
+                                if (confirm("Are you sure?")) {
+                                  deleteMutation.mutate({ id: batch.id });
+                                }
+                              }}
+                            >
+                              <Trash className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenuGroup>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

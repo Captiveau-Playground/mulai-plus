@@ -792,7 +792,8 @@ function ViewResultsDialog({
           toUser: r.toUser?.name,
         });
       }
-      respondentMap.get(uid)?.answers[r.questionId] = r.answer;
+      const entry = respondentMap.get(uid);
+      if (entry) entry.answers[r.questionId] = r.answer;
     }
 
     const rows = Array.from(respondentMap.entries()).map(([uid, data]) => ({

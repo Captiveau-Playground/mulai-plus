@@ -48,6 +48,7 @@ export function BatchTimelineDialog({
   batch,
   open,
   onOpenChange,
+  embedded,
 }: {
   batch: {
     name: string;
@@ -64,12 +65,33 @@ export function BatchTimelineDialog({
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  embedded?: boolean;
 }) {
   if (!batch) return null;
 
   const events = timelineEvents(batch)
     .filter((e) => e.date)
     .sort((a, b) => new Date(a.date as string).getTime() - new Date(b.date as string).getTime());
+
+  const content = (
+    <div className="relative ml-4 space-y-6 border-muted border-l py-4 pl-6">
+      {events.map((event, index) => (
+        <div key={index} className="relative">
+          <span className={`absolute -left-[31px] flex h-4 w-4 rounded-full ${event.color} ring-4 ring-background`} />
+          <div className="flex flex-col">
+            <span className="font-medium text-sm">{event.label}</span>
+            <span className="text-muted-foreground text-sm">
+              {format(new Date(event.date as string), "EEEE, MMMM d, yyyy")}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -78,21 +100,7 @@ export function BatchTimelineDialog({
           <DialogTitle>Batch Timeline — {batch.name}</DialogTitle>
           <DialogDescription>Key dates and events for this batch.</DialogDescription>
         </DialogHeader>
-        <div className="relative ml-4 space-y-6 border-muted border-l py-4 pl-6">
-          {events.map((event, index) => (
-            <div key={index} className="relative">
-              <span
-                className={`absolute -left-[31px] flex h-4 w-4 rounded-full ${event.color} ring-4 ring-background`}
-              />
-              <div className="flex flex-col">
-                <span className="font-medium text-sm">{event.label}</span>
-                <span className="text-muted-foreground text-sm">
-                  {format(new Date(event.date as string), "EEEE, MMMM d, yyyy")}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+        {content}
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>

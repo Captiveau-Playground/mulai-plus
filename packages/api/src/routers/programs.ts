@@ -598,6 +598,13 @@ export const programsRouter = {
     }),
 
     batches: {
+      get: adminOrProgramManagerProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+        const batch = await db.query.programBatch.findFirst({
+          where: eq(programBatch.id, input.id),
+        });
+        if (!batch) throw new Error("Batch not found");
+        return batch;
+      }),
       list: adminOrProgramManagerProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
         return await db
           .select()
