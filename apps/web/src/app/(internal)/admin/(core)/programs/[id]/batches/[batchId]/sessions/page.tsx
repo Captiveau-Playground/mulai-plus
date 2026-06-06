@@ -12,16 +12,20 @@ export default function BatchSessionsPage() {
   const { data: batch } = useQuery(orpc.programs.admin.batches.get.queryOptions({ input: { id: batchId } }));
 
   return (
-    <div className="space-y-6 p-4">
-      <BatchPageHeader programId={params.id as string} batchId={batchId} batch={batch} subtitle="Sessions" />
-      {batch && (
-        <BatchSessionsDialog
-          batch={{ id: batchId, name: batch.name, durationWeeks: batch.durationWeeks }}
-          open={true}
-          onOpenChange={() => {}}
-          embedded
-        />
-      )}
+    <div className="min-h-screen bg-bg-light p-4">
+      <div className="max-w-full space-y-6">
+        <BatchPageHeader programId={params.id as string} batchId={batchId} batch={batch} subtitle="Sessions" />
+        {batch && (
+          <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm">
+            <BatchSessionsDialog
+              batch={{ id: batchId, name: batch.name, durationWeeks: batch.durationWeeks }}
+              open={true}
+              onOpenChange={() => {}}
+              embedded
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

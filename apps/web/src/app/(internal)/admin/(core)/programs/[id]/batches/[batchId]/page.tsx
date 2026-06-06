@@ -19,7 +19,6 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { PageState } from "@/components/ui/page-state";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -45,6 +44,11 @@ export function BatchDetailContent() {
   const batchId = params.batchId as string;
 
   const { data: batch, isLoading } = useQuery(orpc.programs.admin.batches.get.queryOptions({ input: { id: batchId } }));
+
+  const { data: program } = useQuery({
+    ...orpc.programs.admin.get.queryOptions({ input: { id: programId } }),
+    enabled: !!programId,
+  });
 
   const { data: sessions } = useQuery({
     ...orpc.programActivities.session.list.queryOptions({ input: { batchId } }),
@@ -94,183 +98,219 @@ export function BatchDetailContent() {
   const weeksDone = new Set(allAttendance.map((a: any) => a.week)).size;
   const completedSessions = sessions?.filter((s: any) => s.status === "completed").length || 0;
 
-  const navCards = [
+  const stats = [
+    {
+      label: "Sessions",
+      value: totalSessions,
+      sub: `${completedSessions} completed`,
+      icon: BookOpen,
+      color: "text-blue-600 bg-blue-50",
+    },
+    {
+      label: "Attendance",
+      value: `${completionRate}%`,
+      sub: `${presentCount} present · ${absentCount} absent`,
+      icon: TrendingUp,
+      color: "text-emerald-600 bg-emerald-50",
+    },
+    {
+      label: "Mentors",
+      value: totalMentors,
+      sub: "assigned",
+      icon: Users,
+      color: "text-purple-600 bg-purple-50",
+    },
+    {
+      label: "Participants",
+      value: `${totalParticipants}/${batch.quota}`,
+      sub: "quota filled",
+      icon: GraduationCap,
+      color: "text-amber-600 bg-amber-50",
+    },
+    {
+      label: "Progress",
+      value: `${weeksDone}/${batch.durationWeeks}`,
+      sub: "weeks done",
+      icon: Target,
+      color: "text-rose-600 bg-rose-50",
+    },
+  ];
+
+  const navItems = [
     {
       title: "Sessions",
       desc: "Schedule & manage mentoring sessions",
       icon: Calendar,
       href: `${baseUrl}/sessions`,
+      stat: `${totalSessions} total`,
     },
     {
       title: "Attendance",
       desc: "Track student weekly attendance",
       icon: CheckSquare,
       href: `${baseUrl}/attendance`,
+      stat: `${completionRate}% rate`,
     },
     {
       title: "Mentors",
       desc: "Assign mentors to this batch",
       icon: Users,
       href: `${baseUrl}/mentors`,
+      stat: `${totalMentors} assigned`,
     },
     {
       title: "Mentees",
       desc: "Assign mentees to mentors",
       icon: UserCheck,
       href: `${baseUrl}/mentees`,
+      stat: `${totalParticipants} total`,
     },
     {
       title: "Attachments",
       desc: "Manage resources & materials",
       icon: File,
       href: `${baseUrl}/attachments`,
+      stat: "Resources",
     },
     {
       title: "Report Template",
       desc: "Set assessment titles",
       icon: FileText,
       href: `${baseUrl}/report-template`,
+      stat: "Configure",
     },
     {
       title: "Summary Reports",
       desc: "Review & approve mentor reports",
       icon: MessageSquare,
       href: `${baseUrl}/summary-reports`,
+      stat: "Review",
     },
     {
       title: "Timeline",
       desc: "Key dates & batch timeline",
       icon: Clock,
       href: `${baseUrl}/timeline`,
+      stat: "View",
     },
   ];
 
   return (
-    <div className="space-y-6 p-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
+    <div className="max-w-full space-y-8 p-6">
+      {/* ── Header ── */}
+      <div className="flex items-start gap-4">
         <Link
           href={`/admin/programs/${programId}`}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-2 font-manrope font-medium text-text-main text-xs transition-all hover:bg-mentor-teal/10 hover:text-mentor-teal"
+          className="mt-1 inline-flex shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white p-2.5 text-text-muted-custom shadow-xs transition-all hover:border-mentor-teal/30 hover:text-mentor-teal hover:shadow-sm"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">{batch.name}</h1>
-            <Badge variant={batch.status === "open" ? "default" : "secondary"}>{batch.status}</Badge>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="truncate font-bold font-bricolage text-3xl text-brand-navy tracking-tight">{batch.name}</h1>
+            {program && (
+              <span className="hidden items-center gap-1.5 rounded-full bg-brand-navy/5 px-3 py-1 font-manrope font-medium text-[13px] text-brand-navy sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-navy/30" />
+                {program.name}
+              </span>
+            )}
+            <Badge
+              className={cn(
+                "shrink-0 rounded-md px-2.5 py-0.5 font-manrope font-semibold text-[11px] uppercase tracking-wider",
+                batch.status === "open"
+                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                  : batch.status === "running"
+                    ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                    : batch.status === "completed"
+                      ? "bg-gray-100 text-gray-600 ring-1 ring-gray-200"
+                      : batch.status === "upcoming"
+                        ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                        : "bg-red-50 text-red-700 ring-1 ring-red-200",
+              )}
+            >
+              {batch.status}
+            </Badge>
           </div>
-          <p className="font-manrope text-text-muted-custom">
-            {batch.startDate && new Date(batch.startDate).toLocaleDateString()} —{" "}
-            {batch.endDate && new Date(batch.endDate).toLocaleDateString()}
-            <span className="mx-2">·</span>
-            {batch.durationWeeks} weeks · Quota: {batch.quota}
+          <p className="mt-1 font-manrope text-text-muted-custom">
+            {batch.startDate &&
+              new Date(batch.startDate).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}{" "}
+            —{" "}
+            {batch.endDate &&
+              new Date(batch.endDate).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            <span className="mx-2 inline-block h-1 w-1 rounded-full bg-gray-300 align-middle" />
+            {batch.durationWeeks} weeks
+            <span className="mx-2 inline-block h-1 w-1 rounded-full bg-gray-300 align-middle" />
+            Quota: {batch.quota}
           </p>
         </div>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-5 gap-3">
-        {[
-          {
-            label: "Sessions",
-            value: totalSessions,
-            sub: `${completedSessions} done`,
-            icon: BookOpen,
-          },
-          {
-            label: "Attendance",
-            value: `${completionRate}%`,
-            sub: `${presentCount}p · ${absentCount}a`,
-            icon: TrendingUp,
-          },
-          {
-            label: "Mentors",
-            value: totalMentors,
-            sub: "assigned",
-            icon: Users,
-          },
-          {
-            label: "Participants",
-            value: `${totalParticipants}/${batch.quota}`,
-            sub: "quota",
-            icon: GraduationCap,
-          },
-          {
-            label: "Progress",
-            value: `${weeksDone}/${batch.durationWeeks}`,
-            sub: "weeks",
-            icon: Target,
-          },
-        ].map((stat) => (
-          <Card key={stat.label} className="mentor-card">
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="icon-box-navy flex h-10 w-10 shrink-0 items-center justify-center rounded-xl md:h-10 md:w-10">
-                <stat.icon className="h-5 w-5 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-manrope font-semibold text-[10px] text-text-muted-custom uppercase tracking-wider">
-                  {stat.label}
-                </p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="font-bold font-bricolage text-text-main text-xl">{stat.value}</span>
-                  <span className="font-manrope text-[10px] text-text-muted-custom">{stat.sub}</span>
+      {/* ── Stats Strip (modern, no cards) ── */}
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xs">
+        <div className="grid grid-cols-5 divide-x divide-gray-100">
+          {stats.map((stat) => (
+            <div key={stat.label} className="relative p-5">
+              <div className="flex items-center gap-3">
+                <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", stat.color)}>
+                  <stat.icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider">
+                    {stat.label}
+                  </p>
+                  <div className="mt-0.5 flex items-baseline gap-1.5">
+                    <span className="font-bold font-bricolage text-2xl text-text-main">{stat.value}</span>
+                    <span className="font-manrope text-[11px] text-text-muted-custom">{stat.sub}</span>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* ── Navigation Grid (modern, sleek) ── */}
       <div>
-        <h2 className="mb-4 font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Quick Actions</h2>
+        <div className="mb-5 flex items-center gap-3">
+          <div className="h-6 w-1 rounded-full bg-mentor-teal" />
+          <h2 className="font-bold font-bricolage text-brand-navy text-xl tracking-tight">Management</h2>
+        </div>
         <div className="grid grid-cols-4 gap-3">
-          {navCards.slice(0, 6).map((item) => (
-            <NavCard key={item.title} {...item} />
+          {navItems.map((item) => (
+            <Link
+              key={item.title}
+              href={item.href as any}
+              className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-xs transition-all hover:-translate-y-0.5 hover:border-mentor-teal/20 hover:shadow-md"
+            >
+              {/* Hover accent bar */}
+              <div className="absolute inset-x-0 top-0 h-0.5 scale-x-0 bg-mentor-teal transition-transform group-hover:scale-x-100" />
+
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-navy text-white transition-all group-hover:bg-mentor-teal">
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold font-bricolage text-sm text-text-main transition-colors group-hover:text-mentor-teal">
+                    {item.title}
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 font-manrope text-text-muted-custom text-xs">{item.desc}</p>
+                  <p className="mt-1.5 font-manrope font-medium text-[11px] text-mentor-teal opacity-0 transition-opacity group-hover:opacity-100">
+                    {item.stat} →
+                  </p>
+                </div>
+              </div>
+            </Link>
           ))}
-          <NavCard
-            title={navCards[6].title}
-            desc={navCards[6].desc}
-            icon={navCards[6].icon}
-            href={navCards[6].href}
-            span="col-span-2"
-          />
-          <NavCard title={navCards[7].title} desc={navCards[7].desc} icon={navCards[7].icon} href={navCards[7].href} />
         </div>
       </div>
     </div>
-  );
-}
-
-function NavCard({
-  title,
-  desc,
-  icon: Icon,
-  href,
-  span,
-}: {
-  title: string;
-  desc: string;
-  icon: React.ComponentType<{ className?: string }>;
-  href: string;
-  span?: string;
-}) {
-  return (
-    <Link href={href as any} className={cn("group block", span)}>
-      <Card className="mentor-card mentor-card-hover h-full cursor-pointer">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="icon-box-navy flex h-12 w-12 items-center justify-center rounded-2xl md:h-12 md:w-12">
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold font-bricolage text-sm text-text-main transition-colors group-hover:text-mentor-teal">
-              {title}
-            </p>
-            <p className="mt-0.5 line-clamp-1 font-manrope text-text-muted-custom text-xs">{desc}</p>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
   );
 }

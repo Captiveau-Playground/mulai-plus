@@ -231,7 +231,7 @@ export function BatchAttachmentsDialog({
           }
         }}
       >
-        <DialogContent className="min-w-7xl">
+        <DialogContent className="w-full max-w-[95vw] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingAttachment ? "Edit Attachment" : "Add Attachment"}</DialogTitle>
             <DialogDescription>
@@ -361,7 +361,7 @@ export function BatchAttachmentsDialog({
                 />
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -369,10 +369,15 @@ export function BatchAttachmentsDialog({
                     setIsFormOpen(false);
                     setEditingAttachment(null);
                   }}
+                  className="rounded-full"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                >
                   {(createMutation.isPending || updateMutation.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
@@ -400,7 +405,10 @@ export function BatchAttachmentsDialog({
             )}
           </TabsTrigger>
         </TabsList>
-        <Button onClick={handleCreate}>
+        <Button
+          onClick={handleCreate}
+          className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0"
+        >
           <Plus className="mr-2 h-4 w-4" /> Add Attachment
         </Button>
       </div>
@@ -601,7 +609,7 @@ export function BatchAttachmentsDialog({
         </DialogHeader>
         {mainContent}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-full">
             Close
           </Button>
         </DialogFooter>

@@ -212,14 +212,14 @@ export function MentorMenteeAssignDialog({
   const footer = (
     <div className="flex justify-end gap-2 border-gray-100 border-t pt-4">
       {!embedded && (
-        <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-gray-200">
+        <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-full border-gray-200">
           Cancel
         </Button>
       )}
       <Button
         onClick={handleSave}
         disabled={assignMutation.isPending || participants.length === 0}
-        className="rounded-xl bg-mentor-teal text-white hover:bg-mentor-teal-dark"
+        className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0"
       >
         {assignMutation.isPending ? (
           <>

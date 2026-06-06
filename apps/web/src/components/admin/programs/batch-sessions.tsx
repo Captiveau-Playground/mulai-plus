@@ -44,7 +44,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -255,7 +254,9 @@ export function BatchSessionsDialog({
             <Badge>{viewingSession.status}</Badge>
           </div>
           <DialogFooter>
-            <Button onClick={() => setViewingSession(null)}>Close</Button>
+            <Button variant="outline" onClick={() => setViewingSession(null)} className="rounded-full">
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -337,47 +338,54 @@ export function BatchSessionsDialog({
                 <FormField
                   control={form.control}
                   name="mentorId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mentor</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select mentor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(mentors || []).map((m: any) => (
-                            <SelectItem key={m.id} value={m.id}>
-                              {m.name || m.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {form.watch("type") === "one_on_one" && (
-                  <FormField
-                    control={form.control}
-                    name="studentId"
-                    render={({ field }) => (
+                  render={({ field }) => {
+                    const mentorName = (mentors || []).find((m: any) => m.id === field.value)?.name || field.value;
+                    return (
                       <FormItem>
-                        <FormLabel>Student</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormLabel>Mentor</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select student" />
+                            <span className="truncate">{field.value ? mentorName : "Select mentor"}</span>
                           </SelectTrigger>
                           <SelectContent>
-                            {(participants || []).map((p: any) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name}
+                            {(mentors || []).map((m: any) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.name || m.email}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
-                    )}
+                    );
+                  }}
+                />
+                {form.watch("type") === "one_on_one" && (
+                  <FormField
+                    control={form.control}
+                    name="studentId"
+                    render={({ field }) => {
+                      const studentName =
+                        (participants || []).find((p: any) => p.id === field.value)?.name || field.value;
+                      return (
+                        <FormItem>
+                          <FormLabel>Student</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <SelectTrigger>
+                              <span className="truncate">{field.value ? studentName : "Select student"}</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(participants || []).map((p: any) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 )}
                 <FormField
@@ -408,10 +416,14 @@ export function BatchSessionsDialog({
                 />
               </div>
               <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setIsFormOpen(false)}>
+                <Button variant="outline" type="button" onClick={() => setIsFormOpen(false)} className="rounded-full">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={upsertMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0"
+                  disabled={upsertMutation.isPending}
+                >
                   {upsertMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingSession ? "Update" : "Create"}
                 </Button>
@@ -437,71 +449,93 @@ export function BatchSessionsDialog({
             Calendar
           </TabsTrigger>
         </TabsList>
-        <Button onClick={() => handleCreate()}>
+        <Button
+          onClick={() => handleCreate()}
+          className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0"
+        >
           <Plus className="mr-2 h-4 w-4" /> Add Session
         </Button>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Select value={filterWeek} onValueChange={setFilterWeek}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Weeks</SelectItem>
-            {Array.from({ length: batch.durationWeeks }, (_, i) => i + 1).map((w) => (
-              <SelectItem key={w} value={w.toString()}>
-                Week {w}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="one_on_one">1-on-1</SelectItem>
-            <SelectItem value="group_mentoring">Group Mentoring</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-            <SelectItem value="missed">Missed</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterMentorId} onValueChange={setFilterMentorId}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Mentors</SelectItem>
-            {(mentors || []).map((m: any) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name || m.email}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="date_asc">Date (Oldest)</SelectItem>
-            <SelectItem value="date_desc">Date (Newest)</SelectItem>
-            <SelectItem value="week_asc">Week (Asc)</SelectItem>
-            <SelectItem value="week_desc">Week (Desc)</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="space-y-1">
+          <p className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider">Week</p>
+          <Select value={filterWeek} onValueChange={setFilterWeek}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Weeks</SelectItem>
+              {Array.from({ length: batch.durationWeeks }, (_, i) => i + 1).map((w) => (
+                <SelectItem key={w} value={w.toString()}>
+                  Week {w}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <p className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider">Type</p>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="one_on_one">1-on-1</SelectItem>
+              <SelectItem value="group_mentoring">Group Mentoring</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <p className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider">
+            Status
+          </p>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="scheduled">Scheduled</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="missed">Missed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <p className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider">
+            Mentor
+          </p>
+          <Select value={filterMentorId} onValueChange={setFilterMentorId}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Mentors</SelectItem>
+              {(mentors || []).map((m: any) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name || m.email}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <p className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider">Sort</p>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date_asc">Date (Oldest)</SelectItem>
+              <SelectItem value="date_desc">Date (Newest)</SelectItem>
+              <SelectItem value="week_asc">Week (Asc)</SelectItem>
+              <SelectItem value="week_desc">Week (Desc)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         {(filterWeek !== "all" ||
           filterType !== "all" ||
           filterStatus !== "all" ||
@@ -569,28 +603,26 @@ export function BatchSessionsDialog({
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
-                        <DropdownMenuGroup>
-                          <DropdownMenuTrigger>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(session)}>
-                              <Pencil className="mr-2 h-4 w-4" /> Edit
+                        <DropdownMenuTrigger>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(session)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          {session.meetingLink && (
+                            <DropdownMenuItem>
+                              <a href={session.meetingLink} target="_blank" rel="noreferrer">
+                                <LinkIcon className="mr-2 h-4 w-4" /> Join
+                              </a>
                             </DropdownMenuItem>
-                            {session.meetingLink && (
-                              <DropdownMenuItem>
-                                <a href={session.meetingLink} target="_blank" rel="noreferrer">
-                                  <LinkIcon className="mr-2 h-4 w-4" /> Join
-                                </a>
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem className="text-red-600" onClick={() => setDeleteConfirmId(session.id)}>
-                              <Trash className="mr-2 h-4 w-4" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenuGroup>
+                          )}
+                          <DropdownMenuItem className="text-red-600" onClick={() => setDeleteConfirmId(session.id)}>
+                            <Trash className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
@@ -611,8 +643,43 @@ export function BatchSessionsDialog({
     </Tabs>
   );
 
+  const deleteAlert = (
+    <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-red-100">
+            <TriangleAlert className="h-5 w-5 text-red-600" />
+          </div>
+          <AlertDialogTitle>Delete Session</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this session? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
+              setDeleteConfirmId(null);
+            }}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (embedded) {
-    return mainContent;
+    return (
+      <>
+        {mainContent}
+        {deleteAlert}
+      </>
+    );
   }
 
   return (
@@ -624,39 +691,12 @@ export function BatchSessionsDialog({
         </DialogHeader>
         {mainContent}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-full">
             Close
           </Button>
         </DialogFooter>
       </DialogContent>
-
-      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-red-100">
-              <TriangleAlert className="h-5 w-5 text-red-600" />
-            </div>
-            <AlertDialogTitle>Delete Session</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this session? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
-                setDeleteConfirmId(null);
-              }}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteAlert}
     </Dialog>
   );
 }

@@ -154,7 +154,7 @@ export function BatchReportTemplateDialog({
           <Button
             variant="outline"
             onClick={() => handleOpenChange(false)}
-            className="rounded-xl border-gray-200 font-manrope text-sm"
+            className="rounded-full border-gray-200 font-manrope text-sm"
           >
             Cancel
           </Button>
@@ -162,7 +162,7 @@ export function BatchReportTemplateDialog({
         <Button
           onClick={handleSave}
           disabled={updateMutation.isPending}
-          className="rounded-xl bg-brand-navy font-manrope text-sm text-white shadow-xs hover:bg-brand-navy/90"
+          className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0 font-manrope text-sm"
         >
           {updateMutation.isPending ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -265,7 +265,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
         <NavMain items={data.navGeneral} />
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
-        <NavMain label="CMS" items={data.navCms} />
+        <NavMain label="Content" items={data.navCms} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
 

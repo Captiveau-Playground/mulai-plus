@@ -102,7 +102,9 @@ export function BatchTimelineDialog({
         </DialogHeader>
         {content}
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-full">
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

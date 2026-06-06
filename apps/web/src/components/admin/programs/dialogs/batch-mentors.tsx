@@ -116,14 +116,14 @@ export function BatchMentorsDialog({
         </p>
         <div className="flex gap-2">
           {!embedded && (
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-gray-200">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-full border-gray-200">
               Cancel
             </Button>
           )}
           <Button
             onClick={() => mutation.mutate({ batchId, userIds: selectedIds })}
             disabled={mutation.isPending}
-            className="rounded-xl bg-brand-navy text-white hover:bg-brand-navy/90"
+            className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0"
           >
             {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Save Changes
