@@ -3,11 +3,21 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, File, Link as LinkIcon, Loader2, Pencil, Plus, Trash, Video, X } from "lucide-react";
+import { Check, File, Link as LinkIcon, Loader2, Pencil, Plus, Trash, TriangleAlert, Video, X } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,6 +60,7 @@ export function BatchAttachmentsDialog({
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<any>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Queries
@@ -452,9 +463,7 @@ export function BatchAttachmentsDialog({
                         variant="ghost"
                         size="sm"
                         className="text-red-600"
-                        onClick={() => {
-                          if (confirm("Are you sure?")) deleteMutation.mutate({ id: attachment.id });
-                        }}
+                        onClick={() => setDeleteConfirmId(attachment.id)}
                       >
                         <Trash className="h-4 w-4" />
                       </Button>
@@ -545,7 +554,43 @@ export function BatchAttachmentsDialog({
     </Tabs>
   );
 
-  if (embedded) return mainContent;
+  const deleteAlert = (
+    <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-red-100">
+            <TriangleAlert className="h-5 w-5 text-red-600" />
+          </div>
+          <AlertDialogTitle>Delete Attachment</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this attachment? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
+              setDeleteConfirmId(null);
+            }}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  if (embedded)
+    return (
+      <>
+        {mainContent}
+        {deleteAlert}
+      </>
+    );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -561,6 +606,7 @@ export function BatchAttachmentsDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      {deleteAlert}
     </Dialog>
   );
 }

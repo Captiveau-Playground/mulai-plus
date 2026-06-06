@@ -8,6 +8,16 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,6 +61,8 @@ export function ProgramList() {
     description?: string | null;
     bannerUrl?: string | null;
   } | null>(null);
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -132,7 +144,10 @@ export function ProgramList() {
           <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Programs</h2>
           <p className="font-manrope text-text-muted-custom">Manage your mentoring programs.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="btn-mentor rounded-full">
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+        >
           <Plus className="mr-2 h-4 w-4" /> Create Program
         </Button>
       </div>
@@ -209,11 +224,7 @@ export function ProgramList() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-600 focus:text-red-600"
-                            onClick={() => {
-                              if (confirm("Are you sure you want to delete this program?")) {
-                                deleteMutation.mutate({ id: program.id });
-                              }
-                            }}
+                            onClick={() => setDeleteConfirmId(program.id)}
                           >
                             <Trash className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
@@ -279,7 +290,11 @@ export function ProgramList() {
               </div>
 
               <DialogFooter>
-                <Button type="submit" disabled={createMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+                  disabled={createMutation.isPending}
+                >
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create
                 </Button>
@@ -308,6 +323,31 @@ export function ProgramList() {
           />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Program</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this program? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
+                setDeleteConfirmId(null);
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -385,7 +425,11 @@ function EditProgramForm({
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button
+              type="submit"
+              className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+              disabled={isPending}
+            >
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes
             </Button>

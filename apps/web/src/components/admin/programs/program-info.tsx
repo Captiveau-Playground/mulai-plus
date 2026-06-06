@@ -121,7 +121,11 @@ export function ProgramInfo({ program }: { program: Program }) {
               />
             </div>
             <div className="flex justify-end">
-              <Button type="submit" className="btn-mentor rounded-full" disabled={updateMutation.isPending}>
+              <Button
+                type="submit"
+                className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+                disabled={updateMutation.isPending}
+              >
                 {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>

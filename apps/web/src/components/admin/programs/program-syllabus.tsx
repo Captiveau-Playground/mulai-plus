@@ -140,7 +140,7 @@ export function ProgramSyllabus({
                   <button
                     type="button"
                     onClick={() => toggleDetail(index)}
-                    className="flex items-center gap-2 font-medium text-mentor-teal text-sm hover:text-mentor-teal/80"
+                    className="flex cursor-pointer items-center gap-2 font-medium text-mentor-teal text-sm hover:text-mentor-teal/80"
                   >
                     <ChevronDown
                       className={cn(
@@ -204,7 +204,11 @@ export function ProgramSyllabus({
           <Button variant="outline" className="rounded-full" onClick={handleAddWeek}>
             <Plus className="mr-2 h-4 w-4" /> Add Week
           </Button>
-          <Button className="btn-mentor rounded-full" onClick={handleSave} disabled={updateMutation.isPending}>
+          <Button
+            className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+            onClick={handleSave}
+            disabled={updateMutation.isPending}
+          >
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Syllabus
           </Button>

@@ -3,12 +3,22 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowRight, Layers, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
+import { ArrowRight, Layers, Loader2, MoreHorizontal, Pencil, Plus, Trash, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -152,6 +162,7 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
     name: string;
     durationWeeks: number;
   } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(orpc.programs.admin.batches.list.queryOptions({ input: { programId } }));
@@ -242,7 +253,10 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
   return (
     <div>
       <div className="flex justify-end px-4 pt-3 pb-2">
-        <Button onClick={() => setIsCreateOpen(true)} className="rounded-full">
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+        >
           <Plus className="mr-2 h-4 w-4" /> Create Batch
         </Button>
       </div>
@@ -357,14 +371,7 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
                             >
                               <Pencil className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => {
-                                if (confirm("Are you sure?")) {
-                                  deleteMutation.mutate({ id: batch.id });
-                                }
-                              }}
-                            >
+                            <DropdownMenuItem className="text-red-600" onClick={() => setDeleteConfirmId(batch.id)}>
                               <Trash className="mr-2 h-4 w-4" /> Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -656,7 +663,11 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+                  disabled={createMutation.isPending}
+                >
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create
                 </Button>
@@ -732,6 +743,34 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setAttachmentsBatch(null)}
         />
       )}
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-red-100">
+              <TriangleAlert className="h-5 w-5 text-red-600" />
+            </div>
+            <AlertDialogTitle>Delete Batch</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this batch? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
+                setDeleteConfirmId(null);
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

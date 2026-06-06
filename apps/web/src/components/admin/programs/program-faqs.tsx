@@ -2,12 +2,21 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { HelpCircle, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
+import { HelpCircle, Loader2, MoreHorizontal, Pencil, Plus, Trash, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -42,6 +51,7 @@ type FaqFormValues = z.infer<typeof faqSchema>;
 
 export function ProgramFaqs({ programId }: { programId: string }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingFaq, setEditingFaq] = useState<{
     id: string;
     question: string;
@@ -138,7 +148,10 @@ export function ProgramFaqs({ programId }: { programId: string }) {
               Manage Frequently Asked Questions.
             </CardDescription>
           </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="shrink-0 rounded-full">
+          <Button
+            onClick={() => setIsCreateOpen(true)}
+            className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0 shrink-0"
+          >
             <Plus className="mr-2 h-4 w-4" /> Add FAQ
           </Button>
         </div>
@@ -197,14 +210,7 @@ export function ProgramFaqs({ programId }: { programId: string }) {
                           >
                             <Pencil className="mr-2 h-4 w-4" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => {
-                              if (confirm("Are you sure?")) {
-                                deleteMutation.mutate({ id: faq.id });
-                              }
-                            }}
-                          >
+                          <DropdownMenuItem className="text-red-600" onClick={() => setDeleteConfirmId(faq.id)}>
                             <Trash className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -272,7 +278,11 @@ export function ProgramFaqs({ programId }: { programId: string }) {
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+                  disabled={createMutation.isPending}
+                >
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create
                 </Button>
@@ -291,6 +301,34 @@ export function ProgramFaqs({ programId }: { programId: string }) {
           isPending={updateMutation.isPending}
         />
       )}
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-red-100">
+              <TriangleAlert className="h-5 w-5 text-red-600" />
+            </div>
+            <AlertDialogTitle>Delete FAQ</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this FAQ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
+                setDeleteConfirmId(null);
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -378,7 +416,11 @@ function EditFaqDialog({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button
+                type="submit"
+                className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+                disabled={isPending}
+              >
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>
