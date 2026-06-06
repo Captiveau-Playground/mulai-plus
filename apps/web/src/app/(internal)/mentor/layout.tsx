@@ -2,6 +2,7 @@
 
 import DashboardFooter from "@/components/dashboard-footer";
 import DashboardHeader from "@/components/dashboard-header";
+import { FeedbackProvider } from "@/components/feedback-provider";
 import { MentorSidebar } from "@/components/mentor/mentor-sidebar";
 import { PageState } from "@/components/ui/page-state";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -44,6 +45,7 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
       >
         <MentorDashboardContent>{children}</MentorDashboardContent>
       </SidebarProvider>
+      <FeedbackProvider />
     </PageState>
   );
 }

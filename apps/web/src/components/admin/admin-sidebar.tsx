@@ -136,6 +136,10 @@ const data = {
           title: "Testimonials",
           url: "/admin/programs/testimonials",
         },
+        {
+          title: "Feedback",
+          url: "/admin/programs/feedback",
+        },
       ],
     },
   ],
