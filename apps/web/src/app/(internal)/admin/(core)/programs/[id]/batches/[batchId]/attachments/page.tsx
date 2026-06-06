@@ -12,17 +12,15 @@ export default function BatchAttachmentsPage() {
   const { data: batch } = useQuery(orpc.programs.admin.batches.get.queryOptions({ input: { id: batchId } }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <BatchPageHeader programId={params.id as string} batchId={batchId} batch={batch} subtitle="Attachments" />
       {batch && (
-        <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm">
-          <BatchAttachmentsDialog
-            batch={{ id: batchId, name: batch.name, durationWeeks: batch.durationWeeks }}
-            open={true}
-            onOpenChange={() => {}}
-            embedded
-          />
-        </div>
+        <BatchAttachmentsDialog
+          batch={{ id: batchId, name: batch.name, durationWeeks: batch.durationWeeks }}
+          open={true}
+          onOpenChange={() => {}}
+          embedded
+        />
       )}
     </div>
   );

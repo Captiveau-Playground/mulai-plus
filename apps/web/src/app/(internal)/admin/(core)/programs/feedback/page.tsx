@@ -36,14 +36,12 @@ export default function FeedbackPage() {
   const [activeTab, setActiveTab] = useState("templates");
 
   return (
-    <div className="flex-1 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Feedback Management</h2>
-          <p className="font-manrope text-text-muted-custom">
-            Manage feedback templates and campaigns for program evaluation.
-          </p>
-        </div>
+    <div className="space-y-6 p-4">
+      <div>
+        <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Feedback Management</h2>
+        <p className="font-manrope text-text-muted-custom">
+          Manage feedback templates and campaigns for program evaluation.
+        </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

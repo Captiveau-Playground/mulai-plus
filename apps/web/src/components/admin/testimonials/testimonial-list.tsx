@@ -122,8 +122,8 @@ export function TestimonialList() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-bold text-2xl tracking-tight">Testimonials</h2>
-          <p className="text-muted-foreground">Manage student testimonials.</p>
+          <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Testimonials</h2>
+          <p className="font-manrope text-text-muted-custom">Manage student testimonials.</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />

@@ -12,7 +12,7 @@ export default function BatchSessionsPage() {
   const { data: batch } = useQuery(orpc.programs.admin.batches.get.queryOptions({ input: { id: batchId } }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <BatchPageHeader programId={params.id as string} batchId={batchId} batch={batch} subtitle="Sessions" />
       {batch && (
         <BatchSessionsDialog

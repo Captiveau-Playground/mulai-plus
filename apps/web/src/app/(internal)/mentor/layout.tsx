@@ -18,12 +18,10 @@ function MentorDashboardContent({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MentorSidebar onNavigate={handleNavigate} />
-      <SidebarInset className="mentor-page-bg overflow-x-hidden">
-        <div className="flex min-h-screen min-w-0 flex-col">
-          <DashboardHeader />
-          <div className="min-w-0 flex-1">{children}</div>
-          <DashboardFooter />
-        </div>
+      <SidebarInset className="mentor-page-bg flex h-screen flex-col">
+        <DashboardHeader />
+        <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>
+        <DashboardFooter />
       </SidebarInset>
     </>
   );

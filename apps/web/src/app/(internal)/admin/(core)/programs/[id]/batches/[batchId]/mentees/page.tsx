@@ -12,18 +12,16 @@ export default function BatchMenteesPage() {
   const { data: batch } = useQuery(orpc.programs.admin.batches.get.queryOptions({ input: { id: batchId } }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <BatchPageHeader programId={params.id as string} batchId={batchId} batch={batch} subtitle="Mentees" />
       {batch && (
-        <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm">
-          <MentorMenteeAssignDialog
-            batch={{ id: batchId, name: batch.name }}
-            programId={params.id as string}
-            open={true}
-            onOpenChange={() => {}}
-            embedded
-          />
-        </div>
+        <MentorMenteeAssignDialog
+          batch={{ id: batchId, name: batch.name }}
+          programId={params.id as string}
+          open={true}
+          onOpenChange={() => {}}
+          embedded
+        />
       )}
     </div>
   );
