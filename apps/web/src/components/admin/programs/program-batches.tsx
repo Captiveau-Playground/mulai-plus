@@ -3,7 +3,7 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowRight, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
+import { ArrowRight, Layers, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -67,6 +68,29 @@ const batchSchema = z.object({
 type BatchFormValues = z.infer<typeof batchSchema>;
 
 export function ProgramBatches({ programId }: { programId: string }) {
+  return (
+    <Card className="mentor-card">
+      <CardHeader className="bg-white">
+        <div className="flex items-center gap-3">
+          <div className="icon-box-light">
+            <Layers className="h-5 w-5 text-brand-navy" />
+          </div>
+          <div>
+            <CardTitle className="font-bricolage text-lg text-text-main">Batches</CardTitle>
+            <CardDescription className="font-manrope text-text-muted-custom">
+              Manage batches for this program.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="bg-white px-4">
+        <ProgramBatchesInner programId={programId} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProgramBatchesInner({ programId }: { programId: string }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState<{
     id: string;
@@ -87,8 +111,14 @@ export function ProgramBatches({ programId }: { programId: string }) {
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   } | null>(null);
   const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
-  const [menteeAssignBatch, setMenteeAssignBatch] = useState<{ id: string; name: string } | null>(null);
-  const [reportTemplateBatch, setReportTemplateBatch] = useState<{ id: string; name: string } | null>(null);
+  const [menteeAssignBatch, setMenteeAssignBatch] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [reportTemplateBatch, setReportTemplateBatch] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [summaryReportsBatch, setSummaryReportsBatch] = useState<{
     id: string;
     name: string;
@@ -210,18 +240,14 @@ export function ProgramBatches({ programId }: { programId: string }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="font-medium text-lg">Batches</h3>
-          <p className="text-muted-foreground text-sm">Manage batches for this program.</p>
-        </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+    <div>
+      <div className="flex justify-end px-4 pt-3 pb-2">
+        <Button onClick={() => setIsCreateOpen(true)} className="rounded-full">
           <Plus className="mr-2 h-4 w-4" /> Create Batch
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-md border bg-card">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -238,13 +264,16 @@ export function ProgramBatches({ programId }: { programId: string }) {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-mentor-teal" />
                 </TableCell>
               </TableRow>
             ) : batches.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  No batches found.
+                <TableCell colSpan={7} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Layers className="h-8 w-8 text-text-muted-custom/50" />
+                    <p className="font-manrope text-text-muted-custom">No batches found.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

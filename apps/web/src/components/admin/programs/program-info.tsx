@@ -2,7 +2,7 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -64,10 +64,17 @@ export function ProgramInfo({ program }: { program: Program }) {
   return (
     <Card className="mentor-card">
       <CardHeader className="bg-white">
-        <CardTitle className="font-bricolage text-lg text-text-main">Program Information</CardTitle>
-        <CardDescription className="font-manrope text-text-muted-custom">
-          Update the basic details of the program.
-        </CardDescription>
+        <div className="flex items-center gap-3">
+          <div className="icon-box-light">
+            <Info className="h-5 w-5 text-brand-navy" />
+          </div>
+          <div>
+            <CardTitle className="font-bricolage text-lg text-text-main">Program Information</CardTitle>
+            <CardDescription className="font-manrope text-text-muted-custom">
+              Update the basic details of the program.
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="bg-white">
         <Form {...form}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Loader2, Plus, Trash } from "lucide-react";
+import { BookText, ChevronDown, Loader2, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -97,10 +97,17 @@ export function ProgramSyllabus({
   return (
     <Card className="mentor-card">
       <CardHeader className="bg-white">
-        <CardTitle className="font-bricolage text-lg text-text-main">Syllabus</CardTitle>
-        <CardDescription className="font-manrope text-text-muted-custom">
-          Manage the weekly syllabus for this program.
-        </CardDescription>
+        <div className="flex items-center gap-3">
+          <div className="icon-box-light">
+            <BookText className="h-5 w-5 text-brand-navy" />
+          </div>
+          <div>
+            <CardTitle className="font-bricolage text-lg text-text-main">Syllabus</CardTitle>
+            <CardDescription className="font-manrope text-text-muted-custom">
+              Manage the weekly syllabus for this program.
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 bg-white">
         {syllabus.map((item, index) => (

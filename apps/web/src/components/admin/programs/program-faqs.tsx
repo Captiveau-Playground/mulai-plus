@@ -2,13 +2,14 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
+import { HelpCircle, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -125,18 +126,24 @@ export function ProgramFaqs({ programId }: { programId: string }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-medium text-lg">FAQs</h3>
-          <p className="text-muted-foreground text-sm">Manage Frequently Asked Questions.</p>
+    <Card className="mentor-card">
+      <CardHeader className="bg-white">
+        <div className="flex items-center gap-3">
+          <div className="icon-box-light">
+            <HelpCircle className="h-5 w-5 text-brand-navy" />
+          </div>
+          <div className="flex-1">
+            <CardTitle className="font-bricolage text-lg text-text-main">FAQs</CardTitle>
+            <CardDescription className="font-manrope text-text-muted-custom">
+              Manage Frequently Asked Questions.
+            </CardDescription>
+          </div>
+          <Button onClick={() => setIsCreateOpen(true)} className="shrink-0 rounded-full">
+            <Plus className="mr-2 h-4 w-4" /> Add FAQ
+          </Button>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add FAQ
-        </Button>
-      </div>
-
-      <div className="rounded-md border bg-card">
+      </CardHeader>
+      <CardContent className="bg-white px-4">
         <Table>
           <TableHeader>
             <TableRow>
@@ -150,13 +157,16 @@ export function ProgramFaqs({ programId }: { programId: string }) {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-mentor-teal" />
                 </TableCell>
               </TableRow>
             ) : faqs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  No FAQs found.
+                <TableCell colSpan={4} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <HelpCircle className="h-8 w-8 text-text-muted-custom/50" />
+                    <p className="font-manrope text-text-muted-custom">No FAQs found.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -206,7 +216,7 @@ export function ProgramFaqs({ programId }: { programId: string }) {
             )}
           </TableBody>
         </Table>
-      </div>
+      </CardContent>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -281,7 +291,7 @@ export function ProgramFaqs({ programId }: { programId: string }) {
           isPending={updateMutation.isPending}
         />
       )}
-    </div>
+    </Card>
   );
 }
 
