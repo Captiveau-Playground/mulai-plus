@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -27,13 +26,11 @@ type MenteeInfo = {
   durationWeeks?: number;
 };
 
-const DEFAULT_ITEMS = [
-  { title: "", description: "" },
-  { title: "", description: "" },
-  { title: "", description: "" },
-  { title: "", description: "" },
-  { title: "", description: "" },
-];
+type ReportItem = {
+  title: string;
+  description: string;
+  order: number;
+};
 
 export function SummaryReportDialog({
   mentee,
@@ -45,8 +42,16 @@ export function SummaryReportDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
-  const [items, setItems] = useState(DEFAULT_ITEMS.map((i) => ({ ...i })));
+  const [items, setItems] = useState<ReportItem[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Fetch report template for this batch
+  const { data: templateItems, isLoading: isLoadingTemplate } = useQuery({
+    ...orpc.programs.admin.batchReportTemplate.list.queryOptions({
+      input: { batchId: mentee?.batchId ?? "" },
+    }),
+    enabled: !!mentee?.batchId && open,
+  });
 
   // Load existing report
   const { data: existingReports, refetch: refetchReports } = useQuery({
@@ -64,23 +69,43 @@ export function SummaryReportDialog({
     enabled: !!mentee?.batchId && open,
   });
 
-  // Reset & init when dialog opens
+  // Initialize items from template or existing report
   useEffect(() => {
-    if (open && existingReports?.data) {
-      const report = existingReports.data.find((r) => r.student.id === mentee?.student.id);
-      if (report?.items && report.items.length === 5) {
-        setItems(report.items.map((i: any) => ({ title: i.title, description: i.description })));
-      } else {
-        setItems(DEFAULT_ITEMS.map((i) => ({ ...i })));
+    if (!open) return;
+
+    if (existingReports?.data) {
+      const report = existingReports.data.find((r: any) => r.student.id === mentee?.student.id);
+      if (report?.items && report.items.length > 0) {
+        // Load existing report data
+        setItems(
+          report.items.map((i: any) => ({
+            title: i.title,
+            description: i.description || "",
+            order: i.order || 0,
+          })),
+        );
+        setSubmitError(null);
+        return;
       }
-      setSubmitError(null);
     }
-  }, [open, existingReports, mentee?.student.id]);
+
+    if (templateItems && templateItems.length > 0) {
+      // Initialize from template
+      setItems(
+        templateItems.map((t: any) => ({
+          title: t.title,
+          description: "",
+          order: t.order,
+        })),
+      );
+    }
+    setSubmitError(null);
+  }, [open, existingReports, templateItems, mentee?.student.id]);
 
   // Calculate attendance for this mentee
   const menteeAttendance =
     attendanceData?.attendance?.filter(
-      (a) => a.userId === mentee?.student.id && (a.status === "present" || a.status === "excused"),
+      (a: any) => a.userId === mentee?.student.id && (a.status === "present" || a.status === "excused"),
     ) ?? [];
   const totalWeeks = mentee?.durationWeeks || 0;
   const menteePresentWeeks = menteeAttendance.length;
@@ -109,17 +134,18 @@ export function SummaryReportDialog({
     },
   });
 
-  const handleItemChange = (index: number, field: "title" | "description", value: string) => {
+  const handleDescriptionChange = (index: number, value: string) => {
     setItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      next[index] = { ...next[index], description: value };
       return next;
     });
   };
 
   const validate = (): string | null => {
-    const emptyItems = items.filter((i) => !i.title.trim());
-    if (emptyItems.length > 0) return "Please fill in all 5 items";
+    if (items.length === 0) return "No report items configured. Please contact admin.";
+    const emptyItems = items.filter((i) => !i.description.trim());
+    if (emptyItems.length > 0) return "Please fill in descriptions for all items";
     return null;
   };
 
@@ -161,6 +187,7 @@ export function SummaryReportDialog({
   };
 
   const isPending = createMutation.isPending || submitMutation.isPending;
+  const isLoading = isLoadingTemplate;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -171,7 +198,8 @@ export function SummaryReportDialog({
             <span className="font-medium text-text-main">{mentee?.student.name || "Mentee"}</span>
             <span className="mx-1.5 text-text-muted-custom/40">·</span>
             {mentee?.batchName}
-            <span className="mx-1.5 text-text-muted-custom/40">·</span>5 assessment items
+            <span className="mx-1.5 text-text-muted-custom/40">·</span>
+            {items.length} assessment items
           </DialogDescription>
         </DialogHeader>
 
@@ -202,44 +230,45 @@ export function SummaryReportDialog({
           </div>
         )}
 
-        {/* Items */}
-        <div className="-mx-2 max-h-[55vh] space-y-3 overflow-y-auto px-2 sm:mx-0 sm:space-y-4 sm:px-0">
-          {items.map((item, i) => (
-            <div key={i} className="rounded-xl border border-gray-100 bg-white p-3.5 shadow-xs sm:p-4">
-              <div className="mb-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-navy font-bold text-[9px] text-white">
-                    {i + 1}
-                  </span>
-                  <span className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider">
-                    Item {i + 1}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2.5">
-                <div>
-                  <Label className="font-manrope font-medium text-text-muted-custom text-xs">Title</Label>
-                  <Input
-                    value={item.title}
-                    onChange={(e) => handleItemChange(i, "title", e.target.value)}
-                    placeholder="e.g. Percaya Diri"
-                    className="mt-1 rounded-xl border-gray-200 bg-gray-50 font-manrope text-sm transition-colors focus:bg-white"
-                  />
+        {/* Items — Titles from template, mentor only fills descriptions */}
+        {isLoading ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-mentor-teal" />
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center py-10 text-center">
+            <p className="font-manrope text-sm text-text-muted-custom">
+              No report template configured for this batch. Please contact admin.
+            </p>
+          </div>
+        ) : (
+          <div className="-mx-2 max-h-[55vh] space-y-3 overflow-y-auto px-2 sm:mx-0 sm:space-y-4 sm:px-0">
+            {items.map((item, i) => (
+              <div key={i} className="rounded-xl border border-gray-100 bg-white p-3.5 shadow-xs sm:p-4">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-navy font-bold text-[9px] text-white">
+                      {i + 1}
+                    </span>
+                    <span className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider">
+                      {item.title || `Item ${i + 1}`}
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <Label className="font-manrope font-medium text-text-muted-custom text-xs">Description</Label>
                   <Textarea
                     value={item.description}
-                    onChange={(e) => handleItemChange(i, "description", e.target.value)}
-                    placeholder="e.g. Percaya dirinya sudah bagus dalam presentasi"
+                    onChange={(e) => handleDescriptionChange(i, e.target.value)}
+                    placeholder="Fill in the assessment description..."
                     className="mt-1 rounded-xl border-gray-200 bg-gray-50 font-manrope text-sm transition-colors focus:bg-white"
                     rows={3}
                   />
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:gap-3">
           <Button
@@ -251,7 +280,7 @@ export function SummaryReportDialog({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isPending}
+            disabled={isPending || items.length === 0}
             variant="secondary"
             className="w-full rounded-xl font-manrope text-sm sm:w-auto"
           >
@@ -260,7 +289,7 @@ export function SummaryReportDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isPending || !attendanceComplete}
+            disabled={isPending || !attendanceComplete || items.length === 0}
             className="w-full rounded-xl bg-mentor-teal font-manrope text-sm text-white shadow-xs hover:bg-mentor-teal-dark disabled:opacity-50 sm:w-auto"
           >
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}

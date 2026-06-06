@@ -2,12 +2,23 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
+import { Gift, Loader2, MoreHorizontal, Pencil, Plus, Trash, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +26,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -42,6 +52,7 @@ type BenefitFormValues = z.infer<typeof benefitSchema>;
 
 export function ProgramBenefits({ programId }: { programId: string }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingBenefit, setEditingBenefit] = useState<{
     id: string;
     title: string;
@@ -131,99 +142,110 @@ export function ProgramBenefits({ programId }: { programId: string }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="font-medium text-lg">Program Benefits</h3>
-          <p className="text-muted-foreground text-sm">Manage program benefits.</p>
+    <Card className="mentor-card">
+      <CardHeader className="bg-white">
+        <div className="flex items-center gap-3">
+          <div className="icon-box-light">
+            <Gift className="h-5 w-5 text-brand-navy" />
+          </div>
+          <div className="flex-1">
+            <CardTitle className="font-bricolage text-lg text-text-main">Program Benefits</CardTitle>
+            <CardDescription className="font-manrope text-text-muted-custom">Manage program benefits.</CardDescription>
+          </div>
+          <Button
+            onClick={() => setIsCreateOpen(true)}
+            className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0 shrink-0"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Benefit
+          </Button>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Benefit
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Add Benefit</DialogTitle>
-              <DialogDescription>Add a new benefit.</DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Title" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Description" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+      </CardHeader>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="icon"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Icon (Lucide Name)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. Check, Star" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="order"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Order</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Benefit</DialogTitle>
+            <DialogDescription>Add a new benefit.</DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Title" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Description" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-      <div className="rounded-md border bg-card">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="icon"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Icon (Lucide Name)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Check, Star" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="order"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Order</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <CardContent className="bg-white px-4">
         <Table>
           <TableHeader>
             <TableRow>
@@ -238,13 +260,16 @@ export function ProgramBenefits({ programId }: { programId: string }) {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-mentor-teal" />
                 </TableCell>
               </TableRow>
             ) : benefits.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  No benefits found.
+                <TableCell colSpan={5} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Gift className="h-8 w-8 text-text-muted-custom/50" />
+                    <p className="font-manrope text-text-muted-custom">No benefits found.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -277,14 +302,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
                           >
                             <Pencil className="mr-2 h-4 w-4" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => {
-                              if (confirm("Are you sure?")) {
-                                deleteMutation.mutate({ id: benefit.id });
-                              }
-                            }}
-                          >
+                          <DropdownMenuItem className="text-red-600" onClick={() => setDeleteConfirmId(benefit.id)}>
                             <Trash className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -296,7 +314,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
             )}
           </TableBody>
         </Table>
-      </div>
+      </CardContent>
 
       {editingBenefit && (
         <EditBenefitDialog
@@ -307,7 +325,35 @@ export function ProgramBenefits({ programId }: { programId: string }) {
           isPending={updateMutation.isPending}
         />
       )}
-    </div>
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-red-100">
+              <TriangleAlert className="h-5 w-5 text-red-600" />
+            </div>
+            <AlertDialogTitle>Delete Benefit</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this benefit? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
+                setDeleteConfirmId(null);
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
   );
 }
 
@@ -410,7 +456,11 @@ function EditBenefitDialog({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button
+                type="submit"
+                className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+                disabled={isPending}
+              >
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>

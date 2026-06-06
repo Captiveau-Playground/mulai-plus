@@ -182,10 +182,12 @@ export function SummaryReportsReview({
   batch,
   open,
   onOpenChange,
+  embedded,
 }: {
   batch: { id: string; name: string; programId: string } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  embedded?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [reviewingId, setReviewingId] = useState<string | null>(null);
@@ -213,6 +215,168 @@ export function SummaryReportsReview({
     onError: (error) => toast.error(error.message || "Failed to submit review"),
   });
 
+  const listContent = isLoading ? (
+    <div className="flex h-48 items-center justify-center">
+      <Loader2 className="h-6 w-6 animate-spin text-mentor-teal" />
+    </div>
+  ) : reports.length === 0 ? (
+    <div className="flex flex-col items-center py-14 text-center">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-50">
+        <MessageSquare className="h-6 w-6 text-gray-300" />
+      </div>
+      <p className="font-bold font-bricolage text-base text-gray-900">No Reports Yet</p>
+      <p className="mt-1 max-w-xs font-manrope text-gray-500 text-sm">
+        Mentors haven&apos;t submitted any summary reports for this batch.
+      </p>
+    </div>
+  ) : (
+    <Tabs defaultValue="pending">
+      <TabsList className="mb-4 bg-gray-100 p-1">
+        <TabsTrigger
+          value="pending"
+          className="rounded-lg font-manrope text-xs data-[state=active]:bg-white data-[state=active]:text-brand-navy data-[state=active]:shadow-xs"
+        >
+          Pending Review
+          {pending.length > 0 && (
+            <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 font-bold font-manrope text-[9px] text-white">
+              {pending.length}
+            </span>
+          )}
+        </TabsTrigger>
+        <TabsTrigger
+          value="all"
+          className="rounded-lg font-manrope text-xs data-[state=active]:bg-white data-[state=active]:text-brand-navy data-[state=active]:shadow-xs"
+        >
+          All Reports ({reports.length})
+        </TabsTrigger>
+      </TabsList>
+      <ScrollArea className="max-h-96">
+        <TabsContent value="pending" className="m-0 space-y-2.5">
+          {pending.length === 0 ? (
+            <div className="flex flex-col items-center py-10 text-center">
+              <CheckCircle className="mb-2 h-8 w-8 text-green-400" />
+              <p className="font-manrope text-gray-500 text-sm">All caught up! No pending reviews.</p>
+            </div>
+          ) : (
+            pending.map((report) => (
+              <ReportRow
+                key={report.id}
+                report={report}
+                onReview={() => {
+                  setReviewingId(report.id);
+                  setReviewNotes("");
+                }}
+              />
+            ))
+          )}
+        </TabsContent>
+        <TabsContent value="all" className="m-0 space-y-2.5">
+          {reports.map((report) => (
+            <ReportRow
+              key={report.id}
+              report={report}
+              onReview={() => {
+                setReviewingId(report.id);
+                setReviewNotes("");
+              }}
+            />
+          ))}
+        </TabsContent>
+      </ScrollArea>
+    </Tabs>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {listContent}
+
+        {/* Review Dialog (modal, secondary action) */}
+        <Dialog
+          open={!!reviewingId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setReviewingId(null);
+              setReviewNotes("");
+            }
+          }}
+        >
+          <DialogContent className="max-w-2xl sm:max-w-3xl lg:max-w-4xl">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="font-bricolage text-brand-navy text-xl">Review Report</DialogTitle>
+                  <DialogDescription className="font-manrope">
+                    {reviewing?.student?.name} · {reviewing?.batch?.name}
+                  </DialogDescription>
+                </div>
+                {reviewing && <StatusBadge status={reviewing.status} />}
+              </div>
+            </DialogHeader>
+            <ScrollArea className="max-h-[50vh] pr-4">{reviewing && <ReviewPreview report={reviewing} />}</ScrollArea>
+            <Separator />
+            <div>
+              <label
+                htmlFor="reviewNotes"
+                className="font-manrope font-semibold text-text-muted-custom text-xs uppercase tracking-wider"
+              >
+                Review Notes
+              </label>
+              <Textarea
+                id="reviewNotes"
+                value={reviewNotes}
+                onChange={(e) => setReviewNotes(e.target.value)}
+                placeholder="Add feedback for the mentor (revision) or approval notes..."
+                className="mt-1.5 rounded-xl border-gray-200 bg-white font-manrope text-sm placeholder:text-gray-300"
+                rows={3}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setReviewingId(null)}
+                className="rounded-xl border-gray-200 font-manrope text-sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!reviewingId) return;
+                  reviewMutation.mutate({ id: reviewingId, action: "revision", notes: reviewNotes });
+                }}
+                disabled={reviewMutation.isPending}
+                className="rounded-xl border-red-200 font-manrope text-red-600 text-sm hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+              >
+                {reviewMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="mr-2 h-4 w-4" />
+                )}
+                Request Revision
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!reviewingId) return;
+                  reviewMutation.mutate({ id: reviewingId, action: "approved", notes: reviewNotes });
+                }}
+                disabled={reviewMutation.isPending}
+                className="rounded-xl bg-green-600 font-manrope text-sm text-white shadow-xs hover:bg-green-700 hover:shadow-sm"
+              >
+                {reviewMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ThumbsUp className="mr-2 h-4 w-4" />
+                )}
+                Approve Report
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
   return (
     <>
       {/* List Dialog */}
@@ -224,79 +388,7 @@ export function SummaryReportsReview({
               {batch?.name} · {pending.length} pending, {reports.length} total
             </DialogDescription>
           </DialogHeader>
-
-          {isLoading ? (
-            <div className="flex h-48 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-mentor-teal" />
-            </div>
-          ) : reports.length === 0 ? (
-            <div className="flex flex-col items-center py-14 text-center">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-50">
-                <MessageSquare className="h-6 w-6 text-gray-300" />
-              </div>
-              <p className="font-bold font-bricolage text-base text-gray-900">No Reports Yet</p>
-              <p className="mt-1 max-w-xs font-manrope text-gray-500 text-sm">
-                Mentors haven&apos;t submitted any summary reports for this batch.
-              </p>
-            </div>
-          ) : (
-            <Tabs defaultValue="pending">
-              <TabsList className="mb-4 bg-gray-100 p-1">
-                <TabsTrigger
-                  value="pending"
-                  className="rounded-lg font-manrope text-xs data-[state=active]:bg-white data-[state=active]:text-brand-navy data-[state=active]:shadow-xs"
-                >
-                  Pending Review
-                  {pending.length > 0 && (
-                    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 font-bold font-manrope text-[9px] text-white">
-                      {pending.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="all"
-                  className="rounded-lg font-manrope text-xs data-[state=active]:bg-white data-[state=active]:text-brand-navy data-[state=active]:shadow-xs"
-                >
-                  All Reports ({reports.length})
-                </TabsTrigger>
-              </TabsList>
-
-              <ScrollArea className="max-h-96">
-                <TabsContent value="pending" className="m-0 space-y-2.5">
-                  {pending.length === 0 ? (
-                    <div className="flex flex-col items-center py-10 text-center">
-                      <CheckCircle className="mb-2 h-8 w-8 text-green-400" />
-                      <p className="font-manrope text-gray-500 text-sm">All caught up! No pending reviews.</p>
-                    </div>
-                  ) : (
-                    pending.map((report) => (
-                      <ReportRow
-                        key={report.id}
-                        report={report}
-                        onReview={() => {
-                          setReviewingId(report.id);
-                          setReviewNotes("");
-                        }}
-                      />
-                    ))
-                  )}
-                </TabsContent>
-
-                <TabsContent value="all" className="m-0 space-y-2.5">
-                  {reports.map((report) => (
-                    <ReportRow
-                      key={report.id}
-                      report={report}
-                      onReview={() => {
-                        setReviewingId(report.id);
-                        setReviewNotes("");
-                      }}
-                    />
-                  ))}
-                </TabsContent>
-              </ScrollArea>
-            </Tabs>
-          )}
+          {listContent}
         </DialogContent>
       </Dialog>
 
@@ -322,11 +414,8 @@ export function SummaryReportsReview({
               {reviewing && <StatusBadge status={reviewing.status} />}
             </div>
           </DialogHeader>
-
           <ScrollArea className="max-h-[50vh] pr-4">{reviewing && <ReviewPreview report={reviewing} />}</ScrollArea>
-
           <Separator />
-
           <div>
             <label
               htmlFor="reviewNotes"
@@ -343,7 +432,6 @@ export function SummaryReportsReview({
               rows={3}
             />
           </div>
-
           <DialogFooter className="gap-2 sm:gap-3">
             <Button
               variant="outline"

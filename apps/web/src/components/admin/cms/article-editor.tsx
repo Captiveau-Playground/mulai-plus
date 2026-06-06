@@ -202,9 +202,11 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
         categoryId: art.categoryId || "",
         featured: art.featured ?? false,
         scheduledAt: art.scheduledAt
-          ? (typeof art.scheduledAt === "string" ? new Date(art.scheduledAt) : art.scheduledAt)
-              .toISOString()
-              .slice(0, 16)
+          ? (() => {
+              const d = typeof art.scheduledAt === "string" ? new Date(art.scheduledAt) : art.scheduledAt;
+              const pad = (n: number) => String(n).padStart(2, "0");
+              return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            })()
           : "",
         // biome-ignore lint/suspicious/noExplicitAny: tag type from API
         tagIds: art.tags?.map((t: any) => t.tagId) || [],
