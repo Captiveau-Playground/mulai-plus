@@ -1,4 +1,4 @@
-import { and, asc, count, db, desc, eq, gt, ilike, max, or, sql } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, gt, gte, ilike, lte, max, or, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import { z } from "zod";
@@ -44,6 +44,9 @@ export const auditRouter = {
         offset: z.number().default(0),
         userId: z.string().optional(),
         action: z.string().optional(),
+        resource: z.string().optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
         search: z.string().optional(),
         sortBy: z.enum(["createdAt", "action", "resource"]).default("createdAt"),
         sortOrder: z.enum(["asc", "desc"]).default("desc"),
@@ -53,6 +56,9 @@ export const auditRouter = {
       const filters = [];
       if (input.userId) filters.push(eq(auditLog.userId, input.userId));
       if (input.action) filters.push(eq(auditLog.action, input.action));
+      if (input.resource) filters.push(eq(auditLog.resource, input.resource));
+      if (input.dateFrom) filters.push(gte(auditLog.createdAt, new Date(input.dateFrom)));
+      if (input.dateTo) filters.push(lte(auditLog.createdAt, new Date(input.dateTo)));
       if (input.search) {
         filters.push(
           or(
