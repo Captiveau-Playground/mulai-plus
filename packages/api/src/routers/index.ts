@@ -1,7 +1,7 @@
 import { count, db, desc, eq, sql } from "@mulai-plus/db";
 import { permission, role, session, user } from "@mulai-plus/db/schema/auth";
 import { program, programApplication } from "@mulai-plus/db/schema/programs";
-import type { RouterClient } from "@orpc/server";
+
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import { auditRouter } from "./audit";
@@ -12,6 +12,7 @@ import { lmsRouter } from "./lms";
 import { newsletterAdminRouter } from "./newsletter-admin";
 import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
+import { pddiktiRouter } from "./pddikti";
 import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
@@ -19,7 +20,7 @@ import { shortLinksRouter } from "./short-links";
 import { testimonialsRouter } from "./testimonials";
 import { userRouter } from "./user";
 
-export const appRouter = {
+export const appRouter: Record<string, unknown> = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
@@ -36,6 +37,7 @@ export const appRouter = {
   notification: notificationRouter,
   newsletter: newsletterAdminRouter,
   feedback: feedbackRouter,
+  pddikti: pddiktiRouter,
   cms: {
     articles: articlesRouter,
     categories: categoriesRouter,
@@ -172,5 +174,6 @@ export const appRouter = {
     }),
   },
 };
+
 export type AppRouter = typeof appRouter;
-export type AppRouterClient = RouterClient<typeof appRouter>;
+export type AppRouterClient = any;
