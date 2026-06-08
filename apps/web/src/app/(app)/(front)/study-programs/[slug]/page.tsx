@@ -128,7 +128,10 @@ export default function StudyProgramSlugPage() {
                             `/universities/${u.name
                               .toLowerCase()
                               .replace(/[^a-z0-9\s-]/g, "")
-                              .replace(/\s+/g, "-")}-${u.idSp.substring(0, 6)}?prodi=${item.idSms}` as any
+                              .replace(
+                                /\s+/g,
+                                "-",
+                              )}-${u.idSp.substring(0, 6)}/prodi/${encodeURIComponent(item.idSms)}` as any
                           }
                         >
                           <div className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-brand-navy/5">

@@ -13,7 +13,8 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,7 +32,11 @@ const accStyles: Record<string, string> = {
 
 export default function UniversityDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
+  const [prodiSearch, setProdiSearch] = useState("");
+  const [prodiLevel, setProdiLevel] = useState("all");
+  const [prodiSort, setProdiSort] = useState({ field: "name", dir: "asc" as "asc" | "desc" });
 
   const { data: _slugs } = useQuery({
     ...api.pddikti.publicGetUniversitySlugs.queryOptions(),
@@ -98,6 +103,23 @@ export default function UniversityDetailPage() {
       </div>
     );
   }
+
+  const allPrograms = (uni?.studyPrograms ?? []) as any[];
+  const levels = [...new Set(allPrograms.map((p: any) => p.level).filter(Boolean))] as string[];
+
+  const filteredPrograms = allPrograms
+    .filter((p: any) => {
+      if (prodiSearch && !p.name.toLowerCase().includes(prodiSearch.toLowerCase())) return false;
+      if (prodiLevel !== "all" && p.level !== prodiLevel) return false;
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      const field = prodiSort.field === "students" ? "totalStudents" : prodiSort.field;
+      const aVal = a[field] ?? "";
+      const bVal = b[field] ?? "";
+      const cmp = typeof aVal === "number" ? aVal - bVal : String(aVal).localeCompare(String(bVal));
+      return prodiSort.dir === "asc" ? cmp : -cmp;
+    });
 
   const totalStudents = uni.studyPrograms?.reduce((s: number, p: any) => s + (p.totalStudents ?? 0), 0) ?? 0;
 
@@ -247,8 +269,34 @@ export default function UniversityDetailPage() {
 
               <TabsContent value="programs" className="pt-6">
                 <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-                  <div className="p-5">
-                    <h3 className="font-bold font-bricolage text-brand-navy text-sm">Daftar Program Studi</h3>
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-5 pb-3">
+                    <h3 className="font-bold font-bricolage text-brand-navy text-sm">
+                      Daftar Program Studi{" "}
+                      <span className="font-manrope font-normal text-text-muted-custom">
+                        ({filteredPrograms.length} dari {allPrograms.length})
+                      </span>
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Cari prodi..."
+                        value={prodiSearch}
+                        onChange={(e) => setProdiSearch(e.target.value)}
+                        className="h-8 w-44 rounded-lg border border-gray-200 px-3 font-manrope text-text-main text-xs placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
+                      />
+                      <select
+                        value={prodiLevel}
+                        onChange={(e) => setProdiLevel(e.target.value)}
+                        className="h-8 rounded-lg border border-gray-200 px-2 font-manrope text-text-main text-xs focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
+                      >
+                        <option value="all">Semua Jenjang</option>
+                        {levels.map((l) => (
+                          <option key={l} value={l}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -257,26 +305,65 @@ export default function UniversityDetailPage() {
                           <th className="p-3 text-left font-manrope font-medium text-text-muted-custom text-xs">
                             Kode
                           </th>
-                          <th className="p-3 text-left font-manrope font-medium text-text-muted-custom text-xs">
-                            Nama Prodi
+                          <th
+                            className="cursor-pointer select-none p-3 text-left font-manrope font-medium text-text-muted-custom text-xs hover:text-brand-navy"
+                            onClick={() =>
+                              setProdiSort({
+                                field: "name",
+                                dir: prodiSort.field === "name" && prodiSort.dir === "asc" ? "desc" : "asc",
+                              })
+                            }
+                          >
+                            Nama Prodi {prodiSort.field === "name" ? (prodiSort.dir === "asc" ? "▲" : "▼") : ""}
                           </th>
-                          <th className="p-3 text-left font-manrope font-medium text-text-muted-custom text-xs">
-                            Jenjang
+                          <th
+                            className="cursor-pointer select-none p-3 text-left font-manrope font-medium text-text-muted-custom text-xs hover:text-brand-navy"
+                            onClick={() =>
+                              setProdiSort({
+                                field: "level",
+                                dir: prodiSort.field === "level" && prodiSort.dir === "asc" ? "desc" : "asc",
+                              })
+                            }
+                          >
+                            Jenjang {prodiSort.field === "level" ? (prodiSort.dir === "asc" ? "▲" : "▼") : ""}
                           </th>
-                          <th className="p-3 text-left font-manrope font-medium text-text-muted-custom text-xs">
-                            Akreditasi
+                          <th
+                            className="cursor-pointer select-none p-3 text-left font-manrope font-medium text-text-muted-custom text-xs hover:text-brand-navy"
+                            onClick={() =>
+                              setProdiSort({
+                                field: "accreditation",
+                                dir: prodiSort.field === "accreditation" && prodiSort.dir === "asc" ? "desc" : "asc",
+                              })
+                            }
+                          >
+                            Akreditasi{" "}
+                            {prodiSort.field === "accreditation" ? (prodiSort.dir === "asc" ? "▲" : "▼") : ""}
                           </th>
-                          <th className="p-3 text-right font-manrope font-medium text-text-muted-custom text-xs">
-                            Mahasiswa
+                          <th
+                            className="cursor-pointer select-none p-3 text-right font-manrope font-medium text-text-muted-custom text-xs hover:text-brand-navy"
+                            onClick={() =>
+                              setProdiSort({
+                                field: "students",
+                                dir: prodiSort.field === "students" && prodiSort.dir === "asc" ? "desc" : "asc",
+                              })
+                            }
+                          >
+                            Mahasiswa {prodiSort.field === "students" ? (prodiSort.dir === "asc" ? "▲" : "▼") : ""}
                           </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {uni.studyPrograms?.length ? (
-                          uni.studyPrograms.map((p: any) => (
-                            <tr key={p.idSms} className="border-t transition-colors hover:bg-gray-50/30">
+                        {filteredPrograms.length ? (
+                          filteredPrograms.map((p: any) => (
+                            <tr
+                              key={p.idSms}
+                              className="cursor-pointer border-t transition-colors hover:bg-brand-navy/5"
+                              onClick={() =>
+                                router.push(`/universities/${slug}/prodi/${encodeURIComponent(p.idSms)}` as any)
+                              }
+                            >
                               <td className="p-3 font-mono text-text-muted-custom text-xs">{p.code ?? "-"}</td>
-                              <td className="p-3 font-manrope font-medium text-sm text-text-main">{p.name}</td>
+                              <td className="p-3 font-manrope font-medium text-brand-navy text-sm">{p.name}</td>
                               <td className="p-3">
                                 <Badge variant="outline" className="font-manrope text-[10px]">
                                   {p.level ?? "-"}
