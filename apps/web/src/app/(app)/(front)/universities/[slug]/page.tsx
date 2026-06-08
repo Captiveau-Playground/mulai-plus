@@ -37,6 +37,8 @@ export default function UniversityDetailPage() {
   const [prodiSearch, setProdiSearch] = useState("");
   const [prodiLevel, setProdiLevel] = useState("all");
   const [prodiSort, setProdiSort] = useState({ field: "name", dir: "asc" as "asc" | "desc" });
+  const [prodiPage, setProdiPage] = useState(0);
+  const PRODI_PAGE_SIZE = 15;
 
   const { data: _slugs } = useQuery({
     ...api.pddikti.publicGetUniversitySlugs.queryOptions(),
@@ -120,6 +122,9 @@ export default function UniversityDetailPage() {
       const cmp = typeof aVal === "number" ? aVal - bVal : String(aVal).localeCompare(String(bVal));
       return prodiSort.dir === "asc" ? cmp : -cmp;
     });
+
+  const totalProdiPages = Math.ceil(filteredPrograms.length / PRODI_PAGE_SIZE);
+  const pagedPrograms = filteredPrograms.slice(prodiPage * PRODI_PAGE_SIZE, (prodiPage + 1) * PRODI_PAGE_SIZE);
 
   const totalStudents = uni.studyPrograms?.reduce((s: number, p: any) => s + (p.totalStudents ?? 0), 0) ?? 0;
 
@@ -281,12 +286,18 @@ export default function UniversityDetailPage() {
                         type="text"
                         placeholder="Cari prodi..."
                         value={prodiSearch}
-                        onChange={(e) => setProdiSearch(e.target.value)}
+                        onChange={(e) => {
+                          setProdiSearch(e.target.value);
+                          setProdiPage(0);
+                        }}
                         className="h-8 w-44 rounded-lg border border-gray-200 px-3 font-manrope text-text-main text-xs placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
                       />
                       <select
                         value={prodiLevel}
-                        onChange={(e) => setProdiLevel(e.target.value)}
+                        onChange={(e) => {
+                          setProdiLevel(e.target.value);
+                          setProdiPage(0);
+                        }}
                         className="h-8 rounded-lg border border-gray-200 px-2 font-manrope text-text-main text-xs focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
                       >
                         <option value="all">Semua Jenjang</option>
@@ -353,8 +364,8 @@ export default function UniversityDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredPrograms.length ? (
-                          filteredPrograms.map((p: any) => (
+                        {pagedPrograms.length ? (
+                          pagedPrograms.map((p: any) => (
                             <tr
                               key={p.idSms}
                               className="cursor-pointer border-t transition-colors hover:bg-brand-navy/5"
@@ -392,6 +403,61 @@ export default function UniversityDetailPage() {
                       </tbody>
                     </table>
                   </div>
+                  {/* Pagination */}
+                  {totalProdiPages > 1 && (
+                    <div className="flex items-center justify-between border-t px-5 py-3">
+                      <span className="font-manrope text-text-muted-custom text-xs">
+                        {prodiPage * PRODI_PAGE_SIZE + 1}-
+                        {Math.min((prodiPage + 1) * PRODI_PAGE_SIZE, filteredPrograms.length)} dari{" "}
+                        {filteredPrograms.length}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProdiPage(0);
+                          }}
+                          disabled={prodiPage === 0}
+                          className="rounded-lg border border-gray-200 px-2.5 py-1 font-manrope text-text-muted-custom text-xs transition-colors hover:bg-gray-50 disabled:opacity-30"
+                        >
+                          First
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProdiPage((p) => Math.max(0, p - 1));
+                          }}
+                          disabled={prodiPage === 0}
+                          className="rounded-lg border border-gray-200 px-2.5 py-1 font-manrope text-text-muted-custom text-xs transition-colors hover:bg-gray-50 disabled:opacity-30"
+                        >
+                          Prev
+                        </button>
+                        <span className="px-2 font-manrope text-text-muted-custom text-xs">
+                          {prodiPage + 1} / {totalProdiPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProdiPage((p) => Math.min(totalProdiPages - 1, p + 1));
+                          }}
+                          disabled={prodiPage >= totalProdiPages - 1}
+                          className="rounded-lg border border-gray-200 px-2.5 py-1 font-manrope text-text-muted-custom text-xs transition-colors hover:bg-gray-50 disabled:opacity-30"
+                        >
+                          Next
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProdiPage(totalProdiPages - 1);
+                          }}
+                          disabled={prodiPage >= totalProdiPages - 1}
+                          className="rounded-lg border border-gray-200 px-2.5 py-1 font-manrope text-text-muted-custom text-xs transition-colors hover:bg-gray-50 disabled:opacity-30"
+                        >
+                          Last
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
