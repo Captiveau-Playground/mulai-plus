@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/utils/orpc";
 
 const api = orpc as any;
@@ -302,7 +303,10 @@ export default function StudyProgramsPage() {
               <div className="mt-8 flex items-center justify-center gap-2 sm:mt-12">
                 <button
                   type="button"
-                  onClick={() => setPage(0)}
+                  onClick={() => {
+                    trackEvent("pagination", { page: "study_programs", action: "first" });
+                    setPage(0);
+                  }}
                   disabled={page === 0}
                   className="rounded-full border border-gray-200 px-3 py-1.5 font-manrope text-text-muted-custom text-xs transition-colors hover:bg-gray-50 disabled:opacity-40"
                 >

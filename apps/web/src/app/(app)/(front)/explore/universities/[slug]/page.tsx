@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -608,7 +609,10 @@ export default function UniversityDetailPage() {
               <p className="mt-2 font-manrope text-white/70">
                 Tim mentor MulaiPlus siap membantu kamu menentukan pilihan terbaik.
               </p>
-              <Button className="mt-4 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90">
+              <Button
+                className="mt-4 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90"
+                onClick={() => trackEvent("cta_click", { page: "university_detail" })}
+              >
                 Konsultasi Gratis <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>

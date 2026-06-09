@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -371,7 +372,10 @@ export default function ProdiDetailPage() {
           <p className="mt-2 font-manrope text-white/70">
             Konsultasi gratis dengan mentor kami untuk strategi masuk PTN lewat SNBP/SNBT.
           </p>
-          <Button className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90">
+          <Button
+            className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90"
+            onClick={() => trackEvent("cta_click", { page: "prodi_detail" })}
+          >
             Konsultasi Gratis <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>

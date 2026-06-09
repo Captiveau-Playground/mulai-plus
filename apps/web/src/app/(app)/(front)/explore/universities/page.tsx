@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -308,7 +309,10 @@ export default function UniversitiesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(0)}
+                onClick={() => {
+                  trackEvent("pagination", { page: "universities", action: "first" });
+                  setPage(0);
+                }}
                 disabled={page === 0}
                 className="rounded-full font-manrope"
               >
@@ -338,7 +342,10 @@ export default function UniversitiesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(totalPages - 1)}
+                onClick={() => {
+                  trackEvent("pagination", { page: "universities", action: "last" });
+                  setPage(totalPages - 1);
+                }}
                 disabled={page >= totalPages - 1}
                 className="rounded-full font-manrope"
               >
@@ -358,7 +365,10 @@ export default function UniversitiesPage() {
           <p className="mt-2 font-manrope text-white/70">
             Tim mentor MulaiPlus siap bantu kamu menentukan pilihan universitas & jurusan terbaik.
           </p>
-          <Button className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90">
+          <Button
+            className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90"
+            onClick={() => trackEvent("cta_click", { page: "universities_list" })}
+          >
             Konsultasi Gratis <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>

@@ -255,7 +255,7 @@ export function Footer() {
               <div className="flex w-full justify-center lg:w-fit">
                 <iframe
                   src="https://status.captiveau.fun/badge?theme=dark"
-                  width="180"
+                  width="200"
                   height="30"
                   frameBorder="0"
                   scrolling="no"

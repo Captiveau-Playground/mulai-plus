@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BarChart3, GraduationCap, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,13 @@ export default function PassingGradePage() {
   const urlQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(urlQuery);
   const debounced = useDebounce(query, 300);
+  const prevSearch = useRef("");
+  useEffect(() => {
+    if (debounced && debounced !== prevSearch.current) {
+      trackEvent("search_query", { page: "passing_grade", query: debounced });
+      prevSearch.current = debounced;
+    }
+  }, [debounced]);
   const [level, setLevel] = useState(searchParams.get("level") || "all");
   const [sortBy, setSortBy] = useState(searchParams.get("sort") || "pg");
 
@@ -242,7 +249,10 @@ export default function PassingGradePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(0)}
+                onClick={() => {
+                  trackEvent("pagination", { page: "passing_grade", action: "first" });
+                  setPage(0);
+                }}
                 disabled={page === 0}
                 className="rounded-full font-manrope"
               >
@@ -251,7 +261,10 @@ export default function PassingGradePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => {
+                  trackEvent("pagination", { page: "passing_grade", action: "prev" });
+                  setPage((p) => Math.max(0, p - 1));
+                }}
                 disabled={page === 0}
                 className="rounded-full font-manrope"
               >
@@ -263,7 +276,10 @@ export default function PassingGradePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                onClick={() => {
+                  trackEvent("pagination", { page: "passing_grade", action: "next" });
+                  setPage((p) => Math.min(totalPages - 1, p + 1));
+                }}
                 disabled={page >= totalPages - 1}
                 className="rounded-full font-manrope"
               >
@@ -272,7 +288,10 @@ export default function PassingGradePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(totalPages - 1)}
+                onClick={() => {
+                  trackEvent("pagination", { page: "passing_grade", action: "last" });
+                  setPage(totalPages - 1);
+                }}
                 disabled={page >= totalPages - 1}
                 className="rounded-full font-manrope"
               >
@@ -291,7 +310,10 @@ export default function PassingGradePage() {
             Ingin tahu strategi lolos SNBP?
           </h2>
           <p className="mt-2 font-manrope text-white/70">Konsultasi gratis dengan mentor kami.</p>
-          <Button className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90">
+          <Button
+            className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90"
+            onClick={() => trackEvent("cta_click", { page: "passing_grade" })}
+          >
             Konsultasi Gratis <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>

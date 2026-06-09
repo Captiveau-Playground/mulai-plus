@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/utils/orpc";
 
 const api = orpc as any;
@@ -243,7 +244,10 @@ export default function ExplorePage() {
           <p className="mt-2 font-manrope text-white/70">
             Tim mentor MulaiPlus siap bantu kamu menentukan pilihan terbaik.
           </p>
-          <Button className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90">
+          <Button
+            className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90"
+            onClick={() => trackEvent("cta_click", { page: "explore_main" })}
+          >
             Konsultasi Gratis <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
