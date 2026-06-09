@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
   title: "Eksplorasi Data Pendidikan Tinggi — MULAI+",
@@ -17,6 +17,10 @@ export const metadata: Metadata = {
     title: "Eksplorasi Data Pendidikan Tinggi — MULAI+",
     description: "Jelajahi data lengkap perguruan tinggi, program studi, dan passing grade SNBP/SNBT.",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1A1F6D",
 };
 
 export default function ExploreLayout({ children }: { children: React.ReactNode }) {

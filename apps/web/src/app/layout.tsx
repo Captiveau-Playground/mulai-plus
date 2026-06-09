@@ -50,12 +50,6 @@ export const metadata: Metadata = {
             "max-snippet": -1,
           },
         },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -97,6 +91,14 @@ export const metadata: Metadata = {
     description: SITE.description,
     images: [SITE.ogImage],
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
