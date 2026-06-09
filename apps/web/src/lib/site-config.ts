@@ -56,6 +56,12 @@ export const PROGRAM_LINKS: NavLink[] = [
 ];
 
 // ─── Blog Links ────────────────────────────────────────────
+export const EXPLORE_LINKS: NavLink[] = [
+  { label: "Universities", href: "/explore/universities" },
+  { label: "Program Studi", href: "/explore/study-programs" },
+  { label: "Passing Grade", href: "/explore/passing-grade" },
+];
+
 export const BLOG_LINKS: NavLink[] = [
   { label: "Blog", href: "/blog" },
   { label: "Artikel", href: "/blog/articles" },

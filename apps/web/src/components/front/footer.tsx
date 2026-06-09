@@ -1,14 +1,14 @@
 "use client";
-
 import { env } from "@mulai-plus/env/web";
 import { motion } from "framer-motion";
 import { ArrowRight, Facebook, Instagram, Linkedin, Loader2, Mail, MapPin, Phone } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { client } from "@/lib/client";
-import { BLOG_LINKS, CONTACT, NAV_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
+import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, NAV_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -39,6 +39,10 @@ const footerNavLinks = [
     ],
   },
   {
+    title: "Explore",
+    links: EXPLORE_LINKS,
+  },
+  {
     title: "Blog",
     links: BLOG_LINKS,
   },
@@ -59,6 +63,8 @@ const socialLinks = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
+  const isExplore = pathname?.startsWith("/explore");
   const [email, setEmail] = useState("");
   const [subscribing, setSubscribing] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
@@ -271,6 +277,11 @@ export function Footer() {
               <p className="font-manrope text-[#BFD6FF]/50 text-xs lg:text-sm">
                 &copy; {new Date().getFullYear()} mulai+. All rights reserved.
               </p>
+              {isExplore && (
+                <p className="font-manrope text-[#BFD6FF]/30 text-[10px] lg:text-xs">
+                  Data perguruan tinggi dari PDDikti &amp; SNPMB (Kemdiktisaintek RI)
+                </p>
+              )}
               <p className="font-manrope text-[#BFD6FF]/40 text-xs lg:text-sm">
                 Powered by{" "}
                 <Link

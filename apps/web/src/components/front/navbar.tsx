@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Menu, User } from "lucide-react";
+import { ChevronDown, Loader2, Menu, User } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -76,8 +76,15 @@ export function Navbar() {
     if (isOnHomepage) {
       return [
         { label: "About", href: "#about" },
-        { label: "Programs", href: "#featured-programs" },
-        { label: "Mentors", href: "#mentors" },
+        { label: "Programs", href: "/programs" },
+        {
+          label: "Explore",
+          children: [
+            { label: "Universities", href: "/explore/universities" },
+            { label: "Program Studi", href: "/study-programs" },
+            { label: "Passing Grade", href: "/explore/passing-grade" },
+          ],
+        },
         {
           label: "Blog",
           children: [
@@ -85,7 +92,6 @@ export function Navbar() {
             { label: "News", href: "/blog/news" },
           ],
         },
-        { label: "FAQ", href: "#faq" },
       ];
     }
 
@@ -100,9 +106,16 @@ export function Navbar() {
         ];
       }
       return [
-        { label: "About", href: "/#about" },
+        { label: "About", href: "#about" },
         { label: "Programs", href: "/programs" },
-        { label: "Mentors", href: "/#mentors" },
+        {
+          label: "Explore",
+          children: [
+            { label: "Universities", href: "/explore/universities" },
+            { label: "Program Studi", href: "/study-programs" },
+            { label: "Passing Grade", href: "/explore/passing-grade" },
+          ],
+        },
         {
           label: "Blog",
           children: [
@@ -110,13 +123,12 @@ export function Navbar() {
             { label: "News", href: "/blog/news" },
           ],
         },
-        { label: "FAQ", href: "/#faq" },
       ];
     }
 
     // Default fallback
     return [
-      { label: "About", href: "/#about" },
+      { label: "About", href: "#about" },
       { label: "Programs", href: "/programs" },
       {
         label: "Explore",
@@ -126,7 +138,6 @@ export function Navbar() {
           { label: "Passing Grade", href: "/explore/passing-grade" },
         ],
       },
-      { label: "Mentors", href: "/#mentors" },
       {
         label: "Blog",
         children: [
@@ -134,7 +145,6 @@ export function Navbar() {
           { label: "News", href: "/blog/news" },
         ],
       },
-      { label: "FAQ", href: "/#faq" },
     ];
   };
 
@@ -178,7 +188,9 @@ export function Navbar() {
             return (
               <DropdownMenu key={item.label}>
                 <DropdownMenuTrigger className="font-manrope text-sm text-text-main transition-colors hover:text-brand-orange focus-visible:text-brand-orange lg:text-base">
-                  {item.label}
+                  <span className="flex items-center gap-1.5">
+                    {item.label} <ChevronDown className="hidden h-3.5 w-3.5 lg:inline" />
+                  </span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-36 rounded-xl border p-1.5 shadow-lg">
                   {item.children.map((child) => (
