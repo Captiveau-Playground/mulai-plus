@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BarChart3, GraduationCap, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return d;
 }
 
-export default function PassingGradePage() {
+function PassingGradeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") || "";
@@ -337,5 +337,19 @@ export default function PassingGradePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function PassingGradePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-navy border-t-transparent" />
+        </div>
+      }
+    >
+      <PassingGradeContent />
+    </Suspense>
   );
 }

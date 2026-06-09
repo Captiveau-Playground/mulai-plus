@@ -20,7 +20,7 @@ import { shortLinksRouter } from "./short-links";
 import { testimonialsRouter } from "./testimonials";
 import { userRouter } from "./user";
 
-export const appRouter: Record<string, unknown> = {
+export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
@@ -176,4 +176,3 @@ export const appRouter: Record<string, unknown> = {
 };
 
 export type AppRouter = typeof appRouter;
-export type AppRouterClient = any;

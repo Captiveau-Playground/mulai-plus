@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, BookOpen, Building2, GraduationCap, MapPin, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { JsonLd } from "@/components/JsonLd";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-export default function StudyProgramsPage() {
+function StudyProgramsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const detailName = searchParams.get("name");
@@ -495,5 +495,19 @@ export default function StudyProgramsPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function StudyProgramsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-navy border-t-transparent" />
+        </div>
+      }
+    >
+      <StudyProgramsContent />
+    </Suspense>
   );
 }

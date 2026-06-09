@@ -1,6 +1,8 @@
+import type { AppRouter } from "@mulai-plus/api/routers/index";
 import { env } from "@mulai-plus/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
+import type { RouterClient } from "@orpc/server";
 
 const link = new RPCLink({
   url: `${env.NEXT_PUBLIC_SERVER_URL}/rpc`,
@@ -12,4 +14,4 @@ const link = new RPCLink({
   },
 });
 
-export const client: any = createORPCClient(link);
+export const client = createORPCClient<RouterClient<AppRouter>>(link);
