@@ -49,6 +49,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${baseUrl}/explore`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/explore/universities`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/explore/study-programs`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/explore/passing-grade`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
   ];
 
   let dynamicPages: MetadataRoute.Sitemap = [];
@@ -105,6 +129,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           lastModified: p.updatedAt ? new Date(p.updatedAt) : new Date(),
           changeFrequency: "weekly" as const,
           priority: 0.7,
+        })),
+      ];
+    }
+
+    // Fetch university slugs for explore detail pages
+    const uniSlugsData = await (client as any)?.pddikti?.publicGetUniversitySlugs();
+    if (Array.isArray(uniSlugsData)) {
+      dynamicPages = [
+        ...dynamicPages,
+        ...uniSlugsData.map((u: any) => ({
+          url: `${baseUrl}/explore/universities/${u.slug}`,
+          lastModified: new Date(),
+          changeFrequency: "monthly" as const,
+          priority: 0.6,
+        })),
+      ];
+    }
+
+    // Fetch program slugs for explore detail pages
+    const progSlugsData = await (client as any)?.pddikti?.publicGetProgramSlugs();
+    if (Array.isArray(progSlugsData)) {
+      dynamicPages = [
+        ...dynamicPages,
+        ...progSlugsData.map((p: any) => ({
+          url: `${baseUrl}/explore/study-programs/${p.slug}`,
+          lastModified: new Date(),
+          changeFrequency: "monthly" as const,
+          priority: 0.6,
         })),
       ];
     }
