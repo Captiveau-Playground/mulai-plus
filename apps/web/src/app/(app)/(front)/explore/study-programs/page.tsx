@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Building2, GraduationCap, MapPin, Sear
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { JsonLd } from "@/components/JsonLd";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -343,8 +344,16 @@ export default function StudyProgramsPage() {
   }
 
   // ═══════════════ DETAIL MODE ═══════════════
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Study Programs — MULAI+",
+    description: "Jelajahi 18.881 program studi dari berbagai perguruan tinggi",
+  };
+
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd data={jsonLd} />
       <div className="border-b bg-white pt-20 sm:pt-24">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 font-manrope text-text-muted-custom text-xs">

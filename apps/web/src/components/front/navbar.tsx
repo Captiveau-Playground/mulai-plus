@@ -121,8 +121,9 @@ export function Navbar() {
       {
         label: "Explore",
         children: [
-          { label: "Universities", href: "/universities" },
+          { label: "Universities", href: "/explore/universities" },
           { label: "Program Studi", href: "/study-programs" },
+          { label: "Passing Grade", href: "/explore/passing-grade" },
         ],
       },
       { label: "Mentors", href: "/#mentors" },
@@ -150,7 +151,8 @@ export function Navbar() {
           pathname.startsWith("/privacy") ||
           pathname.startsWith("/blog") ||
           pathname.startsWith("/universities") ||
-          pathname.startsWith("/study-programs")
+          pathname.startsWith("/study-programs") ||
+          pathname.startsWith("/explore")
           ? "bg-white py-4 shadow-sm backdrop-blur-md"
           : "py-6 lg:py-4",
       )}

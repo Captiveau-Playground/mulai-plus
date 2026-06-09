@@ -851,6 +851,101 @@ export const pddiktiRouter = {
   }),
 
   // ══════════════════════════════════════════
+  // PUBLIC: PASSING GRADE COMPARISON
+  // ══════════════════════════════════════════
+
+  /**
+   * Search programs and compare passing grade across universities.
+   * Returns programs with their most/least competitive passing grade stats.
+   */
+  publicSearchPassingGrade: publicProcedure
+    .input(
+      z.object({
+        query: z.string().default(""),
+        level: z.string().optional(),
+        page: z.number().default(1),
+        pageSize: z.number().default(20),
+        sortBy: z.enum(["name", "pg", "applicants"]).default("name"),
+        sortOrder: z.enum(["asc", "desc"]).default("asc"),
+      }),
+    )
+    .handler(async ({ input }) => {
+      const offset = (input.page - 1) * input.pageSize;
+      const hasQuery = input.query.length > 0;
+
+      const levelFilter = input.level ? sql`AND sp.level = ${input.level}` : sql``;
+      const whereClause = hasQuery
+        ? sql`WHERE sp.name ILIKE ${`%${input.query}%`} AND sp.status = 'Aktif' ${levelFilter}`
+        : sql`WHERE sp.status = 'Aktif' ${levelFilter}`;
+
+      let orderClause: ReturnType<typeof sql>;
+      if (input.sortBy === "pg") {
+        orderClause = sql`ORDER BY min_pg ${input.sortOrder === "asc" ? sql`ASC` : sql`DESC`}`;
+      } else if (input.sortBy === "applicants") {
+        orderClause = sql`ORDER BY avg_applicants ${input.sortOrder === "asc" ? sql`ASC` : sql`DESC`}`;
+      } else {
+        orderClause = sql`ORDER BY sp.name ${input.sortOrder === "asc" ? sql`ASC` : sql`DESC`}`;
+      }
+
+      // Get programs that have SNPMB mapping (only PTN)
+      const query = sql`
+        SELECT
+          sp.name,
+          sp.level,
+          COUNT(DISTINCT sp.id_sp) as uni_count,
+          COALESCE(AVG(sbph.applicants::float), 0) as avg_applicants,
+          COALESCE(MIN(
+            CASE WHEN sbph.applicants > 0 AND sbph.accepted > 0
+              THEN (sbph.accepted::float / sbph.applicants * 100)
+              ELSE NULL END
+          ), 0) as min_pg,
+          COALESCE(MAX(
+            CASE WHEN sbph.applicants > 0 AND sbph.accepted > 0
+              THEN (sbph.accepted::float / sbph.applicants * 100)
+              ELSE NULL END
+          ), 0) as max_pg
+        FROM study_programs sp
+        INNER JOIN program_mappings pm ON pm.pddikti_program_id = sp.id_sms
+        INNER JOIN snbp_programs sbp ON sbp.id_prodi = pm.snpmb_program_id
+        INNER JOIN snbp_capacity_history sbph ON sbph.id_prodi = sbp.id_prodi AND sbph.year = 2025
+        ${whereClause}
+        GROUP BY sp.name, sp.level
+        ${orderClause}
+        LIMIT ${input.pageSize} OFFSET ${offset}
+      `;
+
+      const countSql = sql`
+        SELECT COUNT(*) as cnt FROM (
+          SELECT sp.name, sp.level
+          FROM study_programs sp
+          INNER JOIN program_mappings pm ON pm.pddikti_program_id = sp.id_sms
+          ${whereClause}
+          GROUP BY sp.name, sp.level
+        ) sub
+      `;
+
+      const [rows, countResult] = await Promise.all([db.execute(query), db.execute(countSql)]);
+
+      const data = (rows.rows ?? []).map((r: any) => ({
+        name: r.name,
+        level: r.level,
+        uniCount: Number(r.uni_count),
+        avgApplicants: Math.round(Number(r.avg_applicants)),
+        minPg: r.min_pg > 0 ? `${Number(r.min_pg).toFixed(1)}%` : null,
+        maxPg: r.max_pg > 0 ? `${Number(r.max_pg).toFixed(1)}%` : null,
+        slug: `${(r.name as string)
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "")}-${(r.name as string).length}`,
+      }));
+
+      const total = Number((countResult.rows?.[0] as any)?.cnt ?? 0);
+      return { data, total, page: input.page, pageSize: input.pageSize };
+    }),
+
+  // ══════════════════════════════════════════
   // FILTERS (for universities)
   // ══════════════════════════════════════════
 

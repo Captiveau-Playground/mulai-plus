@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Building2, GraduationCap, Loader2, MapPin, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,8 +80,16 @@ export default function UniversitiesPage() {
   };
   const hasFilters = search || type !== "all" || province !== "all" || accreditation !== "all";
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Universities — MULAI+",
+    description: "Jelajahi 408 perguruan tinggi di Indonesia",
+  };
+
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd data={jsonLd} />
       {/* Hero */}
       <section className="relative overflow-hidden bg-brand-navy pt-20 sm:pt-24">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
