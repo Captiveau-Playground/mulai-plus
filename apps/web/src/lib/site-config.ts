@@ -68,7 +68,10 @@ export const BLOG_LINKS: NavLink[] = [
   { label: "News", href: "/blog/news" },
 ];
 
-export const OTHER_LINKS: NavLink[] = [{ label: "Privacy & Policy", href: "/privacy" }];
+export const OTHER_LINKS: NavLink[] = [
+  { label: "Privacy & Policy", href: "/privacy" },
+  { label: "Syarat & Ketentuan", href: "/terms" },
+];
 
 // ─── FAQ (used in both component & JSON-LD) ──────────────
 export interface FAQItem {
