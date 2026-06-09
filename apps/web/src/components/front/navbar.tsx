@@ -75,7 +75,7 @@ export function Navbar() {
 
     if (isOnHomepage) {
       return [
-        { label: "About", href: "#about" },
+        { label: "About", href: "/" },
         { label: "Programs", href: "/programs" },
         {
           label: "Explore",
@@ -98,7 +98,7 @@ export function Navbar() {
     if (isOnPrograms) {
       if (isMobile) {
         return [
-          { label: "About", href: "#about" },
+          { label: "About", href: "/" },
           { label: "Timeline", href: "#timeline" },
           { label: "What You Will Get", href: "#benefits" },
           { label: "Syllabus", href: "#syllabus" },
@@ -106,7 +106,7 @@ export function Navbar() {
         ];
       }
       return [
-        { label: "About", href: "#about" },
+        { label: "About", href: "/" },
         { label: "Programs", href: "/programs" },
         {
           label: "Explore",
@@ -128,7 +128,7 @@ export function Navbar() {
 
     // Default fallback
     return [
-      { label: "About", href: "#about" },
+      { label: "About", href: "/" },
       { label: "Programs", href: "/programs" },
       {
         label: "Explore",

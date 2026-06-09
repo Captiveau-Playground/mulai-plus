@@ -127,13 +127,21 @@ export default function StudyProgramsPage() {
       <div className="min-h-screen bg-white">
         <section className="relative bg-brand-navy pt-20 sm:pt-24">
           <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
+          <div
+            className="absolute inset-0 z-0 opacity-10"
+            style={{
+              backgroundImage:
+                "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
+              backgroundSize: "40px 40px",
+            }}
+          />
           <div className="relative mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 sm:py-20 lg:px-8">
             <div className="mb-4 flex items-center justify-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-orange shadow-lg">
                 <GraduationCap className="h-5 w-5 text-white" />
               </div>
             </div>
-            <h1 className="font-bold font-bricolage text-4xl text-white tracking-tight md:text-5xl">
+            <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
               {query ? `Cari "${query}"` : "Jelajahi Program Studi"}
             </h1>
             <p className="mt-3 font-manrope text-lg text-white/70">

@@ -71,7 +71,7 @@ export default function ExplorePage() {
                 <GraduationCap className="h-6 w-6 text-white" />
               </div>
             </div>
-            <h1 className="font-bold font-bricolage text-4xl text-white tracking-tight md:text-5xl lg:text-6xl">
+            <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
               Jelajahi Data
               <br />
               Pendidikan Tinggi

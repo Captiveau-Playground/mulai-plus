@@ -94,6 +94,14 @@ export default function UniversitiesPage() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-brand-navy pt-20 sm:pt-24">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
+        <div
+          className="absolute inset-0 z-0 opacity-10"
+          style={{
+            backgroundImage:
+              "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-4 flex items-center justify-center gap-2">
@@ -101,7 +109,7 @@ export default function UniversitiesPage() {
                 <Building2 className="h-5 w-5 text-white" />
               </div>
             </div>
-            <h1 className="font-bold font-bricolage text-4xl text-white tracking-tight md:text-5xl">
+            <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
               Cari Universitas Impianmu
             </h1>
             <p className="mt-3 font-manrope text-lg text-white/70">
@@ -359,6 +367,14 @@ export default function UniversitiesPage() {
       {/* CTA */}
       <section className="relative overflow-hidden bg-brand-navy py-16 sm:py-20">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
+        <div
+          className="absolute inset-0 z-0 opacity-10"
+          style={{
+            backgroundImage:
+              "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
           <Sparkles className="mx-auto h-8 w-8 text-brand-orange" />
           <h2 className="mt-3 font-bold font-bricolage text-2xl text-white sm:text-3xl">Bingung milih jurusan?</h2>
