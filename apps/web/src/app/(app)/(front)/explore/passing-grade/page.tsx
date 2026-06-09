@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BarChart3, GraduationCap, Search, Sparkles } from "lucide-react";
+import { ArrowRight, BarChart3, GraduationCap, Search, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -111,9 +111,9 @@ function PassingGradeContent() {
           <p className="mt-3 font-manrope text-lg text-white/70">
             Cari tahu tingkat keketatan jurusan di setiap PTN. Data SNBP 5 tahun terakhir.
           </p>
-          <div className="mx-auto mt-8 flex w-full max-w-xl items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <div className="mx-auto mt-8 w-full max-w-xl">
+            <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]">
+              <Search className="h-4 w-4 shrink-0 text-white/50" />
               <Input
                 placeholder="Cari jurusan, misal: Kedokteran"
                 value={query}
@@ -121,8 +121,17 @@ function PassingGradeContent() {
                   setQuery(e.target.value);
                   setPage(0);
                 }}
-                className="w-full rounded-full border-0 bg-white/10 pl-10 text-sm text-white placeholder:text-white/40 focus-visible:ring-white/30"
+                className="h-auto min-w-0 flex-1 rounded-2xl border-0 bg-transparent px-1 font-manrope text-sm text-white shadow-none outline-none ring-0 placeholder:text-white/40 focus:outline-none focus:ring-0 focus-visible:ring-0"
               />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="shrink-0 rounded-full p-0.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -314,14 +323,6 @@ function PassingGradeContent() {
 
       <section className="relative overflow-hidden bg-brand-navy py-16 sm:py-20">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
-        <div
-          className="absolute inset-0 z-0 opacity-10"
-          style={{
-            backgroundImage:
-              "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
           <Sparkles className="mx-auto h-8 w-8 text-brand-orange" />
           <h2 className="mt-3 font-bold font-bricolage text-2xl text-white sm:text-3xl">

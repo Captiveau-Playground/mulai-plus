@@ -150,8 +150,11 @@ function StudyProgramsContent() {
 
             {/* Search + Suggest */}
             <div className="relative mx-auto mt-8 w-full max-w-xl">
-              <div className="relative flex items-center" ref={inputRef}>
-                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <div
+                className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
+                ref={inputRef}
+              >
+                <Search className="h-4 w-4 shrink-0 text-white/50" />
                 <Input
                   placeholder="Cari jurusan, misal: Teknik Informatika"
                   value={query}
@@ -161,7 +164,7 @@ function StudyProgramsContent() {
                     setShowSuggestions(true);
                   }}
                   onFocus={() => query && setShowSuggestions(true)}
-                  className="w-full rounded-full border-0 bg-white/10 pl-10 text-sm text-white placeholder:text-white/40 focus-visible:ring-white/30"
+                  className="h-auto min-w-0 flex-1 rounded-2xl border-0 bg-transparent px-1 font-manrope text-sm text-white shadow-none outline-none ring-0 placeholder:text-white/40 focus:outline-none focus:ring-0 focus-visible:ring-0"
                 />
                 {query && (
                   <button
@@ -170,7 +173,7 @@ function StudyProgramsContent() {
                       setQuery("");
                       setShowSuggestions(false);
                     }}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 text-white/40 hover:text-white"
+                    className="shrink-0 rounded-full p-0.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
                   >
                     <X className="h-4 w-4" />
                   </button>

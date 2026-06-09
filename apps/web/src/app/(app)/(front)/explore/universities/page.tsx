@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Building2, GraduationCap, Loader2, MapPin, Search, Sparkles } from "lucide-react";
+import { ArrowRight, Building2, GraduationCap, Loader2, MapPin, Search, Sparkles, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,12 +35,32 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function UniversitiesPage() {
+  const router = useRouter();
   const [page, setPage] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [type, setType] = useState("all");
   const [province, setProvince] = useState("all");
   const [accreditation, setAccreditation] = useState("all");
   const pageSize = 12;
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLDivElement>(null);
+  const suggestRef = useRef<HTMLDivElement>(null);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        suggestRef.current &&
+        !suggestRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      )
+        setShowSuggestions(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const search = useDebounce(searchInput, 400);
 
@@ -71,6 +92,21 @@ export default function UniversitiesPage() {
   const provinces = _provinces as string[] | undefined;
   const types = _types as string[] | undefined;
   const accreditations = _accreditations as string[] | undefined;
+
+  // Suggestions (faster debounce)
+  const suggestDebounce = useDebounce(searchInput, 200);
+  const { data: _sg } = useQuery({
+    ...api.pddikti.publicListUniversities.queryOptions({
+      input: {
+        search: suggestDebounce || "___",
+        page: 1,
+        pageSize: 5,
+      },
+    }),
+    enabled: suggestDebounce.length > 0,
+    staleTime: 1000 * 30,
+  });
+  const suggestions = (_sg as any)?.data ?? [];
 
   const resetFilters = () => {
     setSearchInput("");
@@ -116,19 +152,66 @@ export default function UniversitiesPage() {
               Jelajahi {total.toLocaleString()} perguruan tinggi terbaik Indonesia. Lengkap dengan data akreditasi,
               program studi, dan daya tampung.
             </p>
-            <div className="mx-auto mt-8 flex w-full max-w-xl items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <div className="relative mx-auto mt-8 w-full max-w-xl">
+              <div
+                ref={inputRef}
+                className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
+              >
+                <Search className="h-4 w-4 shrink-0 text-white/50" />
                 <Input
                   placeholder="Cari universitas..."
                   value={searchInput}
                   onChange={(e) => {
                     setSearchInput(e.target.value);
                     setPage(0);
+                    setShowSuggestions(true);
                   }}
-                  className="w-full rounded-full border-0 bg-white/10 pl-10 text-sm text-white placeholder:text-white/40 focus-visible:ring-white/30"
+                  onFocus={() => searchInput && setShowSuggestions(true)}
+                  className="h-auto min-w-0 flex-1 rounded-2xl border-0 bg-transparent px-1 font-manrope text-sm text-white shadow-none outline-none ring-0 placeholder:text-white/40 focus:outline-none focus:ring-0 focus-visible:ring-0"
                 />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchInput("");
+                      setShowSuggestions(false);
+                    }}
+                    className="shrink-0 rounded-full p-0.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
+
+              {/* Suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  ref={suggestRef}
+                  className="absolute top-full right-0 left-0 z-[100] mt-1 overflow-hidden rounded-2xl border bg-white shadow-lg"
+                >
+                  {suggestions.slice(0, 5).map((u: any) => (
+                    <button
+                      key={u.idSp}
+                      type="button"
+                      onClick={() => {
+                        router.push(`/explore/universities/${slugify(u.name, u.idSp)}`);
+                        setShowSuggestions(false);
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-brand-navy/5"
+                    >
+                      <Building2 className="h-4 w-4 shrink-0 text-brand-navy/40" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-sm text-text-main">{u.name}</p>
+                        <p className="font-manrope text-[10px] text-text-muted-custom">
+                          {u.province}
+                          {u.accreditation ? ` · Akreditasi ${u.accreditation}` : ""}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-gray-300" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -367,14 +450,6 @@ export default function UniversitiesPage() {
       {/* CTA */}
       <section className="relative overflow-hidden bg-brand-navy py-16 sm:py-20">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
-        <div
-          className="absolute inset-0 z-0 opacity-10"
-          style={{
-            backgroundImage:
-              "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
           <Sparkles className="mx-auto h-8 w-8 text-brand-orange" />
           <h2 className="mt-3 font-bold font-bricolage text-2xl text-white sm:text-3xl">Bingung milih jurusan?</h2>

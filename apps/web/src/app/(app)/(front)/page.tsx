@@ -3,6 +3,7 @@
 import { AboutUs } from "@/components/front/about-us";
 import { BlogSection } from "@/components/front/blog-section";
 import { CTASection } from "@/components/front/cta-section";
+import { ExploreSection } from "@/components/front/explore-section";
 import { FAQSection } from "@/components/front/faq-section";
 import { FeaturedPrograms } from "@/components/front/featured-programs";
 import { HeroSection } from "@/components/front/hero-section";
@@ -31,6 +32,7 @@ export default function LandingPage() {
       <HeroSection />
       <AboutUs />
       <FeaturedPrograms />
+      <ExploreSection />
       <BlogSection />
       <MeetTheMentor />
       <FAQSection />
