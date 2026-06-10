@@ -504,7 +504,11 @@ export default function UniversityDetailPage() {
                         <div className="flex justify-between">
                           <span className="text-text-muted-custom">Website</span>
                           <a
-                            href={uni.details.website}
+                            href={
+                              uni.details.website.startsWith("http")
+                                ? uni.details.website
+                                : `https://${uni.details.website}`
+                            }
                             target="_blank"
                             rel="noopener noreferrer"
                             className="max-w-[200px] truncate text-brand-orange hover:underline"

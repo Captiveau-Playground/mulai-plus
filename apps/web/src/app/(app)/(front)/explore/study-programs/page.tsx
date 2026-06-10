@@ -142,11 +142,15 @@ function StudyProgramsContent() {
               </div>
             </div>
             <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
-              {query ? `Cari "${query}"` : "Jelajahi Program Studi"}
+              Jelajahi Program Studi
             </h1>
-            <p className="mt-3 font-manrope text-lg text-white/70">
-              {query ? `${searchTotal} jurusan ditemukan` : "Ketik nama jurusan untuk mulai mencari"}
-            </p>
+            {query ? (
+              <h2 className="mt-3 font-manrope text-lg text-white/70">
+                {searchTotal} jurusan &quot;{query}&quot; ditemukan
+              </h2>
+            ) : (
+              <p className="mt-3 font-manrope text-lg text-white/70">Ketik nama jurusan untuk mulai mencari</p>
+            )}
 
             {/* Search + Suggest */}
             <div className="relative mx-auto mt-8 w-full max-w-xl">

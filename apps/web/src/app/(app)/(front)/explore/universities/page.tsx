@@ -128,7 +128,7 @@ export default function UniversitiesPage() {
     <div className="min-h-screen bg-white">
       <JsonLd data={jsonLd} />
       {/* Hero */}
-      <section className="relative overflow-hidden bg-brand-navy pt-20 sm:pt-24">
+      <section className="relative bg-brand-navy pt-20 sm:pt-24">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
         <div
           className="absolute inset-0 z-0 opacity-10"

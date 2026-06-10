@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/utils/orpc";
 
+// biome-ignore lint/suspicious/noExplicitAny: orpc inferred type is complex
 const api = orpc as any;
 
 export default function ExplorePage() {
@@ -31,7 +32,9 @@ export default function ExplorePage() {
     staleTime: 1000 * 60 * 10,
   });
 
+  // biome-ignore lint/suspicious/noExplicitAny: query result shape
   const totalUni = (_uni as any)?.total ?? 408;
+  // biome-ignore lint/suspicious/noExplicitAny: query result shape
   const totalProg = (_prog as any)?.total ?? 18881;
 
   const jsonLd = {
@@ -83,9 +86,12 @@ export default function ExplorePage() {
 
             {/* Quick search */}
             <div className="mx-auto mt-10 max-w-xl">
-              <Link href={"/explore/study-programs" as any} className="relative flex items-center">
+              <Link
+                href="/explore/study-programs"
+                className="relative flex items-center outline-none focus:outline-none focus-visible:outline-none"
+              >
                 <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <div className="w-full cursor-text rounded-2xl border border-white/10 bg-white/5 px-12 py-3.5 font-manrope text-sm text-white/30 backdrop-blur-sm transition-colors hover:border-white/20 hover:bg-white/10">
+                <div className="w-full cursor-text rounded-2xl bg-white/5 px-12 py-3.5 font-manrope text-sm text-white/30 backdrop-blur-sm transition-colors hover:bg-white/10">
                   Cari jurusan, universitas, atau passing grade...
                 </div>
                 <kbd className="absolute top-1/2 right-3 hidden -translate-y-1/2 rounded-md border border-white/10 bg-white/10 px-2 py-0.5 font-manrope text-[10px] text-white/40 sm:inline">
@@ -138,7 +144,7 @@ export default function ExplorePage() {
           </div>
 
           <div className="mt-12 grid gap-5 md:grid-cols-3">
-            <Link href={"/explore/universities" as any} className="group block">
+            <Link href="/explore/universities" className="group block">
               <div className="relative overflow-hidden rounded-2xl border bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
@@ -168,7 +174,7 @@ export default function ExplorePage() {
               </div>
             </Link>
 
-            <Link href={"/explore/study-programs" as any} className="group block">
+            <Link href="/explore/study-programs" className="group block">
               <div className="relative overflow-hidden rounded-2xl border bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
@@ -200,7 +206,7 @@ export default function ExplorePage() {
               </div>
             </Link>
 
-            <Link href={"/explore/passing-grade" as any} className="group block">
+            <Link href="/explore/passing-grade" className="group block">
               <div className="relative overflow-hidden rounded-2xl border bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange/10 to-brand-orange/20">

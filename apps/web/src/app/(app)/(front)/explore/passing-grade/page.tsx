@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/utils/orpc";
 
+// biome-ignore lint/suspicious/noExplicitAny: orpc inferred type is complex
 const api = orpc as any;
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -49,9 +50,29 @@ function PassingGradeContent() {
       if (level !== "all") p.set("level", level);
       if (sortBy !== "pg") p.set("sort", sortBy);
       const qs = p.toString();
+      // biome-ignore lint/suspicious/noExplicitAny: dynamic route with query params
       router.replace(`/explore/passing-grade${qs ? `?${qs}` : ""}` as any, { scroll: false });
     }
   }, [query, level, sortBy, urlQuery, router.replace]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLDivElement>(null);
+  const suggestRef = useRef<HTMLDivElement>(null);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        suggestRef.current &&
+        !suggestRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      )
+        setShowSuggestions(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const [page, setPage] = useState(0);
   const pageSize = 12;
 
@@ -69,8 +90,25 @@ function PassingGradeContent() {
     enabled: true,
     staleTime: 1000 * 60 * 5,
   });
+
+  // Suggestions (faster debounce)
+  const suggestDebounce = useDebounce(query, 200);
+  const { data: _sg } = useQuery({
+    ...api.pddikti.publicSearchPassingGrade.queryOptions({
+      input: {
+        query: suggestDebounce || "___",
+        page: 1,
+        pageSize: 5,
+      },
+    }),
+    enabled: suggestDebounce.length > 0,
+    staleTime: 1000 * 30,
+  });
+  // biome-ignore lint/suspicious/noExplicitAny: query result shape
+  const suggestions = (_sg as any)?.data ?? [];
   const { data: _lv } = useQuery({ ...api.pddikti.publicListProgramLevels.queryOptions(), enabled: true });
 
+  // biome-ignore lint/suspicious/noExplicitAny: query result shape
   const d = _d as any;
   const levels = (_lv as string[]) ?? [];
   const items = d?.data ?? [];
@@ -89,7 +127,7 @@ function PassingGradeContent() {
     <div className="min-h-screen bg-white">
       <JsonLd data={jsonLd} />
 
-      <section className="relative overflow-hidden bg-brand-navy pt-20 sm:pt-24">
+      <section className="relative bg-brand-navy pt-20 sm:pt-24">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
         <div
           className="absolute inset-0 z-0 opacity-10"
@@ -111,8 +149,11 @@ function PassingGradeContent() {
           <p className="mt-3 font-manrope text-lg text-white/70">
             Cari tahu tingkat keketatan jurusan di setiap PTN. Data SNBP 5 tahun terakhir.
           </p>
-          <div className="mx-auto mt-8 w-full max-w-xl">
-            <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]">
+          <div className="relative mx-auto mt-8 w-full max-w-xl">
+            <div
+              ref={inputRef}
+              className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
+            >
               <Search className="h-4 w-4 shrink-0 text-white/50" />
               <Input
                 placeholder="Cari jurusan, misal: Kedokteran"
@@ -120,19 +161,58 @@ function PassingGradeContent() {
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setPage(0);
+                  setShowSuggestions(true);
                 }}
+                onFocus={() => query && setShowSuggestions(true)}
                 className="h-auto min-w-0 flex-1 rounded-2xl border-0 bg-transparent px-1 font-manrope text-sm text-white shadow-none outline-none ring-0 placeholder:text-white/40 focus:outline-none focus:ring-0 focus-visible:ring-0"
               />
               {query && (
                 <button
                   type="button"
-                  onClick={() => setQuery("")}
+                  onClick={() => {
+                    setQuery("");
+                    setShowSuggestions(false);
+                  }}
                   className="shrink-0 rounded-full p-0.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </button>
               )}
             </div>
+
+            {/* Suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                ref={suggestRef}
+                className="absolute top-full right-0 left-0 z-[100] mt-1 overflow-hidden rounded-xl border bg-white shadow-lg"
+              >
+                {
+                  // biome-ignore lint/suspicious/noExplicitAny: suggestion shape
+                  suggestions.slice(0, 5).map((s: any) => (
+                    <button
+                      key={`${s.name}-${s.level}`}
+                      type="button"
+                      onClick={() => {
+                        router.push(`/explore/passing-grade?q=${encodeURIComponent(s.name)}`);
+                        setQuery(s.name);
+                        setShowSuggestions(false);
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-brand-navy/5"
+                    >
+                      <BarChart3 className="h-4 w-4 shrink-0 text-brand-navy/40" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-sm text-text-main">{s.name}</p>
+                        <p className="font-manrope text-[10px] text-text-muted-custom">
+                          {s.level}
+                          {s.minPg && s.maxPg ? ` · PG ${s.minPg}–${s.maxPg}` : ""}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-gray-300" />
+                    </button>
+                  ))
+                }
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -205,12 +285,13 @@ function PassingGradeContent() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* biome-ignore lint/suspicious/noExplicitAny: item shape from API */}
               {items.map((item: any) => {
                 const pgNum = item.minPg ? Number.parseFloat(item.minPg) : null;
                 return (
                   <Link
                     key={`${item.name}-${item.level}`}
-                    href={`/explore/study-programs/${item.slug}` as any}
+                    href={`/explore/study-programs/${item.slug}`}
                     className="block"
                     onClick={() => trackEvent("pg_click_program", { program: item.name })}
                   >
