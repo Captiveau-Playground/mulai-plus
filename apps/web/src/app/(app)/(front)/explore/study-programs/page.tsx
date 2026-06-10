@@ -1,7 +1,17 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, BookOpen, Building2, GraduationCap, MapPin, Search, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Building2,
+  GraduationCap,
+  type LucideIcon,
+  MapPin,
+  Search,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -12,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/analytics";
+import { getProgramIcon } from "@/lib/program-icons";
 import { orpc } from "@/utils/orpc";
 
 const api = orpc as any;
@@ -198,7 +209,10 @@ function StudyProgramsContent() {
                       }}
                       className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-brand-navy/5"
                     >
-                      <BookOpen className="h-4 w-4 shrink-0 text-brand-navy/40" />
+                      {(() => {
+                        const Icon: LucideIcon = getProgramIcon(s.name);
+                        return <Icon className="h-4 w-4 shrink-0 text-brand-navy/40" />;
+                      })()}
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium text-sm text-text-main">{s.name}</p>
                         <p className="font-manrope text-[10px] text-text-muted-custom">
@@ -284,7 +298,10 @@ function StudyProgramsContent() {
                       <div className="flex flex-1 flex-col p-4">
                         <div className="mb-2 flex items-center gap-2">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
-                            <BookOpen className="h-4 w-4 text-brand-navy/60" />
+                            {(() => {
+                              const Icon: LucideIcon = getProgramIcon(p.name);
+                              return <Icon className="h-4 w-4 text-brand-navy/60" />;
+                            })()}
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {p.levels?.map((l: string) => (
