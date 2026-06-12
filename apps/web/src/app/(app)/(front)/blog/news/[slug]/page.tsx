@@ -209,7 +209,7 @@ export default function ArticleDetailPage() {
             },
             mainEntityOfPage: {
               "@type": "WebPage",
-              "@id": `${typeof window !== "undefined" ? window.location.href : baseUrl}/blog/articles/${article.slug}`,
+              "@id": `${typeof window !== "undefined" ? window.location.href : baseUrl}/blog/news/${article.slug}`,
             },
           }),
         }}

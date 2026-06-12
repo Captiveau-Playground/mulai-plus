@@ -14,7 +14,7 @@ export const SITE = {
   lang: "id",
   locale: "id_ID",
   logo: "/letter-icon-logo.svg",
-  ogImage: "/og-image.jpg",
+  ogImage: "/og-image.png",
 } as const;
 
 // ─── Contact ─────────────────────────────────────────────

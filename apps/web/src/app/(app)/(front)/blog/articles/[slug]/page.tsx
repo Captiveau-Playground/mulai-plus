@@ -29,10 +29,19 @@ type ArticleDetail = {
   publishedAt: string | null;
   readingTimeMinutes: number | null;
   featured: boolean;
-  author: { name: string; slug: string; avatarUrl: string | null; bio: string | null } | null;
+  author: {
+    name: string;
+    slug: string;
+    avatarUrl: string | null;
+    bio: string | null;
+  } | null;
   category: { name: string; slug: string } | null;
   tags: { tag: { id: string; name: string; slug: string } }[];
-  seo: { metaTitle: string | null; metaDescription: string | null; ogImageUrl: string | null } | null;
+  seo: {
+    metaTitle: string | null;
+    metaDescription: string | null;
+    ogImageUrl: string | null;
+  } | null;
 };
 
 function formatDate(date: string) {
@@ -100,7 +109,10 @@ export default function ArticleDetailPage() {
       [0.25, 0.5, 0.75, 0.9].forEach((threshold) => {
         if (scrolled >= threshold && !milestones.has(threshold)) {
           milestones.add(threshold);
-          trackEvent("article_scroll", { article_slug: slug, depth: `${Math.round(threshold * 100)}%` });
+          trackEvent("article_scroll", {
+            article_slug: slug,
+            depth: `${Math.round(threshold * 100)}%`,
+          });
         }
       });
     };
@@ -124,7 +136,10 @@ export default function ArticleDetailPage() {
     queryKey: ["article", "public", "related", article?.id],
     queryFn: async () => {
       if (!article?.id) return [];
-      const result = await client.cms.articles.public.getRelated({ articleId: article.id, limit: 4 });
+      const result = await client.cms.articles.public.getRelated({
+        articleId: article.id,
+        limit: 4,
+      });
       return result as any[];
     },
     enabled: Boolean(article?.id),
@@ -324,7 +339,12 @@ export default function ArticleDetailPage() {
                     href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => trackEvent("share_article", { article_slug: slug, platform: "facebook" })}
+                    onClick={() =>
+                      trackEvent("share_article", {
+                        article_slug: slug,
+                        platform: "facebook",
+                      })
+                    }
                     className="flex h-8 w-8 items-center justify-center rounded-full border transition-all hover:bg-blue-50"
                   >
                     <Facebook className="h-3.5 w-3.5" />
@@ -333,7 +353,12 @@ export default function ArticleDetailPage() {
                     href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => trackEvent("share_article", { article_slug: slug, platform: "linkedin" })}
+                    onClick={() =>
+                      trackEvent("share_article", {
+                        article_slug: slug,
+                        platform: "linkedin",
+                      })
+                    }
                     className="flex h-8 w-8 items-center justify-center rounded-full border transition-all hover:bg-blue-50"
                   >
                     <Linkedin className="h-3.5 w-3.5" />
@@ -341,7 +366,10 @@ export default function ArticleDetailPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      trackEvent("share_article", { article_slug: slug, platform: "copy" });
+                      trackEvent("share_article", {
+                        article_slug: slug,
+                        platform: "copy",
+                      });
                       navigator.clipboard.writeText(typeof window !== "undefined" ? window.location.href : "");
                       toast.success("Link copied!");
                     }}
@@ -420,8 +448,8 @@ function SidebarPrograms() {
     <div className="overflow-hidden rounded-xl bg-gradient-to-br from-brand-navy to-brand-navy/90 shadow-sm">
       <div className="border-white/10 border-b px-4 py-3">
         <h3 className="flex items-center gap-2 font-bold font-bricolage text-sm text-white">
-          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/20 text-xs">🎯</span>Program
-          Mentoring
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/20 text-xs">🎯</span>
+          Program Mentoring
         </h3>
       </div>
       <div className="divide-y divide-white/10">
@@ -463,7 +491,11 @@ function SidebarPrograms() {
 
 function SidebarLatestArticles({ currentSlug, type }: { currentSlug: string; type: string }) {
   const { data } = useQuery({
-    ...orpc.cms.articles.public.list.queryOptions({ type: type as any, limit: 5, offset: 0 }),
+    ...orpc.cms.articles.public.list.queryOptions({
+      type: type as any,
+      limit: 5,
+      offset: 0,
+    }),
   });
   const latest = ((data?.data ?? []) as any[])
     .filter((a: any) => a.slug !== currentSlug && a.type === type)
