@@ -29,3 +29,14 @@ class LeadRequest(BaseModel):
 class LeadResponse(BaseModel):
     success: bool
     message: str
+
+
+class ChatStatsResponse(BaseModel):
+    total_sessions: int
+    guest_sessions: int
+    auth_sessions: int
+    total_messages: int
+    today_messages: int
+    today_sessions: int
+    recent_questions: list[dict]
+    top_questions: list[dict]

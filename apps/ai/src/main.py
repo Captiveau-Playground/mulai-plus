@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.db import close as close_db
-from src.routes import chat_router, health_router
+from src.routes import admin_router, chat_router, health_router
 
 app = FastAPI(
     title="MULAI+ AI",
@@ -33,6 +33,7 @@ app.add_middleware(
 # Routers
 app.include_router(health_router)
 app.include_router(chat_router, prefix="/api")
+app.include_router(admin_router, prefix="/api/admin")
 
 
 # ─── Security: API Key check for /api/* routes ─────────────────
@@ -43,6 +44,10 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
 
     # Only check /api/* routes
+    # Skip auth for admin endpoints (proxied via Hono server with API key)
+    if request.url.path.startswith("/api/admin"):
+        return await call_next(request)
+
     if request.url.path.startswith("/api"):
         if settings.ai_api_key:
             auth = request.headers.get("Authorization", "")
