@@ -18,6 +18,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { PageState } from "@/components/ui/page-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { formatWIB } from "@/lib/date-wib";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -256,7 +257,7 @@ export default function ProgramAnalyticsPage() {
                           <TableCell>
                             <p className="font-manrope font-medium text-text-main text-xs">{app.user.name}</p>
                             <p className="font-manrope text-[10px] text-text-muted-custom">
-                              {format(new Date(app.createdAt), "MMM d, HH:mm")}
+                              {formatWIB(app.createdAt, "MMM d, HH:mm")}
                             </p>
                           </TableCell>
                           <TableCell>

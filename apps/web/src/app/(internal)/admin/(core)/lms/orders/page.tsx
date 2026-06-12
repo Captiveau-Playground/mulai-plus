@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ import { PageState } from "@/components/ui/page-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { formatWIB } from "@/lib/date-wib";
 import { orpc } from "@/utils/orpc";
 
 export default function OrdersPage() {
@@ -127,7 +127,7 @@ export default function OrdersPage() {
                         {order.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(order.createdAt), "dd MMM yyyy HH:mm")}</TableCell>
+                    <TableCell>{formatWIB(order.createdAt, "dd MMM yyyy HH:mm")}</TableCell>
                   </TableRow>
                 ))
               )}

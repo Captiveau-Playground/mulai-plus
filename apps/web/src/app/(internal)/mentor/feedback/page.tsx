@@ -16,8 +16,8 @@ import { orpc } from "@/utils/orpc";
 interface FeedbackItem {
   id: string;
   answer: string;
-  createdAt: string;
-  question: { id: string; question: string; questionType: string; likertOptions?: string[] | null };
+  createdAt: string | Date;
+  question: { id: string; question: string; questionType: string; likertOptions?: unknown };
   fromUser: { id: string; name: string; email: string; image?: string | null };
   campaign: {
     template: { name: string; type: string };
@@ -28,7 +28,7 @@ interface FeedbackItem {
 function FeedbackCard({ feedback, onClick }: { feedback: FeedbackItem; onClick: () => void }) {
   const isLikert = feedback.question.questionType === "likert";
   const likertValue = isLikert ? Number.parseInt(feedback.answer, 10) : null;
-  const likertLabels = feedback.question.likertOptions || [];
+  const likertLabels = (feedback.question.likertOptions as string[]) || [];
 
   return (
     <button
@@ -98,7 +98,7 @@ function FeedbackDetailDialog({
 
   const isLikert = feedback.question.questionType === "likert";
   const likertValue = isLikert ? Number.parseInt(feedback.answer, 10) : null;
-  const likertLabels = feedback.question.likertOptions || [];
+  const likertLabels = (feedback.question.likertOptions as string[]) || [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
