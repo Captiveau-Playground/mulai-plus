@@ -513,6 +513,8 @@ function CampaignManager() {
                   <span>·</span>
                   <span>Type: {feedbackTypeLabels[camp.template?.type] || camp.template?.type}</span>
                   <span>·</span>
+                  <span>{camp.campaignType === "completion" ? "Completion" : "Periodic"}</span>
+                  <span>·</span>
                   <span>
                     {new Date(camp.startDate).toLocaleDateString()} - {new Date(camp.endDate).toLocaleDateString()}
                   </span>
@@ -607,6 +609,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const [batchId, setBatchId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [campaignType, setCampaignType] = useState<"completion" | "periodic">("completion");
 
   const { data: batches } = useQuery({
     ...orpc.programs.admin.batches.list.queryOptions({
@@ -631,7 +634,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       toast.error("All fields are required");
       return;
     }
-    createMutation.mutate({ templateId, batchId, startDate, endDate });
+    createMutation.mutate({ templateId, batchId, startDate, endDate, campaignType });
   };
 
   return (
@@ -713,6 +716,18 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                     {b.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Campaign Type</Label>
+            <Select value={campaignType} onValueChange={(v) => setCampaignType(v as "completion" | "periodic")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="completion">Completion (wajib diisi, blocking download report)</SelectItem>
+                <SelectItem value="periodic">Periodic (wajib diisi, tidak blocking)</SelectItem>
               </SelectContent>
             </Select>
           </div>

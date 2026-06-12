@@ -3,15 +3,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { Award, Download, FileText, Loader2 } from "lucide-react";
+import { Award, Download, FileText, Loader2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PageState } from "@/components/ui/page-state";
 import { generateSummaryReportPdf } from "@/lib/summary-report-pdf";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 interface ReportItem {
   id: string;
@@ -21,10 +29,11 @@ interface ReportItem {
 
 interface Report {
   id: string;
+  batchId?: string | null;
   studentName?: string;
   student?: { name?: string | null };
   mentor?: { name?: string | null };
-  batch?: { name?: string | null };
+  batch?: { id: string; name?: string | null } | null;
   programName?: string;
   mentorNotes?: string | null;
   items?: ReportItem[];
@@ -32,8 +41,31 @@ interface Report {
 
 function DownloadButton({ report }: { report: Report }) {
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [pendingFeedback, setPendingFeedback] = useState<{ id: string; type: string; templateName: string }[] | null>(
+    null,
+  );
 
   const handleDownload = async () => {
+    setChecking(true);
+    try {
+      // Cek ALL pending completion feedback untuk student ini
+      const result = await client.feedback.response.pendingCompletion({});
+      if (result.pending.length > 0) {
+        setPendingFeedback(result.pending);
+        return;
+      }
+      // Semua feedback sudah diisi — lanjut download
+      await doDownload();
+    } catch (error) {
+      console.error("Gagal cek feedback:", error);
+      toast.error("Gagal memverifikasi feedback. Coba lagi.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const doDownload = async () => {
     setLoading(true);
     try {
       const blob = await generateSummaryReportPdf({
@@ -66,14 +98,59 @@ function DownloadButton({ report }: { report: Report }) {
   };
 
   return (
-    <Button
-      onClick={handleDownload}
-      disabled={loading}
-      className="mt-4 w-full rounded-xl bg-gradient-to-r from-brand-navy to-mentor-teal font-manrope text-sm text-white shadow-sm transition-all hover:shadow-md hover:brightness-110"
-    >
-      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-      {loading ? "Generating PDF..." : "Download PDF"}
-    </Button>
+    <>
+      <Button
+        onClick={handleDownload}
+        disabled={loading || checking}
+        className="mt-4 w-full rounded-xl bg-gradient-to-r from-brand-navy to-mentor-teal font-manrope text-sm text-white shadow-sm transition-all hover:shadow-md hover:brightness-110"
+      >
+        {loading || checking ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Download className="mr-2 h-4 w-4" />
+        )}
+        {loading ? "Generating PDF..." : checking ? "Memeriksa feedback..." : "Download PDF"}
+      </Button>
+
+      {/* Feedback Required Dialog */}
+      <Dialog
+        open={pendingFeedback !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingFeedback(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-bricolage text-brand-navy text-lg">
+              <MessageSquare className="h-5 w-5 text-brand-orange" />
+              Feedback Belum Diisi
+            </DialogTitle>
+            <DialogDescription className="font-manrope">
+              Kamu masih memiliki feedback completion yang belum diisi. Silakan isi terlebih dahulu sebelum mendownload
+              Summary Report.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {pendingFeedback?.map((fb) => (
+              <div key={fb.id} className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <p className="font-manrope font-medium text-amber-800 text-sm">
+                  {fb.type === "mentee_to_mentor" ? "Feedback untuk Mentor" : "Feedback untuk MULAI+"}
+                </p>
+                <p className="font-manrope text-amber-600 text-xs">{fb.templateName}</p>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => setPendingFeedback(null)}
+              className="w-full rounded-xl bg-brand-navy font-manrope text-sm text-white hover:bg-brand-navy/90"
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -113,7 +190,7 @@ export default function StudentSummaryReportPage() {
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {reports.map((report) => (
+            {reports.map((report: any) => (
               <Card key={report.id} className="student-card overflow-hidden">
                 <CardHeader className="bg-white">
                   <div className="flex items-center justify-between">
@@ -134,7 +211,7 @@ export default function StudentSummaryReportPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4 bg-white">
-                  {report.items?.map((item, i) => (
+                  {report.items?.map((item: any, i: number) => (
                     <div key={item.id} className="rounded-lg bg-gray-50 p-3">
                       <p className="font-manrope font-semibold text-sm text-text-main">
                         {i + 1}. {item.title}

@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, db, desc, eq, gte, lte } from "@mulai-plus/db";
+import { and, asc, db, desc, eq, gte, inArray, isNull, lte, or } from "@mulai-plus/db";
 import { user as userSchema } from "@mulai-plus/db/schema/auth";
-import { feedbackCampaign, feedbackQuestion, feedbackResponse, feedbackTemplate } from "@mulai-plus/db/schema/programs";
+import {
+  feedbackCampaign,
+  feedbackQuestion,
+  feedbackResponse,
+  feedbackTemplate,
+  mentorMentee,
+} from "@mulai-plus/db/schema/programs";
 import { z } from "zod";
 import { adminOrProgramManagerProcedure, protectedProcedure } from "../index";
 
@@ -146,6 +152,7 @@ export const feedbackRouter = {
           batchId: z.string(),
           startDate: z.string(),
           endDate: z.string(),
+          campaignType: z.enum(["completion", "periodic"]).default("completion"),
         }),
       )
       .handler(async ({ input, context }) => {
@@ -155,6 +162,7 @@ export const feedbackRouter = {
           batchId: input.batchId,
           startDate: new Date(input.startDate),
           endDate: new Date(input.endDate),
+          campaignType: input.campaignType,
           status: "scheduled",
           createdBy: context.session.user.id,
         });
@@ -238,8 +246,10 @@ export const feedbackRouter = {
           .map((c) => ({
             id: c.id,
             type: c.template.type,
+            campaignType: c.campaignType,
             templateName: c.template.name,
             batchName: c.batch.name,
+            batchId: c.batchId,
             questions: c.template.questions.map((q) => ({
               id: q.id,
               question: q.question,
@@ -281,8 +291,6 @@ export const feedbackRouter = {
 
           // For mentee_to_mentor, find the mentor assigned to this user in this batch
           if (campaign.template.type === "mentee_to_mentor") {
-            // Find mentor-mentee assignment
-            const { mentorMentee } = await import("@mulai-plus/db/schema/programs");
             const assignment = await tx.query.mentorMentee.findFirst({
               where: and(eq(mentorMentee.studentId, userId), eq(mentorMentee.batchId, campaign.batchId)),
               with: { mentor: true },
@@ -306,6 +314,92 @@ export const feedbackRouter = {
         });
 
         return { success: true };
+      }),
+
+    // ─── Mentor: lihat feedback mentee_to_mentor yang ditujukan ke dirinya ───
+    myReceived: protectedProcedure
+      .input(z.object({ batchId: z.string().optional() }))
+      .handler(async ({ input, context }) => {
+        const mentorId = context.session.user.id;
+
+        const conditions = [eq(feedbackResponse.toUserId, mentorId)];
+        if (input.batchId) conditions.push(eq(feedbackResponse.batchId, input.batchId));
+
+        const responses = await db.query.feedbackResponse.findMany({
+          where: and(...conditions),
+          with: {
+            question: true,
+            campaign: {
+              with: {
+                template: true,
+                batch: { columns: { id: true, name: true } },
+              },
+            },
+            fromUser: { columns: { id: true, name: true, email: true, image: true } },
+          },
+          orderBy: desc(feedbackResponse.createdAt),
+        });
+
+        // Filter hanya response dari campaign dgn template type mentee_to_mentor
+        return responses.filter((r) => r.campaign.template.type === "mentee_to_mentor");
+      }),
+
+    // ─── Student: cek apakah ada completion feedback yg belum diisi ───
+    pendingCompletion: protectedProcedure
+      .input(z.object({ batchId: z.string().optional() }))
+      .handler(async ({ input, context }) => {
+        const userId = context.session.user.id;
+
+        // Cari campaign completion yg:
+        // - terkait batch student (dari mentorMentee)
+        // - status open/closed, ATAU endDate sudah lewat
+        const now = new Date();
+
+        // Cari batch dimana student terdaftar
+        const myBatches = await db
+          .select({ batchId: mentorMentee.batchId })
+          .from(mentorMentee)
+          .where(eq(mentorMentee.studentId, userId));
+
+        const myBatchIds = myBatches.map((b) => b.batchId);
+        if (myBatchIds.length === 0) return { pending: [] };
+
+        // Filter by specific batchId if provided
+        const targetBatchIds = input.batchId ? myBatchIds.filter((id) => id === input.batchId) : myBatchIds;
+
+        if (targetBatchIds.length === 0) return { pending: [] };
+
+        const campaigns = await db.query.feedbackCampaign.findMany({
+          where: and(
+            inArray(feedbackCampaign.batchId, targetBatchIds),
+            or(eq(feedbackCampaign.campaignType, "completion"), isNull(feedbackCampaign.campaignType)),
+            or(inArray(feedbackCampaign.status, ["open", "closed"]), lte(feedbackCampaign.endDate, now)),
+          ),
+          with: {
+            template: { columns: { id: true, type: true, name: true } },
+          },
+        });
+
+        if (campaigns.length === 0) return { pending: [] };
+
+        // Cari mana yg sudah direspon user
+        const campaignIds = campaigns.map((c) => c.id);
+        const responded = await db
+          .select({ campaignId: feedbackResponse.campaignId })
+          .from(feedbackResponse)
+          .where(and(eq(feedbackResponse.fromUserId, userId), inArray(feedbackResponse.campaignId, campaignIds)));
+
+        const respondedIds = new Set(responded.map((r) => r.campaignId));
+
+        const pending = campaigns
+          .filter((c) => !respondedIds.has(c.id))
+          .map((c) => ({
+            id: c.id,
+            type: c.template.type,
+            templateName: c.template.name,
+          }));
+
+        return { pending };
       }),
 
     // Admin/PM view responses for a campaign

@@ -531,6 +531,8 @@ export const feedbackTypeEnum = pgEnum("feedback_type", [
 
 export const feedbackCampaignStatusEnum = pgEnum("feedback_campaign_status", ["scheduled", "open", "closed"]);
 
+export const campaignTypeEnum = pgEnum("campaign_type", ["completion", "periodic"]);
+
 export const feedbackTemplate = pgTable("feedback_template", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -572,6 +574,7 @@ export const feedbackCampaign = pgTable("feedback_campaign", {
     .references(() => programBatch.id, { onDelete: "cascade" }),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
+  campaignType: campaignTypeEnum("campaign_type").notNull().default("completion"),
   status: feedbackCampaignStatusEnum("status").notNull().default("scheduled"),
   createdBy: text("created_by")
     .notNull()
