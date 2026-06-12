@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addMinutes, format } from "date-fns";
+import { addMinutes } from "date-fns";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -41,6 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { formatWIB } from "@/lib/date-wib";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -319,13 +320,13 @@ function MentorSessionsContent() {
                             <div className="flex items-center gap-1.5">
                               <CalendarIcon className="h-3.5 w-3.5 text-text-muted-custom" />
                               <span className="font-manrope text-sm text-text-main">
-                                {format(new Date(session.startsAt), "MMM d, yyyy")}
+                                {formatWIB(session.startsAt, "MMM d, yyyy")}
                               </span>
                             </div>
                             <div className="mt-0.5 flex items-center gap-1.5">
                               <Clock className="h-3.5 w-3.5 text-text-muted-custom" />
                               <span className="font-manrope text-text-muted-custom text-xs">
-                                {format(new Date(session.startsAt), "h:mm a")} ({session.durationMinutes} min)
+                                {formatWIB(session.startsAt, "h:mm a")} ({session.durationMinutes} min)
                               </span>
                             </div>
                           </TableCell>
@@ -425,13 +426,13 @@ function MentorSessionsContent() {
                       <div className="mb-1 flex items-center gap-1.5">
                         <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-text-muted-custom" />
                         <span className="font-manrope text-sm text-text-main">
-                          {format(new Date(session.startsAt), "MMM d, yyyy")}
+                          {formatWIB(session.startsAt, "MMM d, yyyy")}
                         </span>
                       </div>
                       <div className="mb-1 flex items-center gap-1.5">
                         <Clock className="h-3.5 w-3.5 shrink-0 text-text-muted-custom" />
                         <span className="font-manrope text-text-muted-custom text-xs">
-                          {format(new Date(session.startsAt), "h:mm a")} WIB ({session.durationMinutes} min)
+                          {formatWIB(session.startsAt, "h:mm a")} WIB ({session.durationMinutes} min)
                         </span>
                       </div>
 
@@ -526,13 +527,16 @@ function MentorSessionsContent() {
                   </div>
                   <div>
                     <span className="mb-1 block text-muted-foreground">Date</span>
-                    <span className="font-medium">{format(new Date(viewingSession.startsAt), "MMM d, yyyy")}</span>
+                    <span className="font-medium">{formatWIB(viewingSession.startsAt, "MMM d, yyyy")}</span>
                   </div>
                   <div>
                     <span className="mb-1 block text-muted-foreground">Time</span>
                     <span className="font-medium">
-                      {format(new Date(viewingSession.startsAt), "HH:mm")} -{" "}
-                      {format(addMinutes(new Date(viewingSession.startsAt), viewingSession.durationMinutes), "HH:mm")}{" "}
+                      {formatWIB(viewingSession.startsAt, "HH:mm")} -{" "}
+                      {formatWIB(
+                        addMinutes(new Date(viewingSession.startsAt), viewingSession.durationMinutes),
+                        "HH:mm",
+                      )}{" "}
                       WIB
                     </span>
                   </div>

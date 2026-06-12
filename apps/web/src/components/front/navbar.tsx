@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Menu, User } from "lucide-react";
+import { ChevronDown, Loader2, Menu, User } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -75,9 +75,16 @@ export function Navbar() {
 
     if (isOnHomepage) {
       return [
-        { label: "About", href: "#about" },
-        { label: "Programs", href: "#featured-programs" },
-        { label: "Mentors", href: "#mentors" },
+        { label: "About", href: "/" },
+        { label: "Programs", href: "/programs" },
+        {
+          label: "Explore",
+          children: [
+            { label: "Universities", href: "/explore/universities" },
+            { label: "Program Studi", href: "/study-programs" },
+            { label: "Passing Grade", href: "/explore/passing-grade" },
+          ],
+        },
         {
           label: "Blog",
           children: [
@@ -85,14 +92,13 @@ export function Navbar() {
             { label: "News", href: "/blog/news" },
           ],
         },
-        { label: "FAQ", href: "#faq" },
       ];
     }
 
     if (isOnPrograms) {
       if (isMobile) {
         return [
-          { label: "About", href: "#about" },
+          { label: "About", href: "/" },
           { label: "Timeline", href: "#timeline" },
           { label: "What You Will Get", href: "#benefits" },
           { label: "Syllabus", href: "#syllabus" },
@@ -100,9 +106,16 @@ export function Navbar() {
         ];
       }
       return [
-        { label: "About", href: "/#about" },
+        { label: "About", href: "/" },
         { label: "Programs", href: "/programs" },
-        { label: "Mentors", href: "/#mentors" },
+        {
+          label: "Explore",
+          children: [
+            { label: "Universities", href: "/explore/universities" },
+            { label: "Program Studi", href: "/study-programs" },
+            { label: "Passing Grade", href: "/explore/passing-grade" },
+          ],
+        },
         {
           label: "Blog",
           children: [
@@ -110,15 +123,21 @@ export function Navbar() {
             { label: "News", href: "/blog/news" },
           ],
         },
-        { label: "FAQ", href: "/#faq" },
       ];
     }
 
     // Default fallback
     return [
-      { label: "About", href: "/#about" },
+      { label: "About", href: "/" },
       { label: "Programs", href: "/programs" },
-      { label: "Mentors", href: "/#mentors" },
+      {
+        label: "Explore",
+        children: [
+          { label: "Universities", href: "/explore/universities" },
+          { label: "Program Studi", href: "/study-programs" },
+          { label: "Passing Grade", href: "/explore/passing-grade" },
+        ],
+      },
       {
         label: "Blog",
         children: [
@@ -126,7 +145,6 @@ export function Navbar() {
           { label: "News", href: "/blog/news" },
         ],
       },
-      { label: "FAQ", href: "/#faq" },
     ];
   };
 
@@ -141,7 +159,10 @@ export function Navbar() {
           pathname.startsWith("/courses") ||
           pathname.startsWith("/categories") ||
           pathname.startsWith("/privacy") ||
-          pathname.startsWith("/blog")
+          pathname.startsWith("/blog") ||
+          pathname.startsWith("/universities") ||
+          pathname.startsWith("/study-programs") ||
+          pathname.startsWith("/explore")
           ? "bg-white py-4 shadow-sm backdrop-blur-md"
           : "py-6 lg:py-4",
       )}
@@ -167,7 +188,9 @@ export function Navbar() {
             return (
               <DropdownMenu key={item.label}>
                 <DropdownMenuTrigger className="font-manrope text-sm text-text-main transition-colors hover:text-brand-orange focus-visible:text-brand-orange lg:text-base">
-                  {item.label}
+                  <span className="flex items-center gap-1.5">
+                    {item.label} <ChevronDown className="hidden h-3.5 w-3.5 lg:inline" />
+                  </span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-36 rounded-xl border p-1.5 shadow-lg">
                   {item.children.map((child) => (

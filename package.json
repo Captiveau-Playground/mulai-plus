@@ -56,17 +56,18 @@
   "dependencies": {
     "@mulai-plus/env": "workspace:*",
     "@supabase/supabase-js": "^2.91.1",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "turbo": "^2.6.3",
     "@biomejs/biome": "^2.2.0",
+    "@mulai-plus/config": "workspace:*",
+    "@types/bun": "catalog:",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
-    "typescript": "catalog:",
-    "@types/bun": "catalog:",
-    "@mulai-plus/config": "workspace:*"
+    "turbo": "^2.6.3",
+    "typescript": "catalog:"
   },
   "lint-staged": {
     "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [

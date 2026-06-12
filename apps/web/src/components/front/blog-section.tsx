@@ -24,7 +24,11 @@ type ArticleItem = {
 };
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  return new Date(date).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function ArticleCard({ article, index }: { article: ArticleItem; index: number }) {
@@ -114,7 +118,7 @@ export function BlogSection() {
 
   return (
     <section className="relative bg-white py-16 sm:py-20 lg:py-24">
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
         {/* Header */}
         <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>

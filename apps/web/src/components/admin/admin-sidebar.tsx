@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  Building2,
   Computer,
   ExternalLink,
   FileText,
@@ -176,6 +177,26 @@ const data = {
       ],
     },
   ],
+  navPddikti: [
+    {
+      title: "Universities",
+      url: "/admin/pddikti/universities",
+      icon: Building2,
+      items: [{ title: "All Universities", url: "/admin/pddikti/universities" }],
+    },
+    {
+      title: "Study Programs",
+      url: "/admin/pddikti/study-programs",
+      icon: BookOpen,
+      items: [{ title: "All Programs", url: "/admin/pddikti/study-programs" }],
+    },
+    {
+      title: "SNPMB",
+      url: "/admin/pddikti/snpmb-universities",
+      icon: ExternalLink,
+      items: [{ title: "SNPMB Universities", url: "/admin/pddikti/snpmb-universities" }],
+    },
+  ],
   navSystem: [
     {
       title: "Audit",
@@ -266,6 +287,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
         <NavMain label="Content" items={data.navCms} />
+        <NavMain label="Education Data" items={data.navPddikti} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
 

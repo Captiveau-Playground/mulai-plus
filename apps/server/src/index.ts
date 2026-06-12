@@ -19,6 +19,7 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { rateLimiter } from "hono-rate-limiter";
 
 // Initialize R2 client
 initR2Client();
@@ -30,6 +31,19 @@ app.route("/api/upload", uploadRouter);
 
 // Force reload for api router changes
 app.use(logger());
+
+// Rate limiter untuk API publik (pddikti)
+const limiter = rateLimiter({
+  windowMs: 60 * 1000, // 1 menit
+  limit: 30, // 30 request per menit per IP
+  standardHeaders: "draft-6",
+  keyGenerator: (c) => c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+  message: { status: 429, message: "Too many requests. Please slow down." },
+});
+
+// Apply rate limiter hanya ke endpoint publik pddikti
+app.use("/rpc/pddikti/public*", limiter);
+
 app.use(
   "/*",
   cors({

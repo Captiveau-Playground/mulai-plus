@@ -4,6 +4,7 @@ export * from "./cms";
 export * from "./lms";
 export * from "./newsletter";
 export * from "./notification";
+export * from "./pddikti";
 export * from "./programs";
 export * from "./settings";
 export * from "./testimonials";

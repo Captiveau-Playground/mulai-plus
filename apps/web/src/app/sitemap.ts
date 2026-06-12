@@ -43,6 +43,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${baseUrl}/explore`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/explore/universities`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/explore/study-programs`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/explore/passing-grade`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
   ];
 
   let dynamicPages: MetadataRoute.Sitemap = [];
@@ -55,9 +85,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       offset: 0,
     });
     if (articlesData?.data) {
+      // biome-ignore lint/suspicious/noExplicitAny: article shape from API
       const articles = articlesData.data.filter((a: any) => a.slug);
       dynamicPages = [
         ...dynamicPages,
+        // biome-ignore lint/suspicious/noExplicitAny: article shape from API
         ...articles.map((a: any) => ({
           url: `${baseUrl}/blog/articles/${a.slug}`,
           lastModified: a.publishedAt ? new Date(a.publishedAt) : new Date(),
@@ -74,9 +106,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       offset: 0,
     });
     if (newsData?.data) {
+      // biome-ignore lint/suspicious/noExplicitAny: news shape from API
       const newsItems = newsData.data.filter((a: any) => a.slug);
       dynamicPages = [
         ...dynamicPages,
+        // biome-ignore lint/suspicious/noExplicitAny: news shape from API
         ...newsItems.map((a: any) => ({
           url: `${baseUrl}/blog/news/${a.slug}`,
           lastModified: a.publishedAt ? new Date(a.publishedAt) : new Date(),
@@ -94,6 +128,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (programsData?.data) {
       dynamicPages = [
         ...dynamicPages,
+        // biome-ignore lint/suspicious/noExplicitAny: program shape from API
         ...programsData.data.map((p: any) => ({
           url: `${baseUrl}/programs/${p.slug}`,
           lastModified: p.updatedAt ? new Date(p.updatedAt) : new Date(),
@@ -102,7 +137,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         })),
       ];
     }
-  } catch {
+
+    // Fetch university slugs for explore detail pages
+    const uniSlugsData = await // biome-ignore lint/suspicious/noExplicitAny: pddikti not on client type
+    (client as any)?.pddikti?.publicGetUniversitySlugs();
+    if (Array.isArray(uniSlugsData)) {
+      dynamicPages = [
+        ...dynamicPages,
+        // biome-ignore lint/suspicious/noExplicitAny: slug shape from API
+        ...uniSlugsData.map((u: any) => ({
+          url: `${baseUrl}/explore/universities/${u.slug}`,
+          lastModified: new Date(),
+          changeFrequency: "monthly" as const,
+          priority: 0.6,
+        })),
+      ];
+    }
+
+    // Fetch program slugs for explore detail pages
+    const progSlugsData = await // biome-ignore lint/suspicious/noExplicitAny: pddikti not on client type
+    (client as any)?.pddikti?.publicGetProgramSlugs();
+    if (Array.isArray(progSlugsData)) {
+      dynamicPages = [
+        ...dynamicPages,
+        // biome-ignore lint/suspicious/noExplicitAny: slug shape from API
+        ...progSlugsData.map((p: any) => ({
+          url: `${baseUrl}/explore/study-programs/${p.slug}`,
+          lastModified: new Date(),
+          changeFrequency: "monthly" as const,
+          priority: 0.6,
+        })),
+      ];
+    }
+  } catch (_e) {
     // API not available — return static pages only
   }
 

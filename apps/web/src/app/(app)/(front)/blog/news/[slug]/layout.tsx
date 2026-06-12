@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { client } from "@/lib/client";
+import { SITE } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const slug = (await params).slug;
 
   try {
-    const article = await client.cms.articles.public.get({ slug, type: "news" });
+    const article = await client.cms.articles.public.get({ slug });
 
     if (!article) return { alternates: { canonical: `/blog/news/${slug}` } };
 
@@ -28,17 +29,28 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
             ? article.publishedAt
             : article.publishedAt?.toISOString?.() || undefined,
         authors: article.author?.name ? [article.author.name] : undefined,
-        images: ogImage ? [{ url: ogImage, width: 1200, height: 630 }] : undefined,
+        ...(ogImage
+          ? { images: [{ url: ogImage, width: 1200, height: 630 }] }
+          : { images: [{ url: SITE.ogImage, width: 1200, height: 630 }] }),
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
-        images: ogImage ? [ogImage] : undefined,
+        ...(ogImage ? { images: [ogImage] } : { images: [SITE.ogImage] }),
       },
     };
   } catch {
-    return { alternates: { canonical: `/blog/news/${slug}` } };
+    return {
+      alternates: { canonical: `/blog/news/${slug}` },
+      openGraph: {
+        images: [{ url: SITE.ogImage, width: 1200, height: 630 }],
+      },
+      twitter: {
+        card: "summary_large_image",
+        images: [SITE.ogImage],
+      },
+    };
   }
 }
 
