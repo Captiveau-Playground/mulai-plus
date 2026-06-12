@@ -4,16 +4,12 @@ Phase 3: LLM-powered responder with tool calling (DB queries).
 Flow:
 1. User message → LLM (with tools) → tool call detected
 2. Execute tool → get data from DB
-3. Tool result + history → LLM → final response
-
-Security:
-- Read-only DB access via parameterized queries
-- 5s query timeout
-- Tool args validated by LLM + schema
+3. Tool result + history → LLM → final response + follow-up suggestions
 """
 
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 from openai import OpenAI
@@ -39,7 +35,18 @@ Konteks data MULAI+:
 
 Kamu punya akses ke database untuk mencari data real-time. GUNAKAN tools yang tersedia untuk menjawab pertanyaan spesifik seperti passing grade, daftar prodi, atau detail universitas. Jangan pernah mengarang data passing grade atau akreditasi.
 
+Jika data dari database tidak ditemukan atau terbatas, jangan membuat data palsu. Cukup sampaikan apa adanya dan sarankan kata kunci alternatif yang mungkin bisa dicoba.
+
 Jawab langsung tanpa analisis. Maksimal 3 paragraf. Gunakan emoji secukupnya."""
+
+FOLLOWUP_PROMPT = """Berdasarkan percakapan di atas, berikan 3 pertanyaan follow-up singkat yang paling relevan untuk user lanjutkan.
+
+Aturan:
+- Maksimal 6 kata per pertanyaan
+- Fokus pada topik yang sedang dibahas (universitas, prodi, passing grade, beasiswa, mentoring)
+- Jika user bertanya tentang sesuatu yang spesifik, follow-up harus nyambung
+- Jika data tidak ditemukan, follow-up bisa saran kata kunci lain
+- Output: cukup 3 pertanyaan, dipisah newline, tanpa angka atau bullet"""
 
 
 _client: Optional[OpenAI] = None
@@ -55,8 +62,10 @@ def _get_client() -> OpenAI:
     return _client
 
 
-async def get_response(message: str, history: Optional[list[dict]] = None) -> str:
-    """Generate response using LLM with tool calling."""
+async def get_response(message: str, history: Optional[list[dict]] = None) -> tuple[str, list[str]]:
+    """Generate response using LLM with tool calling.
+    Returns (reply_text, follow_up_questions).
+    """
     try:
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
@@ -91,7 +100,6 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> st
             })
 
             for tc in msg.tool_calls:
-                import json
                 try:
                     args = json.loads(tc.function.arguments)
                 except json.JSONDecodeError:
@@ -116,11 +124,9 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> st
 
             content = resp.choices[0].message.content
         else:
-            # No tool call needed
             content = msg.content
 
         if not content:
-            # Retry once for buggy models
             resp = client.chat.completions.create(
                 model=settings.openai_model,
                 messages=messages,
@@ -128,7 +134,12 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> st
             )
             content = resp.choices[0].message.content
 
-        return content or "Maaf, aku tidak bisa menjawab saat ini."
+        content = content or "Maaf, aku tidak bisa menjawab saat ini."
+
+        # Step 3: Generate follow-up questions using AI
+        follow_ups = await _generate_followups(messages + [{"role": "assistant", "content": content}])
+
+        return content, follow_ups
 
     except Exception as e:
         print(f"[responder] Error: {e}")
@@ -139,14 +150,29 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> st
             "Sementara itu, kamu bisa cek langsung:\n"
             "- 🏛️ Universitas: /explore/universities\n"
             "- 📚 Program Studi: /explore/study-programs\n"
-            "- 📊 Passing Grade: /explore/passing-grade"
+            "- 📊 Passing Grade: /explore/passing-grade",
+            ["Cari universitas negeri", "Info passing grade", "Tanya program mentoring"],
         )
 
 
-def get_suggested_questions() -> list[str]:
-    return [
-        "Cari universitas negeri di Jawa Timur",
-        "Rekomendasi jurusan untuk anak IPA",
-        "Passing grade kedokteran UNAIR 2024",
-        "Detail Universitas Airlangga",
-    ]
+async def _generate_followups(context: list[dict]) -> list[str]:
+    """Generate 3 follow-up questions based on conversation context."""
+    try:
+        client = _get_client()
+        resp = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": FOLLOWUP_PROMPT},
+                *context[-4:],  # last 4 messages for context
+                {"role": "user", "content": "Buat 3 pertanyaan follow-up:"},
+            ],
+            temperature=0.8,
+        )
+
+        text = resp.choices[0].message.content or ""
+        questions = [q.strip().lstrip("0123456789.-) ") for q in text.strip().split("\n") if q.strip()]
+        return questions[:3]
+
+    except Exception as e:
+        print(f"[responder] Follow-up gen error: {e}")
+        return []

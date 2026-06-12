@@ -113,6 +113,22 @@ if (env.AI_SERVICE_URL) {
       headers.Authorization = `Bearer ${env.AI_API_KEY}`;
     }
 
+    // Forward user info for rate limiting
+    try {
+      const session = await auth.api.getSession({
+        headers: c.req.raw.headers,
+      });
+      if (session?.user?.id) {
+        headers["x-user-id"] = session.user.id;
+      }
+    } catch {}
+
+    // Forward session ID from client if provided
+    const sessionId = c.req.header("x-session-id");
+    if (sessionId) {
+      headers["x-session-id"] = sessionId;
+    }
+
     if (c.req.method === "GET") {
       const resp = await fetch(target, { headers });
       return c.newResponse(resp.body, resp);
@@ -125,7 +141,7 @@ if (env.AI_SERVICE_URL) {
       body: JSON.stringify(body),
     });
     const data = await resp.json();
-    return c.json(data, resp.status as any);
+    return c.json(data, resp.status as Parameters<typeof c.json>[1]);
   });
 }
 

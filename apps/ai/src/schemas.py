@@ -16,6 +16,7 @@ class ChatResponse(BaseModel):
     session_id: str
     suggested_questions: Optional[list[str]] = None
     requires_auth: bool = False
+    remaining: Optional[int] = None
 
 
 class LeadRequest(BaseModel):
