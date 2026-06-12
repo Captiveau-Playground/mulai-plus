@@ -147,7 +147,7 @@ function FeaturedHero({ article }: { article: ArticleItem }) {
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 font-bold text-[9px] text-white">
                     {article.author.name.charAt(0)}
                   </span>
-                  <span className="text-white/70">{article.author.name}</span>
+                  <span className="text-white/70">{article.author.name.split(" ")[0]}</span>
                 </span>
               )}
               <span className="flex items-center gap-1.5">
@@ -221,7 +221,7 @@ function ArticleCard({ article, index }: { article: ArticleItem; index: number }
                 <div className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-navy/10 font-bold text-[7px] text-brand-navy">
                   {article.author.name.charAt(0)}
                 </div>
-                {article.author.name}
+                {article.author.name.split(" ")[0]}
               </span>
             )}
             <span className="flex items-center gap-1">
@@ -453,19 +453,11 @@ export default function ArticlesPage() {
                 </div>
 
                 {/* Cards */}
-                {gridArticles.length === 0 && !categorySlug ? (
-                  <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    {rest.map((a, i) => (
-                      <ArticleCard key={a.id} article={a} index={i} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    {(categorySlug ? articles : gridArticles).map((a, i) => (
-                      <ArticleCard key={a.id} article={a} index={i} />
-                    ))}
-                  </div>
-                )}
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                  {gridArticles.map((a, i) => (
+                    <ArticleCard key={a.id} article={a} index={i} />
+                  ))}
+                </div>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
