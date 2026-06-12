@@ -16,6 +16,27 @@ services:
     networks:
       - shared_proxy
 
+  ai:
+    build: ./apps/ai
+    container_name: mulai-plus-ai-production
+    # No ports mapping — only accessible internally via server proxy
+    expose:
+      - "8000"
+    environment:
+      - AI_HOST=0.0.0.0
+      - AI_PORT=8000
+      - AI_API_KEY=${AI_API_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-deepseek-v4-flash}
+      - CORS_ORIGIN=https://mulaiplus.id
+      - API_SERVER_URL=http://server:3000
+    restart: always
+    networks:
+      - shared_proxy
+    profiles:
+      - ai
+
   server:
     image: ghcr.io/${GITHUB_REPOSITORY}/server:production
     container_name: mulai-plus-server-production
@@ -37,6 +58,9 @@ services:
       - UNOSEND_FROM_EMAIL=${UNOSEND_FROM_EMAIL}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+      # AI Service
+      - AI_SERVICE_URL=http://ai:8000
+      - AI_API_KEY=${AI_API_KEY}
       # Cloudflare R2 Storage
       - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}

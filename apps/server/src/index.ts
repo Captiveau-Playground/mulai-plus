@@ -100,6 +100,35 @@ export const rpcHandler = new RPCHandler(appRouter, {
   ],
 });
 
+// ── Proxy: AI Service ───────────────────────────────────────
+if (env.AI_SERVICE_URL) {
+  app.all("/ai/*", async (c) => {
+    const target = `${env.AI_SERVICE_URL}${c.req.path.replace("/ai", "/api")}${c.req.query() ? `?${c.req.query()}` : ""}`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    // Forward API key if configured
+    if (env.AI_API_KEY) {
+      headers.Authorization = `Bearer ${env.AI_API_KEY}`;
+    }
+
+    if (c.req.method === "GET") {
+      const resp = await fetch(target, { headers });
+      return c.newResponse(resp.body, resp);
+    }
+
+    const body = await c.req.json();
+    const resp = await fetch(target, {
+      method: c.req.method,
+      headers,
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    return c.json(data, resp.status as any);
+  });
+}
+
 app.use("/*", async (c, next) => {
   const context = await createContext({ context: c });
 

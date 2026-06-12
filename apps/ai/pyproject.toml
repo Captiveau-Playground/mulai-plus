@@ -1,0 +1,38 @@
+[project]
+name = "mulai-plus-ai"
+version = "0.1.0"
+description = "Chatbot engine for MULAI+"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.28.0",
+    "openai>=1.0.0",
+    "asyncpg>=0.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.6.0",
+]
+
+# Phase 2 — RAG
+# langchain>=0.3.0
+# langchain-openai>=0.2.0
+# sentence-transformers>=3.0.0
+# chromadb>=0.5.0
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
