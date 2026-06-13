@@ -100,6 +100,66 @@ export const rpcHandler = new RPCHandler(appRouter, {
   ],
 });
 
+// ── Proxy: AI Service ───────────────────────────────────────
+if (env.AI_SERVICE_URL) {
+  app.all("/ai/*", async (c) => {
+    const target = `${env.AI_SERVICE_URL}${c.req.path.replace("/ai", "/api")}${c.req.query() ? `?${c.req.query()}` : ""}`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    // Forward API key if configured
+    if (env.AI_API_KEY) {
+      headers.Authorization = `Bearer ${env.AI_API_KEY}`;
+    }
+
+    // Forward user info for rate limiting
+    try {
+      const session = await auth.api.getSession({
+        headers: c.req.raw.headers,
+      });
+      if (session?.user?.id) {
+        headers["x-user-id"] = session.user.id;
+      }
+    } catch {}
+
+    // Forward session ID from client if provided
+    const sessionId = c.req.header("x-session-id");
+    if (sessionId) {
+      headers["x-session-id"] = sessionId;
+    }
+
+    if (c.req.method === "GET") {
+      const resp = await fetch(target, { headers });
+      return c.newResponse(resp.body, resp);
+    }
+
+    const body = await c.req.json();
+    const resp = await fetch(target, {
+      method: c.req.method,
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    // Handle SSE streaming responses
+    const contentType = resp.headers.get("content-type") || "";
+    if (contentType.includes("text/event-stream")) {
+      return c.newResponse(resp.body, {
+        status: resp.status,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "X-Accel-Buffering": "no",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
+    const data = await resp.json();
+    return c.json(data, resp.status as Parameters<typeof c.json>[1]);
+  });
+}
+
 app.use("/*", async (c, next) => {
   const context = await createContext({ context: c });
 

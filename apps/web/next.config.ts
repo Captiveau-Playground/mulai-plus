@@ -37,4 +37,12 @@ export default {
       { source: "/explore/universities/:slug/prodi/", destination: "/explore/universities/:slug", permanent: true },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/ai/:path*",
+        destination: `${process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000"}/ai/:path*`,
+      },
+    ];
+  },
 };

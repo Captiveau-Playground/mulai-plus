@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  Bot,
   Building2,
   Computer,
   ExternalLink,
@@ -177,6 +178,13 @@ const data = {
       ],
     },
   ],
+  navAi: [
+    {
+      title: "Chatbot",
+      url: "/admin/chatbot-analytics",
+      icon: Bot,
+    },
+  ],
   navPddikti: [
     {
       title: "Universities",
@@ -287,6 +295,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
         <NavMain label="Content" items={data.navCms} />
+        <NavMain label="AI" items={data.navAi} />
         <NavMain label="Education Data" items={data.navPddikti} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
