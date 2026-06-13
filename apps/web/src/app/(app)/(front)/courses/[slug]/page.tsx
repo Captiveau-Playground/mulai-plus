@@ -163,7 +163,7 @@ export default function CourseDetailPage() {
         <h2 className="mb-2 font-semibold text-xl">Syllabus</h2>
         <div className="space-y-3">
           {course.sections?.length ? (
-            course.sections.map((section) => (
+            course.sections.map((section: any) => (
               <Card key={section.id}>
                 <CardHeader>
                   <CardTitle className="text-base">{section.title}</CardTitle>

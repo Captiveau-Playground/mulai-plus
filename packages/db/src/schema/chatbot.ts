@@ -1,4 +1,5 @@
-import { boolean, index, integer, numeric, pgTable, relations, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { boolean, index, integer, numeric, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 
 /**
  * Chatbot sessions — tracks guest & auth user chats
