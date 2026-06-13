@@ -140,6 +140,21 @@ if (env.AI_SERVICE_URL) {
       headers,
       body: JSON.stringify(body),
     });
+
+    // Handle SSE streaming responses
+    const contentType = resp.headers.get("content-type") || "";
+    if (contentType.includes("text/event-stream")) {
+      return c.newResponse(resp.body, {
+        status: resp.status,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "X-Accel-Buffering": "no",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
     const data = await resp.json();
     return c.json(data, resp.status as Parameters<typeof c.json>[1]);
   });

@@ -1,7 +1,17 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Bot, Loader2, MessageSquare, RefreshCw, TrendingUp, UserCheck, Users } from "lucide-react";
+import {
+  BarChart3,
+  Bot,
+  DollarSign,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+  TrendingUp,
+  UserCheck,
+  Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +28,9 @@ interface Stats {
   today_sessions: number;
   recent_questions: { question: string; is_auth: boolean }[];
   top_questions: { question: string; count: number }[];
+  total_cost: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
 }
 
 export default function ChatbotAnalyticsPage() {
@@ -121,6 +134,21 @@ export default function ChatbotAnalyticsPage() {
             <p className="font-bold font-bricolage text-3xl text-brand-navy">{guestPct}%</p>
             <p className="font-manrope text-text-muted-custom text-xs">
               {data.guest_sessions} guest : {data.auth_sessions} terdaftar
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 font-bricolage text-sm text-text-muted-custom">
+              <DollarSign className="h-4 w-4" /> Biaya Token
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-bold font-bricolage text-3xl text-brand-navy">${data.total_cost.toFixed(4)}</p>
+            <p className="font-manrope text-text-muted-custom text-xs">
+              {data.total_prompt_tokens.toLocaleString()} prompt · {data.total_completion_tokens.toLocaleString()}{" "}
+              completion
             </p>
           </CardContent>
         </Card>

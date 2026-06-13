@@ -31,6 +31,15 @@ class LeadResponse(BaseModel):
     message: str
 
 
+class FeedbackRequest(BaseModel):
+    message_id: int
+    feedback: str  # "up" or "down"
+
+
+class FeedbackResponse(BaseModel):
+    success: bool
+
+
 class ChatStatsResponse(BaseModel):
     total_sessions: int
     guest_sessions: int
@@ -40,3 +49,6 @@ class ChatStatsResponse(BaseModel):
     today_sessions: int
     recent_questions: list[dict]
     top_questions: list[dict]
+    total_cost: float = 0
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0

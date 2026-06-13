@@ -1,10 +1,5 @@
 """
-Phase 3: LLM-powered responder with tool calling (DB queries).
-
-Flow:
-1. User message → LLM (with tools) → tool call detected
-2. Execute tool → get data from DB
-3. Tool result + history → LLM → final response + follow-up suggestions
+Phase 3: LLM-powered responder with tool calling + cost tracking.
 """
 
 from __future__ import annotations
@@ -48,6 +43,10 @@ Aturan:
 - Jika data tidak ditemukan, follow-up bisa saran kata kunci lain
 - Output: cukup 3 pertanyaan, dipisah newline, tanpa angka atau bullet"""
 
+# OpenCode Go deepseek-v4-flash pricing ($/1M tokens)
+COST_PER_1M_INPUT = 0.14
+COST_PER_1M_OUTPUT = 0.28
+
 
 _client: Optional[OpenAI] = None
 
@@ -62,10 +61,21 @@ def _get_client() -> OpenAI:
     return _client
 
 
-async def get_response(message: str, history: Optional[list[dict]] = None) -> tuple[str, list[str]]:
+def _calc_cost(prompt: int, completion: int, model: str = "") -> float:
+    """Calculate cost in USD based on token usage."""
+    return (prompt / 1_000_000 * COST_PER_1M_INPUT) + (completion / 1_000_000 * COST_PER_1M_OUTPUT)
+
+
+async def get_response(message: str, history: Optional[list[dict]] = None) -> tuple[str, list[str], dict]:
     """Generate response using LLM with tool calling.
-    Returns (reply_text, follow_up_questions).
+
+    Returns (reply_text, follow_up_questions, token_usage).
+    token_usage: {prompt, completion, cost, model}
     """
+    total_prompt = 0
+    total_completion = 0
+    model_used = settings.openai_model
+
     try:
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
@@ -85,6 +95,10 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
             tool_choice="auto",
             temperature=0.7,
         )
+
+        if resp.usage:
+            total_prompt += resp.usage.prompt_tokens or 0
+            total_completion += resp.usage.completion_tokens or 0
 
         msg = resp.choices[0].message
 
@@ -122,6 +136,10 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
                 temperature=0.7,
             )
 
+            if resp.usage:
+                total_prompt += resp.usage.prompt_tokens or 0
+                total_completion += resp.usage.completion_tokens or 0
+
             content = resp.choices[0].message.content
         else:
             content = msg.content
@@ -132,6 +150,9 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
                 messages=messages,
                 temperature=0.7,
             )
+            if resp.usage:
+                total_prompt += resp.usage.prompt_tokens or 0
+                total_completion += resp.usage.completion_tokens or 0
             content = resp.choices[0].message.content
 
         content = content or "Maaf, aku tidak bisa menjawab saat ini."
@@ -139,7 +160,14 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
         # Step 3: Generate follow-up questions using AI
         follow_ups = await _generate_followups(messages + [{"role": "assistant", "content": content}])
 
-        return content, follow_ups
+        token_usage = {
+            "prompt": total_prompt,
+            "completion": total_completion,
+            "cost": round(_calc_cost(total_prompt, total_completion), 8),
+            "model": model_used,
+        }
+
+        return content, follow_ups, token_usage
 
     except Exception as e:
         print(f"[responder] Error: {e}")
@@ -152,6 +180,7 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
             "- 📚 Program Studi: /explore/study-programs\n"
             "- 📊 Passing Grade: /explore/passing-grade",
             ["Cari universitas negeri", "Info passing grade", "Tanya program mentoring"],
+            {"prompt": 0, "completion": 0, "cost": 0, "model": settings.openai_model},
         )
 
 
@@ -163,7 +192,7 @@ async def _generate_followups(context: list[dict]) -> list[str]:
             model=settings.openai_model,
             messages=[
                 {"role": "system", "content": FOLLOWUP_PROMPT},
-                *context[-4:],  # last 4 messages for context
+                *context[-4:],
                 {"role": "user", "content": "Buat 3 pertanyaan follow-up:"},
             ],
             temperature=0.8,
