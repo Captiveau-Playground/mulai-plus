@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const API_ENDPOINT = "http://localhost:3000/ai/admin/stats";
+const API_ENDPOINT = "/ai/admin/stats";
 
 interface Stats {
   total_sessions: number;
@@ -37,9 +37,7 @@ export default function ChatbotAnalyticsPage() {
   const { data, isLoading, isError, refetch } = useQuery<Stats>({
     queryKey: ["chatbot-analytics"],
     queryFn: async () => {
-      const res = await fetch(API_ENDPOINT, {
-        headers: { Authorization: "Bearer test-key" },
-      });
+      const res = await fetch(API_ENDPOINT, {});
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },

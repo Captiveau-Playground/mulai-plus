@@ -43,11 +43,6 @@ async def auth_middleware(request: Request, call_next):
     if request.url.path == "/health":
         return await call_next(request)
 
-    # Only check /api/* routes
-    # Skip auth for admin endpoints (proxied via Hono server with API key)
-    if request.url.path.startswith("/api/admin"):
-        return await call_next(request)
-
     if request.url.path.startswith("/api"):
         if settings.ai_api_key:
             auth = request.headers.get("Authorization", "")
