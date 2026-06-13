@@ -17,9 +17,8 @@ services:
       - shared_proxy
 
   ai:
-    build: ./apps/ai
+    image: ghcr.io/${GITHUB_REPOSITORY}/ai:production
     container_name: mulai-plus-ai-production
-    # No ports mapping — only accessible internally via server proxy
     expose:
       - "8000"
     environment:
@@ -34,8 +33,6 @@ services:
     restart: always
     networks:
       - shared_proxy
-    profiles:
-      - ai
 
   server:
     image: ghcr.io/${GITHUB_REPOSITORY}/server:production

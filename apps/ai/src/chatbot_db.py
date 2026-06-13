@@ -16,11 +16,20 @@ from src.config import settings
 _pool: asyncpg.Pool | None = None
 
 
+def _clean_dsn(dsn: str) -> str:
+    """Remove unsupported query params from DSN for asyncpg compat."""
+    if "?pgbouncer=" in dsn:
+        dsn = dsn.split("?pgbouncer=")[0]
+    if "?" in dsn and "=" not in dsn.split("?")[-1]:
+        dsn = dsn.split("?")[0]
+    return dsn
+
+
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(
-            dsn=settings.database_url,
+            dsn=_clean_dsn(settings.database_url),
             min_size=1,
             max_size=3,
             command_timeout=10,
@@ -29,7 +38,7 @@ async def get_pool() -> asyncpg.Pool:
     return _pool
 
 
-async def init_tables():
+# Tables created by Drizzle migration
     """Create tables if not exist (run on startup)."""
     pool = await get_pool()
     async with pool.acquire() as conn:

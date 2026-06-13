@@ -11,7 +11,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src import chatbot_db
 from src.config import settings
 from src.db import close as close_db
 from src.routes import admin_router, chat_router, health_router
@@ -63,11 +62,9 @@ async def auth_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 async def startup():
-    await chatbot_db.init_tables()
     print(f"🚀 MULAI+ AI v0.4.0 running on {settings.ai_host}:{settings.ai_port}")
 
 
 @app.on_event("shutdown")
 async def shutdown():
     await close_db()
-    await chatbot_db.close()

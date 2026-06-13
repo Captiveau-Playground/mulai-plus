@@ -19,15 +19,21 @@ from src.config import settings
 _pool: asyncpg.Pool | None = None
 
 
+def _clean_dsn(dsn: str) -> str:
+    if "?pgbouncer=" in dsn:
+        dsn = dsn.split("?pgbouncer=")[0]
+    return dsn
+
+
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(
-            dsn=settings.database_url,
+            dsn=_clean_dsn(settings.database_url),
             min_size=1,
             max_size=5,
-            command_timeout=5,  # 5s query timeout
-            statement_cache_size=0,  # disable cache for pgbouncer compat
+            command_timeout=5,
+            statement_cache_size=0,
         )
     return _pool
 

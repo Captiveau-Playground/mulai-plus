@@ -1,5 +1,6 @@
 export * from "./audit";
 export * from "./auth";
+export * from "./chatbot";
 export * from "./cms";
 export * from "./lms";
 export * from "./newsletter";
