@@ -27,7 +27,7 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
       className={`w-full overflow-x-hidden bg-white py-16 ${type === "front" ? "lg:py-24" : "lg:py-8"}`}
       id="faq"
     >
-      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
         {type === "front" ? (
           <div
             className={`flex w-full flex-col ${type === "front" ? "lg:flex-row" : ""} gap-12 lg:justify-between lg:gap-9`}

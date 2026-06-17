@@ -141,7 +141,7 @@ export function BlogSection() {
         <div className="absolute top-0 left-1/3 h-64 w-64 rounded-full bg-brand-navy/[0.01] blur-[80px]" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
         {/* Header */}
         <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>

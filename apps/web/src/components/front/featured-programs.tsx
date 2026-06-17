@@ -46,7 +46,7 @@ export function FeaturedPrograms() {
           />
           <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-transparent via-brand-navy/20 to-brand-navy" />
 
-          <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+          <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
             <div className="flex flex-col gap-12 lg:flex-row lg:items-end lg:gap-16">
               {/* Left Column Skeleton */}
               <div className="relative hidden h-full w-full shrink-0 flex-col items-center justify-center lg:flex lg:w-[35%] lg:items-start">
@@ -166,7 +166,7 @@ export function FeaturedPrograms() {
         {/* Gradient Overlays */}
         <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-transparent via-brand-navy/20 to-brand-navy" />
 
-        <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+        <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
           <div className="flex flex-col gap-12 lg:flex-row lg:items-end lg:gap-16">
             {/* Left Column: Image of Person */}
             <div className="relative hidden h-full w-full shrink-0 flex-col items-center justify-center lg:flex lg:w-[35%] lg:items-start">

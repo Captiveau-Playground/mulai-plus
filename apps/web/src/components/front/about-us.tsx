@@ -68,7 +68,7 @@ export function AboutUs() {
         <div className="absolute top-1/4 right-1/4 h-96 w-96 rounded-full bg-brand-navy/[0.02] blur-[100px]" />
       </div>
 
-      <div className="container relative mx-auto max-w-7xl px-4 md:px-6 lg:px-0">
+      <div className="container relative mx-auto max-w-7xl px-4 md:px-6 lg:px-6">
         <motion.div
           initial="hidden"
           whileInView="show"

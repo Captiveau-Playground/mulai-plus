@@ -65,7 +65,7 @@ const MENTORS = [
 export function MeetTheMentor() {
   return (
     <section aria-label="Temui Mentor" className="w-full overflow-hidden bg-brand-navy py-16 lg:py-24" id="mentors">
-      <div className="container mx-auto max-w-7xl px-4">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
         {/* Section Header */}
         <div className="mb-10 flex flex-col items-center gap-4 text-center md:mb-14">
           <span className="font-manrope font-semibold text-brand-orange text-lg uppercase tracking-[0.25em] md:text-2xl">

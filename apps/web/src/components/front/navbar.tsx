@@ -167,7 +167,6 @@ export function Navbar() {
       <Link href="/" className="inline-block w-24 shrink-0 md:w-36">
         <DotLottieReact
           src="https://lottie.host/e9e261ee-2040-44e5-b5cf-55bac95e359b/3d1Ek6VBhX.lottie"
-          loop={false}
           autoplay
           style={{ width: "100%", height: "auto" }}
         />

@@ -344,7 +344,7 @@ export function ExploreSection() {
 
   return (
     <section aria-label="Eksplorasi" className="relative w-full bg-bg-light py-14 lg:py-28">
-      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
         <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-16">
           {/* ═══ LEFT: Search (mobile-first) ═══ */}
           <div className="w-full lg:w-1/2 lg:shrink-0">

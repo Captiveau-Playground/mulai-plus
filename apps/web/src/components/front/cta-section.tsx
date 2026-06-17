@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 export function CTASection() {
   return (
     <section aria-label="Ajakan Bertindak" className="w-full bg-white py-16 md:py-20 lg:py-24" id="cta">
-      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
         <div className="relative overflow-hidden rounded-none bg-brand-navy md:rounded-[48px]">
           {/* Grid Pattern */}
           <div
