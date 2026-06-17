@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageState } from "@/components/ui/page-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatWIB } from "@/lib/date-wib";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -219,7 +220,7 @@ function SessionCard({ session, isUpcoming }: { session: any; isUpcoming?: boole
               <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 font-manrope text-sm text-text-muted-custom">
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
-                  {getDateLabel(sessionDate)} • {format(sessionDate, "h:mm a")} - {format(endTime, "h:mm a")}
+                  {getDateLabel(sessionDate)} • {formatWIB(sessionDate, "h:mm a")} - {formatWIB(endTime, "h:mm a")}
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
@@ -284,8 +285,8 @@ function SessionCard({ session, isUpcoming }: { session: any; isUpcoming?: boole
                 <Clock className="h-4 w-4" />
                 Join available{" "}
                 {isToday(joinWindowStart)
-                  ? format(joinWindowStart, "'at' h:mm a")
-                  : format(joinWindowStart, "MMM d 'at' h:mm a")}
+                  ? formatWIB(joinWindowStart, "'pukul' HH:mm")
+                  : formatWIB(joinWindowStart, "MMM d 'pukul' HH:mm")}
               </Button>
             ) : null}
           </div>

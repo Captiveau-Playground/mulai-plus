@@ -1,16 +1,18 @@
 import { count, db, desc, eq, sql } from "@mulai-plus/db";
 import { permission, role, session, user } from "@mulai-plus/db/schema/auth";
 import { program, programApplication } from "@mulai-plus/db/schema/programs";
-import type { RouterClient } from "@orpc/server";
+
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
 import { auditRouter } from "./audit";
 import { articlesRouter, authorsRouter, categoriesRouter, mediaRouter, newsletterRouter, tagsRouter } from "./cms";
 import { emailAdminRouter } from "./email-admin";
+import { feedbackRouter } from "./feedback";
 import { lmsRouter } from "./lms";
 import { newsletterAdminRouter } from "./newsletter-admin";
 import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
+import { pddiktiRouter } from "./pddikti";
 import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
@@ -34,6 +36,8 @@ export const appRouter = {
   shortLinks: shortLinksRouter,
   notification: notificationRouter,
   newsletter: newsletterAdminRouter,
+  feedback: feedbackRouter,
+  pddikti: pddiktiRouter,
   cms: {
     articles: articlesRouter,
     categories: categoriesRouter,
@@ -170,5 +174,5 @@ export const appRouter = {
     }),
   },
 };
+
 export type AppRouter = typeof appRouter;
-export type AppRouterClient = RouterClient<typeof appRouter>;

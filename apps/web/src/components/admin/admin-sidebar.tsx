@@ -2,6 +2,8 @@
 
 import {
   BookOpen,
+  Bot,
+  Building2,
   Computer,
   ExternalLink,
   FileText,
@@ -136,6 +138,10 @@ const data = {
           title: "Testimonials",
           url: "/admin/programs/testimonials",
         },
+        {
+          title: "Feedback",
+          url: "/admin/programs/feedback",
+        },
       ],
     },
   ],
@@ -170,6 +176,33 @@ const data = {
           url: "/admin/cms/newsletter",
         },
       ],
+    },
+  ],
+  navAi: [
+    {
+      title: "Chatbot",
+      url: "/admin/chatbot-analytics",
+      icon: Bot,
+    },
+  ],
+  navPddikti: [
+    {
+      title: "Universities",
+      url: "/admin/pddikti/universities",
+      icon: Building2,
+      items: [{ title: "All Universities", url: "/admin/pddikti/universities" }],
+    },
+    {
+      title: "Study Programs",
+      url: "/admin/pddikti/study-programs",
+      icon: BookOpen,
+      items: [{ title: "All Programs", url: "/admin/pddikti/study-programs" }],
+    },
+    {
+      title: "SNPMB",
+      url: "/admin/pddikti/snpmb-universities",
+      icon: ExternalLink,
+      items: [{ title: "SNPMB Universities", url: "/admin/pddikti/snpmb-universities" }],
     },
   ],
   navSystem: [
@@ -261,7 +294,9 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
         <NavMain items={data.navGeneral} />
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
-        <NavMain label="CMS" items={data.navCms} />
+        <NavMain label="Content" items={data.navCms} />
+        <NavMain label="AI" items={data.navAi} />
+        <NavMain label="Education Data" items={data.navPddikti} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
 

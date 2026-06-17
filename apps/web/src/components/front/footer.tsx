@@ -1,12 +1,14 @@
 "use client";
-
 import { env } from "@mulai-plus/env/web";
 import { motion } from "framer-motion";
-import { ArrowRight, Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from "lucide-react";
+import { ArrowRight, Facebook, Instagram, Linkedin, Loader2, Mail, MapPin, Phone } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { BLOG_LINKS, CONTACT, NAV_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
+import { toast } from "sonner";
+import { client } from "@/lib/client";
+import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, NAV_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -37,6 +39,10 @@ const footerNavLinks = [
     ],
   },
   {
+    title: "Explore",
+    links: EXPLORE_LINKS,
+  },
+  {
     title: "Blog",
     links: BLOG_LINKS,
   },
@@ -57,15 +63,27 @@ const socialLinks = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
+  const isExplore = pathname?.startsWith("/explore");
   const [email, setEmail] = useState("");
+  const [subscribing, setSubscribing] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    setSubscribed(true);
-    setEmail("");
-    setTimeout(() => setSubscribed(false), 3000);
+    if (!email || subscribing) return;
+    setSubscribing(true);
+    try {
+      await client.cms.newsletter.subscribe({ email, source: "footer-form" });
+      setSubscribed(true);
+      setEmail("");
+      toast.success("Berhasil berlangganan newsletter!");
+      setTimeout(() => setSubscribed(false), 3000);
+    } catch (_error) {
+      toast.error("Gagal berlangganan. Coba lagi.");
+    } finally {
+      setSubscribing(false);
+    }
   };
 
   return (
@@ -135,7 +153,12 @@ export function Footer() {
                 type="submit"
                 className="group cursor-pointer rounded-xl bg-linear-to-r from-[#FE9114] to-[#F93447] px-5 py-5 font-inter font-semibold text-sm text-white transition-all duration-300 hover:scale-105 hover:shadow-[#F93447]/25 hover:shadow-lg"
               >
-                {subscribed ? (
+                {subscribing ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Subscribing...
+                  </span>
+                ) : subscribed ? (
                   <span className="flex items-center gap-1.5">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="20 6 9 17 4 12" />
@@ -238,7 +261,7 @@ export function Footer() {
               <div className="flex w-full justify-center lg:w-fit">
                 <iframe
                   src="https://status.captiveau.fun/badge?theme=dark"
-                  width="180"
+                  width="200"
                   height="30"
                   frameBorder="0"
                   scrolling="no"
@@ -254,6 +277,11 @@ export function Footer() {
               <p className="font-manrope text-[#BFD6FF]/50 text-xs lg:text-sm">
                 &copy; {new Date().getFullYear()} mulai+. All rights reserved.
               </p>
+              {isExplore && (
+                <p className="font-manrope text-[#BFD6FF]/30 text-[10px] lg:text-xs">
+                  Data perguruan tinggi dari PDDikti &amp; SNPMB (Kemdiktisaintek RI)
+                </p>
+              )}
               <p className="font-manrope text-[#BFD6FF]/40 text-xs lg:text-sm">
                 Powered by{" "}
                 <Link

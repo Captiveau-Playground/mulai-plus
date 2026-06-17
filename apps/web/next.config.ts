@@ -27,4 +27,22 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default {
+  ...nextConfig,
+  async redirects() {
+    return [
+      { source: "/universities/:path*", destination: "/explore/universities/:path*", permanent: true },
+      { source: "/study-programs/:path*", destination: "/explore/study-programs/:path*", permanent: true },
+      { source: "/explore/universities/:slug/prodi", destination: "/explore/universities/:slug", permanent: true },
+      { source: "/explore/universities/:slug/prodi/", destination: "/explore/universities/:slug", permanent: true },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/ai/:path*",
+        destination: `${process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000"}/ai/:path*`,
+      },
+    ];
+  },
+};

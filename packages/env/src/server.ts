@@ -8,6 +8,7 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    APP_URL: z.string().url().default("https://mulaiplus.id"),
     PAYMENT_API_URL: z.string().min(1),
     PAYMENT_API_KEY: z.string().min(1),
     UNOSEND_API_KEY: z.string().min(1).optional(),
@@ -23,6 +24,9 @@ export const env = createEnv({
     R2_SECRET_ACCESS_KEY: z.string().min(1),
     R2_BUCKET_NAME: z.string().min(1),
     R2_PUBLIC_URL: z.string().min(1),
+    // AI Service
+    AI_SERVICE_URL: z.string().url().optional(),
+    AI_API_KEY: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

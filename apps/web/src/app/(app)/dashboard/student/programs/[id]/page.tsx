@@ -6,6 +6,7 @@ import {
   BookOpen,
   Calendar,
   CheckCircle,
+  ChevronDown,
   Clock,
   GraduationCap,
   HelpCircle,
@@ -19,11 +20,13 @@ import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageState } from "@/components/ui/page-state";
 import { Separator } from "@/components/ui/separator";
+import { formatWIB } from "@/lib/date-wib";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -276,8 +279,8 @@ export default function StudentProgramDetailPage() {
                                   <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 font-manrope text-sm text-text-muted-custom">
                                     <span className="flex items-center gap-1">
                                       <Calendar className="h-3.5 w-3.5" />
-                                      {getDateLabel(sessionDate)} • {format(sessionDate, "h:mm a")} -{" "}
-                                      {format(endTime, "h:mm a")}
+                                      {getDateLabel(sessionDate)} • {formatWIB(sessionDate, "h:mm a")} -{" "}
+                                      {formatWIB(endTime, "h:mm a")}
                                     </span>
                                     <span className="flex items-center gap-1">
                                       <Clock className="h-3.5 w-3.5" />
@@ -370,8 +373,8 @@ export default function StudentProgramDetailPage() {
                                         <Clock className="h-4 w-4" />
                                         Join available{" "}
                                         {isToday(joinWindowStart)
-                                          ? format(joinWindowStart, "'at' h:mm a")
-                                          : format(joinWindowStart, "MMM d 'at' h:mm a")}
+                                          ? formatWIB(joinWindowStart, "'pukul' HH:mm")
+                                          : formatWIB(joinWindowStart, "MMM d 'pukul' HH:mm")}
                                       </Button>
                                     );
                                   }
@@ -455,17 +458,7 @@ export default function StudentProgramDetailPage() {
                   <Separator className="mb-6" />
                   <div className="space-y-4">
                     {program.syllabus.map((item, index) => (
-                      <div key={item.id || index} className="flex items-start gap-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-navy text-white">
-                          <span className="font-bold font-bricolage">{item.week}</span>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-inter font-semibold text-text-main">{item.title}</h4>
-                          {item.outcome && (
-                            <p className="mt-1 font-manrope text-sm text-text-muted-custom">{item.outcome}</p>
-                          )}
-                        </div>
-                      </div>
+                      <StudentSyllabusItem key={item.id || index} item={item} index={index} />
                     ))}
                   </div>
                 </CardContent>
@@ -582,5 +575,64 @@ export default function StudentProgramDetailPage() {
         </div>
       </div>
     </PageState>
+  );
+}
+
+function StudentSyllabusItem({ item, index }: { item: any; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasDetail = item.tujuan || item.kegiatanUtama || item.fokusUtama || item.output;
+
+  const detailFields: { label: string; value: string | null }[] = [
+    { label: "Tujuan", value: item.tujuan },
+    { label: "Kegiatan Utama", value: item.kegiatanUtama },
+    { label: "Fokus Utama", value: item.fokusUtama },
+    { label: "Output", value: item.output },
+  ];
+
+  return (
+    <div>
+      <div className="flex items-start gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-navy text-white">
+          <span className="font-bold font-bricolage">{item.week}</span>
+        </div>
+        <div className="flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h4 className="font-inter font-semibold text-text-main">{item.title}</h4>
+              {item.outcome && <p className="mt-1 font-manrope text-sm text-text-muted-custom">{item.outcome}</p>}
+            </div>
+            {hasDetail && (
+              <button
+                type="button"
+                onClick={() => setExpanded(!expanded)}
+                className="mt-1 flex shrink-0 items-center gap-1 font-medium text-mentor-teal text-xs hover:text-mentor-teal/80"
+              >
+                <ChevronDown
+                  className={cn("h-3.5 w-3.5 transition-transform duration-200", expanded && "rotate-180")}
+                />
+                Detail
+              </button>
+            )}
+          </div>
+
+          {expanded && hasDetail && (
+            <div className="mt-3 space-y-3 border-gray-100 border-t pt-3">
+              {detailFields
+                .filter((f) => f.value)
+                .map((field) => (
+                  <div key={field.label}>
+                    <h5 className="font-bricolage font-semibold text-brand-navy text-xs uppercase tracking-wider">
+                      {field.label}
+                    </h5>
+                    <p className="mt-0.5 whitespace-pre-wrap font-manrope text-sm text-text-muted-custom">
+                      {field.value}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

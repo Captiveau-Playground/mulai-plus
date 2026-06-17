@@ -321,6 +321,12 @@
   background-color: var(--bg-light) !important;
 }
 
+/* Clickable table rows */
+.mentor-page-bg [data-slot="table-row"].cursor-pointer,
+.mentor-section [data-slot="table-row"].cursor-pointer {
+  cursor: pointer !important;
+}
+
 /* Tabs styling inside mentor */
 .mentor-page-bg [data-slot="tabs-list"],
 .mentor-section [data-slot="tabs-list"] {
@@ -595,6 +601,7 @@
     background-color 0.12s ease,
     color 0.12s ease !important;
   color: var(--text-main) !important;
+  cursor: pointer !important;
 }
 
 /* Hover state */
@@ -955,11 +962,12 @@
 [data-slot="dropdown-menu-item"] {
   @apply font-manrope rounded-lg px-3 py-2 text-sm transition-colors;
   color: var(--text-main);
+  cursor: pointer !important;
 }
 
 [data-slot="dropdown-menu-item"]:hover,
 [data-slot="dropdown-menu-item"][data-highlighted] {
-  background-color: rgba(13, 148, 136, 0.08) !important;
+  background-color: rgba(13, 148, 136, 0.1) !important;
   color: var(--mentor-teal) !important;
 }
 
@@ -967,7 +975,7 @@
 [data-slot="dropdown-menu-item"]:where(.text-red-600):hover,
 [data-slot="dropdown-menu-item"]:where(.text-red-500):hover,
 [data-slot="dropdown-menu-item"]:where(.text-destructive):hover {
-  background-color: rgba(249, 52, 71, 0.08) !important;
+  background-color: rgba(249, 52, 71, 0.1) !important;
   color: var(--brand-red) !important;
 }
 

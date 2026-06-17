@@ -29,7 +29,10 @@ export default function SignUpForm({
           toast.success("Sign up successful");
         },
         onError: (error) => {
-          trackEvent("signup_error", { method: "google", error_code: error.error.message });
+          trackEvent("signup_error", {
+            method: "google",
+            error_code: error.error.message,
+          });
           toast.error(error.error.message || error.error.statusText);
         },
       },

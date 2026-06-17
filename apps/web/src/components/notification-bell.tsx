@@ -27,7 +27,10 @@ export function NotificationBell() {
 
   const { data: unreadCountData } = useQuery({
     ...orpc.notification.getUnreadCount.queryOptions(),
-    refetchInterval: 30000, // Poll every 30s
+    staleTime: 1000 * 60 * 2, // Consider data fresh for 2 minutes
+    refetchInterval: 1000 * 60 * 2, // Poll every 2 minutes instead of 30s
+    refetchOnWindowFocus: false, // Don't refetch when tab regains focus
+    refetchOnReconnect: false, // Don't refetch on network reconnect
     enabled: !!session,
   });
 
@@ -35,6 +38,8 @@ export function NotificationBell() {
     ...orpc.notification.list.queryOptions({
       input: { limit: 10 },
     }),
+    staleTime: 1000 * 60 * 1, // 1 minute fresh
+    refetchOnWindowFocus: false,
     enabled: isOpen && !!session,
   });
 

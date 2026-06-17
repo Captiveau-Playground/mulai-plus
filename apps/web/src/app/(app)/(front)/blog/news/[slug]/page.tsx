@@ -209,7 +209,7 @@ export default function ArticleDetailPage() {
             },
             mainEntityOfPage: {
               "@type": "WebPage",
-              "@id": `${typeof window !== "undefined" ? window.location.href : baseUrl}/blog/articles/${article.slug}`,
+              "@id": `${typeof window !== "undefined" ? window.location.href : baseUrl}/blog/news/${article.slug}`,
             },
           }),
         }}
@@ -403,7 +403,7 @@ function RelatedArticleCard({ article }: { article: any }) {
         </h4>
         <p className="mt-1 font-manrope text-[11px] text-gray-400">
           {article.publishedAt && formatDate(article.publishedAt)}
-          {article.author && ` · ${article.author.name}`}
+          {article.author && ` · ${article.author.name.split(" ")[0]}`}
         </p>
       </div>
     </Link>

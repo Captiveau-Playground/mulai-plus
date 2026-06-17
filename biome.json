@@ -36,6 +36,24 @@
     "lineWidth": 120
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      "includes": [
+        "apps/web/src/components/admin/pddikti/**",
+        "apps/web/src/app/**/pddikti/**",
+        "apps/web/src/app/**/universities/**",
+        "apps/web/src/app/**/study-programs/**",
+        "packages/api/src/routers/pddikti.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ],
   "linter": {
     "enabled": true,
     "rules": {

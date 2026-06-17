@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, ChevronRight, Clock, GraduationCap, Loader2,
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatWIB } from "@/lib/date-wib";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -184,7 +185,7 @@ export function ApplicationHistory({ className, limit = 0, compact = false }: Ap
                       <div className="mt-2 flex items-center gap-3 font-manrope text-text-muted-custom text-xs">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          Applied {format(new Date(app.createdAt), "MMM d, yyyy • HH:mm")}
+                          Applied {formatWIB(app.createdAt, "MMM d, yyyy • HH:mm")}
                         </span>
                       </div>
                     </div>

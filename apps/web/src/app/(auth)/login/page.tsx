@@ -1,6 +1,5 @@
 "use client";
 
-import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -28,9 +27,10 @@ function LoginContent() {
 
   useEffect(() => {
     if (!isPending && session?.user) {
-      // If there's a callbackUrl, redirect there first (e.g., program registration)
+      // Priority: callbackUrl from URL > role-based
+      // localStorage redirect ditangani oleh RedirectHandler di root layout
       if (callbackUrl) {
-        router.push(decodeURIComponent(callbackUrl) as Route);
+        window.location.href = decodeURIComponent(callbackUrl);
         return;
       }
 

@@ -104,7 +104,7 @@ export function ProgramApplications({ programId }: { programId: string }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="bg-white p-0">
+      <CardContent className="bg-white px-4">
         {selectedIds.length > 0 && (
           <div className="mx-4 mt-4 mb-4 flex items-center gap-2 rounded-xl bg-mentor-teal/5 p-3">
             <span className="font-manrope font-medium text-mentor-teal text-sm">{selectedIds.length} selected</span>
