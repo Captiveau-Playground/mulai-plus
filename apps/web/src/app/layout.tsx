@@ -5,6 +5,7 @@ import { Bricolage_Grotesque, Geist, Geist_Mono, Manrope } from "next/font/googl
 import "../style/globals-app.css";
 import "../style/globals-internal.css";
 import { env } from "@mulai-plus/env/web";
+import { RedirectHandler } from "@/components/chatbot/redirect-handler";
 import Providers from "@/components/providers";
 import { SITE } from "@/lib/site-config";
 
@@ -111,7 +112,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${bricolageGrotesque.variable} ${manrope.variable} scroll-smooth antialiased`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <RedirectHandler />
+          {children}
+        </Providers>
       </body>
     </html>
   );

@@ -17,6 +17,7 @@ class ChatResponse(BaseModel):
     suggested_questions: Optional[list[str]] = None
     requires_auth: bool = False
     remaining: Optional[int] = None
+    redirect_url: Optional[str] = None
 
 
 class LeadRequest(BaseModel):

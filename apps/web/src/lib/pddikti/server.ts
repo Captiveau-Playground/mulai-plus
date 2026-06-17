@@ -21,42 +21,57 @@ function getDb() {
 
 export async function getUniversityBySlug(slug: string) {
   const db = getDb();
-  const all = await db
-    .select({ idSp: universities.idSp, name: universities.name })
-    .from(universities)
-    .where(eq(universities.status, "Aktif"));
-  return (
-    all.find((u) => {
-      const candidate =
-        u.name
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, "")
-          .replace(/\s+/g, "-")
-          .replace(/-+/g, "-")
-          .replace(/^-|-$/g, "") +
-        "-" +
-        u.idSp.substring(0, 6);
-      return candidate === slug;
-    }) ?? null
-  );
+  try {
+    const all = await db
+      .select({ idSp: universities.idSp, name: universities.name })
+      .from(universities)
+      .where(eq(universities.status, "Aktif"));
+    return (
+      all.find((u) => {
+        const candidate =
+          u.name
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/-+/g, "-")
+            .replace(/^-|-$/g, "") +
+          "-" +
+          u.idSp.substring(0, 6);
+        return candidate === slug;
+      }) ?? null
+    );
+  } catch {
+    console.error("[getUniversityBySlug] DB schema mismatch — kolom 'name' mungkin belum ada");
+    return null;
+  }
 }
 
 export async function getProgramById(id: string) {
   const db = getDb();
-  const [prog] = await db
-    .select({ name: studyPrograms.name, level: studyPrograms.level })
-    .from(studyPrograms)
-    .where(eq(studyPrograms.idSms, id))
-    .limit(1);
-  return prog ?? null;
+  try {
+    const [prog] = await db
+      .select({ name: studyPrograms.name, level: studyPrograms.level })
+      .from(studyPrograms)
+      .where(eq(studyPrograms.idSms, id))
+      .limit(1);
+    return prog ?? null;
+  } catch {
+    console.error("[getProgramById] DB error — kolom mungkin belum ada");
+    return null;
+  }
 }
 
 export async function getUniversityById(id: string) {
   const db = getDb();
-  const [uni] = await db
-    .select({ idSp: universities.idSp, name: universities.name })
-    .from(universities)
-    .where(eq(universities.idSp, id))
-    .limit(1);
-  return uni ?? null;
+  try {
+    const [uni] = await db
+      .select({ idSp: universities.idSp, name: universities.name })
+      .from(universities)
+      .where(eq(universities.idSp, id))
+      .limit(1);
+    return uni ?? null;
+  } catch {
+    console.error("[getUniversityById] DB error — kolom mungkin belum ada");
+    return null;
+  }
 }

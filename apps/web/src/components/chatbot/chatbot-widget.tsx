@@ -31,6 +31,7 @@ interface StreamMetadata {
   requires_auth: boolean;
   suggested_questions: string[] | null;
   full_reply: string;
+  redirect_url?: string;
 }
 
 function getSessionId(): string {
@@ -104,7 +105,9 @@ export function ChatbotWidget() {
   const [streamCreatedAt, setStreamCreatedAt] = useState<string>("");
   const [remaining, setRemaining] = useState<number | null>(null);
   const [requiresAuth, setRequiresAuth] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -112,10 +115,20 @@ export function ChatbotWidget() {
   }, []);
 
   useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 300);
   }, [open]);
 
-  // Load chat history on mount
+  // Load history + auto-open after login
   useEffect(() => {
     fetch(`/ai/history?session_id=${getSessionId()}`)
       .then((r) => r.json())
@@ -125,6 +138,29 @@ export function ChatbotWidget() {
         }
       })
       .catch(() => {});
+
+    // Cek sisa quota — kalo 0 langsung show CTA
+    fetch(`/ai/quota?session_id=${getSessionId()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setRemaining(data.remaining);
+        if (data.remaining <= 0) {
+          setRequiresAuth(true);
+          setRedirectUrl(data.redirect_url || "");
+        }
+      })
+      .catch(() => {});
+
+    const reopen = localStorage.getItem("chatbot_reopen");
+    if (reopen === "true") {
+      localStorage.removeItem("chatbot_reopen");
+      setOpen(true);
+      const redirect = localStorage.getItem("chatbot_redirect");
+      if (redirect && window.location.pathname !== redirect.split("?")[0]) {
+        localStorage.removeItem("chatbot_redirect");
+        window.location.href = redirect;
+      }
+    }
   }, []);
 
   const sendMessage = useCallback(
@@ -151,6 +187,24 @@ export function ChatbotWidget() {
         });
         if (!res.ok) throw new Error("API error");
 
+        const contentType = res.headers.get("content-type") || "";
+
+        // Handle JSON response (limit reached, not SSE)
+        if (contentType.includes("application/json")) {
+          const data = await res.json();
+          const botMsg: ChatMessage = {
+            role: "assistant",
+            content: data.reply || "Chat habis. Login untuk lanjut.",
+            createdAt: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, botMsg]);
+          setRequiresAuth(data.requires_auth ?? true);
+          setRedirectUrl(data.redirect_url || "");
+          setRemaining(0);
+          return;
+        }
+
+        // Handle SSE stream
         const reader = res.body?.getReader();
         if (!reader) throw new Error("No reader");
         const decoder = new TextDecoder();
@@ -172,6 +226,7 @@ export function ChatbotWidget() {
                 setRemaining(data.remaining);
                 setRequiresAuth(data.requires_auth);
                 setStreamContent(data.full_reply);
+                if (data.redirect_url) setRedirectUrl(data.redirect_url);
               } catch {}
             }
           }
@@ -316,7 +371,7 @@ export function ChatbotWidget() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
           {messages.length === 0 && !streamContent ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-brand-navy/10">
@@ -437,13 +492,26 @@ export function ChatbotWidget() {
         {requiresAuth && (
           <div className="shrink-0 border-gray-100 border-t bg-amber-50 px-4 py-3">
             <p className="mb-2 font-manrope text-amber-800 text-xs">
-              Chat gratis habis! Daftar untuk lanjut konsultasi.
+              {remaining === 0 && redirectUrl.includes("wa.me")
+                ? "Limit chat habis! Klik tombol di bawah untuk request tambahan."
+                : "Chat gratis habis! Daftar untuk lanjut konsultasi."}
             </p>
-            <a href="/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit" className="block">
-              <Button className="w-full rounded-xl bg-brand-navy font-manrope text-white text-xs hover:bg-brand-navy/90">
-                Login / Daftar Gratis
-              </Button>
-            </a>
+            <button
+              type="button"
+              onClick={() => {
+                if (redirectUrl) {
+                  window.location.href = redirectUrl;
+                } else {
+                  const page = window.location.pathname + window.location.search;
+                  localStorage.setItem("chatbot_reopen", "true");
+                  localStorage.setItem("chatbot_redirect", page);
+                  window.location.href = `/login?callbackUrl=${encodeURIComponent(page)}&utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit`;
+                }
+              }}
+              className="w-full cursor-pointer rounded-xl bg-brand-navy px-4 py-3 font-manrope text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90"
+            >
+              {redirectUrl.includes("wa.me") ? "Request via WhatsApp" : "Login / Daftar Gratis"}
+            </button>
           </div>
         )}
 
