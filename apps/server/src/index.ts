@@ -103,7 +103,8 @@ export const rpcHandler = new RPCHandler(appRouter, {
 // ── Proxy: AI Service ───────────────────────────────────────
 if (env.AI_SERVICE_URL) {
   app.all("/ai/*", async (c) => {
-    const target = `${env.AI_SERVICE_URL}${c.req.path.replace("/ai", "/api")}${c.req.query() ? `?${c.req.query()}` : ""}`;
+    const qs = new URLSearchParams(c.req.query() as Record<string, string>).toString();
+    const target = `${env.AI_SERVICE_URL}${c.req.path.replace("/ai", "/api")}${qs ? `?${qs}` : ""}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",

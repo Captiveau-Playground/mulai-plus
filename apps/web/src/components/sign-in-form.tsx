@@ -1,5 +1,4 @@
 import { useForm } from "@tanstack/react-form";
-import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import z from "zod";
@@ -37,7 +36,7 @@ export default function SignInForm({
             trackEvent("login", { method: "email", role: role || "unknown" });
 
             if (callbackUrl) {
-              router.push(decodeURIComponent(callbackUrl) as Route);
+              window.location.href = decodeURIComponent(callbackUrl);
             } else if (role === "admin") {
               router.push("/admin");
             } else if (role === "mentor") {
@@ -69,9 +68,7 @@ export default function SignInForm({
     await authClient.signIn.social(
       {
         provider: "google",
-        callbackURL: callbackUrl
-          ? `${window.location.origin}${decodeURIComponent(callbackUrl)}`
-          : `${window.location.origin}/dashboard`,
+        callbackURL: `${window.location.origin}/${callbackUrl ? decodeURIComponent(callbackUrl).replace(/^\//, "") : "dashboard"}`,
       },
       {
         onSuccess: () => {

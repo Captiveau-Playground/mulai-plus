@@ -31,6 +31,7 @@ interface StreamMetadata {
   requires_auth: boolean;
   suggested_questions: string[] | null;
   full_reply: string;
+  redirect_url?: string;
 }
 
 function getSessionId(): string {
@@ -115,7 +116,7 @@ export function ChatbotWidget() {
     if (open) setTimeout(() => inputRef.current?.focus(), 300);
   }, [open]);
 
-  // Load chat history on mount
+  // Load history + auto-open after login
   useEffect(() => {
     fetch(`/ai/history?session_id=${getSessionId()}`)
       .then((r) => r.json())
@@ -125,6 +126,17 @@ export function ChatbotWidget() {
         }
       })
       .catch(() => {});
+
+    const reopen = localStorage.getItem("chatbot_reopen");
+    if (reopen === "true") {
+      localStorage.removeItem("chatbot_reopen");
+      setOpen(true);
+      const redirect = localStorage.getItem("chatbot_redirect");
+      if (redirect && window.location.pathname !== redirect.split("?")[0]) {
+        localStorage.removeItem("chatbot_redirect");
+        window.location.href = redirect;
+      }
+    }
   }, []);
 
   const sendMessage = useCallback(
@@ -151,6 +163,23 @@ export function ChatbotWidget() {
         });
         if (!res.ok) throw new Error("API error");
 
+        const contentType = res.headers.get("content-type") || "";
+
+        // Handle JSON response (limit reached, not SSE)
+        if (contentType.includes("application/json")) {
+          const data = await res.json();
+          const botMsg: ChatMessage = {
+            role: "assistant",
+            content: data.reply || "Chat habis. Login untuk lanjut.",
+            createdAt: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, botMsg]);
+          setRequiresAuth(data.requires_auth ?? true);
+          setRemaining(0);
+          return;
+        }
+
+        // Handle SSE stream
         const reader = res.body?.getReader();
         if (!reader) throw new Error("No reader");
         const decoder = new TextDecoder();
@@ -439,11 +468,18 @@ export function ChatbotWidget() {
             <p className="mb-2 font-manrope text-amber-800 text-xs">
               Chat gratis habis! Daftar untuk lanjut konsultasi.
             </p>
-            <a href="/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit" className="block">
-              <Button className="w-full rounded-xl bg-brand-navy font-manrope text-white text-xs hover:bg-brand-navy/90">
-                Login / Daftar Gratis
-              </Button>
-            </a>
+            <button
+              type="button"
+              onClick={() => {
+                const page = window.location.pathname + window.location.search;
+                localStorage.setItem("chatbot_reopen", "true");
+                localStorage.setItem("chatbot_redirect", page);
+                window.location.href = `/login?callbackUrl=${encodeURIComponent(page)}&utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit`;
+              }}
+              className="w-full cursor-pointer rounded-xl bg-brand-navy px-4 py-3 font-manrope text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90"
+            >
+              Login / Daftar Gratis
+            </button>
           </div>
         )}
 

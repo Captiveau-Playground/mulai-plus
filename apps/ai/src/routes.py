@@ -69,25 +69,17 @@ async def chat(req: ChatRequest, request: Request):
 
     # Check limit
     if session["message_count"] >= limit:
-        reply = (
-            f"Kamu sudah menggunakan {limit} kali chat gratis. "
-            "Untuk chat lebih lanjut, silakan hubungi tim MULAI+ ya! 🎓"
-        ) if is_auth else (
-            "Kamu sudah menggunakan chat gratis! 🎉\n\n"
-            "Untuk melanjutkan, silakan **daftar akun MULAI+** terlebih dahulu. "
-            "Daftarnya gratis dan kamu bisa dapatkan:\n"
-            "- 🎯 Konsultasi jurusan & universitas\n"
-            "- 📊 Data passing grade lengkap\n"
-            "- 👨‍🏫 Program mentoring 1-on-1\n\n"
-            "[Daftar Sekarang →](/register)"
-        )
+        if is_auth:
+            reply = "Kamu sudah menggunakan batas chat gratis. Hubungi tim MULAI+ untuk info lebih lanjut."
+        else:
+            reply = "Kamu sudah menggunakan chat gratis! Yuk login untuk lanjut konsultasi."
 
-        # Save the limit message too
         await cdb.save_message(session_key, "assistant", reply)
         return {
             "reply": reply,
             "session_id": session_key,
-            "requires_auth": not is_auth,
+            "requires_auth": True,
+            "redirect_url": "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit",
         }
 
     # Load chat history from DB
@@ -150,14 +142,8 @@ async def chat_sync(req: ChatRequest, request: Request):
     session = await cdb.get_or_create_session(session_key, user_id)
 
     if session["message_count"] >= limit:
-        reply = (
-            f"Kamu sudah menggunakan {limit} kali chat gratis. "
-            "Untuk chat lebih lanjut, silakan hubungi tim MULAI+ ya! 🎓"
-        ) if is_auth else (
-            "Kamu sudah menggunakan chat gratis! 🎉\n\n"
-            "Untuk melanjutkan, silakan **daftar akun MULAI+** terlebih dahulu."
-        )
-        return ChatResponse(reply=reply, session_id=session_key, requires_auth=not is_auth)
+        reply = "Kamu sudah menggunakan batas chat gratis. Login untuk lanjut." if is_auth else "Kamu sudah menggunakan chat gratis! Login untuk lanjut."
+        return ChatResponse(reply=reply, session_id=session_key, requires_auth=True, redirect_url="/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit")
 
     history = await cdb.get_history(session_key)
     reply, follow_ups, token_usage = await get_response(req.message, history)
