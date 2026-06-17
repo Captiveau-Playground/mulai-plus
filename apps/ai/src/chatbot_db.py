@@ -90,6 +90,16 @@ async def get_or_create_session(session_id: str, user_id: Optional[str] = None) 
         return {"id": session_id, "user_id": user_id, "is_auth": is_auth, "message_count": 0}
 
 
+async def link_session_to_user(session_id: str, user_id: str):
+    """Link guest session to user_id so quota endpoint can detect auth."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE chatbot_sessions SET user_id = $1, is_auth = TRUE WHERE id = $2",
+            user_id, session_id,
+        )
+
+
 async def get_session_by_user(user_id: str) -> Optional[dict[str, Any]]:
     pool = await get_pool()
     async with pool.acquire() as conn:

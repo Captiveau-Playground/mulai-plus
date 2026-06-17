@@ -67,20 +67,32 @@ async def chat(req: ChatRequest, request: Request):
     # Get or create session from DB
     session = await cdb.get_or_create_session(session_key, user_id)
 
+    # Link guest session_id ke user_id biar quota endpoint bisa detek auth
+    guest_sid = request.headers.get("x-session-id")
+    if is_auth and guest_sid and guest_sid != session_key:
+        await cdb.link_session_to_user(guest_sid, user_id)
+
     # Check limit
     if session["message_count"] >= limit:
         if is_auth:
-            reply = "Kamu sudah menggunakan batas chat gratis. Hubungi tim MULAI+ untuk info lebih lanjut."
+            wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
+            reply = f"Kamu sudah menggunakan batas chat. Klik link WhatsApp di bawah untuk request tambahan limit."
+            await cdb.save_message(session_key, "assistant", reply)
+            return {
+                "reply": reply,
+                "session_id": session_key,
+                "requires_auth": True,
+                "redirect_url": wa_link,
+            }
         else:
             reply = "Kamu sudah menggunakan chat gratis! Yuk login untuk lanjut konsultasi."
-
-        await cdb.save_message(session_key, "assistant", reply)
-        return {
-            "reply": reply,
-            "session_id": session_key,
-            "requires_auth": True,
-            "redirect_url": "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit",
-        }
+            await cdb.save_message(session_key, "assistant", reply)
+            return {
+                "reply": reply,
+                "session_id": session_key,
+                "requires_auth": True,
+                "redirect_url": "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit",
+            }
 
     # Load chat history from DB
     history = await cdb.get_history(session_key)
@@ -141,9 +153,16 @@ async def chat_sync(req: ChatRequest, request: Request):
 
     session = await cdb.get_or_create_session(session_key, user_id)
 
+    # Link guest session ke user_id
+    guest_sid = request.headers.get("x-session-id")
+    if is_auth and guest_sid and guest_sid != session_key:
+        await cdb.link_session_to_user(guest_sid, user_id)
+
     if session["message_count"] >= limit:
-        reply = "Kamu sudah menggunakan batas chat gratis. Login untuk lanjut." if is_auth else "Kamu sudah menggunakan chat gratis! Login untuk lanjut."
-        return ChatResponse(reply=reply, session_id=session_key, requires_auth=True, redirect_url="/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit")
+        wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
+        auth_url = wa_link if is_auth else "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit"
+        reply = "Kamu sudah menggunakan batas chat gratis. Klik tombol di bawah untuk request tambahan." if is_auth else "Kamu sudah menggunakan chat gratis! Login untuk lanjut."
+        return ChatResponse(reply=reply, session_id=session_key, requires_auth=True, redirect_url=auth_url)
 
     history = await cdb.get_history(session_key)
     reply, follow_ups, token_usage = await get_response(req.message, history)
@@ -165,6 +184,33 @@ async def chat_sync(req: ChatRequest, request: Request):
         requires_auth=False,
         remaining=remaining,
     )
+
+
+# ─── Quota ─────────────────────────────────────────────────
+
+@chat_router.get("/quota")
+async def chat_quota(request: Request):
+    """Return remaining chat quota for current user."""
+    session_key, user_id, is_auth = _get_session_key(request)
+
+    # Fallback: cek apakah session_id pernah dipake oleh auth user
+    if not is_auth:
+        session_data = await cdb.get_or_create_session(session_key, None)
+        if session_data.get("user_id"):
+            user_id = session_data["user_id"]
+            is_auth = True
+    else:
+        session_data = await cdb.get_or_create_session(session_key, user_id)
+
+    limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
+    session = await cdb.get_or_create_session(session_key, user_id)
+    remaining = max(0, limit - session["message_count"])
+    return {
+        "remaining": remaining,
+        "total": limit,
+        "is_auth": is_auth,
+        "redirect_url": "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat" if is_auth and remaining == 0 else "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit",
+    }
 
 
 # ─── Chat History ────────────────────────────────────────────
