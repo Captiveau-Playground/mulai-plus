@@ -8,18 +8,22 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { client } from "@/lib/client";
-import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, NAV_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
+import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 const footerNavLinks = [
   {
-    title: "Navigate",
-    links: NAV_LINKS,
+    title: "Program",
+    links: PROGRAM_LINKS,
   },
   {
-    title: "Programs",
-    links: PROGRAM_LINKS,
+    title: "Explore",
+    links: EXPLORE_LINKS,
+  },
+  {
+    title: "Blog",
+    links: BLOG_LINKS,
   },
   {
     title: "Contact",
@@ -39,15 +43,15 @@ const footerNavLinks = [
     ],
   },
   {
-    title: "Explore",
-    links: EXPLORE_LINKS,
+    title: "About",
+    links: [
+      { label: "About Us", href: "/#about" },
+      { label: "Mentors", href: "/#mentors" },
+      { label: "FAQ", href: "/#faq" },
+    ],
   },
   {
-    title: "Blog",
-    links: BLOG_LINKS,
-  },
-  {
-    title: "Other",
+    title: "Legal",
     links: OTHER_LINKS,
   },
 ];
@@ -210,7 +214,7 @@ export function Footer() {
           </div>
 
           {/* ===== Link Columns ===== */}
-          <div className="mt-0 flex flex-col gap-12 md:mt-18 lg:col-span-8 lg:grid lg:grid-cols-3 lg:gap-8">
+          <div className="mt-0 grid grid-cols-2 gap-x-4 gap-y-10 md:mt-18 lg:col-span-8 lg:grid-cols-3 lg:gap-8">
             {footerNavLinks.map((column) => (
               <div key={column.title} className="flex flex-col gap-5">
                 <h3 className="font-bricolage font-semibold text-sm text-white uppercase tracking-wider">
