@@ -127,7 +127,7 @@ export default function ArticleDetailPage() {
   } = useQuery({
     queryKey: ["article", "public", "get", slug],
     queryFn: async () => {
-      const result = await client.cms.articles.public.get({ slug });
+      const result = await client.cms.articles.public.get({ slug, type: "article" });
       return result as unknown as ArticleDetail;
     },
     enabled: Boolean(slug),
@@ -145,6 +145,13 @@ export default function ArticleDetailPage() {
     enabled: Boolean(article?.id),
   });
 
+  // Redirect if type doesn't match this route
+  useEffect(() => {
+    if (article && article.type !== "article") {
+      router.push(`/blog/news/${article.slug}`);
+    }
+  }, [article, router]);
+
   if (isLoading)
     return (
       <div className="mx-auto max-w-7xl px-4 py-20">
@@ -158,6 +165,7 @@ export default function ArticleDetailPage() {
         </div>
       </div>
     );
+
   if (isError || !article)
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
