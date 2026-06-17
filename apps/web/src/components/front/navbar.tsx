@@ -263,17 +263,17 @@ export function Navbar() {
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="p-3 font-normal">
                   <div className="flex flex-col gap-1">
-                    <p className="font-bold font-bricolage text-[#1A1F6D] text-base">{session.user.name}</p>
-                    <p className="font-manrope text-[#888888] text-sm">{session.user.email}</p>
+                    <p className="font-bold font-bricolage text-base text-brand-navy">{session.user.name}</p>
+                    <p className="font-manrope text-sm text-text-muted">{session.user.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-gray-100" />
-                <DropdownMenuItem className={"hover:bg-[#1A1F6D] hover:text-white"}>
+                <DropdownMenuItem className={"hover:bg-brand-navy hover:text-white"}>
                   <Link
                     href={getDashboardLink()}
-                    className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 font-manrope text-[#333333] text-sm transition-colors"
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 font-manrope text-sm text-text-main transition-colors"
                   >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A1F6D]/10">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-navy/10">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="18"
@@ -298,9 +298,9 @@ export function Navbar() {
                 <DropdownMenuItem
                   onClick={handleSignOut}
                   disabled={isLoggingOut}
-                  className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 font-manrope text-[#F93447] text-sm transition-colors hover:bg-[#F93447] hover:text-white disabled:opacity-50"
+                  className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3.5 font-manrope text-brand-red text-sm transition-colors hover:bg-brand-red hover:text-white disabled:opacity-50"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F93447]/10">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-red/10">
                     {isLoggingOut ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -331,13 +331,13 @@ export function Navbar() {
             <Link href="/login">
               <Button
                 variant="ghost"
-                className="cursor-pointer rounded-full px-6 py-4 font-bold text-[#333333] text-sm lg:px-9 lg:py-6 lg:text-base"
+                className="cursor-pointer rounded-full px-6 py-4 font-bold text-sm text-text-main lg:px-9 lg:py-6 lg:text-base"
               >
                 Login
               </Button>
             </Link>
             <Link href="/login">
-              <Button className="cursor-pointer rounded-full bg-[#1A1F6D] px-6 py-4 font-bold text-sm text-white hover:bg-[#1A1F6D]/90 lg:px-9 lg:py-6 lg:text-base">
+              <Button className="cursor-pointer rounded-full bg-brand-navy px-6 py-4 font-bold text-sm text-white hover:bg-brand-navy/90 lg:px-9 lg:py-6 lg:text-base">
                 Daftar Sekarang
               </Button>
             </Link>
@@ -349,12 +349,12 @@ export function Navbar() {
       <div className="flex lg:hidden">
         <Sheet>
           <SheetTrigger>
-            <Button variant="ghost" size="icon" className="text-[#333333]">
+            <Button variant="ghost" size="icon" className="text-text-main">
               <Menu className="h-6 w-6" />
               <span className="sr-only">Toggle menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" showCloseButton={false} className="w-full border-none bg-white p-0 sm:w-100">
+          <SheetContent side="right" showCloseButton={false} className="w-full border-none bg-white p-0 sm:w-80">
             <div className="mb-8 flex h-full flex-col p-6">
               {/* Custom Header */}
               <div className="flex items-center justify-between">
@@ -365,7 +365,7 @@ export function Navbar() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 rounded-full text-[#333333] hover:bg-gray-100"
+                    className="h-10 w-10 rounded-full text-text-main hover:bg-gray-100"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -491,13 +491,13 @@ export function Navbar() {
                     <Link href="/login">
                       <Button
                         variant="outline"
-                        className="h-12 w-full rounded-full border-2 border-[#333333] font-bold text-[#333333] text-base hover:bg-[#333333] hover:text-white"
+                        className="h-12 w-full rounded-full border-2 border-text-main font-bold text-base text-text-main hover:bg-text-main hover:text-white"
                       >
                         Login
                       </Button>
                     </Link>
                     <Link href="/login">
-                      <Button className="h-12 w-full rounded-full bg-[#1A1F6D] font-bold text-base text-white hover:bg-[#1A1F6D]/90">
+                      <Button className="h-12 w-full rounded-full bg-brand-navy font-bold text-base text-white hover:bg-brand-navy/90">
                         Daftar Sekarang
                       </Button>
                     </Link>

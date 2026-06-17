@@ -1,16 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function CTASection() {
   return (
-    <section className="w-full bg-white py-16 md:py-20 lg:py-24" id="cta">
+    <section aria-label="Ajakan Bertindak" className="w-full bg-white py-16 md:py-20 lg:py-24" id="cta">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
-        <div className="relative overflow-hidden rounded-none bg-[#1A1F6D] md:rounded-[48px]">
+        <div className="relative overflow-hidden rounded-none bg-brand-navy md:rounded-[48px]">
           {/* Grid Pattern */}
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.04]"
@@ -26,11 +26,8 @@ export function CTASection() {
             <Image src="/cta.webp" alt="" fill className="object-cover object-center" sizes="100vw" priority />
           </div>
 
-          {/* Gradient bridge: biru solid (kiri) → transparan (kanan) */}
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-0% from-[#1A1F6D] to-100% to-transparent" />
-
-          {/* Mobile: gradasi bottom-up */}
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-0% from-[#1A1F6D]/80 via-25% via-45% via-[#1A1F6D]/10 via-[#1A1F6D]/30 to-60% to-transparent lg:hidden" />
+          {/* Gradient overlay: solid navy (kiri) → transparan (kanan) */}
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-brand-navy via-brand-navy/80 to-transparent" />
 
           {/* Content */}
           <motion.div
@@ -41,20 +38,31 @@ export function CTASection() {
             className="relative z-10 flex max-w-2xl flex-col justify-center gap-8 px-6 py-16 md:px-14 md:py-20 lg:px-16 lg:py-28"
           >
             <h2 className="font-bold font-bricolage text-4xl text-white leading-tight tracking-tight md:text-5xl lg:text-[64px] lg:leading-[1.1]">
-              Siap Mulai <span className="text-[#FE9114]">Langkah Pertamamu</span>?
+              Siap Mulai <span className="text-brand-orange">Langkah Pertamamu</span>?
             </h2>
 
-            <p className="max-w-lg font-manrope text-[#BFD6FF]/60 text-base leading-relaxed md:text-lg">
+            <p className="max-w-lg font-manrope text-base text-text-lighter-blue/60 leading-relaxed md:text-lg">
               Daftar Mentoring Scholarship sekarang. Mentor berpengalaman, program terstruktur, dan beasiswa untuk masa
               depanmu.
             </p>
 
-            <Link href="#featured-programs">
-              <Button className="group h-auto w-fit cursor-pointer rounded-full bg-[#FE9114] px-10 py-5 font-bold font-inter text-base text-white shadow-[#FE9114]/30 shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e68212] hover:shadow-[#FE9114]/40 hover:shadow-xl md:px-12 md:py-6 md:text-xl lg:text-2xl">
-                Daftar Sekarang
-                <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 md:h-6 md:w-6" />
-              </Button>
-            </Link>
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+              <Link href="#featured-programs">
+                <Button className="group h-auto w-fit cursor-pointer rounded-full bg-brand-orange px-8 py-4 font-bold font-manrope text-base text-white shadow-brand-orange/25 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-brand-orange/90 hover:shadow-brand-orange/35 hover:shadow-xl active:scale-[0.98] md:px-12 md:py-5 md:text-lg">
+                  Daftar Sekarang
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                </Button>
+              </Link>
+              <a
+                href="https://wa.me/6285730367310?text=Halo%20MULAI+%2C%20saya%20ingin%20tanya%20tentang%20program%20mentoring"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center gap-2 rounded-full border-2 border-white/20 px-8 py-4 font-manrope font-semibold text-sm text-white/80 transition-all duration-300 hover:border-white/40 hover:bg-white/10 hover:text-white active:scale-[0.98] md:px-10 md:py-5 md:text-base"
+              >
+                <MessageCircle className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+                Tanya via WhatsApp
+              </a>
+            </div>
           </motion.div>
         </div>
       </div>

@@ -92,7 +92,7 @@ export function Footer() {
       whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6 }}
-      className="relative overflow-hidden bg-[#1A1F6D]"
+      className="relative overflow-hidden bg-brand-navy"
     >
       {/* ===== Background Decorations ===== */}
       {/* Subtle grid pattern */}
@@ -106,8 +106,8 @@ export function Footer() {
       />
 
       {/* Gradient orbs */}
-      <div className="pointer-events-none absolute top-0 -left-48 h-96 w-96 rounded-full bg-[#FE9114]/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-48 bottom-0 h-96 w-96 rounded-full bg-[#F93447]/10 blur-3xl" />
+      <div className="pointer-events-none absolute top-0 -left-48 h-96 w-96 rounded-full bg-brand-orange/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-48 bottom-0 h-96 w-96 rounded-full bg-brand-red/10 blur-3xl" />
 
       {/* Background SVG decoration */}
       <div className="pointer-events-none absolute top-12 bottom-0 left-0 w-full select-none overflow-hidden leading-none opacity-40">
@@ -123,35 +123,36 @@ export function Footer() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-              <span className="font-manrope text-[#BFD6FF] text-xs uppercase tracking-wide">Stay in the loop</span>
+              <span className="font-manrope text-text-lighter-blue text-xs uppercase tracking-wide">
+                Stay in the loop
+              </span>
             </div>
 
             <h2 className="font-bold font-bricolage text-3xl text-white leading-tight tracking-tight md:text-4xl lg:text-5xl">
-              Ready to{" "}
-              <span className="bg-linear-to-r from-[#FE9114] to-[#F93447] bg-clip-text text-transparent">mulai+</span>?
+              Ready to <span className="text-brand-orange">mulai+</span>?
             </h2>
 
-            <p className="max-w-lg font-manrope text-[#BFD6FF] text-base leading-relaxed lg:text-lg">
+            <p className="max-w-lg font-manrope text-base text-text-lighter-blue leading-relaxed lg:text-lg">
               Subscribe to our newsletter for the latest program updates, university tips, and exclusive mentorship
               opportunities.
             </p>
 
             <form
               onSubmit={handleSubscribe}
-              className="flex w-full max-w-md items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-1.5 ring-1 ring-white/5 backdrop-blur-sm transition-all duration-300 focus-within:border-[#FE9114]/50 focus-within:ring-[#FE9114]/20"
+              className="flex w-full max-w-md items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-1.5 ring-1 ring-white/5 backdrop-blur-sm transition-all duration-300 focus-within:border-brand-orange/50 focus-within:ring-brand-orange/20"
             >
-              <Mail className="ml-3 h-5 w-5 shrink-0 text-[#BFD6FF]/60" />
+              <Mail className="ml-3 h-5 w-5 shrink-0 text-text-lighter-blue/60" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
-                className="w-full bg-transparent py-2 font-manrope text-sm text-white placeholder:text-[#BFD6FF]/40 focus:outline-none"
+                className="w-full bg-transparent py-2 font-manrope text-sm text-white placeholder:text-text-lighter-blue/40 focus:outline-none"
               />
               <Button
                 type="submit"
-                className="group cursor-pointer rounded-xl bg-linear-to-r from-[#FE9114] to-[#F93447] px-5 py-5 font-inter font-semibold text-sm text-white transition-all duration-300 hover:scale-105 hover:shadow-[#F93447]/25 hover:shadow-lg"
+                className="group cursor-pointer rounded-xl bg-brand-red px-5 py-5 font-manrope font-semibold text-sm text-white transition-all duration-300 hover:scale-105 hover:bg-brand-red/90 hover:shadow-lg"
               >
                 {subscribing ? (
                   <span className="flex items-center gap-1.5">
@@ -186,7 +187,7 @@ export function Footer() {
               <Image src="/light-type-logo.svg" alt="mulai+" width={140} height={40} className="h-10 w-auto lg:h-12" />
             </Link>
 
-            <p className="font-manrope text-[#BFD6FF]/70 text-sm leading-relaxed lg:text-base">
+            <p className="font-manrope text-sm text-text-lighter-blue/70 leading-relaxed lg:text-base">
               MULAI+ membimbingmu memilih universitas dan jurusan yang tepat. Bersama mentor berpengalaman, temukan masa
               depan yang sesuai dengan impianmu.
             </p>
@@ -200,7 +201,7 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={social.label}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[#BFD6FF] transition-all duration-300 hover:border-[#FE9114]/30 hover:bg-[#FE9114]/10 hover:text-[#FE9114] hover:shadow-[#FE9114]/10 hover:shadow-lg"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-text-lighter-blue transition-all duration-300 hover:border-brand-orange/30 hover:bg-brand-orange/10 hover:text-brand-orange hover:shadow-brand-orange/10 hover:shadow-lg"
                 >
                   <social.icon className="h-4.5 w-4.5" />
                 </Link>
@@ -224,10 +225,10 @@ export function Footer() {
                           href={link.href as any}
                           target={link.href.startsWith("http") ? "_blank" : undefined}
                           rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                          className="group inline-flex items-start gap-2 font-manrope text-[#BFD6FF]/70 text-sm transition-all duration-200 hover:text-white lg:text-base"
+                          className="group inline-flex items-start gap-2 font-manrope text-sm text-text-lighter-blue/70 transition-all duration-200 hover:text-white lg:text-base"
                         >
                           {Icon && (
-                            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#BFD6FF]/40 transition-colors group-hover:text-[#FE9114]" />
+                            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-text-lighter-blue/40 transition-colors group-hover:text-brand-orange" />
                           )}
                           <span>{link.label}</span>
                         </Link>
@@ -247,7 +248,7 @@ export function Footer() {
           <div className="flex flex-col items-center justify-between gap-4 py-6 lg:flex-row lg:py-4">
             {/* Left: Badge + Copyright */}
             <div className="flex flex-col items-center gap-3 lg:flex-row lg:items-center">
-              <Badge className="border-white/10 bg-white/5 font-manrope text-[#BFD6FF]/80 text-[10px] uppercase tracking-wider hover:bg-white/10">
+              <Badge className="border-white/10 bg-white/5 font-manrope text-[10px] text-text-lighter-blue/80 uppercase tracking-wider hover:bg-white/10">
                 {env.NEXT_PUBLIC_SERVER_URL === "http://localhost:3000"
                   ? "⚡ development"
                   : env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id"
@@ -274,25 +275,25 @@ export function Footer() {
 
             {/* Right: Copyright + Credit */}
             <div className="flex flex-col items-center gap-2 text-center lg:items-end lg:text-right">
-              <p className="font-manrope text-[#BFD6FF]/50 text-xs lg:text-sm">
+              <p className="font-manrope text-text-lighter-blue/50 text-xs lg:text-sm">
                 &copy; {new Date().getFullYear()} mulai+. All rights reserved.
               </p>
               {isExplore && (
-                <p className="font-manrope text-[#BFD6FF]/30 text-[10px] lg:text-xs">
+                <p className="font-manrope text-[10px] text-text-lighter-blue/30 lg:text-xs">
                   Data perguruan tinggi dari PDDikti &amp; SNPMB (Kemdiktisaintek RI)
                 </p>
               )}
-              <p className="font-manrope text-[#BFD6FF]/40 text-xs lg:text-sm">
+              <p className="font-manrope text-text-lighter-blue/40 text-xs lg:text-sm">
                 Powered by{" "}
                 <Link
                   href="https://captiveau.fun"
                   target="_blank"
-                  className="font-semibold text-[#BFD6FF]/60 transition-colors hover:text-[#FE9114]"
+                  className="font-semibold text-text-lighter-blue/60 transition-colors hover:text-brand-orange"
                 >
                   Captiveau
                 </Link>
-                <span className="mx-1.5 text-[#BFD6FF]/20">|</span>
-                <span className="text-[#BFD6FF]/40">Creative Tech Studio</span>
+                <span className="mx-1.5 text-text-lighter-blue/20">|</span>
+                <span className="text-text-lighter-blue/40">Creative Tech Studio</span>
               </p>
             </div>
           </div>

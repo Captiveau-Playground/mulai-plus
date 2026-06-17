@@ -37,6 +37,14 @@ export default function FrontLayout({
 }>) {
   return (
     <>
+      <style>{"html { scrollbar-gutter: stable; }"}</style>
+      {/* Skip to main content link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-xl focus:bg-brand-navy focus:px-6 focus:py-3 focus:font-manrope focus:text-sm focus:text-white focus:shadow-lg focus:outline-none"
+      >
+        Langsung ke konten utama
+      </a>
       <Navbar />
       {children}
       <Footer />
