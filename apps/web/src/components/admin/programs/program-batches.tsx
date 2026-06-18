@@ -44,6 +44,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { authClient, isAdmin } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 import { BatchAttachmentsDialog } from "./batch-attachments";
@@ -101,6 +102,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
 }
 
 function ProgramBatchesInner({ programId }: { programId: string }) {
+  const { data: session } = authClient.useSession();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState<{
     id: string;
@@ -318,7 +320,11 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       <Link
-                        href={`/admin/programs/${programId}/batches/${batch.id}` as any}
+                        href={
+                          (isAdmin(session)
+                            ? `/admin/programs/${programId}/batches/${batch.id}`
+                            : `/program-manager/programs/${programId}/batches/${batch.id}`) as any
+                        }
                         className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-full text-xs")}
                       >
                         Manage

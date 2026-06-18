@@ -20,7 +20,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { PageState } from "@/components/ui/page-state";
-import { useAuthorizePage } from "@/lib/auth-client";
+import { authClient, useAuthorizePage } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -42,6 +42,9 @@ export function BatchDetailContent() {
   const params = useParams();
   const programId = params.id as string;
   const batchId = params.batchId as string;
+  const { data: session } = authClient.useSession();
+  const isUserAdmin = session?.user?.role === "admin";
+  const prefix = isUserAdmin ? "/admin" : "/program-manager";
 
   const { data: batch, isLoading } = useQuery(orpc.programs.admin.batches.get.queryOptions({ input: { id: batchId } }));
 
@@ -85,7 +88,7 @@ export function BatchDetailContent() {
     );
   }
 
-  const baseUrl = `/admin/programs/${programId}/batches/${batchId}`;
+  const baseUrl = `${prefix}/programs/${programId}/batches/${batchId}`;
   const totalSessions = sessions?.length || 0;
   const totalParticipants = attendanceData?.participants?.length || 0;
   const totalMentors = mentorsData?.length || 0;
@@ -200,7 +203,7 @@ export function BatchDetailContent() {
       {/* ── Header ── */}
       <div className="flex items-start gap-4">
         <Link
-          href={`/admin/programs/${programId}`}
+          href={`${prefix}/programs/${programId}`}
           className="mt-1 inline-flex shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white p-2.5 text-text-muted-custom shadow-xs transition-all hover:border-mentor-teal/30 hover:text-mentor-teal hover:shadow-sm"
         >
           <ArrowLeft className="h-4 w-4" />

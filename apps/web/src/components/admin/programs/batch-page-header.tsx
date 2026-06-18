@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { authClient, isAdmin } from "@/lib/auth-client";
 
 interface BatchData {
   name: string;
@@ -26,10 +27,17 @@ export function BatchPageHeader({
   subtitle?: string;
   backUrl?: string;
 }) {
+  const { data: session } = authClient.useSession();
+
   return (
     <div className="space-y-4">
       <Link
-        href={(backUrl || `/admin/programs/${programId}/batches/${batchId}`) as any}
+        href={
+          (backUrl ||
+            (isAdmin(session)
+              ? `/admin/programs/${programId}/batches/${batchId}`
+              : `/program-manager/programs/${programId}/batches/${batchId}`)) as any
+        }
         className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 font-manrope font-medium text-text-main text-xs transition-all hover:bg-mentor-teal/10 hover:text-mentor-teal"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
