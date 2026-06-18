@@ -184,7 +184,7 @@ export function Navbar() {
 
       {/* Desktop Nav */}
       <div className={cn("hidden items-center gap-1 md:flex md:gap-2", isExploreLight && "text-white")}>
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.map((item: any) => {
           if ("children" in item) {
             return (
               <DropdownMenu key={item.label}>
@@ -202,7 +202,7 @@ export function Navbar() {
                   </span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-56 rounded-2xl border bg-white p-2 shadow-xl">
-                  {item.children.map((child) => (
+                  {item.children.map((child: any) => (
                     <DropdownMenuItem
                       key={child.href}
                       render={
@@ -375,7 +375,7 @@ export function Navbar() {
 
               {/* Menu items — click langsung navigate + close sheet */}
               <div className="mt-8 flex flex-1 flex-col gap-1">
-                {NAV_ITEMS.map((item) => {
+                {NAV_ITEMS.map((item: any) => {
                   if ("children" in item) {
                     const isOpen = openDropdown === item.label;
                     return (
@@ -392,7 +392,7 @@ export function Navbar() {
                         </button>
                         {isOpen && (
                           <div className="ml-3 flex flex-col gap-0.5 border-gray-100 border-l pl-3">
-                            {item.children.map((child) => (
+                            {item.children.map((child: any) => (
                               <button
                                 key={child.href}
                                 type="button"
