@@ -33,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const { client } = await import("@/lib/client");
+    console.log("[sitemap] client imported successfully");
 
     // Articles
     try {
@@ -96,23 +97,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           });
         }
       }
-    } catch {}
-
-    // Program study slugs for explore detail pages
-    try {
-      const slugs = await (client as any)?.pddikti?.publicGetProgramSlugs();
-      if (Array.isArray(slugs)) {
-        for (const p of slugs) {
-          dynamicPages.push({
-            url: `${baseUrl}/explore/study-programs/${(p as any).slug}`,
-            lastModified: new Date(),
-            changeFrequency: "monthly" as const,
-            priority: 0.6,
-          });
-        }
-      }
-    } catch {}
-  } catch {}
+    } catch (e) {
+      console.error("[sitemap] uni slugs failed:", e);
+    }
+  } catch (e) {
+    console.error("[sitemap] client import failed:", e);
+  }
 
   return [...staticPages, ...dynamicPages];
 }

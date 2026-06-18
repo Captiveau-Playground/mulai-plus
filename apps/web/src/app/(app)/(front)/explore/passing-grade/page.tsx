@@ -53,7 +53,9 @@ function PassingGradeContent() {
       if (sortBy !== "pg") p.set("sort", sortBy);
       const qs = p.toString();
       // biome-ignore lint/suspicious/noExplicitAny: dynamic route with query params
-      router.replace(`/explore/passing-grade${qs ? `?${qs}` : ""}` as any, { scroll: false });
+      router.replace(`/explore/passing-grade${qs ? `?${qs}` : ""}` as any, {
+        scroll: false,
+      });
     }
   }, [query, level, sortBy, urlQuery, router.replace]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -108,7 +110,10 @@ function PassingGradeContent() {
   });
   // biome-ignore lint/suspicious/noExplicitAny: query result shape
   const suggestions = (_sg as any)?.data ?? [];
-  const { data: _lv } = useQuery({ ...api.pddikti.publicListProgramLevels.queryOptions(), enabled: true });
+  const { data: _lv } = useQuery({
+    ...api.pddikti.publicListProgramLevels.queryOptions(),
+    enabled: true,
+  });
 
   // biome-ignore lint/suspicious/noExplicitAny: query result shape
   const d = _d as any;
@@ -161,7 +166,7 @@ function PassingGradeContent() {
               Cari tahu tingkat keketatan jurusan di setiap PTN. Data SNBP 5 tahun terakhir.
             </p>
           </div>
-          <div className="relative mx-auto mt-6 w-full max-w-xl">
+          <div className="relative mx-auto mt-6 w-full max-w-3xl">
             <div
               ref={inputRef}
               className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
@@ -368,7 +373,10 @@ function PassingGradeContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "passing_grade", action: "first" });
+                  trackEvent("pagination", {
+                    page: "passing_grade",
+                    action: "first",
+                  });
                   setPage(0);
                 }}
                 disabled={page === 0}
@@ -380,7 +388,10 @@ function PassingGradeContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "passing_grade", action: "prev" });
+                  trackEvent("pagination", {
+                    page: "passing_grade",
+                    action: "prev",
+                  });
                   setPage((p) => Math.max(0, p - 1));
                 }}
                 disabled={page === 0}
@@ -395,7 +406,10 @@ function PassingGradeContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "passing_grade", action: "next" });
+                  trackEvent("pagination", {
+                    page: "passing_grade",
+                    action: "next",
+                  });
                   setPage((p) => Math.min(totalPages - 1, p + 1));
                 }}
                 disabled={page >= totalPages - 1}
@@ -407,7 +421,10 @@ function PassingGradeContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "passing_grade", action: "last" });
+                  trackEvent("pagination", {
+                    page: "passing_grade",
+                    action: "last",
+                  });
                   setPage(totalPages - 1);
                 }}
                 disabled={page >= totalPages - 1}
