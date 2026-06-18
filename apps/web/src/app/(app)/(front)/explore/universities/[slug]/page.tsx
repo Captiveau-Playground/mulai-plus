@@ -63,7 +63,7 @@ export default function UniversityDetailPage() {
           <Building2 className="mx-auto h-12 w-12 text-text-muted-custom" />
           <h2 className="mt-4 font-bold font-bricolage text-brand-navy text-lg">Universitas tidak ditemukan</h2>
           <Link
-            href={"/universities" as any}
+            href={"/explore/universities" as any}
             className="mt-2 inline-flex items-center gap-1 font-manrope text-brand-orange text-sm hover:underline"
           >
             <ArrowLeft className="h-3 w-3" /> Kembali
@@ -97,7 +97,7 @@ export default function UniversityDetailPage() {
           <Building2 className="mx-auto h-12 w-12 text-text-muted-custom" />
           <h2 className="mt-4 font-bold font-bricolage text-brand-navy text-lg">Universitas tidak ditemukan</h2>
           <Link
-            href={"/universities" as any}
+            href={"/explore/universities" as any}
             className="mt-2 inline-flex items-center gap-1 font-manrope text-brand-orange text-sm hover:underline"
           >
             <ArrowLeft className="h-3 w-3" /> Kembali
@@ -139,7 +139,7 @@ export default function UniversityDetailPage() {
               Home
             </Link>
             <span>/</span>
-            <Link href={"/universities" as any} className="transition-colors hover:text-brand-navy">
+            <Link href={"/explore/universities" as any} className="transition-colors hover:text-brand-navy">
               Universities
             </Link>
             <span>/</span>
@@ -371,7 +371,7 @@ export default function UniversityDetailPage() {
                               key={p.idSms}
                               className="cursor-pointer border-t transition-colors hover:bg-brand-navy/5"
                               onClick={() =>
-                                router.push(`/universities/${slug}/prodi/${encodeURIComponent(p.idSms)}` as any)
+                                router.push(`/explore/universities/${slug}/prodi/${encodeURIComponent(p.idSms)}` as any)
                               }
                             >
                               <td className="p-3 font-mono text-text-muted-custom text-xs">{p.code ?? "-"}</td>

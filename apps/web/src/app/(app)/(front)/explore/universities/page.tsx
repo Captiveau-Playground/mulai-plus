@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Building2, GraduationCap, Loader2, MapPin, Search, Sparkles, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -127,35 +128,55 @@ export default function UniversitiesPage() {
   return (
     <div className="min-h-screen bg-white">
       <JsonLd data={jsonLd} />
-      {/* Hero */}
-      <section className="relative bg-brand-navy pt-20 sm:pt-24">
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
+      {/* Hero — compact */}
+      <section className="relative overflow-hidden pt-20 sm:pt-24">
+        {/* Background image */}
+        <div className="pointer-events-none absolute inset-0">
+          <Image
+            src="/explore/building.webp"
+            alt=""
+            fill
+            className="object-cover object-bottom"
+            sizes="100vw"
+            priority
+          />
+          <div className="absolute inset-0 bg-brand-navy/70" />
+          <div className="absolute inset-0 bg-linear-to-t from-brand-navy/90 via-brand-navy/40 to-transparent" />
+        </div>
+        {/* Grid pattern */}
         <div
-          className="absolute inset-0 z-0 opacity-10"
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage:
-              "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
+              "linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
           }}
         />
-        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-4 flex items-center justify-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-orange shadow-lg">
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20">
+          <div className="mx-auto max-w-3xl">
+            {/* Eyebrow */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange shadow-lg">
                 <Building2 className="h-5 w-5 text-white" />
               </div>
+              <span className="font-manrope font-semibold text-[11px] text-brand-orange uppercase tracking-wider">
+                Universitas
+              </span>
             </div>
-            <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
-              Cari Universitas Impianmu
+
+            <h1 className="mt-4 font-bold font-bricolage text-3xl text-white leading-tight sm:text-4xl lg:text-5xl">
+              Cari <span className="text-brand-orange">Universitas</span> Impianmu
             </h1>
-            <p className="mt-3 font-manrope text-lg text-white/70">
-              Jelajahi {total.toLocaleString()} perguruan tinggi terbaik Indonesia. Lengkap dengan data akreditasi,
-              program studi, dan daya tampung.
+
+            <p className="mt-2 max-w-xl font-manrope text-sm text-white/60 leading-relaxed sm:text-base">
+              {total.toLocaleString()} PTN &amp; PTS lengkap dengan akreditasi, program studi, dan daya tampung.
             </p>
-            <div className="relative mx-auto mt-8 w-full max-w-xl">
+
+            {/* Search */}
+            <div className="relative mt-6 max-w-xl">
               <div
                 ref={inputRef}
-                className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 backdrop-blur-sm transition-all focus-within:border-white/20 focus-within:bg-white/[0.10] sm:px-5"
               >
                 <Search className="h-4 w-4 shrink-0 text-white/50" />
                 <Input
@@ -337,7 +358,7 @@ export default function UniversitiesPage() {
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {universities.map((u: any) => (
-                <Link key={u.idSp} href={`/universities/${slugify(u.name, u.idSp)}` as any}>
+                <Link key={u.idSp} href={`/explore/universities/${slugify(u.name, u.idSp)}` as any}>
                   <div className="group flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:shadow-md">
                     <div className="flex flex-1 flex-col p-4">
                       <div className="mb-2 flex items-center gap-2">

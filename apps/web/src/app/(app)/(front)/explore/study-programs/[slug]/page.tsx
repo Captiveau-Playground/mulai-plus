@@ -39,7 +39,7 @@ export default function StudyProgramSlugPage() {
           <GraduationCap className="mx-auto h-12 w-12 text-text-muted-custom" />
           <h2 className="mt-4 font-bold font-bricolage text-brand-navy text-lg">Program studi tidak ditemukan</h2>
           <Link
-            href={"/study-programs" as any}
+            href={"/explore/study-programs" as any}
             className="mt-2 inline-flex items-center gap-1 font-manrope text-brand-orange text-sm hover:underline"
           >
             <ArrowLeft className="h-3 w-3" /> Cari lagi
@@ -58,7 +58,7 @@ export default function StudyProgramSlugPage() {
               Home
             </Link>
             <span>/</span>
-            <Link href={"/study-programs" as any} className="transition-colors hover:text-brand-navy">
+            <Link href={"/explore/study-programs" as any} className="transition-colors hover:text-brand-navy">
               Program Studi
             </Link>
             <span>/</span>

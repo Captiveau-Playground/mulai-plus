@@ -126,12 +126,13 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const isExplore = pathname.startsWith("/explore");
+  const isExploreLight = isExplore && !isScrolled;
   const isTransparent =
     !isScrolled &&
     !pathname.startsWith("/programs") &&
     !pathname.startsWith("/courses") &&
     !pathname.startsWith("/blog") &&
-    !pathname.startsWith("/explore") &&
     !pathname.startsWith("/privacy") &&
     pathname !== "/login";
 
@@ -166,19 +167,30 @@ export function Navbar() {
       {/* Logo — Trim Path animation */}
       <Link href="/" className="inline-block w-24 shrink-0 md:w-36">
         <DotLottieReact
-          src="https://lottie.host/e9e261ee-2040-44e5-b5cf-55bac95e359b/3d1Ek6VBhX.lottie"
+          src={
+            isExploreLight
+              ? "https://lottie.host/25b9a571-3e0d-42c9-a13f-ba85cf70eac0/BvERUpRWE9.lottie"
+              : "https://lottie.host/e9e261ee-2040-44e5-b5cf-55bac95e359b/3d1Ek6VBhX.lottie"
+          }
           autoplay
           style={{ width: "100%", height: "auto" }}
         />
       </Link>
 
       {/* Desktop Nav */}
-      <div className="hidden items-center gap-1 md:flex md:gap-2">
+      <div className={cn("hidden items-center gap-1 md:flex md:gap-2", isExploreLight && "text-white")}>
         {NAV_ITEMS.map((item) => {
           if ("children" in item) {
             return (
               <DropdownMenu key={item.label}>
-                <DropdownMenuTrigger className="rounded-full px-3 py-2 font-manrope text-sm text-text-main transition-colors hover:bg-brand-navy/5 hover:text-brand-navy lg:px-4">
+                <DropdownMenuTrigger
+                  className={cn(
+                    "rounded-full px-3 py-2 font-manrope text-sm transition-colors lg:px-4",
+                    isExploreLight
+                      ? "text-white/80 hover:bg-white/10 hover:text-white"
+                      : "text-text-main hover:bg-brand-navy/5 hover:text-brand-navy",
+                  )}
+                >
                   <span className="flex items-center gap-1">
                     {item.label}
                     <ChevronDown className="h-3.5 w-3.5" />
@@ -213,7 +225,12 @@ export function Navbar() {
             <Link
               key={item.href}
               href={item.href as Route}
-              className="rounded-full px-3 py-2 font-manrope text-sm text-text-main transition-colors hover:bg-brand-navy/5 hover:text-brand-navy lg:px-4"
+              className={cn(
+                "rounded-full px-3 py-2 font-manrope text-sm transition-colors lg:px-4",
+                isExplore
+                  ? "text-white/80 hover:bg-white/10 hover:text-white"
+                  : "text-text-main hover:bg-brand-navy/5 hover:text-brand-navy",
+              )}
             >
               {item.label}
             </Link>
@@ -301,13 +318,21 @@ export function Navbar() {
               <Link href="/login">
                 <Button
                   variant="ghost"
-                  className="cursor-pointer rounded-full px-4 py-2 font-bold font-manrope text-sm text-text-main lg:px-6"
+                  className={cn(
+                    "cursor-pointer rounded-full px-4 py-2 font-bold font-manrope text-sm lg:px-6",
+                    isExplore ? "text-white/80 hover:text-white" : "text-text-main",
+                  )}
                 >
                   Login
                 </Button>
               </Link>
               <Link href="/login">
-                <Button className="cursor-pointer rounded-full bg-brand-navy px-4 py-2 font-bold font-manrope text-sm text-white hover:bg-brand-navy/90 lg:px-6">
+                <Button
+                  className={cn(
+                    "cursor-pointer rounded-full px-4 py-2 font-bold font-manrope text-sm text-white lg:px-6",
+                    isExplore ? "bg-white/15 hover:bg-white/25" : "bg-brand-navy hover:bg-brand-navy/90",
+                  )}
+                >
                   Daftar
                 </Button>
               </Link>
