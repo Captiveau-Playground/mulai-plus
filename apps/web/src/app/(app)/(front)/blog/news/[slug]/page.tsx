@@ -113,7 +113,7 @@ export default function ArticleDetailPage() {
   } = useQuery({
     queryKey: ["article", "public", "get", slug],
     queryFn: async () => {
-      const result = await client.cms.articles.public.get({ slug });
+      const result = await client.cms.articles.public.get({ slug, type: "news" });
       return result as unknown as ArticleDetail;
     },
     enabled: Boolean(slug),
@@ -128,6 +128,13 @@ export default function ArticleDetailPage() {
     enabled: Boolean(article?.id),
   });
 
+  // Redirect if type doesn't match this route
+  useEffect(() => {
+    if (article && article.type !== "news") {
+      router.push(`/blog/articles/${article.slug}`);
+    }
+  }, [article, router]);
+
   if (isLoading)
     return (
       <div className="mx-auto max-w-7xl px-4 py-20">
@@ -141,13 +148,14 @@ export default function ArticleDetailPage() {
         </div>
       </div>
     );
+
   if (isError || !article)
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <BookOpen className="mb-4 h-16 w-16 text-gray-300" />
         <h1 className="mb-2 font-bold font-bricolage text-2xl text-gray-900">Artikel tidak ditemukan</h1>
         <p className="mb-6 font-manrope text-gray-500 text-sm">Artikel yang kamu cari mungkin sudah dihapus.</p>
-        <Button onClick={() => router.push("/blog/articles")} variant="outline" className="rounded-xl">
+        <Button onClick={() => router.push("/blog/news")} variant="outline" className="rounded-xl">
           <span>←</span> Kembali
         </Button>
       </div>

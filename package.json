@@ -54,6 +54,7 @@
     "db:migrate": "turbo -F @mulai-plus/db db:migrate"
   },
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.19.4",
     "@mulai-plus/env": "workspace:*",
     "@supabase/supabase-js": "^2.91.1",
     "date-fns-tz": "^3.2.0",

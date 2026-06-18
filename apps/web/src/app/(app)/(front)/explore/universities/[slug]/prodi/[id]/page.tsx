@@ -44,12 +44,12 @@ export default function ProdiDetailPage() {
 
   if (!id) {
     return (
-      <div className="flex min-h-screen items-center justify-center pt-20 sm:pt-24">
+      <div className="flex min-h-screen items-center justify-center pt-16 sm:pt-20">
         <div className="text-center">
           <BookOpen className="mx-auto h-12 w-12 text-text-muted-custom" />
           <h2 className="mt-4 font-bold font-bricolage text-brand-navy text-lg">Program tidak ditemukan</h2>
           <Link
-            href={"/study-programs" as any}
+            href={"/explore/study-programs" as any}
             className="mt-2 inline-flex items-center gap-1 font-manrope text-brand-orange text-sm hover:underline"
           >
             <ArrowLeft className="h-3 w-3" /> Kembali
@@ -62,20 +62,20 @@ export default function ProdiDetailPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
-      <div className="border-b bg-white pt-20 sm:pt-24">
+      <div className="border-b bg-white pt-16 sm:pt-20">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2 font-manrope text-text-muted-custom text-xs">
             <Link href={"/" as any} className="transition-colors hover:text-brand-navy">
               Home
             </Link>
             <span>/</span>
-            <Link href={"/universities" as any} className="transition-colors hover:text-brand-navy">
+            <Link href={"/explore/universities" as any} className="transition-colors hover:text-brand-navy">
               Universities
             </Link>
             <span>/</span>
             {uniName && (
               <Link
-                href={`/universities/${slug}` as any}
+                href={`/explore/universities/${slug}` as any}
                 className="max-w-[200px] truncate transition-colors hover:text-brand-navy"
               >
                 {uniName}

@@ -23,7 +23,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="flex w-full flex-col">
+    <main id="main-content" className="flex w-full flex-col">
       <script
         id="jsonld-home"
         type="application/ld+json"
@@ -37,6 +37,6 @@ export default function LandingPage() {
       <MeetTheMentor />
       <FAQSection />
       <CTASection />
-    </div>
+    </main>
   );
 }

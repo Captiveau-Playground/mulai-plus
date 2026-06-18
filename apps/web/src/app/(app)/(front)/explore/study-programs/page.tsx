@@ -12,6 +12,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -136,35 +137,52 @@ function StudyProgramsContent() {
   if (!detailName) {
     return (
       <div className="min-h-screen bg-white">
-        <section className="relative bg-brand-navy pt-20 sm:pt-24">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
+        <section className="relative overflow-hidden pt-20 sm:pt-24">
+          {/* Background image */}
+          <div className="pointer-events-none absolute inset-0">
+            <Image
+              src="/explore/street.webp"
+              alt=""
+              fill
+              className="object-cover object-bottom"
+              sizes="100vw"
+              priority
+            />
+            <div className="absolute inset-0 bg-brand-navy/70" />
+            <div className="absolute inset-0 bg-brand-navy/30" />
+          </div>
           <div
-            className="absolute inset-0 z-0 opacity-10"
+            className="pointer-events-none absolute inset-0 opacity-[0.03]"
             style={{
               backgroundImage:
-                "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
+                "linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)",
+              backgroundSize: "48px 48px",
             }}
           />
-          <div className="relative mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 sm:py-20 lg:px-8">
-            <div className="mb-4 flex items-center justify-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-orange shadow-lg">
-                <GraduationCap className="h-5 w-5 text-white" />
+          <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20">
+            <div className="mx-auto max-w-3xl">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange shadow-lg">
+                  <GraduationCap className="h-5 w-5 text-white" />
+                </div>
+                <span className="font-manrope font-semibold text-[11px] text-brand-orange uppercase tracking-wider">
+                  Program Studi
+                </span>
               </div>
+              <h1 className="mt-4 font-bold font-bricolage text-3xl text-white leading-tight sm:text-4xl lg:text-5xl">
+                Jelajahi Program Studi
+              </h1>
+              {query ? (
+                <p className="mt-2 font-manrope text-sm text-white/60">
+                  {searchTotal} jurusan &quot;{query}&quot; ditemukan
+                </p>
+              ) : (
+                <p className="mt-2 font-manrope text-sm text-white/60">Ketik nama jurusan untuk mulai mencari</p>
+              )}
             </div>
-            <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
-              Jelajahi Program Studi
-            </h1>
-            {query ? (
-              <h2 className="mt-3 font-manrope text-lg text-white/70">
-                {searchTotal} jurusan &quot;{query}&quot; ditemukan
-              </h2>
-            ) : (
-              <p className="mt-3 font-manrope text-lg text-white/70">Ketik nama jurusan untuk mulai mencari</p>
-            )}
 
             {/* Search + Suggest */}
-            <div className="relative mx-auto mt-8 w-full max-w-xl">
+            <div className="relative mx-auto mt-6 w-full max-w-xl">
               <div
                 className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
                 ref={inputRef}

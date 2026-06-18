@@ -31,7 +31,8 @@ export function FeaturedPrograms() {
     return (
       <div className="bg-white">
         <section
-          className="relative w-full overflow-hidden rounded-t-[50px] bg-[#1A1F6D] py-20 lg:rounded-t-[108px] lg:py-24"
+          aria-label="Program Unggulan"
+          className="relative w-full overflow-hidden rounded-t-[24px] bg-brand-navy py-20 md:rounded-t-[50px] lg:rounded-t-[108px] lg:py-24"
           id="featured-programs"
         >
           {/* Background Grid Pattern */}
@@ -43,14 +44,14 @@ export function FeaturedPrograms() {
               backgroundSize: "40px 40px",
             }}
           />
-          <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-transparent via-[#1A1F6D]/20 to-[#1A1F6D]" />
+          <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-transparent via-brand-navy/20 to-brand-navy" />
 
-          <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+          <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
             <div className="flex flex-col gap-12 lg:flex-row lg:items-end lg:gap-16">
               {/* Left Column Skeleton */}
               <div className="relative hidden h-full w-full shrink-0 flex-col items-center justify-center lg:flex lg:w-[35%] lg:items-start">
                 <div className="relative aspect-3/4 w-full max-w-100 overflow-hidden rounded-2xl lg:max-w-none">
-                  <div className="absolute top-10 right-10 -z-10 h-full w-full rounded-full bg-[#FE9114]/10 blur-[80px]" />
+                  <div className="absolute top-10 right-10 -z-10 h-full w-full rounded-full bg-brand-orange/10 blur-[80px]" />
                   <div className="h-full w-full animate-pulse bg-white/5" />
                 </div>
               </div>
@@ -66,7 +67,10 @@ export function FeaturedPrograms() {
                 {/* Cards Grid Skeleton */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-6">
                   {[0, 1].map((i) => (
-                    <div key={i} className="flex flex-col justify-between rounded-3xl bg-[#272C75] p-8 opacity-60">
+                    <div
+                      key={i}
+                      className="flex flex-col justify-between rounded-3xl bg-brand-navy-light p-8 opacity-60"
+                    >
                       <div className="flex flex-col gap-6">
                         {/* Upper Section */}
                         <div className="flex flex-col gap-4">
@@ -145,7 +149,8 @@ export function FeaturedPrograms() {
   return (
     <div className="bg-white">
       <section
-        className="relative w-full overflow-hidden rounded-t-[50px] bg-[#1A1F6D] py-20 lg:rounded-t-[108px] lg:py-24"
+        aria-label="Program Unggulan"
+        className="relative w-full overflow-hidden rounded-t-[24px] bg-brand-navy py-20 md:rounded-t-[50px] lg:rounded-t-[108px] lg:py-24"
         id="featured-programs"
       >
         {/* Background Grid Pattern (Simulated) */}
@@ -159,15 +164,15 @@ export function FeaturedPrograms() {
         />
 
         {/* Gradient Overlays */}
-        <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-transparent via-[#1A1F6D]/20 to-[#1A1F6D]" />
+        <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-transparent via-brand-navy/20 to-brand-navy" />
 
-        <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
+        <div className="container relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
           <div className="flex flex-col gap-12 lg:flex-row lg:items-end lg:gap-16">
             {/* Left Column: Image of Person */}
             <div className="relative hidden h-full w-full shrink-0 flex-col items-center justify-center lg:flex lg:w-[35%] lg:items-start">
               <div className="relative aspect-3/4 w-full max-w-100 lg:max-w-none">
                 {/* Decorative Gradient Behind Image */}
-                <div className="absolute top-10 right-10 -z-10 h-full w-full rounded-full bg-[#FE9114]/20 blur-[80px]" />
+                <div className="absolute top-10 right-10 -z-10 h-full w-full rounded-full bg-brand-orange/20 blur-[80px]" />
 
                 {/* Using hero-image.png as placeholder for '15544-depositphotos-bgremover 1' */}
                 <Image
@@ -184,7 +189,7 @@ export function FeaturedPrograms() {
             <div className="flex w-full flex-col gap-10 lg:w-[65%]">
               {/* Header Section */}
               <div className="flex flex-col gap-4 text-center lg:text-right">
-                <span className="font-bold font-inter text-[#FE9114] text-xl uppercase tracking-widest lg:text-2xl">
+                <span className="font-bold font-manrope text-brand-orange text-xl uppercase tracking-widest lg:text-2xl">
                   Featured Programs
                 </span>
                 <h2 className="font-bold font-bricolage text-4xl text-white leading-tight lg:text-6xl">
@@ -207,7 +212,7 @@ export function FeaturedPrograms() {
                   const { program } = batch;
                   // Alternate accent color between the 2 cards
                   const isFirstCard = index === 0;
-                  const iconBgColor = isFirstCard ? "bg-[#F93447]" : "bg-[#FE9114]";
+                  const iconBgColor = isFirstCard ? "bg-brand-red" : "bg-brand-orange";
 
                   const buttonLabel = "Daftar Sekarang";
 
@@ -229,10 +234,13 @@ export function FeaturedPrograms() {
                       <Link href={`/programs/${program.slug}`}>
                         <div
                           className={cn(
-                            "flex flex-col justify-between rounded-3xl p-8 transition-transform duration-300 hover:scale-[1.02]",
-                            "bg-[#272C75] opacity-90",
+                            "group/card relative flex flex-col justify-between rounded-3xl p-8 transition-all duration-500",
+                            "bg-brand-navy-light ring-1 ring-white/[0.06] hover:ring-brand-orange/20",
+                            "hover:scale-[1.02] hover:shadow-2xl hover:shadow-brand-orange/5",
                           )}
                         >
+                          {/* Card glow on hover */}
+                          <div className="pointer-events-none absolute inset-0 rounded-3xl bg-white/[0.02] opacity-0 transition-opacity duration-500 group-hover/card:opacity-100" />
                           <div className="flex flex-col gap-6">
                             {/* Upper Section */}
                             <div className="flex flex-col gap-4">
@@ -251,7 +259,7 @@ export function FeaturedPrograms() {
                                       {program.name}
                                     </h3>
                                     {/* Batch number badge */}
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 font-manrope font-medium text-[#B9E1FE] text-xs">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 font-manrope font-medium text-text-light-blue text-xs">
                                       <Icons.Layers className="h-3 w-3" />
                                       {batch.name}{" "}
                                       {totalBatches > 1 && (
@@ -261,7 +269,7 @@ export function FeaturedPrograms() {
                                       )}
                                     </span>
                                   </div>
-                                  <p className="line-clamp-2 font-manrope text-[#B9E1FE]/80 text-xs leading-relaxed sm:text-sm">
+                                  <p className="line-clamp-2 font-manrope text-text-light-blue/80 text-xs leading-relaxed sm:text-sm">
                                     {program.description || "No description available."}
                                   </p>
                                 </div>
@@ -292,14 +300,18 @@ export function FeaturedPrograms() {
                           </div>
 
                           {/* Button */}
-                          <div className="mt-6">
+                          <div className="relative z-10 mt-6">
                             <Button
                               className={cn(
-                                "w-full cursor-pointer rounded-sm py-6 font-bold font-inter text-sm transition-all",
-                                "bg-white text-[#1A1F6D] shadow-md hover:bg-gray-100",
+                                "group/btn w-full cursor-pointer rounded-sm py-6 font-bold font-manrope text-sm transition-all duration-300",
+                                "bg-white text-brand-navy shadow-md hover:shadow-lg",
+                                "hover:bg-brand-navy hover:text-white",
                               )}
                             >
-                              {buttonLabel}
+                              <span className="flex items-center justify-center gap-2">
+                                {buttonLabel}
+                                <Icons.ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
+                              </span>
                             </Button>
                           </div>
                         </div>

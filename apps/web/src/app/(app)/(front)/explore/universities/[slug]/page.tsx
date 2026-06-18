@@ -58,12 +58,12 @@ export default function UniversityDetailPage() {
 
   if (!slug || (!isLoading && !id)) {
     return (
-      <div className="flex min-h-screen items-center justify-center pt-20 sm:pt-24">
+      <div className="flex min-h-screen items-center justify-center pt-16 sm:pt-20">
         <div className="text-center">
           <Building2 className="mx-auto h-12 w-12 text-text-muted-custom" />
           <h2 className="mt-4 font-bold font-bricolage text-brand-navy text-lg">Universitas tidak ditemukan</h2>
           <Link
-            href={"/universities" as any}
+            href={"/explore/universities" as any}
             className="mt-2 inline-flex items-center gap-1 font-manrope text-brand-orange text-sm hover:underline"
           >
             <ArrowLeft className="h-3 w-3" /> Kembali
@@ -75,7 +75,7 @@ export default function UniversityDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white pt-20 sm:pt-24">
+      <div className="min-h-screen bg-white pt-16 sm:pt-20">
         <div className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6">
           <Skeleton className="h-10 w-64" />
           <Skeleton className="h-4 w-96" />
@@ -92,12 +92,12 @@ export default function UniversityDetailPage() {
 
   if (!uni) {
     return (
-      <div className="flex min-h-screen items-center justify-center pt-20 sm:pt-24">
+      <div className="flex min-h-screen items-center justify-center pt-16 sm:pt-20">
         <div className="text-center">
           <Building2 className="mx-auto h-12 w-12 text-text-muted-custom" />
           <h2 className="mt-4 font-bold font-bricolage text-brand-navy text-lg">Universitas tidak ditemukan</h2>
           <Link
-            href={"/universities" as any}
+            href={"/explore/universities" as any}
             className="mt-2 inline-flex items-center gap-1 font-manrope text-brand-orange text-sm hover:underline"
           >
             <ArrowLeft className="h-3 w-3" /> Kembali
@@ -132,14 +132,14 @@ export default function UniversityDetailPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
-      <div className="border-b bg-white pt-20 sm:pt-24">
+      <div className="border-b bg-white pt-16 sm:pt-20">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2 font-manrope text-text-muted-custom text-xs">
             <Link href={"/" as any} className="transition-colors hover:text-brand-navy">
               Home
             </Link>
             <span>/</span>
-            <Link href={"/universities" as any} className="transition-colors hover:text-brand-navy">
+            <Link href={"/explore/universities" as any} className="transition-colors hover:text-brand-navy">
               Universities
             </Link>
             <span>/</span>
@@ -371,7 +371,7 @@ export default function UniversityDetailPage() {
                               key={p.idSms}
                               className="cursor-pointer border-t transition-colors hover:bg-brand-navy/5"
                               onClick={() =>
-                                router.push(`/universities/${slug}/prodi/${encodeURIComponent(p.idSms)}` as any)
+                                router.push(`/explore/universities/${slug}/prodi/${encodeURIComponent(p.idSms)}` as any)
                               }
                             >
                               <td className="p-3 font-mono text-text-muted-custom text-xs">{p.code ?? "-"}</td>

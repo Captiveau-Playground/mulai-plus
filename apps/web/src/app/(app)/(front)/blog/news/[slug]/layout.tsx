@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { client } from "@/lib/client";
 import { SITE } from "@/lib/site-config";
 
@@ -8,9 +9,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const slug = (await params).slug;
 
   try {
-    const article = await client.cms.articles.public.get({ slug });
+    const article = await client.cms.articles.public.get({ slug, type: "news" });
 
-    if (!article) return { alternates: { canonical: `/blog/news/${slug}` } };
+    if (!article) {
+      notFound();
+    }
+
+    // Ensure this content is actually news, not an article
+    if (article.type !== "news") {
+      notFound();
+    }
 
     const title = article.seo?.metaTitle || article.title;
     const description = article.seo?.metaDescription || article.excerpt || undefined;
