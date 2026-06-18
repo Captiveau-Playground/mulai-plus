@@ -34,7 +34,7 @@ export default function StudyProgramSlugPage() {
 
   if (!slug) {
     return (
-      <div className="flex min-h-screen items-center justify-center pt-20 sm:pt-24">
+      <div className="flex min-h-screen items-center justify-center pt-16 sm:pt-20">
         <div className="text-center">
           <GraduationCap className="mx-auto h-12 w-12 text-text-muted-custom" />
           <h2 className="mt-4 font-bold font-bricolage text-brand-navy text-lg">Program studi tidak ditemukan</h2>
@@ -51,7 +51,7 @@ export default function StudyProgramSlugPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="border-b bg-white pt-20 sm:pt-24">
+      <div className="border-b bg-white pt-16 sm:pt-20">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 font-manrope text-text-muted-custom text-xs">
             <Link href={"/" as any} className="transition-colors hover:text-brand-navy">

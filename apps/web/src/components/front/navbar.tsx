@@ -73,13 +73,13 @@ const NAV_ITEMS = [
       },
       {
         label: "Reguler",
-        href: "/programs/reguler-mentoring",
+        href: "/programs",
         desc: "Mentoring 6 minggu",
         icon: HeartHandshake,
       },
       {
         label: "Beasiswa",
-        href: "/programs/beasiswa-mentoring",
+        href: "/programs",
         desc: "Program seleksi",
         icon: HeartHandshake,
       },
@@ -126,8 +126,13 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const isExplore = pathname.startsWith("/explore");
-  const isExploreLight = isExplore && !isScrolled;
+  // Only transparent on list pages (dark hero), not on detail sub-pages (white header)
+  const isExploreList =
+    pathname === "/explore" ||
+    pathname.replace(/\/$/, "") === "/explore/universities" ||
+    pathname.replace(/\/$/, "") === "/explore/study-programs" ||
+    pathname.replace(/\/$/, "") === "/explore/passing-grade";
+  const isExploreLight = isExploreList && !isScrolled;
   const isTransparent =
     !isScrolled &&
     !pathname.startsWith("/programs") &&
@@ -227,7 +232,7 @@ export function Navbar() {
               href={item.href as Route}
               className={cn(
                 "rounded-full px-3 py-2 font-manrope text-sm transition-colors lg:px-4",
-                isExplore
+                isExploreLight
                   ? "text-white/80 hover:bg-white/10 hover:text-white"
                   : "text-text-main hover:bg-brand-navy/5 hover:text-brand-navy",
               )}
@@ -320,7 +325,7 @@ export function Navbar() {
                   variant="ghost"
                   className={cn(
                     "cursor-pointer rounded-full px-4 py-2 font-bold font-manrope text-sm lg:px-6",
-                    isExplore ? "text-white/80 hover:text-white" : "text-text-main",
+                    isExploreLight ? "text-white/80 hover:text-white" : "text-text-main",
                   )}
                 >
                   Login
@@ -330,7 +335,7 @@ export function Navbar() {
                 <Button
                   className={cn(
                     "cursor-pointer rounded-full px-4 py-2 font-bold font-manrope text-sm text-white lg:px-6",
-                    isExplore ? "bg-white/15 hover:bg-white/25" : "bg-brand-navy hover:bg-brand-navy/90",
+                    isExploreLight ? "bg-white/15 hover:bg-white/25" : "bg-brand-navy hover:bg-brand-navy/90",
                   )}
                 >
                   Daftar
