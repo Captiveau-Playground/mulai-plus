@@ -13,6 +13,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
@@ -53,79 +54,85 @@ export default function ExplorePage() {
   return (
     <div className="min-h-screen bg-white">
       <JsonLd data={jsonLd} />
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-brand-navy pt-20 sm:pt-24">
-        <div className="absolute inset-0">
-          <div className="h-full w-full bg-gradient-to-br from-brand-navy via-brand-navy to-brand-navy/95" />
-          <div className="absolute top-0 right-0 h-full w-1/2 opacity-[0.03]">
-            <div
-              className="h-full w-full"
-              style={{
-                backgroundImage: "radial-gradient(circle at 25% 50%, white 1px, transparent 1px)",
-                backgroundSize: "40px 40px",
-              }}
-            />
-          </div>
+      {/* Hero — compact, data-rich */}
+      <section className="relative overflow-hidden pt-20 sm:pt-24">
+        {/* Background image */}
+        <div className="pointer-events-none absolute inset-0">
+          <Image
+            src="/explore/architecture.webp"
+            alt=""
+            fill
+            className="object-cover object-bottom"
+            sizes="100vw"
+            priority
+          />
+          <div className="absolute inset-0 bg-brand-navy/70" />
+          <div className="absolute inset-0 bg-brand-navy/30" />
         </div>
-        <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-6 flex items-center justify-center gap-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-orange shadow-brand-orange/20 shadow-lg">
-                <GraduationCap className="h-6 w-6 text-white" />
+        {/* Grid pattern */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20">
+          <div className="mx-auto max-w-3xl">
+            {/* Eyebrow + heading */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange shadow-lg">
+                <GraduationCap className="h-5 w-5 text-white" />
               </div>
+              <span className="font-manrope font-semibold text-[11px] text-brand-orange uppercase tracking-wider">
+                Data Explorer
+              </span>
             </div>
-            <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
-              Jelajahi Data
+
+            <h1 className="mt-4 font-bold font-bricolage text-3xl text-white leading-tight sm:text-4xl lg:text-5xl">
+              Jelajahi <span className="text-brand-orange">408 Perguruan Tinggi</span>
               <br />
-              Pendidikan Tinggi
+              &amp; <span className="text-brand-orange">18.881 Program Studi</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl font-manrope text-lg text-white/60 leading-relaxed">
-              Akses data lengkap perguruan tinggi, program studi, dan passing grade SNBP/SNBT untuk membantu kamu
-              menentukan pilihan terbaik.
+
+            <p className="mt-3 max-w-xl font-manrope text-sm text-white/60 leading-relaxed sm:text-base">
+              Data passing grade, akreditasi, dan daya tampung dari sumber resmi. Cari universitas atau jurusan
+              impianmu.
             </p>
 
-            {/* Quick search */}
-            <div className="mx-auto mt-10 max-w-xl">
-              <Link
-                href="/explore/study-programs"
-                className="relative flex items-center outline-none focus:outline-none focus-visible:outline-none"
-              >
-                <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <div className="w-full cursor-text rounded-2xl bg-white/5 px-12 py-3.5 font-manrope text-sm text-white/30 backdrop-blur-sm transition-colors hover:bg-white/10">
+            {/* Quick search — lebih natural */}
+            <div className="mt-6 max-w-xl">
+              <Link href="/explore/study-programs" className="relative flex items-center">
+                <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-white/30" />
+                <div className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-11 py-3 font-manrope text-sm text-white/30 backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.10]">
                   Cari jurusan, universitas, atau passing grade...
                 </div>
-                <kbd className="absolute top-1/2 right-3 hidden -translate-y-1/2 rounded-md border border-white/10 bg-white/10 px-2 py-0.5 font-manrope text-[10px] text-white/40 sm:inline">
+                <kbd className="absolute top-1/2 right-3 hidden -translate-y-1/2 rounded-md border border-white/10 bg-white/[0.08] px-2 py-0.5 font-manrope text-[10px] text-white/30 sm:inline">
                   /
                 </kbd>
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Stats bar */}
-      <section className="border-gray-100 border-b bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 divide-x divide-gray-100 lg:grid-cols-4">
-            <div className="py-6 text-center">
-              <p className="font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">
-                {totalUni.toLocaleString()}
-              </p>
-              <p className="mt-1 font-manrope text-text-muted-custom text-xs">Perguruan Tinggi</p>
-            </div>
-            <div className="py-6 text-center">
-              <p className="font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">
-                {totalProg.toLocaleString()}
-              </p>
-              <p className="mt-1 font-manrope text-text-muted-custom text-xs">Program Studi</p>
-            </div>
-            <div className="py-6 text-center">
-              <p className="font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">38</p>
-              <p className="mt-1 font-manrope text-text-muted-custom text-xs">Provinsi</p>
-            </div>
-            <div className="py-6 text-center">
-              <p className="font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">5</p>
-              <p className="mt-1 font-manrope text-text-muted-custom text-xs">Tahun Data SNPMB</p>
+            {/* Stats inline — compact pills */}
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5">
+                <span className="font-bold font-bricolage text-sm text-white">{totalUni.toLocaleString()}</span>
+                <span className="ml-1.5 font-manrope text-white/50 text-xs">PT</span>
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5">
+                <span className="font-bold font-bricolage text-sm text-white">{totalProg.toLocaleString()}</span>
+                <span className="ml-1.5 font-manrope text-white/50 text-xs">Prodi</span>
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5">
+                <span className="font-bold font-bricolage text-sm text-white">38</span>
+                <span className="ml-1.5 font-manrope text-white/50 text-xs">Provinsi</span>
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5">
+                <span className="font-bold font-bricolage text-sm text-white">5</span>
+                <span className="ml-1.5 font-manrope text-white/50 text-xs">Tahun Data</span>
+              </div>
             </div>
           </div>
         </div>
