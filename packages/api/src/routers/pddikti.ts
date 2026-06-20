@@ -516,17 +516,17 @@ export const pddiktiRouter = {
 
   publicGetProgramSlugs: publicProcedure.handler(async () => {
     const data = await db
-      .select({ idSms: studyPrograms.idSms, name: studyPrograms.name })
+      .select({ name: studyPrograms.name })
       .from(studyPrograms)
-      .where(eq(studyPrograms.status, "Aktif"));
+      .where(eq(studyPrograms.status, "Aktif"))
+      .groupBy(studyPrograms.name);
     return data.map((p) => ({
-      id: p.idSms,
       slug: `${p.name
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
         .replace(/\s+/g, "-")
         .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "")}-${p.idSms.substring(0, 6)}`,
+        .replace(/^-|-$/g, "")}-${p.name.length}`,
       name: p.name,
     }));
   }),

@@ -18,6 +18,7 @@
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "@sentry/bun": "^10.58.0",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "hono": "catalog:",

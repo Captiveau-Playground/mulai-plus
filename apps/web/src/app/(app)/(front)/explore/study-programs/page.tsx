@@ -182,7 +182,7 @@ function StudyProgramsContent() {
             </div>
 
             {/* Search + Suggest */}
-            <div className="relative mx-auto mt-6 w-full max-w-xl">
+            <div className="relative mx-auto mt-6 w-full max-w-3xl">
               <div
                 className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
                 ref={inputRef}
