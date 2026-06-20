@@ -1,3 +1,11 @@
+import * as Sentry from "@sentry/bun";
+
+Sentry.init({
+  dsn: "https://eec617f779cd9df7b34a8f9701d97e82@o4511585856258048.ingest.us.sentry.io/4511585880834048",
+  enableLogs: true,
+  tracesSampleRate: 1.0,
+});
+
 import { randomUUID } from "node:crypto";
 import { utimes } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -88,6 +96,7 @@ export const apiHandler = new OpenAPIHandler(appRouter, {
   interceptors: [
     onError((error) => {
       console.error(error);
+      Sentry.captureException(error);
     }),
   ],
 });
@@ -96,6 +105,7 @@ export const rpcHandler = new RPCHandler(appRouter, {
   interceptors: [
     onError((error) => {
       console.error(error);
+      Sentry.captureException(error);
     }),
   ],
 });

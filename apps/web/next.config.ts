@@ -1,4 +1,5 @@
 import "@mulai-plus/env/web";
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -27,7 +28,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default {
+const sentryConfig = {
   ...nextConfig,
   async redirects() {
     return [
@@ -46,3 +47,11 @@ export default {
     ];
   },
 };
+
+export default withSentryConfig(sentryConfig, {
+  silent: true,
+  widenClientFileUpload: true,
+  reactComponentAnnotation: { enabled: true },
+  disableLogger: true,
+  automaticVercelMonitors: false,
+});

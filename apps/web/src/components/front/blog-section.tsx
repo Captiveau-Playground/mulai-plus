@@ -40,7 +40,7 @@ function ArticleCard({ article, index }: { article: ArticleItem; index: number }
       transition={{ duration: 0.4, delay: index * 0.08 }}
     >
       <Link
-        href={`/blog/articles/${article.slug}`}
+        href={`/blog/${article.type === "news" ? "news" : "articles"}/${article.slug}`}
         className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-orange/20 hover:shadow-md"
       >
         <div className="relative aspect-[16/10] overflow-hidden bg-brand-navy/[0.04]">
