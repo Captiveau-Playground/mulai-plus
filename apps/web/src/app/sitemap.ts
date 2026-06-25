@@ -161,7 +161,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
       console.log(`[sitemap] prodi: ${dynamicPages.filter((p) => p.url.includes("/prodi/")).length} URLs`);
     } catch (e) {
-      console.warn("[sitemap] Failed to fetch prodi list (expected if server not redeployed):", e.message || e);
+      console.warn(
+        "[sitemap] Failed to fetch prodi list (expected if server not redeployed):",
+        e instanceof Error ? e.message : e,
+      );
     }
   } catch (e) {
     console.error("[sitemap] client import failed:", e);
