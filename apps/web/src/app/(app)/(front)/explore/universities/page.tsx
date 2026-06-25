@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,16 +118,8 @@ export default function UniversitiesPage() {
   };
   const hasFilters = search || type !== "all" || province !== "all" || accreditation !== "all";
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "Universities — MULAI+",
-    description: "Jelajahi 408 perguruan tinggi di Indonesia",
-  };
-
   return (
     <div className="relative min-h-screen bg-white">
-      <JsonLd data={jsonLd} />
       {/* Hero — compact */}
       <section className="relative z-10 pt-20 sm:pt-24">
         {/* Background image */}

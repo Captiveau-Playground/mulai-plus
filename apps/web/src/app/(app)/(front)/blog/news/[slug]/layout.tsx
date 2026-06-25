@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { client } from "@/lib/client";
 import { SITE } from "@/lib/site-config";
 
-export const dynamic = "force-dynamic";
+// ISR: revalidate every hour
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const slug = (await params).slug;

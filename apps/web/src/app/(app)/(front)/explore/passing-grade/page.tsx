@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +27,26 @@ function useDebounce<T>(value: T, delay: number): T {
   return d;
 }
 
+function useNoindexOnSearchParams(searchParams: URLSearchParams) {
+  useEffect(() => {
+    const hasParams = Array.from(searchParams.entries()).length > 0;
+    if (hasParams) {
+      // Prevent Google from indexing filtered/search result pages
+      let meta = document.querySelector("meta[name='robots']");
+      if (!meta) {
+        meta = document.createElement("meta");
+        meta.setAttribute("name", "robots");
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute("content", "noindex, follow");
+    }
+  }, [searchParams]);
+}
+
 function PassingGradeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  useNoindexOnSearchParams(searchParams);
   const urlQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(urlQuery);
   const debounced = useDebounce(query, 300);
@@ -122,18 +138,8 @@ function PassingGradeContent() {
   const total = d?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "SearchResultsPage",
-    name: "Cek Passing Grade SNBP/SNBT — MULAI+",
-    description:
-      "Cek passing grade, daya tampung, dan tingkat keketatan SNBP/SNBT untuk ribuan program studi di 146 PTN Indonesia.",
-  };
-
   return (
     <div className="min-h-screen bg-white">
-      <JsonLd data={jsonLd} />
-
       <section className="relative overflow-hidden pt-20 sm:pt-24">
         {/* Background image */}
         <div className="pointer-events-none absolute inset-0">

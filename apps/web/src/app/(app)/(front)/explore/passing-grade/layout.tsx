@@ -20,6 +20,23 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLdSearch = {
+  "@context": "https://schema.org",
+  "@type": "SearchResultsPage",
+  name: "Cek Passing Grade SNBP/SNBT — MULAI+",
+  description:
+    "Cek passing grade, daya tampung, dan tingkat keketatan SNBP/SNBT untuk ribuan program studi di 146 PTN Indonesia.",
+};
+
 export default function PassingGradeLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <script
+        id="jsonld-passing-grade-search"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSearch) }}
+      />
+      {children}
+    </>
+  );
 }
