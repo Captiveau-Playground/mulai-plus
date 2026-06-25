@@ -14,6 +14,22 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLdCollection = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "Study Programs — MULAI+",
+  description: "Jelajahi 18.881 program studi dari berbagai perguruan tinggi",
+};
+
 export default function StudyProgramsLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <script
+        id="jsonld-study-programs-collection"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdCollection) }}
+      />
+      {children}
+    </>
+  );
 }

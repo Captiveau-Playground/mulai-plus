@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +27,26 @@ function useDebounce<T>(value: T, delay: number): T {
   return d;
 }
 
+function useNoindexOnSearchParams(searchParams: URLSearchParams) {
+  useEffect(() => {
+    const hasParams = Array.from(searchParams.entries()).length > 0;
+    if (hasParams) {
+      // Prevent Google from indexing filtered/search result pages
+      let meta = document.querySelector("meta[name='robots']");
+      if (!meta) {
+        meta = document.createElement("meta");
+        meta.setAttribute("name", "robots");
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute("content", "noindex, follow");
+    }
+  }, [searchParams]);
+}
+
 function PassingGradeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  useNoindexOnSearchParams(searchParams);
   const urlQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(urlQuery);
   const debounced = useDebounce(query, 300);
@@ -53,7 +69,9 @@ function PassingGradeContent() {
       if (sortBy !== "pg") p.set("sort", sortBy);
       const qs = p.toString();
       // biome-ignore lint/suspicious/noExplicitAny: dynamic route with query params
-      router.replace(`/explore/passing-grade${qs ? `?${qs}` : ""}` as any, { scroll: false });
+      router.replace(`/explore/passing-grade${qs ? `?${qs}` : ""}` as any, {
+        scroll: false,
+      });
     }
   }, [query, level, sortBy, urlQuery, router.replace]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -108,7 +126,10 @@ function PassingGradeContent() {
   });
   // biome-ignore lint/suspicious/noExplicitAny: query result shape
   const suggestions = (_sg as any)?.data ?? [];
-  const { data: _lv } = useQuery({ ...api.pddikti.publicListProgramLevels.queryOptions(), enabled: true });
+  const { data: _lv } = useQuery({
+    ...api.pddikti.publicListProgramLevels.queryOptions(),
+    enabled: true,
+  });
 
   // biome-ignore lint/suspicious/noExplicitAny: query result shape
   const d = _d as any;
@@ -117,18 +138,8 @@ function PassingGradeContent() {
   const total = d?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "SearchResultsPage",
-    name: "Cek Passing Grade SNBP/SNBT — MULAI+",
-    description:
-      "Cek passing grade, daya tampung, dan tingkat keketatan SNBP/SNBT untuk ribuan program studi di 146 PTN Indonesia.",
-  };
-
   return (
     <div className="min-h-screen bg-white">
-      <JsonLd data={jsonLd} />
-
       <section className="relative overflow-hidden pt-20 sm:pt-24">
         {/* Background image */}
         <div className="pointer-events-none absolute inset-0">
@@ -161,7 +172,7 @@ function PassingGradeContent() {
               Cari tahu tingkat keketatan jurusan di setiap PTN. Data SNBP 5 tahun terakhir.
             </p>
           </div>
-          <div className="relative mx-auto mt-6 w-full max-w-xl">
+          <div className="relative mx-auto mt-6 w-full max-w-3xl">
             <div
               ref={inputRef}
               className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
@@ -368,7 +379,10 @@ function PassingGradeContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "passing_grade", action: "first" });
+                  trackEvent("pagination", {
+                    page: "passing_grade",
+                    action: "first",
+                  });
                   setPage(0);
                 }}
                 disabled={page === 0}
@@ -380,7 +394,10 @@ function PassingGradeContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "passing_grade", action: "prev" });
+                  trackEvent("pagination", {
+                    page: "passing_grade",
+                    action: "prev",
+                  });
                   setPage((p) => Math.max(0, p - 1));
                 }}
                 disabled={page === 0}
@@ -395,7 +412,10 @@ function PassingGradeContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "passing_grade", action: "next" });
+                  trackEvent("pagination", {
+                    page: "passing_grade",
+                    action: "next",
+                  });
                   setPage((p) => Math.min(totalPages - 1, p + 1));
                 }}
                 disabled={page >= totalPages - 1}
@@ -407,7 +427,10 @@ function PassingGradeContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "passing_grade", action: "last" });
+                  trackEvent("pagination", {
+                    page: "passing_grade",
+                    action: "last",
+                  });
                   setPage(totalPages - 1);
                 }}
                 disabled={page >= totalPages - 1}

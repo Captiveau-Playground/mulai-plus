@@ -2,6 +2,7 @@
 
 import { env } from "@mulai-plus/env/web";
 import { usePathname, useSearchParams } from "next/navigation";
+import Script from "next/script";
 
 import { Suspense, useEffect, useRef } from "react";
 import { usePageViewTracking } from "@/lib/analytics";
@@ -25,30 +26,21 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
   const shouldLoad = Boolean(gaId) && consent === "accepted";
 
-  // Inject GA4 scripts via DOM (same approach as Clarity — guaranteed to execute)
+  // GA initialization script — loaded after user consent
   useEffect(() => {
     if (!shouldLoad || gaLoaded.current) return;
-
-    // Load GA4 library
-    const libScript = document.createElement("script");
-    libScript.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
-    libScript.async = true;
-    document.head.appendChild(libScript);
-
-    // Init GA4
-    const initScript = document.createElement("script");
-    initScript.textContent = `
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', '${gaId}', {
-        debug_mode: ${env.NEXT_PUBLIC_GA_DEBUG_MODE},
-      });
-    `;
-    document.head.appendChild(initScript);
-
     gaLoaded.current = true;
+    // gtag is defined by the inline Script below
   }, [shouldLoad]);
+
+  const gaInitScript = `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '${gaId}', {
+      debug_mode: ${env.NEXT_PUBLIC_GA_DEBUG_MODE},
+    });
+  `;
 
   return (
     <>
@@ -57,6 +49,14 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       </Suspense>
 
       {children}
+
+      {/* GA4 — loaded with afterInteractive so it doesn't block rendering */}
+      {shouldLoad && (
+        <>
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
+          <Script id="ga4-init" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: gaInitScript }} />
+        </>
+      )}
 
       <ClarityProvider consent={consent} />
       <CookieConsentBanner consent={consent} onAccept={accept} onReject={reject} />

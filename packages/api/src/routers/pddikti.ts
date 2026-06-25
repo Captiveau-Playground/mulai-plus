@@ -516,17 +516,17 @@ export const pddiktiRouter = {
 
   publicGetProgramSlugs: publicProcedure.handler(async () => {
     const data = await db
-      .select({ idSms: studyPrograms.idSms, name: studyPrograms.name })
+      .select({ name: studyPrograms.name })
       .from(studyPrograms)
-      .where(eq(studyPrograms.status, "Aktif"));
+      .where(eq(studyPrograms.status, "Aktif"))
+      .groupBy(studyPrograms.name);
     return data.map((p) => ({
-      id: p.idSms,
       slug: `${p.name
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
         .replace(/\s+/g, "-")
         .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "")}-${p.idSms.substring(0, 6)}`,
+        .replace(/^-|-$/g, "")}-${p.name.length}`,
       name: p.name,
     }));
   }),
@@ -984,5 +984,30 @@ export const pddiktiRouter = {
       .groupBy(universities.status)
       .orderBy(asc(universities.status));
     return r.map((x) => x.v);
+  }),
+
+  // ── Sitemap: Get all active study programs with university slugs ──
+  publicGetAllProdiForSitemap: publicProcedure.handler(async () => {
+    const data = await db
+      .select({
+        idSms: studyPrograms.idSms,
+        uniId: studyPrograms.idSp,
+        programName: studyPrograms.name,
+        uniName: universities.name,
+      })
+      .from(studyPrograms)
+      .innerJoin(universities, eq(studyPrograms.idSp, universities.idSp))
+      .where(and(eq(studyPrograms.status, "Aktif"), eq(universities.status, "Aktif")))
+      .orderBy(asc(studyPrograms.name));
+
+    return data.map((p) => ({
+      idSms: p.idSms,
+      uniSlug: `${p.uniName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")}-${p.uniId.substring(0, 6)}`,
+    }));
   }),
 };

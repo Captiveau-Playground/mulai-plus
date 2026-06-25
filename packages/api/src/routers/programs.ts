@@ -22,6 +22,7 @@ import {
   summaryReportItem,
 } from "@mulai-plus/db/schema/programs";
 import { systemSettings } from "@mulai-plus/db/schema/settings";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { adminOrProgramManagerProcedure, protectedProcedure, publicProcedure } from "../index";
 import {
@@ -112,7 +113,7 @@ export const programsRouter = {
       });
 
       if (!item) {
-        throw new Error("Program not found");
+        throw new ORPCError("NOT_FOUND", { message: "Program not found" });
       }
 
       // Aggregate mentors from all batches
@@ -162,7 +163,7 @@ export const programsRouter = {
         where: eq(program.id, input.programId),
       });
       if (!programItem) {
-        throw new Error("Program not found");
+        throw new ORPCError("NOT_FOUND", { message: "Program not found" });
       }
 
       // 2. Check if batch exists and is valid
@@ -500,7 +501,7 @@ export const programsRouter = {
       });
 
       if (!item) {
-        throw new Error("Program not found");
+        throw new ORPCError("NOT_FOUND", { message: "Program not found" });
       }
 
       // Aggregate mentors from all batches

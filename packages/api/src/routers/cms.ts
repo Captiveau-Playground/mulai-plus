@@ -11,6 +11,7 @@ import {
   cmsTag,
   newsletterSubscriber,
 } from "@mulai-plus/db/schema/cms";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 import { newsletter } from "../lib/newsletter";
@@ -131,7 +132,7 @@ export const articlesRouter = {
         });
 
         if (!item) {
-          throw new Error("Article not found");
+          throw new ORPCError("NOT_FOUND", { message: "Article not found" });
         }
 
         return item;
@@ -158,7 +159,7 @@ export const articlesRouter = {
         });
 
         if (!article) {
-          throw new Error("Article not found");
+          throw new ORPCError("NOT_FOUND", { message: "Article not found" });
         }
 
         // Get articles from same category, excluding current
@@ -282,7 +283,7 @@ export const articlesRouter = {
       });
 
       if (!item) {
-        throw new Error("Article not found");
+        throw new ORPCError("NOT_FOUND", { message: "Article not found" });
       }
 
       return item;

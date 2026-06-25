@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getUniversityBySlug } from "@/lib/pddikti/server";
 
+// ISR: revalidate weekly — university data rarely changes
+export const revalidate = 604800;
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const uni = await getUniversityBySlug(slug);
