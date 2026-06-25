@@ -15,6 +15,22 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLdCollection = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "Universities — MULAI+",
+  description: "Jelajahi 408 perguruan tinggi di Indonesia",
+};
+
 export default function UniversitiesLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <script
+        id="jsonld-universities-collection"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdCollection) }}
+      />
+      {children}
+    </>
+  );
 }

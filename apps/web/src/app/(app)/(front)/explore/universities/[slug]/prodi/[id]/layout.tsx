@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getProgramById, getUniversityBySlug } from "@/lib/pddikti/server";
 
+// ISR: revalidate weekly — program data rarely changes
+export const revalidate = 604800;
+
 export async function generateMetadata({
   params,
 }: {

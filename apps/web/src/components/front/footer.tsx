@@ -265,8 +265,8 @@ export function Footer() {
               {/* Uptime Badge */}
               <div className="flex w-full justify-center lg:w-fit">
                 <iframe
-                  src="https://status.captiveau.fun/badge?theme=dark"
-                  width="200"
+                  src="https://status.mulaiplus.id/badge?theme=dark"
+                  width="250"
                   height="30"
                   frameBorder="0"
                   scrolling="no"

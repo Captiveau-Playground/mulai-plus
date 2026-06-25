@@ -16,7 +16,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { JsonLd } from "@/components/JsonLd";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,9 +42,25 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
+function useNoindexOnSearchParams(searchParams: URLSearchParams) {
+  useEffect(() => {
+    const hasParams = Array.from(searchParams.entries()).length > 0;
+    if (hasParams) {
+      let meta = document.querySelector("meta[name='robots']");
+      if (!meta) {
+        meta = document.createElement("meta");
+        meta.setAttribute("name", "robots");
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute("content", "noindex, follow");
+    }
+  }, [searchParams]);
+}
+
 function StudyProgramsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  useNoindexOnSearchParams(searchParams);
   const detailName = searchParams.get("name");
   const urlQuery = searchParams.get("q") || "";
 
@@ -398,16 +413,8 @@ function StudyProgramsContent() {
   }
 
   // ═══════════════ DETAIL MODE ═══════════════
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "Study Programs — MULAI+",
-    description: "Jelajahi 18.881 program studi dari berbagai perguruan tinggi",
-  };
-
   return (
     <div className="min-h-screen bg-white">
-      <JsonLd data={jsonLd} />
       <div className="border-b bg-white pt-20 sm:pt-24">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 font-manrope text-text-muted-custom text-xs">

@@ -985,4 +985,29 @@ export const pddiktiRouter = {
       .orderBy(asc(universities.status));
     return r.map((x) => x.v);
   }),
+
+  // ── Sitemap: Get all active study programs with university slugs ──
+  publicGetAllProdiForSitemap: publicProcedure.handler(async () => {
+    const data = await db
+      .select({
+        idSms: studyPrograms.idSms,
+        uniId: studyPrograms.idSp,
+        programName: studyPrograms.name,
+        uniName: universities.name,
+      })
+      .from(studyPrograms)
+      .innerJoin(universities, eq(studyPrograms.idSp, universities.idSp))
+      .where(and(eq(studyPrograms.status, "Aktif"), eq(universities.status, "Aktif")))
+      .orderBy(asc(studyPrograms.name));
+
+    return data.map((p) => ({
+      idSms: p.idSms,
+      uniSlug: `${p.uniName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")}-${p.uniId.substring(0, 6)}`,
+    }));
+  }),
 };

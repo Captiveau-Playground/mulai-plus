@@ -24,9 +24,27 @@ export const viewport: Viewport = {
   themeColor: "#1A1F6D",
 };
 
+const jsonLdCollection = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "Eksplorasi Data Pendidikan Tinggi — MULAI+",
+  description:
+    "Jelajahi data lengkap 408 perguruan tinggi, 18.881 program studi, dan passing grade SNBP/SNBT 5 tahun terakhir.",
+  provider: {
+    "@type": "Organization",
+    name: "MULAI+",
+    url: process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id",
+  },
+};
+
 export default function ExploreLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <script
+        id="jsonld-explore-collection"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdCollection) }}
+      />
       {children}
       <ChatbotProvider />
     </>

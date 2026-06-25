@@ -332,7 +332,7 @@ export function ChatbotWidget() {
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "group fixed right-5 bottom-5 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all hover:scale-110 hover:shadow-2xl",
+          "group fixed right-4 bottom-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all hover:scale-110 hover:shadow-2xl sm:right-6 sm:bottom-6",
           open ? "hidden" : "flex",
           "bg-gradient-to-br from-brand-navy to-brand-navy/90",
         )}
@@ -343,20 +343,25 @@ export function ChatbotWidget() {
 
       <div
         className={cn(
-          "fixed right-4 bottom-4 z-50 flex w-[380px] flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-2xl transition-all duration-300 sm:right-6 sm:bottom-6",
+          "fixed z-50 flex flex-col overflow-hidden border border-gray-200/80 bg-white shadow-2xl transition-all duration-300",
+          // Mobile: full width with margin, not full height
+          "right-4 bottom-4 left-4 h-[520px] max-h-[70vh] rounded-2xl",
+          // Tablet: fixed width bottom-right
+          "sm:right-6 sm:bottom-6 sm:left-auto sm:h-[600px] sm:w-[400px]",
+          // Large screens
+          "lg:h-[640px] lg:w-[440px]",
           open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
-          "h-[560px] max-h-[80vh]",
         )}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between bg-gradient-to-r from-brand-navy to-brand-navy/90 px-4 py-3.5">
+        <div className="flex shrink-0 items-center justify-between bg-gradient-to-r from-brand-navy to-brand-navy/90 px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
-              <Sparkles className="h-4 w-4 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 sm:h-9 sm:w-9">
+              <Sparkles className="h-4 w-4 text-white sm:h-5 sm:w-5" />
             </div>
             <div>
-              <p className="font-bold font-bricolage text-sm text-white">MULAI+ AI</p>
-              <p className="font-manrope text-[10px] text-white/60">
+              <p className="font-bold font-bricolage text-sm text-white sm:text-base">MULAI+ AI</p>
+              <p className="font-manrope text-[10px] text-white/60 sm:text-xs">
                 {remaining !== null ? `${remaining} chat tersisa` : "Tanya apa aja"}
               </p>
             </div>
@@ -364,24 +369,25 @@ export function ChatbotWidget() {
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
+            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-white/10 sm:h-9 sm:w-9"
+            aria-label="Tutup chat"
           >
-            <X className="h-4 w-4 text-white/70" />
+            <X className="h-5 w-5 text-white/70" />
           </button>
         </div>
 
         {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           {messages.length === 0 && !streamContent ? (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-brand-navy/10">
-                <Sparkles className="h-7 w-7 text-brand-navy" />
+            <div className="flex h-full flex-col items-center justify-center px-4 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-navy/10 sm:h-20 sm:w-20">
+                <Sparkles className="h-8 w-8 text-brand-navy sm:h-10 sm:w-10" />
               </div>
-              <p className="font-bold font-bricolage text-brand-navy text-sm">Halo! 👋</p>
-              <p className="mt-1 mb-4 max-w-xs font-manrope text-gray-500 text-xs leading-relaxed">
+              <p className="font-bold font-bricolage text-base text-brand-navy sm:text-lg">Halo! 👋</p>
+              <p className="mt-1.5 mb-5 max-w-xs font-manrope text-gray-500 text-sm leading-relaxed sm:text-base">
                 Aku asisten MULAI+. Tanya seputar universitas, jurusan, passing grade, atau program mentoring!
               </p>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex w-full flex-col gap-2 sm:max-w-sm">
                 {[
                   "Cari universitas negeri di Jawa Timur",
                   "Rekomendasi jurusan untuk anak IPA",
@@ -391,7 +397,7 @@ export function ChatbotWidget() {
                     key={q}
                     type="button"
                     onClick={() => sendMessage(q)}
-                    className="rounded-xl border border-gray-200 px-3.5 py-2 font-manrope text-gray-600 text-xs transition-all hover:border-brand-navy/30 hover:bg-brand-navy/5 hover:text-brand-navy"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 font-manrope text-gray-600 text-sm transition-all hover:border-brand-navy/30 hover:bg-brand-navy/5 hover:text-brand-navy active:scale-[0.98] sm:text-base"
                   >
                     {q}
                   </button>
@@ -399,13 +405,13 @@ export function ChatbotWidget() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3 sm:space-y-2">
               {messages.map((msg, i) => (
                 <div key={i}>
                   <div className={cn("flex flex-col", msg.role === "user" ? "items-end" : "items-start")}>
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                        "max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:max-w-[80%] sm:px-3.5 sm:py-2.5",
                         msg.role === "user" ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-800",
                       )}
                     >
@@ -427,33 +433,33 @@ export function ChatbotWidget() {
                       </ReactMarkdown>
                     </div>
                     {msg.createdAt && (
-                      <span className="mt-0.5 px-1 font-manrope text-[9px] text-gray-400">
+                      <span className="mt-0.5 px-1 font-manrope text-[10px] text-gray-400 sm:text-[9px]">
                         {formatTime(msg.createdAt)}
                       </span>
                     )}
                   </div>
 
                   {msg.id && msg.role === "assistant" && (
-                    <div className="mt-0.5 ml-2 flex items-center gap-1">
+                    <div className="mt-0.5 ml-2 flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => submitFeedback(msg.id!, "up")}
                         className={cn(
-                          "flex h-5 w-5 items-center justify-center rounded transition-colors",
+                          "flex h-6 w-6 items-center justify-center rounded transition-colors sm:h-5 sm:w-5",
                           msg.feedback === "up" ? "bg-green-50 text-green-600" : "text-gray-400 hover:text-gray-600",
                         )}
                       >
-                        <ThumbsUp className="h-2.5 w-2.5" />
+                        <ThumbsUp className="h-3.5 w-3.5 sm:h-2.5 sm:w-2.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => submitFeedback(msg.id!, "down")}
                         className={cn(
-                          "flex h-5 w-5 items-center justify-center rounded transition-colors",
+                          "flex h-6 w-6 items-center justify-center rounded transition-colors sm:h-5 sm:w-5",
                           msg.feedback === "down" ? "bg-red-50 text-red-600" : "text-gray-400 hover:text-gray-600",
                         )}
                       >
-                        <ThumbsDown className="h-2.5 w-2.5" />
+                        <ThumbsDown className="h-3.5 w-3.5 sm:h-2.5 sm:w-2.5" />
                       </button>
                     </div>
                   )}
@@ -463,11 +469,11 @@ export function ChatbotWidget() {
               {/* Streaming message with typewriter */}
               {streamContent && (
                 <div className="flex flex-col items-start">
-                  <div className="max-w-[85%] rounded-2xl bg-gray-100 px-3.5 py-2.5 text-gray-800 text-sm leading-relaxed">
+                  <div className="max-w-[88%] rounded-2xl bg-gray-100 px-4 py-3 text-gray-800 text-sm leading-relaxed sm:max-w-[80%] sm:px-3.5 sm:py-2.5">
                     <TypewriterMessage content={streamContent} />
                   </div>
                   {streamCreatedAt && (
-                    <span className="mt-0.5 px-1 font-manrope text-[9px] text-gray-400">
+                    <span className="mt-0.5 px-1 font-manrope text-[10px] text-gray-400 sm:text-[9px]">
                       {formatTime(streamCreatedAt)}
                     </span>
                   )}
@@ -476,9 +482,9 @@ export function ChatbotWidget() {
 
               {loading && !streamContent && (
                 <div className="flex justify-start">
-                  <div className="flex items-center gap-2 rounded-2xl bg-gray-100 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2.5 rounded-2xl bg-gray-100 px-4 py-3 sm:gap-2 sm:px-3.5 sm:py-2.5">
                     <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    <span className="font-manrope text-gray-500 text-xs">Mengetik...</span>
+                    <span className="font-manrope text-gray-500 text-xs sm:text-xs">Mengetik...</span>
                   </div>
                 </div>
               )}
@@ -490,8 +496,8 @@ export function ChatbotWidget() {
 
         {/* Auth gate */}
         {requiresAuth && (
-          <div className="shrink-0 border-gray-100 border-t bg-amber-50 px-4 py-3">
-            <p className="mb-2 font-manrope text-amber-800 text-xs">
+          <div className="shrink-0 border-gray-100 border-t bg-amber-50 px-4 py-4 sm:px-5 sm:py-3">
+            <p className="mb-3 font-manrope text-amber-800 text-sm leading-relaxed sm:mb-2 sm:text-xs">
               {remaining === 0 && redirectUrl.includes("wa.me")
                 ? "Limit chat habis! Klik tombol di bawah untuk request tambahan."
                 : "Chat gratis habis! Daftar untuk lanjut konsultasi."}
@@ -508,7 +514,7 @@ export function ChatbotWidget() {
                   window.location.href = `/login?callbackUrl=${encodeURIComponent(page)}&utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit`;
                 }
               }}
-              className="w-full cursor-pointer rounded-xl bg-brand-navy px-4 py-3 font-manrope text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90"
+              className="w-full cursor-pointer rounded-xl bg-brand-navy px-5 py-3.5 font-manrope text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90 active:scale-[0.98] sm:px-4 sm:py-3"
             >
               {redirectUrl.includes("wa.me") ? "Request via WhatsApp" : "Login / Daftar Gratis"}
             </button>
@@ -522,24 +528,28 @@ export function ChatbotWidget() {
               e.preventDefault();
               sendMessage(input);
             }}
-            className="shrink-0 border-gray-100 border-t p-3"
+            className="shrink-0 border-gray-100 border-t px-3 py-3 sm:px-4 sm:py-3"
           >
-            <div className="flex gap-2">
+            <div className="flex gap-2.5 sm:gap-2">
               <Input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Tanya sesuatu..."
-                className="h-10 rounded-xl border-gray-200 bg-gray-50 font-manrope text-sm placeholder:text-gray-400"
+                className="h-12 rounded-xl border-gray-200 bg-gray-50 font-manrope text-sm placeholder:text-gray-400 sm:h-10"
                 disabled={loading}
               />
               <Button
                 type="submit"
                 disabled={loading || !input.trim()}
                 size="icon"
-                className="h-10 w-10 shrink-0 rounded-xl bg-brand-navy text-white hover:bg-brand-navy/90"
+                className="h-12 w-12 shrink-0 rounded-xl bg-brand-navy text-white hover:bg-brand-navy/90 active:scale-[0.95] sm:h-10 sm:w-10"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin sm:h-4 sm:w-4" />
+                ) : (
+                  <Send className="h-5 w-5 sm:h-4 sm:w-4" />
+                )}
               </Button>
             </div>
           </form>

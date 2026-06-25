@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { JsonLd } from "@/components/JsonLd";
 import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/utils/orpc";
@@ -38,22 +37,8 @@ export default function ExplorePage() {
   // biome-ignore lint/suspicious/noExplicitAny: query result shape
   const totalProg = (_prog as any)?.total ?? 18881;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "Eksplorasi Data Pendidikan Tinggi — MULAI+",
-    description:
-      "Jelajahi data lengkap 408 perguruan tinggi, 18.881 program studi, dan passing grade SNBP/SNBT 5 tahun terakhir.",
-    provider: {
-      "@type": "Organization",
-      name: "MULAI+",
-      url: "https://mulaiplus.id",
-    },
-  };
-
   return (
     <div className="min-h-screen bg-white">
-      <JsonLd data={jsonLd} />
       {/* Hero — compact, data-rich */}
       <section className="relative overflow-hidden pt-20 sm:pt-24">
         {/* Background image */}
