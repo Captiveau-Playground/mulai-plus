@@ -238,7 +238,7 @@ jobs:
                   - AI_PORT=8000
                   - AI_API_KEY=${AI_API_KEY}
                   - DATABASE_URL=${DATABASE_URL}
-                  - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://llm.mulaiplus.id/v1}
+                  - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://43.157.247.204:20128/v1}
                   - OPENAI_API_KEY=${OPENAI_API_KEY}
                   - OPENAI_MODEL=${OPENAI_MODEL:-free-stack}
                   - CORS_ORIGIN=https://staging.mulaiplus.id
@@ -290,7 +290,7 @@ jobs:
             PORT_WEB=3001
             PORT_SERVER=3000
             AI_API_KEY=${{ secrets.AI_API_KEY }}
-            OPENAI_BASE_URL=https://llm.mulaiplus.id/v1
+            OPENAI_BASE_URL=http://43.157.247.204:20128/v1
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             OPENAI_MODEL=free-stack
             NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
