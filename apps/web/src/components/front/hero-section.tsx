@@ -92,7 +92,7 @@ export function HeroSection() {
             className="flex flex-wrap items-center gap-2 md:gap-3"
           >
             <StatPill icon={GraduationCap} value="18.881" label="Program Studi" />
-            <StatPill icon={MapPin} value="408" label="Universitas" />
+            <StatPill icon={MapPin} value="335+" label="Universitas" />
             <StatPill icon={BookOpen} value="38" label="Provinsi" />
           </motion.div>
 

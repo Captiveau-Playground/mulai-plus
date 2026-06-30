@@ -6,12 +6,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { AuthGate } from "@/components/front/auth-gate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/analytics";
+import { authClient } from "@/lib/auth-client";
 import { getProgramIcon } from "@/lib/program-icons";
 import { orpc } from "@/utils/orpc";
 
@@ -43,7 +45,10 @@ function useNoindexOnSearchParams(searchParams: URLSearchParams) {
   }, [searchParams]);
 }
 
+const PG_SEARCH_KEY = "mulaiplus-pg-search-count";
+
 function PassingGradeContent() {
+  const { data: session } = authClient.useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   useNoindexOnSearchParams(searchParams);
@@ -55,8 +60,13 @@ function PassingGradeContent() {
     if (debounced && debounced !== prevSearch.current) {
       trackEvent("search_query", { page: "passing_grade", query: debounced });
       prevSearch.current = debounced;
+      // Increment search count (max 10)
+      if (!session) {
+        const count = Math.min(Number.parseInt(localStorage.getItem(PG_SEARCH_KEY) || "0", 10) + 1, 10);
+        localStorage.setItem(PG_SEARCH_KEY, String(count));
+      }
     }
-  }, [debounced]);
+  }, [debounced, session]);
   const [level, setLevel] = useState(searchParams.get("level") || "all");
   const [sortBy, setSortBy] = useState(searchParams.get("sort") || "pg");
 
@@ -298,6 +308,22 @@ function PassingGradeContent() {
 
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {(() => {
+            const searchCount = Number.parseInt(
+              typeof window !== "undefined" ? localStorage.getItem("mulaiplus-pg-search-count") || "0" : "0",
+              10,
+            );
+            if (!session && searchCount >= 3) {
+              return (
+                <AuthGate
+                  gateName="passing_grade_search"
+                  title="Akses Data Passing Grade"
+                  description="Kamu sudah melakukan 3 kali pengecekan. Daftar gratis untuk lanjut melihat passing grade, daya tampung, dan keketatan SNBP/SNBT."
+                />
+              );
+            }
+            return null;
+          })()}
           {isLoading && items.length === 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[...Array(6)].map((_, i) => (

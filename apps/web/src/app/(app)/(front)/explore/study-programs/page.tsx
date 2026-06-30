@@ -152,7 +152,7 @@ function StudyProgramsContent() {
   if (!detailName) {
     return (
       <div className="min-h-screen bg-white">
-        <section className="relative overflow-hidden pt-20 sm:pt-24">
+        <section className="relative pt-20 sm:pt-24">
           {/* Background image */}
           <div className="pointer-events-none absolute inset-0">
             <Image
@@ -197,7 +197,7 @@ function StudyProgramsContent() {
             </div>
 
             {/* Search + Suggest */}
-            <div className="relative mx-auto mt-6 w-full max-w-3xl">
+            <div className="relative mx-auto mt-6 w-full max-w-3xl overflow-visible">
               <div
                 className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
                 ref={inputRef}

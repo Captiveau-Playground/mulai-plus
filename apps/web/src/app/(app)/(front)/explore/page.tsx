@@ -24,18 +24,18 @@ const api = orpc as any;
 
 export default function ExplorePage() {
   const { data: _uni } = useQuery({
-    ...api.pddikti.publicListUniversities.queryOptions({ input: { page: 1, pageSize: 1 } }),
-    staleTime: 1000 * 60 * 10,
+    ...api.pddikti.publicGetUniversitySlugs.queryOptions(),
+    staleTime: 1000 * 60 * 60,
   });
   const { data: _prog } = useQuery({
-    ...api.pddikti.publicSearchPrograms.queryOptions({ input: { page: 1, pageSize: 1 } }),
-    staleTime: 1000 * 60 * 10,
+    ...api.pddikti.publicGetAllProdiForSitemap.queryOptions(),
+    staleTime: 1000 * 60 * 60,
   });
 
   // biome-ignore lint/suspicious/noExplicitAny: query result shape
-  const totalUni = (_uni as any)?.total ?? 408;
+  const totalUni = Array.isArray(_uni) ? _uni.length : 335;
   // biome-ignore lint/suspicious/noExplicitAny: query result shape
-  const totalProg = (_prog as any)?.total ?? 18881;
+  const totalProg = Array.isArray(_prog) ? _prog.length : 14752;
 
   return (
     <div className="min-h-screen bg-white">
@@ -77,9 +77,9 @@ export default function ExplorePage() {
             </div>
 
             <h1 className="mt-4 font-bold font-bricolage text-3xl text-white leading-tight sm:text-4xl lg:text-5xl">
-              Jelajahi <span className="text-brand-orange">408 Perguruan Tinggi</span>
+              Jelajahi <span className="text-brand-orange">335+ Perguruan Tinggi</span>
               <br />
-              &amp; <span className="text-brand-orange">18.881 Program Studi</span>
+              &amp; <span className="text-brand-orange">10.000+ Program Studi</span>
             </h1>
 
             <p className="mt-3 max-w-xl font-manrope text-sm text-white/60 leading-relaxed sm:text-base">
@@ -146,7 +146,7 @@ export default function ExplorePage() {
                     <h3 className="font-bold font-bricolage text-brand-navy text-lg transition-colors group-hover:text-brand-orange">
                       Universities
                     </h3>
-                    <p className="font-manrope text-text-muted-custom text-xs">408 perguruan tinggi</p>
+                    <p className="font-manrope text-text-muted-custom text-xs">335+ perguruan tinggi</p>
                   </div>
                   <ArrowRight className="h-5 w-5 shrink-0 text-gray-200 transition-all group-hover:translate-x-1 group-hover:text-brand-orange" />
                 </div>

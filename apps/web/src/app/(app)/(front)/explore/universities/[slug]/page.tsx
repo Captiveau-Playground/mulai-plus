@@ -15,11 +15,13 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { CompareButton } from "@/components/front/compare-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trackEvent } from "@/lib/analytics";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -32,6 +34,8 @@ const accStyles: Record<string, string> = {
 };
 
 export default function UniversityDetailPage() {
+  const { data: _session } = authClient.useSession();
+  const isLoggedIn = !!_session;
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
@@ -41,7 +45,7 @@ export default function UniversityDetailPage() {
   const [prodiPage, setProdiPage] = useState(0);
   const PRODI_PAGE_SIZE = 15;
 
-  const { data: _slugs } = useQuery({
+  const { data: _slugs, isLoading: slugsLoading } = useQuery({
     ...api.pddikti.publicGetUniversitySlugs.queryOptions(),
     staleTime: 1000 * 60 * 60,
   });
@@ -56,7 +60,7 @@ export default function UniversityDetailPage() {
   });
   const uni = _uni as any;
 
-  if (!slug || (!isLoading && !id)) {
+  if (!slug || (!isLoading && !slugsLoading && !id)) {
     return (
       <div className="flex min-h-screen items-center justify-center pt-16 sm:pt-20">
         <div className="text-center">
@@ -73,19 +77,80 @@ export default function UniversityDetailPage() {
     );
   }
 
-  if (isLoading) {
+  if (slugsLoading || (!!id && isLoading)) {
     return (
-      <div className="min-h-screen bg-white pt-16 sm:pt-20">
-        <div className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-4 w-96" />
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
+      <div className="min-h-screen bg-white">
+        {/* Breadcrumb skeleton */}
+        <div className="border-b bg-white pt-16 sm:pt-20">
+          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+            <Skeleton className="h-3 w-48" />
           </div>
         </div>
+
+        {/* Hero skeleton */}
+        <section className="border-b bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+            <div className="flex items-start gap-4">
+              <Skeleton className="h-16 w-16 shrink-0 rounded-2xl" />
+              <div className="min-w-0 flex-1 space-y-3">
+                <Skeleton className="h-8 w-72 sm:h-9" />
+                <Skeleton className="h-4 w-56" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Stats skeleton */}
+        <section className="py-8 sm:py-12">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-xl border bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-6 w-12" />
+                    </div>
+                    <Skeleton className="h-10 w-10 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Tabs skeleton */}
+        <section className="border-b">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="flex gap-4 border-b py-3">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-28" />
+            </div>
+          </div>
+        </section>
+
+        {/* Content skeleton */}
+        <section className="py-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="space-y-4">
+              <Skeleton className="h-5 w-48" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between rounded-xl border p-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
@@ -126,6 +191,9 @@ export default function UniversityDetailPage() {
 
   const totalProdiPages = Math.ceil(filteredPrograms.length / PRODI_PAGE_SIZE);
   const pagedPrograms = filteredPrograms.slice(prodiPage * PRODI_PAGE_SIZE, (prodiPage + 1) * PRODI_PAGE_SIZE);
+  const MAX_FREE_PRODI = 10;
+  const displayPrograms = isLoggedIn ? pagedPrograms : pagedPrograms.slice(0, MAX_FREE_PRODI);
+  const hasMoreProdi = !isLoggedIn && filteredPrograms.length > MAX_FREE_PRODI;
 
   const totalStudents = uni.studyPrograms?.reduce((s: number, p: any) => s + (p.totalStudents ?? 0), 0) ?? 0;
 
@@ -206,6 +274,11 @@ export default function UniversityDetailPage() {
         </div>
       </section>
 
+      {/* Compare & Actions */}
+      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6">
+        <CompareButton id={id} name={uni.name} size="xs" />
+      </div>
+
       {/* Content */}
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -278,37 +351,47 @@ export default function UniversityDetailPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3 p-5 pb-3">
                     <h3 className="font-bold font-bricolage text-brand-navy text-sm">
                       Daftar Program Studi{" "}
-                      <span className="font-manrope font-normal text-text-muted-custom">
-                        ({filteredPrograms.length} dari {allPrograms.length})
-                      </span>
+                      {!hasMoreProdi && (
+                        <span className="font-manrope font-normal text-text-muted-custom">
+                          ({filteredPrograms.length} dari {allPrograms.length})
+                        </span>
+                      )}
+                      {hasMoreProdi && (
+                        <span className="font-manrope font-normal text-text-muted-custom">
+                          ({Math.min(MAX_FREE_PRODI, filteredPrograms.length)}
+                          {filteredPrograms.length > MAX_FREE_PRODI ? "+" : ""} dari {allPrograms.length})
+                        </span>
+                      )}
                     </h3>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Cari prodi..."
-                        value={prodiSearch}
-                        onChange={(e) => {
-                          setProdiSearch(e.target.value);
-                          setProdiPage(0);
-                        }}
-                        className="h-8 w-44 rounded-lg border border-gray-200 px-3 font-manrope text-text-main text-xs placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
-                      />
-                      <select
-                        value={prodiLevel}
-                        onChange={(e) => {
-                          setProdiLevel(e.target.value);
-                          setProdiPage(0);
-                        }}
-                        className="h-8 rounded-lg border border-gray-200 px-2 font-manrope text-text-main text-xs focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
-                      >
-                        <option value="all">Semua Jenjang</option>
-                        {levels.map((l) => (
-                          <option key={l} value={l}>
-                            {l}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {!hasMoreProdi && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Cari prodi..."
+                          value={prodiSearch}
+                          onChange={(e) => {
+                            setProdiSearch(e.target.value);
+                            setProdiPage(0);
+                          }}
+                          className="h-8 w-44 rounded-lg border border-gray-200 px-3 font-manrope text-text-main text-xs placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
+                        />
+                        <select
+                          value={prodiLevel}
+                          onChange={(e) => {
+                            setProdiLevel(e.target.value);
+                            setProdiPage(0);
+                          }}
+                          className="h-8 rounded-lg border border-gray-200 px-2 font-manrope text-text-main text-xs focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
+                        >
+                          <option value="all">Semua Jenjang</option>
+                          {levels.map((l) => (
+                            <option key={l} value={l}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -366,7 +449,7 @@ export default function UniversityDetailPage() {
                       </thead>
                       <tbody>
                         {pagedPrograms.length ? (
-                          pagedPrograms.map((p: any) => (
+                          displayPrograms.map((p: any) => (
                             <tr
                               key={p.idSms}
                               className="cursor-pointer border-t transition-colors hover:bg-brand-navy/5"
@@ -403,9 +486,29 @@ export default function UniversityDetailPage() {
                         )}
                       </tbody>
                     </table>
+                    {hasMoreProdi && (
+                      <div className="border-t px-5 py-4 text-center">
+                        <p className="mb-3 font-manrope text-sm text-text-muted-custom">
+                          {filteredPrograms.length - MAX_FREE_PRODI} program studi lainnya tersembunyi
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            trackEvent("authgate_cta_click", {
+                              gate: "prodi_list_univ",
+                              page: window.location.pathname,
+                            });
+                            window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`;
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl bg-brand-navy px-6 py-3 font-manrope font-semibold text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90"
+                        >
+                          Daftar Gratis untuk Lihat Semua
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {/* Pagination */}
-                  {totalProdiPages > 1 && (
+                  {totalProdiPages > 1 && !hasMoreProdi && (
                     <div className="flex items-center justify-between border-t px-5 py-3">
                       <span className="font-manrope text-text-muted-custom text-xs">
                         {prodiPage * PRODI_PAGE_SIZE + 1}-

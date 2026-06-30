@@ -60,6 +60,7 @@ export const EXPLORE_LINKS: NavLink[] = [
   { label: "Universities", href: "/explore/universities" },
   { label: "Program Studi", href: "/explore/study-programs" },
   { label: "Passing Grade", href: "/explore/passing-grade" },
+  { label: "Bandingkan", href: "/explore/compare" },
 ];
 
 export const BLOG_LINKS: NavLink[] = [
