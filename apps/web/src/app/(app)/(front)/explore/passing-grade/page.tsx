@@ -166,7 +166,7 @@ function PassingGradeContent() {
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20">
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-7xl">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange shadow-lg">
                 <BarChart3 className="h-5 w-5 text-white" />
@@ -182,7 +182,7 @@ function PassingGradeContent() {
               Cari tahu tingkat keketatan jurusan di setiap PTN. Data SNBP 5 tahun terakhir.
             </p>
           </div>
-          <div className="relative mx-auto mt-6 w-full max-w-3xl">
+          <div className="relative mt-6 w-full max-w-3xl">
             <div
               ref={inputRef}
               className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
