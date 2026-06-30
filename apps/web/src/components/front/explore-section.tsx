@@ -80,12 +80,12 @@ export function ExploreSection() {
   });
 
   const { data: _uni } = useQuery({
-    ...api.pddikti.publicListUniversities.queryOptions({ input: { page: 1, pageSize: 1 } }),
-    staleTime: 1000 * 60 * 10,
+    ...api.pddikti.publicGetUniversitySlugs.queryOptions(),
+    staleTime: 1000 * 60 * 60,
   });
   const { data: _prog } = useQuery({
-    ...api.pddikti.publicSearchPrograms.queryOptions({ input: { page: 1, pageSize: 1 } }),
-    staleTime: 1000 * 60 * 10,
+    ...api.pddikti.publicGetAllProdiForSitemap.queryOptions(),
+    staleTime: 1000 * 60 * 60,
   });
 
   const POPULAR_UNI_NAMES = [
@@ -116,8 +116,8 @@ export function ExploreSection() {
   const uniResults = (_uniResults as any)?.data ?? [];
   const progResults = (_progResults as any)?.data ?? [];
   const isFetching = searchMode === "university" ? isFetchingUni : isFetchingProg;
-  const totalUni = (_uni as any)?.total ?? 408;
-  const totalProg = (_prog as any)?.total ?? 18881;
+  const totalUni = Array.isArray(_uni) ? _uni.length : 335;
+  const totalProg = Array.isArray(_prog) ? _prog.length : 14752;
 
   function uniSlug(name: string, id: string) {
     return `${name
@@ -149,7 +149,7 @@ export function ExploreSection() {
 
   // Show search bar + results first on mobile
   const SearchSection = (
-    <div ref={panelRef}>
+    <div ref={panelRef} className="relative z-20">
       {/* Search tabs + input */}
       <div className="mb-3 flex items-center gap-1.5">
         <button
@@ -188,7 +188,7 @@ export function ExploreSection() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="relative">
+      <form onSubmit={handleSubmit} className="relative z-10">
         <div
           className={cn(
             "flex items-center gap-2 rounded-xl border bg-white px-4 py-3 shadow-sm transition-all sm:gap-3 sm:px-5 sm:py-3.5",
@@ -232,8 +232,8 @@ export function ExploreSection() {
         </div>
 
         {showResults && debounced.length >= 2 && (
-          <div className="absolute top-full right-0 left-0 z-50 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-            <div className="max-h-80 overflow-y-auto">
+          <div className="absolute top-full right-0 left-0 z-[100] mt-2 rounded-xl border border-gray-200 bg-white shadow-lg">
+            <div className="max-h-80 overflow-y-auto rounded-xl">
               {isFetching ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-brand-navy/40" />
@@ -362,7 +362,7 @@ export function ExploreSection() {
             </h2>
 
             <p className="mt-2 mb-5 max-w-lg font-manrope text-sm text-text-muted-custom leading-relaxed sm:text-base">
-              Data passing grade, akreditasi, dari 408 PT dan 18.881 prodi se-Indonesia.
+              Data passing grade, akreditasi, dari 335+ PT dan 15.000+ prodi se-Indonesia.
             </p>
 
             {/* Search */}

@@ -43,7 +43,7 @@ app.use(logger());
 // Rate limiter untuk API publik (pddikti)
 const limiter = rateLimiter({
   windowMs: 60 * 1000, // 1 menit
-  limit: 30, // 30 request per menit per IP
+  limit: 60, // 60 request per menit per IP
   standardHeaders: "draft-6",
   keyGenerator: (c) => c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
   message: { status: 429, message: "Too many requests. Please slow down." },

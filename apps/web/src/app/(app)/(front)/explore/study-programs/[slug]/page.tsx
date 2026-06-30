@@ -32,7 +32,57 @@ export default function StudyProgramSlugPage() {
   });
   const detail = _data as any;
 
-  if (!slug) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white">
+        {/* Breadcrumb skeleton */}
+        <div className="border-b bg-white pt-16 sm:pt-20">
+          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+            <Skeleton className="h-3 w-48" />
+          </div>
+        </div>
+
+        {/* Hero skeleton */}
+        <section className="border-b bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-8 w-72 sm:h-9" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Content skeleton — university cards */}
+        <section className="py-8 sm:py-12">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="space-y-4">
+              <Skeleton className="h-5 w-40" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-xl border bg-white p-5 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-56" />
+                      <Skeleton className="h-3 w-32" />
+                      <div className="mt-2 flex gap-2">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (!slug || !detail) {
     return (
       <div className="flex min-h-screen items-center justify-center pt-16 sm:pt-20">
         <div className="text-center">

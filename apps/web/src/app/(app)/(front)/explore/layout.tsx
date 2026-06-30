@@ -37,6 +37,8 @@ const jsonLdCollection = {
   },
 };
 
+import { CompareFloatingBar } from "@/components/front/compare-floating-bar";
+
 export default function ExploreLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -46,6 +48,7 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdCollection) }}
       />
       {children}
+      <CompareFloatingBar />
       <ChatbotProvider />
     </>
   );

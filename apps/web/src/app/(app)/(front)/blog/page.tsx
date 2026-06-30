@@ -41,7 +41,7 @@ function getReadingTime(minutes: number | null) {
 function HeroFeatured({ article }: { article: ArticleItem }) {
   return (
     <Link
-      href={`/blog/articles/${article.slug}`}
+      href={`/blog/${article.type === "news" ? "news" : "articles"}/${article.slug}`}
       className="group relative block overflow-hidden rounded-2xl bg-brand-navy shadow-xl"
     >
       <div className="relative min-h-[300px] md:min-h-[400px]">
@@ -96,30 +96,42 @@ function HeroFeatured({ article }: { article: ArticleItem }) {
   );
 }
 
-// ─── Mini Card ──
-function MiniCard({ article }: { article: ArticleItem }) {
+// ─── Blog Card ──
+function BlogCard({ article }: { article: ArticleItem }) {
   return (
     <Link
-      href={`/blog/articles/${article.slug}`}
-      className="group flex gap-3 rounded-xl border p-3 transition-all hover:border-brand-orange/30 hover:shadow-sm"
+      href={`/blog/${article.type === "news" ? "news" : "articles"}/${article.slug}`}
+      className="group flex flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:shadow-md"
     >
-      <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-brand-navy/5 to-brand-orange/5">
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-gradient-to-br from-brand-navy/5 to-brand-orange/5">
         {article.coverImageUrl ? (
-          <Image src={article.coverImageUrl} alt="" fill className="object-cover" sizes="96px" unoptimized />
+          <Image
+            src={article.coverImageUrl}
+            alt=""
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            unoptimized
+          />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <BookOpen className="h-5 w-5 text-gray-300" />
+            <BookOpen className="h-8 w-8 text-gray-200" />
           </div>
         )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <h4 className="line-clamp-2 font-bold font-bricolage text-brand-navy text-xs leading-snug transition-colors group-hover:text-brand-orange">
-          {article.title}
-        </h4>
-        {article.excerpt && (
-          <p className="mt-0.5 line-clamp-2 font-manrope text-[9px] text-gray-400 leading-relaxed">{article.excerpt}</p>
+        {article.category && (
+          <span className="absolute top-2.5 left-2.5 rounded-lg bg-white/90 px-2 py-0.5 font-manrope font-semibold text-[9px] text-brand-navy shadow-sm backdrop-blur-sm">
+            {article.category.name}
+          </span>
         )}
-        <p className="mt-0.5 font-manrope text-[9px] text-gray-300">
+      </div>
+      <div className="flex flex-col gap-1.5 p-3.5">
+        <h3 className="line-clamp-2 font-bold font-bricolage text-brand-navy text-sm leading-snug transition-colors group-hover:text-brand-orange">
+          {article.title}
+        </h3>
+        {article.excerpt && (
+          <p className="line-clamp-2 font-manrope text-gray-400 text-xs leading-relaxed">{article.excerpt}</p>
+        )}
+        <p className="font-manrope text-[10px] text-gray-300">
           {article.publishedAt && formatDate(article.publishedAt)}
         </p>
       </div>
@@ -135,7 +147,7 @@ export default function BlogPage() {
   const { data: dataNews, isLoading: loadingNews } = useQuery({
     ...orpc.cms.articles.public.list.queryOptions({ type: "news", limit: 4 }),
   });
-  const { data: categories, isLoading: loadingCats } = useQuery(orpc.cms.categories.public.list.queryOptions());
+  const { isLoading: loadingCats } = useQuery(orpc.cms.categories.public.list.queryOptions());
 
   const articles = ((dataArticles?.data ?? []) as ArticleItem[]).filter((a) => a.type === "article");
   const news = ((dataNews?.data ?? []) as ArticleItem[]).filter((a) => a.type === "news");
@@ -168,24 +180,35 @@ export default function BlogPage() {
 
   return (
     <main className="min-h-screen bg-[#f8f9fc]">
-      {/* Hero Section — mirip /programs */}
-      <section className="relative bg-[#1A1F6D] py-16 sm:py-20">
+      {/* Hero */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-brand-navy to-brand-navy/95 pt-16 sm:pt-20">
+        {/* Background image */}
+        <div className="pointer-events-none absolute inset-0">
+          <Image src="/explore/street.webp" alt="" fill className="object-cover object-bottom" sizes="100vw" priority />
+          <div className="absolute inset-0 bg-brand-navy/70" />
+          <div className="absolute inset-0 bg-brand-navy/30" />
+        </div>
         <div
-          className="absolute inset-0 z-0 opacity-10"
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage:
-              "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
+              "linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
           }}
         />
-        <div className="container relative z-10 mx-auto mt-10 max-w-6xl px-4 text-center">
-          <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
-            Blog MULAI+
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl font-manrope text-base text-white/80 sm:text-lg">
-            Tips, panduan, dan info terbaru seputar jurusan kuliah, beasiswa, dan persiapan PTN
-          </p>
-          <div className="mt-8 flex items-center justify-center gap-3">
+        <div className="relative mx-auto max-w-7xl px-4 py-10 sm:py-12 md:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange to-brand-red shadow-lg">
+              <BookOpen className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold font-bricolage text-2xl text-white sm:text-3xl">Blog MULAI+</h1>
+              <p className="mt-1 font-manrope text-sm text-white/50">
+                Tips, panduan, dan info terbaru seputar jurusan kuliah, beasiswa, dan persiapan PTN
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex items-center gap-3">
             <Link href="/blog/articles">
               <Button className="rounded-xl bg-brand-orange px-6 font-manrope font-semibold text-sm text-white hover:bg-brand-orange/90">
                 Artikel
@@ -198,7 +221,7 @@ export default function BlogPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </div>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Featured */}
@@ -219,7 +242,7 @@ export default function BlogPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {articles.length > 0 ? (
-                articles.slice(0, 4).map((a) => <MiniCard key={a.id} article={a} />)
+                articles.slice(0, 4).map((a) => <BlogCard key={a.id} article={a} />)
               ) : (
                 <p className="col-span-2 py-8 text-center font-manrope text-gray-400 text-sm">Belum ada artikel.</p>
               )}
@@ -236,7 +259,7 @@ export default function BlogPage() {
             </div>
             <div className="space-y-3">
               {news.length > 0 ? (
-                news.slice(0, 4).map((n) => <MiniCard key={n.id} article={n} />)
+                news.slice(0, 4).map((n) => <BlogCard key={n.id} article={n} />)
               ) : (
                 <p className="py-8 text-center font-manrope text-gray-400 text-sm">Belum ada news.</p>
               )}

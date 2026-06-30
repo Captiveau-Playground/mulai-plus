@@ -239,8 +239,8 @@ export default function ArticleDetailPage() {
           }),
         }}
       />
-      <article className="min-h-screen bg-white pt-20">
-        <nav className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-0">
+      <article className="min-h-screen bg-white pt-16 sm:pt-20">
+        <nav className="mx-auto max-w-7xl px-4 pt-3 sm:px-6 lg:px-0">
           <Link href="/blog" className="font-manrope text-gray-400 text-xs hover:text-brand-navy">
             Blog
           </Link>
