@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trackEvent } from "@/lib/analytics";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -32,6 +33,8 @@ const accStyles: Record<string, string> = {
 };
 
 export default function UniversityDetailPage() {
+  const { data: _session } = authClient.useSession();
+  const isLoggedIn = !!_session;
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
@@ -187,6 +190,9 @@ export default function UniversityDetailPage() {
 
   const totalProdiPages = Math.ceil(filteredPrograms.length / PRODI_PAGE_SIZE);
   const pagedPrograms = filteredPrograms.slice(prodiPage * PRODI_PAGE_SIZE, (prodiPage + 1) * PRODI_PAGE_SIZE);
+  const MAX_FREE_PRODI = 10;
+  const displayPrograms = isLoggedIn ? pagedPrograms : pagedPrograms.slice(0, MAX_FREE_PRODI);
+  const hasMoreProdi = !isLoggedIn && filteredPrograms.length > MAX_FREE_PRODI;
 
   const totalStudents = uni.studyPrograms?.reduce((s: number, p: any) => s + (p.totalStudents ?? 0), 0) ?? 0;
 
@@ -339,37 +345,47 @@ export default function UniversityDetailPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3 p-5 pb-3">
                     <h3 className="font-bold font-bricolage text-brand-navy text-sm">
                       Daftar Program Studi{" "}
-                      <span className="font-manrope font-normal text-text-muted-custom">
-                        ({filteredPrograms.length} dari {allPrograms.length})
-                      </span>
+                      {!hasMoreProdi && (
+                        <span className="font-manrope font-normal text-text-muted-custom">
+                          ({filteredPrograms.length} dari {allPrograms.length})
+                        </span>
+                      )}
+                      {hasMoreProdi && (
+                        <span className="font-manrope font-normal text-text-muted-custom">
+                          ({Math.min(MAX_FREE_PRODI, filteredPrograms.length)}
+                          {filteredPrograms.length > MAX_FREE_PRODI ? "+" : ""} dari {allPrograms.length})
+                        </span>
+                      )}
                     </h3>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Cari prodi..."
-                        value={prodiSearch}
-                        onChange={(e) => {
-                          setProdiSearch(e.target.value);
-                          setProdiPage(0);
-                        }}
-                        className="h-8 w-44 rounded-lg border border-gray-200 px-3 font-manrope text-text-main text-xs placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
-                      />
-                      <select
-                        value={prodiLevel}
-                        onChange={(e) => {
-                          setProdiLevel(e.target.value);
-                          setProdiPage(0);
-                        }}
-                        className="h-8 rounded-lg border border-gray-200 px-2 font-manrope text-text-main text-xs focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
-                      >
-                        <option value="all">Semua Jenjang</option>
-                        {levels.map((l) => (
-                          <option key={l} value={l}>
-                            {l}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {!hasMoreProdi && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Cari prodi..."
+                          value={prodiSearch}
+                          onChange={(e) => {
+                            setProdiSearch(e.target.value);
+                            setProdiPage(0);
+                          }}
+                          className="h-8 w-44 rounded-lg border border-gray-200 px-3 font-manrope text-text-main text-xs placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
+                        />
+                        <select
+                          value={prodiLevel}
+                          onChange={(e) => {
+                            setProdiLevel(e.target.value);
+                            setProdiPage(0);
+                          }}
+                          className="h-8 rounded-lg border border-gray-200 px-2 font-manrope text-text-main text-xs focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
+                        >
+                          <option value="all">Semua Jenjang</option>
+                          {levels.map((l) => (
+                            <option key={l} value={l}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -427,7 +443,7 @@ export default function UniversityDetailPage() {
                       </thead>
                       <tbody>
                         {pagedPrograms.length ? (
-                          pagedPrograms.map((p: any) => (
+                          displayPrograms.map((p: any) => (
                             <tr
                               key={p.idSms}
                               className="cursor-pointer border-t transition-colors hover:bg-brand-navy/5"
@@ -464,9 +480,29 @@ export default function UniversityDetailPage() {
                         )}
                       </tbody>
                     </table>
+                    {hasMoreProdi && (
+                      <div className="border-t px-5 py-4 text-center">
+                        <p className="mb-3 font-manrope text-sm text-text-muted-custom">
+                          {filteredPrograms.length - MAX_FREE_PRODI} program studi lainnya tersembunyi
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            trackEvent("authgate_cta_click", {
+                              gate: "prodi_list_univ",
+                              page: window.location.pathname,
+                            });
+                            window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`;
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl bg-brand-navy px-6 py-3 font-manrope font-semibold text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90"
+                        >
+                          Daftar Gratis untuk Lihat Semua
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {/* Pagination */}
-                  {totalProdiPages > 1 && (
+                  {totalProdiPages > 1 && !hasMoreProdi && (
                     <div className="flex items-center justify-between border-t px-5 py-3">
                       <span className="font-manrope text-text-muted-custom text-xs">
                         {prodiPage * PRODI_PAGE_SIZE + 1}-

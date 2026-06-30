@@ -266,6 +266,7 @@ export default function ProdiDetailPage() {
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <AuthGate
+            gateName="passing_grade_prodi"
             title="Data Passing Grade SNBP/SNBT"
             description="Lihat passing grade, daya tampung, dan tingkat keketatan SNBP/SNBT 5 tahun terakhir untuk membantu kamu menentukan target."
           >

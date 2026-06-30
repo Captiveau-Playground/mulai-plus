@@ -3,15 +3,22 @@
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 
 interface AuthGateProps {
   children: React.ReactNode;
   title?: string;
   description?: string;
+  gateName?: string;
 }
 
-export function AuthGate({ children, title = "Akses Data Eksklusif", description }: AuthGateProps) {
+export function AuthGate({
+  children,
+  title = "Akses Data Eksklusif",
+  description,
+  gateName = "passing_grade",
+}: AuthGateProps) {
   const { data: session, isPending } = authClient.useSession();
 
   // Still loading session
@@ -48,6 +55,12 @@ export function AuthGate({ children, title = "Akses Data Eksklusif", description
           <Button
             asChild
             className="cursor-pointer rounded-xl bg-brand-navy px-8 py-5 font-manrope font-semibold text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90"
+            onClick={() =>
+              trackEvent("authgate_cta_click", {
+                gate: gateName,
+                page: typeof window !== "undefined" ? window.location.pathname : "",
+              })
+            }
           >
             <Link
               href={`/login?callbackUrl=${typeof window !== "undefined" ? encodeURIComponent(window.location.pathname) : ""}`}
