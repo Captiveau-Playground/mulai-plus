@@ -308,17 +308,23 @@ export default function ArticlesPage() {
 
   return (
     <main className="min-h-screen bg-[#f8f9fc]">
-      {/* ── Hero Section (mirip /programs) ── */}
-      <section className="relative bg-[#1A1F6D] py-16 sm:py-20">
+      {/* Hero */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-brand-navy to-brand-navy/95 pt-16 sm:pt-20">
+        {/* Background image */}
+        <div className="pointer-events-none absolute inset-0">
+          <Image src="/explore/palace.webp" alt="" fill className="object-cover object-bottom" sizes="100vw" priority />
+          <div className="absolute inset-0 bg-brand-navy/70" />
+          <div className="absolute inset-0 bg-brand-navy/30" />
+        </div>
         <div
-          className="absolute inset-0 z-0 opacity-10"
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage:
-              "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
+              "linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
           }}
         />
-        <div className="container relative z-10 mx-auto mt-10 max-w-6xl px-4 text-center">
+        <div className="relative mx-auto max-w-7xl px-4 py-10 sm:py-12 md:px-6 lg:px-8">
           <nav className="mb-4 font-manrope text-white/50 text-xs">
             <Link href="/blog" className="hover:text-white">
               Blog
@@ -326,12 +332,12 @@ export default function ArticlesPage() {
             <span className="mx-1.5">/</span>
             <span className="text-white/80">News</span>
           </nav>
-          <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">News</h1>
-          <p className="mx-auto mt-4 max-w-2xl font-manrope text-base text-white/80 sm:text-lg">
+          <h1 className="font-bold font-bricolage text-2xl text-white sm:text-3xl">News</h1>
+          <p className="mt-1 font-manrope text-sm text-white/50">
             Update dan berita terbaru seputar MULAI+ dan dunia pendidikan
           </p>
-          {/* Search */}
-          <div className="mx-auto mt-8 w-full max-w-md">
+          {/* Search — left aligned */}
+          <div className="mt-6 w-full max-w-md">
             <div className="relative">
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-white/30" />
               <Input
@@ -343,7 +349,7 @@ export default function ArticlesPage() {
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ── Search results ── */}
       {search.trim() ? (

@@ -19,6 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/explore/universities`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${baseUrl}/explore/study-programs`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${baseUrl}/explore/passing-grade`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${baseUrl}/explore/compare`, changeFrequency: "weekly", priority: 0.6 },
   ];
 
   const dynamicPages: MetadataRoute.Sitemap = [];

@@ -60,6 +60,12 @@ const NAV_ITEMS = [
         desc: "Data SNBP/SNBT 2021-2025",
         icon: BarChart3,
       },
+      {
+        label: "Bandingkan",
+        href: "/explore/compare",
+        desc: "Side-by-side universitas",
+        icon: BarChart3,
+      },
     ],
   },
   {
@@ -131,13 +137,18 @@ export function Navbar() {
     pathname === "/explore" ||
     pathname.replace(/\/$/, "") === "/explore/universities" ||
     pathname.replace(/\/$/, "") === "/explore/study-programs" ||
-    pathname.replace(/\/$/, "") === "/explore/passing-grade";
-  const isExploreLight = isExploreList && !isScrolled;
+    pathname.replace(/\/$/, "") === "/explore/passing-grade" ||
+    pathname.replace(/\/$/, "") === "/explore/compare";
+  const isBlogList =
+    pathname === "/blog" ||
+    pathname === "/blog/" ||
+    pathname.replace(/\/$/, "") === "/blog/articles" ||
+    pathname.replace(/\/$/, "") === "/blog/news";
+  const isExploreLight = (isExploreList || isBlogList) && !isScrolled;
   const isTransparent =
     !isScrolled &&
     !pathname.startsWith("/programs") &&
     !pathname.startsWith("/courses") &&
-    !pathname.startsWith("/blog") &&
     !pathname.startsWith("/privacy") &&
     pathname !== "/login";
 
@@ -350,7 +361,7 @@ export function Navbar() {
       <div className="flex md:hidden">
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger>
-            <Button variant="ghost" size="icon" className="text-text-main">
+            <Button variant="ghost" size="icon" className={isExploreLight ? "text-white" : "text-text-main"}>
               <Menu className="h-5 w-5" />
               <span className="sr-only">Menu</span>
             </Button>

@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { CompareButton } from "@/components/front/compare-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -272,6 +273,11 @@ export default function UniversityDetailPage() {
           </div>
         </div>
       </section>
+
+      {/* Compare & Actions */}
+      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6">
+        <CompareButton id={id} name={uni.name} size="xs" />
+      </div>
 
       {/* Content */}
       <section className="py-8 sm:py-12">
