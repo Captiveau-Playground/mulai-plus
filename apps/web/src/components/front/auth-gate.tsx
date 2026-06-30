@@ -1,13 +1,11 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 
 interface AuthGateProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   title?: string;
   description?: string;
   gateName?: string;
@@ -52,9 +50,9 @@ export function AuthGate({
         <h3 className="font-bold font-bricolage text-brand-navy text-lg sm:text-xl">{title}</h3>
         <p className="mt-2 font-manrope text-sm text-text-muted-custom leading-relaxed">{defaultDescription}</p>
         <div className="mt-6 flex justify-center">
-          <Button
-            asChild
-            className="cursor-pointer rounded-xl bg-brand-navy px-8 py-5 font-manrope font-semibold text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90"
+          <a
+            href={`/login?callbackUrl=${typeof window !== "undefined" ? encodeURIComponent(window.location.pathname) : ""}`}
+            className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-brand-navy px-8 py-5 font-manrope font-semibold text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90"
             onClick={() =>
               trackEvent("authgate_cta_click", {
                 gate: gateName,
@@ -62,12 +60,8 @@ export function AuthGate({
               })
             }
           >
-            <Link
-              href={`/login?callbackUrl=${typeof window !== "undefined" ? encodeURIComponent(window.location.pathname) : ""}`}
-            >
-              Daftar Gratis
-            </Link>
-          </Button>
+            Daftar Gratis
+          </a>
         </div>
       </div>
     </div>
