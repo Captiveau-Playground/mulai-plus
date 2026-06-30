@@ -56,11 +56,15 @@ export function ExploreSection() {
   }, []);
 
   const { data: _popularUni } = useQuery({
-    ...api.pddikti.publicListUniversities.queryOptions({ input: { page: 1, pageSize: 100 } }),
+    ...api.pddikti.publicListUniversities.queryOptions({
+      input: { page: 1, pageSize: 100 },
+    }),
     staleTime: 1000 * 60 * 10,
   });
   const { data: _popularProg } = useQuery({
-    ...api.pddikti.publicSearchPrograms.queryOptions({ input: { page: 1, pageSize: 100 } }),
+    ...api.pddikti.publicSearchPrograms.queryOptions({
+      input: { page: 1, pageSize: 100 },
+    }),
     staleTime: 1000 * 60 * 10,
   });
 
@@ -279,7 +283,8 @@ export function ExploreSection() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-manrope font-medium text-sm text-text-main">{p.name}</p>
                         <p className="font-manrope text-[11px] text-text-muted-custom">
-                          {p.uniCount} universitas{p.levels?.length > 0 ? ` · ${p.levels.join(", ")}` : ""}
+                          {p.uniCount} universitas
+                          {p.levels?.length > 0 ? ` · ${p.levels.join(", ")}` : ""}
                         </p>
                       </div>
                       <ArrowRight className="h-4 w-4 shrink-0 text-text-muted-custom/30" />
@@ -362,7 +367,7 @@ export function ExploreSection() {
             </h2>
 
             <p className="mt-2 mb-5 max-w-lg font-manrope text-sm text-text-muted-custom leading-relaxed sm:text-base">
-              Data passing grade, akreditasi, dari 335+ PT dan 15.000+ prodi se-Indonesia.
+              Data passing grade, akreditasi, dari 335 PT dan 10.000+ prodi se-Indonesia.
             </p>
 
             {/* Search */}
@@ -381,7 +386,11 @@ export function ExploreSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{
+              duration: 0.6,
+              delay: 0.15,
+              ease: [0.25, 0.46, 0.45, 0.94],
+            }}
             className="w-full lg:w-1/2 lg:pt-8"
           >
             {/* Stats - compact on mobile */}
@@ -418,7 +427,12 @@ export function ExploreSection() {
                   subtitle: `${totalProg.toLocaleString()} jurusan`,
                   icon: BookOpen,
                 },
-                { href: "/explore/passing-grade" as any, title: "Passing Grade", subtitle: "146 PTN", icon: BarChart3 },
+                {
+                  href: "/explore/passing-grade" as any,
+                  title: "Passing Grade",
+                  subtitle: "146 PTN",
+                  icon: BarChart3,
+                },
                 {
                   href: "/explore" as any,
                   title: "Tanya Chatbot AI",

@@ -51,7 +51,7 @@ const NAV_ITEMS = [
       {
         label: "Program Studi",
         href: "/explore/study-programs",
-        desc: "18.881 jurusan",
+        desc: "10k+ jurusan",
         icon: BookOpen,
       },
       {

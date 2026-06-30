@@ -65,7 +65,7 @@ export default function ExplorePage() {
         />
 
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20">
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-7xl px-0 md:px-4">
             {/* Eyebrow + heading */}
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange shadow-lg">
@@ -77,7 +77,7 @@ export default function ExplorePage() {
             </div>
 
             <h1 className="mt-4 font-bold font-bricolage text-3xl text-white leading-tight sm:text-4xl lg:text-5xl">
-              Jelajahi <span className="text-brand-orange">335+ Perguruan Tinggi</span>
+              Jelajahi <span className="text-brand-orange">335 Perguruan Tinggi</span>
               <br />
               &amp; <span className="text-brand-orange">10.000+ Program Studi</span>
             </h1>

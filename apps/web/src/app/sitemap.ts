@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
 
-// Revalidate sitemap every hour — no need to regenerate on every request
-export const revalidate = 3600;
+// Revalidate daily — sitemap changes infrequently
+export const revalidate = 86400;
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
-const PAGE_SIZE = 1000; // Fetch up to 1000 items per API call
+const PAGE_SIZE = 1000;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
@@ -26,75 +26,44 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const { client } = await import("@/lib/client");
-    console.log("[sitemap] client imported successfully");
 
-    // ── Articles (with pagination) ──────────────────────────────────
+    // ── Articles ────────────────────────────────────────────────────
     try {
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
-        const res = await client.cms.articles.public.list({
-          type: "article",
-          limit: PAGE_SIZE,
-          offset,
-        });
+        const res = await client.cms.articles.public.list({ type: "article", limit: PAGE_SIZE, offset });
         const items = res?.data ?? [];
         const total = res?.pagination?.total ?? 0;
-
         for (const a of items) {
           const slug = (a as any).slug;
-          if (slug) {
-            dynamicPages.push({
-              url: `${baseUrl}/blog/articles/${slug}`,
-              lastModified: (a as any).publishedAt ? new Date((a as any).publishedAt) : undefined,
-              changeFrequency: "monthly",
-              priority: 0.6,
-            });
-          }
+          if (slug)
+            dynamicPages.push({ url: `${baseUrl}/blog/articles/${slug}`, changeFrequency: "monthly", priority: 0.6 });
         }
-
         offset += PAGE_SIZE;
         hasMore = items.length >= PAGE_SIZE && offset < total;
       }
-      console.log(`[sitemap] articles: ${dynamicPages.filter((p) => p.url.includes("/blog/articles/")).length} URLs`);
-    } catch (e) {
-      console.error("[sitemap] Failed to fetch articles:", e);
-    }
+    } catch {}
 
-    // ── News (with pagination) ──────────────────────────────────────
+    // ── News ────────────────────────────────────────────────────────
     try {
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
-        const res = await client.cms.articles.public.list({
-          type: "news",
-          limit: PAGE_SIZE,
-          offset,
-        });
+        const res = await client.cms.articles.public.list({ type: "news", limit: PAGE_SIZE, offset });
         const items = res?.data ?? [];
         const total = res?.pagination?.total ?? 0;
-
         for (const a of items) {
           const slug = (a as any).slug;
-          if (slug) {
-            dynamicPages.push({
-              url: `${baseUrl}/blog/news/${slug}`,
-              lastModified: (a as any).publishedAt ? new Date((a as any).publishedAt) : undefined,
-              changeFrequency: "monthly",
-              priority: 0.6,
-            });
-          }
+          if (slug)
+            dynamicPages.push({ url: `${baseUrl}/blog/news/${slug}`, changeFrequency: "monthly", priority: 0.6 });
         }
-
         offset += PAGE_SIZE;
         hasMore = items.length >= PAGE_SIZE && offset < total;
       }
-      console.log(`[sitemap] news: ${dynamicPages.filter((p) => p.url.includes("/blog/news/")).length} URLs`);
-    } catch (e) {
-      console.error("[sitemap] Failed to fetch news:", e);
-    }
+    } catch {}
 
-    // ── Programs (with pagination) ──────────────────────────────────
+    // ── Programs (mentoring) ────────────────────────────────────────
     try {
       let offset = 0;
       let hasMore = true;
@@ -102,74 +71,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const res = await client.programs.public.list({ limit: PAGE_SIZE, offset });
         const items = res?.data ?? [];
         const total = res?.pagination?.total ?? 0;
-
         for (const p of items) {
           const slug = (p as any).slug;
-          if (slug) {
-            dynamicPages.push({
-              url: `${baseUrl}/programs/${slug}`,
-              lastModified: (p as any).updatedAt ? new Date((p as any).updatedAt) : undefined,
-              changeFrequency: "weekly",
-              priority: 0.7,
-            });
-          }
+          if (slug) dynamicPages.push({ url: `${baseUrl}/programs/${slug}`, changeFrequency: "weekly", priority: 0.7 });
         }
-
         offset += PAGE_SIZE;
         hasMore = items.length >= PAGE_SIZE && offset < total;
       }
-      console.log(`[sitemap] programs: ${dynamicPages.filter((p) => p.url.includes("/programs/")).length} URLs`);
-    } catch (e) {
-      console.error("[sitemap] Failed to fetch programs:", e);
-    }
+    } catch {}
 
-    // ── University slugs ────────────────────────────────────────────
+    // ── Universities (335 pages — semua masuk) ─────────────────────
     try {
       const slugs = await (client as any)?.pddikti?.publicGetUniversitySlugs();
       if (Array.isArray(slugs)) {
         for (const u of slugs) {
           const slug = (u as any).slug;
-          if (slug) {
+          if (slug)
             dynamicPages.push({
               url: `${baseUrl}/explore/universities/${slug}`,
               changeFrequency: "monthly",
               priority: 0.6,
             });
-          }
         }
       }
-      console.log(
-        `[sitemap] universities: ${dynamicPages.filter((p) => p.url.includes("/explore/universities/") && !p.url.includes("/prodi/")).length} URLs`,
-      );
-    } catch (e) {
-      console.error("[sitemap] Failed to fetch university slugs:", e);
-    }
+    } catch {}
 
-    // ── Prodi (study programs within universities) ──────────────────
-    try {
-      const prodiList = await (client as any)?.pddikti?.publicGetAllProdiForSitemap();
-      if (Array.isArray(prodiList)) {
-        for (const p of prodiList) {
-          const { idSms, uniSlug } = p as any;
-          if (idSms && uniSlug) {
-            dynamicPages.push({
-              url: `${baseUrl}/explore/universities/${uniSlug}/prodi/${encodeURIComponent(idSms)}`,
-              changeFrequency: "monthly",
-              priority: 0.5,
-            });
-          }
-        }
-      }
-      console.log(`[sitemap] prodi: ${dynamicPages.filter((p) => p.url.includes("/prodi/")).length} URLs`);
-    } catch (e) {
-      console.warn(
-        "[sitemap] Failed to fetch prodi list (expected if server not redeployed):",
-        e instanceof Error ? e.message : e,
-      );
-    }
-  } catch (e) {
-    console.error("[sitemap] client import failed:", e);
-  }
+    // ── Prodi — DIHAPUS dari sitemap ────────────────────────────────
+    // 14.752 halaman prodi menyebabkan crawl budget habis.
+    // Google tetap bisa menemukannya via internal link dari halaman universitas.
+  } catch {}
 
   console.log(`[sitemap] Total URLs: ${staticPages.length + dynamicPages.length}`);
 

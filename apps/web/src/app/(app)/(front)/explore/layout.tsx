@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { ChatbotProvider } from "@/components/chatbot/chatbot-provider";
 
 export const metadata: Metadata = {
   title: "Eksplorasi Data Pendidikan Tinggi — MULAI+",
@@ -49,7 +48,6 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
       />
       {children}
       <CompareFloatingBar />
-      <ChatbotProvider />
     </>
   );
 }
