@@ -144,7 +144,7 @@ export default function UniversitiesPage() {
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20">
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-7xl px-0 md:px-4">
             {/* Eyebrow */}
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange shadow-lg">
@@ -413,7 +413,10 @@ export default function UniversitiesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "universities", action: "first" });
+                  trackEvent("pagination", {
+                    page: "universities",
+                    action: "first",
+                  });
                   setPage(0);
                 }}
                 disabled={page === 0}
@@ -446,7 +449,10 @@ export default function UniversitiesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "universities", action: "last" });
+                  trackEvent("pagination", {
+                    page: "universities",
+                    action: "last",
+                  });
                   setPage(totalPages - 1);
                 }}
                 disabled={page >= totalPages - 1}

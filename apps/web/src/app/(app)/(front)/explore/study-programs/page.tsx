@@ -175,7 +175,7 @@ function StudyProgramsContent() {
             }}
           />
           <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20">
-            <div className="mx-auto max-w-3xl">
+            <div className="mx-auto max-w-7xl">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange shadow-lg">
                   <GraduationCap className="h-5 w-5 text-white" />
@@ -197,7 +197,7 @@ function StudyProgramsContent() {
             </div>
 
             {/* Search + Suggest */}
-            <div className="relative mx-auto mt-6 w-full max-w-3xl overflow-visible">
+            <div className="relative mt-6 w-full max-w-3xl overflow-visible">
               <div
                 className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] px-5 py-3.5 shadow-sm backdrop-blur-sm transition-all focus-within:border-white/30 focus-within:bg-white/[0.12]"
                 ref={inputRef}
@@ -369,7 +369,10 @@ function StudyProgramsContent() {
                 <button
                   type="button"
                   onClick={() => {
-                    trackEvent("pagination", { page: "study_programs", action: "first" });
+                    trackEvent("pagination", {
+                      page: "study_programs",
+                      action: "first",
+                    });
                     setPage(0);
                   }}
                   disabled={page === 0}

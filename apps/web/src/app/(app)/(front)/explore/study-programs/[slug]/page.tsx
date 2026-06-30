@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Building2, ChevronDown, ChevronRight, Graduation
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { ExploreFAQ, getProgramFAQs } from "@/components/front/explore-faq";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/utils/orpc";
@@ -301,6 +302,8 @@ export default function StudyProgramSlugPage() {
           )}
         </div>
       </section>
+
+      {detail && <ExploreFAQ items={getProgramFAQs(detail.name)} title={`Pertanyaan Umum tentang ${detail.name}`} />}
     </div>
   );
 }
