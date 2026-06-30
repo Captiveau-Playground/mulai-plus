@@ -77,7 +77,7 @@ export default function ExplorePage() {
             </div>
 
             <h1 className="mt-4 font-bold font-bricolage text-3xl text-white leading-tight sm:text-4xl lg:text-5xl">
-              Jelajahi <span className="text-brand-orange">335+ Perguruan Tinggi</span>
+              Jelajahi <span className="text-brand-orange">335 Perguruan Tinggi</span>
               <br />
               &amp; <span className="text-brand-orange">10.000+ Program Studi</span>
             </h1>
