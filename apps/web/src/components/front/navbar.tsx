@@ -45,7 +45,7 @@ const NAV_ITEMS = [
       {
         label: "Universitas",
         href: "/explore/universities",
-        desc: "408 PT negeri & swasta",
+        desc: "335+ PT negeri & swasta",
         icon: GraduationCap,
       },
       {

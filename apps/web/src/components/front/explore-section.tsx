@@ -80,12 +80,12 @@ export function ExploreSection() {
   });
 
   const { data: _uni } = useQuery({
-    ...api.pddikti.publicListUniversities.queryOptions({ input: { page: 1, pageSize: 1 } }),
-    staleTime: 1000 * 60 * 10,
+    ...api.pddikti.publicGetUniversitySlugs.queryOptions(),
+    staleTime: 1000 * 60 * 60,
   });
   const { data: _prog } = useQuery({
-    ...api.pddikti.publicSearchPrograms.queryOptions({ input: { page: 1, pageSize: 1 } }),
-    staleTime: 1000 * 60 * 10,
+    ...api.pddikti.publicGetAllProdiForSitemap.queryOptions(),
+    staleTime: 1000 * 60 * 60,
   });
 
   const POPULAR_UNI_NAMES = [
@@ -116,8 +116,8 @@ export function ExploreSection() {
   const uniResults = (_uniResults as any)?.data ?? [];
   const progResults = (_progResults as any)?.data ?? [];
   const isFetching = searchMode === "university" ? isFetchingUni : isFetchingProg;
-  const totalUni = (_uni as any)?.total ?? 408;
-  const totalProg = (_prog as any)?.total ?? 18881;
+  const totalUni = Array.isArray(_uni) ? _uni.length : 335;
+  const totalProg = Array.isArray(_prog) ? _prog.length : 14752;
 
   function uniSlug(name: string, id: string) {
     return `${name
@@ -362,7 +362,7 @@ export function ExploreSection() {
             </h2>
 
             <p className="mt-2 mb-5 max-w-lg font-manrope text-sm text-text-muted-custom leading-relaxed sm:text-base">
-              Data passing grade, akreditasi, dari 408 PT dan 18.881 prodi se-Indonesia.
+              Data passing grade, akreditasi, dari 335+ PT dan 15.000+ prodi se-Indonesia.
             </p>
 
             {/* Search */}
