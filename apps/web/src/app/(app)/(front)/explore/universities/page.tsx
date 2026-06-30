@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -165,7 +164,7 @@ export default function UniversitiesPage() {
             </p>
 
             {/* Search */}
-            <div className="relative z-50 mt-6 max-w-xl">
+            <div className="relative z-50 mt-6 max-w-xl overflow-visible">
               <div
                 ref={inputRef}
                 className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 backdrop-blur-sm transition-all focus-within:border-white/20 focus-within:bg-white/[0.10] sm:px-5"
@@ -196,44 +195,35 @@ export default function UniversitiesPage() {
                 )}
               </div>
 
-              {/* Suggestions dropdown — portal to body */}
-              {showSuggestions &&
-                suggestions.length > 0 &&
-                typeof window !== "undefined" &&
-                createPortal(
-                  <div
-                    ref={suggestRef}
-                    className="fixed z-[99999] rounded-2xl border bg-white shadow-lg"
-                    style={{
-                      top: inputRef.current ? inputRef.current.getBoundingClientRect().bottom + 4 : 0,
-                      left: inputRef.current ? inputRef.current.getBoundingClientRect().left : 0,
-                      width: inputRef.current ? inputRef.current.getBoundingClientRect().width : "auto",
-                    }}
-                  >
-                    {suggestions.slice(0, 5).map((u: any) => (
-                      <button
-                        key={u.idSp}
-                        type="button"
-                        onClick={() => {
-                          router.push(`/explore/universities/${slugify(u.name, u.idSp)}`);
-                          setShowSuggestions(false);
-                        }}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-brand-navy/5"
-                      >
-                        <Building2 className="h-4 w-4 shrink-0 text-brand-navy/40" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium text-sm text-text-main sm:text-base">{u.name}</p>
-                          <p className="font-manrope text-[10px] text-text-muted-custom">
-                            {u.province}
-                            {u.accreditation ? ` · Akreditasi ${u.accreditation}` : ""}
-                          </p>
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-gray-300" />
-                      </button>
-                    ))}
-                  </div>,
-                  document.body,
-                )}
+              {/* Suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  ref={suggestRef}
+                  className="absolute top-full right-0 left-0 z-50 mt-2 max-h-80 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
+                >
+                  {suggestions.slice(0, 5).map((u: any) => (
+                    <button
+                      key={u.idSp}
+                      type="button"
+                      onClick={() => {
+                        router.push(`/explore/universities/${slugify(u.name, u.idSp)}`);
+                        setShowSuggestions(false);
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-brand-navy/5"
+                    >
+                      <Building2 className="h-4 w-4 shrink-0 text-brand-navy/40" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-sm text-text-main sm:text-base">{u.name}</p>
+                        <p className="font-manrope text-[10px] text-text-muted-custom">
+                          {u.province}
+                          {u.accreditation ? ` · Akreditasi ${u.accreditation}` : ""}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-gray-300" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

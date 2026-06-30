@@ -149,7 +149,7 @@ export function ExploreSection() {
 
   // Show search bar + results first on mobile
   const SearchSection = (
-    <div ref={panelRef}>
+    <div ref={panelRef} className="relative z-20">
       {/* Search tabs + input */}
       <div className="mb-3 flex items-center gap-1.5">
         <button
@@ -188,7 +188,7 @@ export function ExploreSection() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="relative">
+      <form onSubmit={handleSubmit} className="relative z-10">
         <div
           className={cn(
             "flex items-center gap-2 rounded-xl border bg-white px-4 py-3 shadow-sm transition-all sm:gap-3 sm:px-5 sm:py-3.5",
@@ -232,8 +232,8 @@ export function ExploreSection() {
         </div>
 
         {showResults && debounced.length >= 2 && (
-          <div className="absolute top-full right-0 left-0 z-50 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-            <div className="max-h-80 overflow-y-auto">
+          <div className="absolute top-full right-0 left-0 z-[100] mt-2 rounded-xl border border-gray-200 bg-white shadow-lg">
+            <div className="max-h-80 overflow-y-auto rounded-xl">
               {isFetching ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-brand-navy/40" />
