@@ -41,7 +41,7 @@ export default function UniversityDetailPage() {
   const [prodiPage, setProdiPage] = useState(0);
   const PRODI_PAGE_SIZE = 15;
 
-  const { data: _slugs } = useQuery({
+  const { data: _slugs, isLoading: slugsLoading } = useQuery({
     ...api.pddikti.publicGetUniversitySlugs.queryOptions(),
     staleTime: 1000 * 60 * 60,
   });
@@ -56,7 +56,7 @@ export default function UniversityDetailPage() {
   });
   const uni = _uni as any;
 
-  if (!slug || (!isLoading && !id)) {
+  if (!slug || (!isLoading && !slugsLoading && !id)) {
     return (
       <div className="flex min-h-screen items-center justify-center pt-16 sm:pt-20">
         <div className="text-center">
@@ -73,19 +73,80 @@ export default function UniversityDetailPage() {
     );
   }
 
-  if (isLoading) {
+  if (slugsLoading || (!!id && isLoading)) {
     return (
-      <div className="min-h-screen bg-white pt-16 sm:pt-20">
-        <div className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-4 w-96" />
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
+      <div className="min-h-screen bg-white">
+        {/* Breadcrumb skeleton */}
+        <div className="border-b bg-white pt-16 sm:pt-20">
+          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+            <Skeleton className="h-3 w-48" />
           </div>
         </div>
+
+        {/* Hero skeleton */}
+        <section className="border-b bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+            <div className="flex items-start gap-4">
+              <Skeleton className="h-16 w-16 shrink-0 rounded-2xl" />
+              <div className="min-w-0 flex-1 space-y-3">
+                <Skeleton className="h-8 w-72 sm:h-9" />
+                <Skeleton className="h-4 w-56" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Stats skeleton */}
+        <section className="py-8 sm:py-12">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-xl border bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-6 w-12" />
+                    </div>
+                    <Skeleton className="h-10 w-10 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Tabs skeleton */}
+        <section className="border-b">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="flex gap-4 border-b py-3">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-28" />
+            </div>
+          </div>
+        </section>
+
+        {/* Content skeleton */}
+        <section className="py-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="space-y-4">
+              <Skeleton className="h-5 w-48" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between rounded-xl border p-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
