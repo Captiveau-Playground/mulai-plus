@@ -91,7 +91,7 @@ export function HeroSection() {
             animate="show"
             className="flex flex-wrap items-center gap-2 md:gap-3"
           >
-            <StatPill icon={GraduationCap} value="18.881" label="Program Studi" />
+            <StatPill icon={GraduationCap} value="10k+" label="Program Studi" />
             <StatPill icon={MapPin} value="335+" label="Universitas" />
             <StatPill icon={BookOpen} value="38" label="Provinsi" />
           </motion.div>
@@ -119,7 +119,7 @@ export function HeroSection() {
                 className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-brand-navy/15 px-8 py-4 font-bold font-manrope text-base text-brand-navy transition-all duration-300 hover:border-brand-navy/30 hover:bg-brand-navy/5 active:scale-[0.98] sm:px-10 sm:py-4"
               >
                 <MessageCircleMore className="h-4 w-4" />
-                Tanya Chatbot AI
+                Lihat Universitas
               </button>
             </Link>
           </motion.div>

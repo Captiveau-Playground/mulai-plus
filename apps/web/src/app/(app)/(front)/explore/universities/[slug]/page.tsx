@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { CompareButton } from "@/components/front/compare-bar";
+import { ExploreFAQ, getUniversityFAQs } from "@/components/front/explore-faq";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -704,6 +705,14 @@ export default function UniversityDetailPage() {
               </TabsContent>
             </Tabs>
           </div>
+
+          {/* FAQ */}
+          {uni && (
+            <ExploreFAQ
+              items={getUniversityFAQs(uni.name, uni.type, uni.province)}
+              title={`Pertanyaan Umum tentang ${uni.name}`}
+            />
+          )}
 
           {/* CTA */}
           <div className="relative mt-8 overflow-hidden rounded-2xl bg-brand-navy p-8 text-center shadow-xl sm:mt-12 sm:p-12">

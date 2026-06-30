@@ -413,7 +413,10 @@ export default function UniversitiesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "universities", action: "first" });
+                  trackEvent("pagination", {
+                    page: "universities",
+                    action: "first",
+                  });
                   setPage(0);
                 }}
                 disabled={page === 0}
@@ -446,7 +449,10 @@ export default function UniversitiesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  trackEvent("pagination", { page: "universities", action: "last" });
+                  trackEvent("pagination", {
+                    page: "universities",
+                    action: "last",
+                  });
                   setPage(totalPages - 1);
                 }}
                 disabled={page >= totalPages - 1}
