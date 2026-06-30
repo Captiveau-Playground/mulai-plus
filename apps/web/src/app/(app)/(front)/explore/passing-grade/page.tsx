@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { AuthGate } from "@/components/front/auth-gate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -298,148 +299,155 @@ function PassingGradeContent() {
 
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {isLoading && items.length === 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Skeleton key={i} className="h-32 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : items.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-20 text-center">
-              <BarChart3 className="h-12 w-12 text-text-muted-custom" />
-              <p className="font-manrope text-lg text-text-muted-custom">Tidak ada data</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {/* biome-ignore lint/suspicious/noExplicitAny: item shape from API */}
-              {items.map((item: any) => {
-                const pgNum = item.minPg ? Number.parseFloat(item.minPg) : null;
-                return (
-                  <Link
-                    key={`${item.name}-${item.level}`}
-                    href={`/explore/study-programs/${item.slug}`}
-                    className="block"
-                    onClick={() => trackEvent("pg_click_program", { program: item.name })}
-                  >
-                    <div className="group flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:shadow-md">
-                      <div className="flex flex-1 flex-col p-4">
-                        <div className="mb-2 flex items-center gap-2">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
-                            {(() => {
-                              const Icon: LucideIcon = getProgramIcon(item.name);
-                              return <Icon className="h-4 w-4 text-brand-navy/60" />;
-                            })()}
+          <AuthGate
+            title="Data Passing Grade"
+            description="Cek passing grade, daya tampung, dan tingkat keketatan SNBP/SNBT 5 tahun terakhir. Daftar gratis untuk akses penuh."
+          >
+            {isLoading && items.length === 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[...Array(6)].map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : items.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-20 text-center">
+                <BarChart3 className="h-12 w-12 text-text-muted-custom" />
+                <p className="font-manrope text-lg text-text-muted-custom">Tidak ada data</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {/* biome-ignore lint/suspicious/noExplicitAny: item shape from API */}
+                {items.map((item: any) => {
+                  const pgNum = item.minPg ? Number.parseFloat(item.minPg) : null;
+                  return (
+                    <Link
+                      key={`${item.name}-${item.level}`}
+                      href={`/explore/study-programs/${item.slug}`}
+                      className="block"
+                      onClick={() => trackEvent("pg_click_program", { program: item.name })}
+                    >
+                      <div className="group flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:shadow-md">
+                        <div className="flex flex-1 flex-col p-4">
+                          <div className="mb-2 flex items-center gap-2">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
+                              {(() => {
+                                const Icon: LucideIcon = getProgramIcon(item.name);
+                                return <Icon className="h-4 w-4 text-brand-navy/60" />;
+                              })()}
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {item.level && (
+                                <span className="rounded-md bg-brand-navy/10 px-1.5 py-0.5 font-manrope font-semibold text-[9px] text-brand-navy">
+                                  {item.level}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-1">
-                            {item.level && (
-                              <span className="rounded-md bg-brand-navy/10 px-1.5 py-0.5 font-manrope font-semibold text-[9px] text-brand-navy">
-                                {item.level}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <h3 className="line-clamp-2 font-bold font-bricolage text-brand-navy text-sm leading-snug transition-colors group-hover:text-brand-orange">
-                          {item.name}
-                        </h3>
-                        <div className="mt-auto pt-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-manrope text-[10px] text-text-muted-custom">{item.uniCount} PTN</span>
-                            {item.minPg && item.maxPg && (
-                              <span className="font-bold font-bricolage text-brand-navy text-sm">
-                                {item.minPg}–{item.maxPg}
-                              </span>
-                            )}
-                          </div>
-                          <div className="mt-1 flex items-center justify-between">
-                            {item.avgApplicants > 0 && (
+                          <h3 className="line-clamp-2 font-bold font-bricolage text-brand-navy text-sm leading-snug transition-colors group-hover:text-brand-orange">
+                            {item.name}
+                          </h3>
+                          <div className="mt-auto pt-3">
+                            <div className="flex items-center justify-between">
                               <span className="font-manrope text-[10px] text-text-muted-custom">
-                                Ø {item.avgApplicants.toLocaleString()} peminat
+                                {item.uniCount} PTN
                               </span>
-                            )}
-                            {pgNum !== null && (
-                              <span
-                                className={`font-manrope font-semibold text-[10px] ${pgNum <= 2 ? "text-green-600" : pgNum <= 5 ? "text-yellow-600" : pgNum <= 10 ? "text-orange-600" : "text-blue-600"}`}
-                              >
-                                {pgNum <= 2 ? "Terketat" : pgNum <= 5 ? "Ketat" : pgNum <= 10 ? "Sedang" : "Longgar"}
-                              </span>
-                            )}
+                              {item.minPg && item.maxPg && (
+                                <span className="font-bold font-bricolage text-brand-navy text-sm">
+                                  {item.minPg}–{item.maxPg}
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 flex items-center justify-between">
+                              {item.avgApplicants > 0 && (
+                                <span className="font-manrope text-[10px] text-text-muted-custom">
+                                  Ø {item.avgApplicants.toLocaleString()} peminat
+                                </span>
+                              )}
+                              {pgNum !== null && (
+                                <span
+                                  className={`font-manrope font-semibold text-[10px] ${pgNum <= 2 ? "text-green-600" : pgNum <= 5 ? "text-yellow-600" : pgNum <= 10 ? "text-orange-600" : "text-blue-600"}`}
+                                >
+                                  {pgNum <= 2 ? "Terketat" : pgNum <= 5 ? "Ketat" : pgNum <= 10 ? "Sedang" : "Longgar"}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
 
-          {totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-center gap-2 sm:mt-12">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  trackEvent("pagination", {
-                    page: "passing_grade",
-                    action: "first",
-                  });
-                  setPage(0);
-                }}
-                disabled={page === 0}
-                className="rounded-full font-manrope"
-              >
-                First
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  trackEvent("pagination", {
-                    page: "passing_grade",
-                    action: "prev",
-                  });
-                  setPage((p) => Math.max(0, p - 1));
-                }}
-                disabled={page === 0}
-                className="rounded-full font-manrope"
-              >
-                Prev
-              </Button>
-              <span className="px-3 font-manrope text-text-muted-custom text-xs">
-                Page {page + 1} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  trackEvent("pagination", {
-                    page: "passing_grade",
-                    action: "next",
-                  });
-                  setPage((p) => Math.min(totalPages - 1, p + 1));
-                }}
-                disabled={page >= totalPages - 1}
-                className="rounded-full font-manrope"
-              >
-                Next
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  trackEvent("pagination", {
-                    page: "passing_grade",
-                    action: "last",
-                  });
-                  setPage(totalPages - 1);
-                }}
-                disabled={page >= totalPages - 1}
-                className="rounded-full font-manrope"
-              >
-                Last
-              </Button>
-            </div>
-          )}
+            {totalPages > 1 && (
+              <div className="mt-8 flex items-center justify-center gap-2 sm:mt-12">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    trackEvent("pagination", {
+                      page: "passing_grade",
+                      action: "first",
+                    });
+                    setPage(0);
+                  }}
+                  disabled={page === 0}
+                  className="rounded-full font-manrope"
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    trackEvent("pagination", {
+                      page: "passing_grade",
+                      action: "prev",
+                    });
+                    setPage((p) => Math.max(0, p - 1));
+                  }}
+                  disabled={page === 0}
+                  className="rounded-full font-manrope"
+                >
+                  Prev
+                </Button>
+                <span className="px-3 font-manrope text-text-muted-custom text-xs">
+                  Page {page + 1} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    trackEvent("pagination", {
+                      page: "passing_grade",
+                      action: "next",
+                    });
+                    setPage((p) => Math.min(totalPages - 1, p + 1));
+                  }}
+                  disabled={page >= totalPages - 1}
+                  className="rounded-full font-manrope"
+                >
+                  Next
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    trackEvent("pagination", {
+                      page: "passing_grade",
+                      action: "last",
+                    });
+                    setPage(totalPages - 1);
+                  }}
+                  disabled={page >= totalPages - 1}
+                  className="rounded-full font-manrope"
+                >
+                  Last
+                </Button>
+              </div>
+            )}
+          </AuthGate>
         </div>
       </section>
 

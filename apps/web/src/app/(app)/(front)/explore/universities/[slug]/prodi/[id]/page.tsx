@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, BookOpen, Building2, GraduationCap, MapPin, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { AuthGate } from "@/components/front/auth-gate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -264,100 +265,107 @@ export default function ProdiDetailPage() {
       {/* SNPMB Passing Grade */}
       <section className="py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          {snpmb && (snpmb.snbp || snpmb.snbt) ? (
-            <>
-              <div className="mb-4">
-                <h2 className="font-bold font-bricolage text-brand-navy text-lg">Daya Tampung &amp; Keketatan</h2>
-                <p className="mt-1 font-manrope text-text-muted-custom text-xs">Data SNBP dan SNBT 5 tahun terakhir</p>
-              </div>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {snpmb.snbp && (
-                  <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-                    <div className="border-b bg-gradient-to-r from-blue-50 to-blue-50/50 px-5 py-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold font-bricolage text-brand-navy text-sm">SNBP</h3>
-                        <span className="rounded-md bg-blue-100 px-2 py-0.5 font-manrope font-semibold text-[10px] text-blue-700">
-                          Daya tampung: {snpmb.snbp.capacity ?? "-"}
-                        </span>
+          <AuthGate
+            title="Data Passing Grade SNBP/SNBT"
+            description="Lihat passing grade, daya tampung, dan tingkat keketatan SNBP/SNBT 5 tahun terakhir untuk membantu kamu menentukan target."
+          >
+            {snpmb && (snpmb.snbp || snpmb.snbt) ? (
+              <>
+                <div className="mb-4">
+                  <h2 className="font-bold font-bricolage text-brand-navy text-lg">Daya Tampung &amp; Keketatan</h2>
+                  <p className="mt-1 font-manrope text-text-muted-custom text-xs">
+                    Data SNBP dan SNBT 5 tahun terakhir
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {snpmb.snbp && (
+                    <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+                      <div className="border-b bg-gradient-to-r from-blue-50 to-blue-50/50 px-5 py-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold font-bricolage text-brand-navy text-sm">SNBP</h3>
+                          <span className="rounded-md bg-blue-100 px-2 py-0.5 font-manrope font-semibold text-[10px] text-blue-700">
+                            Daya tampung: {snpmb.snbp.capacity ?? "-"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="divide-y">
+                        {snpmb.snbp.history?.map((h: any) => (
+                          <div key={h.year} className="flex items-center justify-between px-5 py-3">
+                            <span className="font-manrope font-semibold text-text-muted-custom text-xs">{h.year}</span>
+                            <div className="flex items-center gap-4">
+                              <span className="font-manrope text-[10px] text-text-muted-custom">
+                                🅿 {h.applicants?.toLocaleString() ?? "?"}
+                              </span>
+                              <span className="font-manrope text-[10px] text-text-muted-custom">
+                                ✓ {h.accepted?.toLocaleString() ?? "?"}
+                              </span>
+                              {h.passingGrade && (
+                                <span className="rounded-md bg-green-100 px-2 py-0.5 font-manrope font-semibold text-[10px] text-green-700">
+                                  {h.passingGrade}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {!snpmb.snbp.history?.length && (
+                          <div className="px-5 py-4 text-center font-manrope text-text-muted-custom text-xs">
+                            Belum ada data histori
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="divide-y">
-                      {snpmb.snbp.history?.map((h: any) => (
-                        <div key={h.year} className="flex items-center justify-between px-5 py-3">
-                          <span className="font-manrope font-semibold text-text-muted-custom text-xs">{h.year}</span>
-                          <div className="flex items-center gap-4">
-                            <span className="font-manrope text-[10px] text-text-muted-custom">
-                              🅿 {h.applicants?.toLocaleString() ?? "?"}
-                            </span>
-                            <span className="font-manrope text-[10px] text-text-muted-custom">
-                              ✓ {h.accepted?.toLocaleString() ?? "?"}
-                            </span>
-                            {h.passingGrade && (
-                              <span className="rounded-md bg-green-100 px-2 py-0.5 font-manrope font-semibold text-[10px] text-green-700">
-                                {h.passingGrade}
+                  )}
+                  {snpmb.snbt && (
+                    <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+                      <div className="border-b bg-gradient-to-r from-orange-50 to-orange-50/50 px-5 py-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold font-bricolage text-brand-navy text-sm">SNBT</h3>
+                          <span className="rounded-md bg-orange-100 px-2 py-0.5 font-manrope font-semibold text-[10px] text-orange-700">
+                            Daya tampung: {snpmb.snbt.capacity ?? "-"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="divide-y">
+                        {snpmb.snbt.history?.map((h: any) => (
+                          <div key={h.year} className="flex items-center justify-between px-5 py-3">
+                            <span className="font-manrope font-semibold text-text-muted-custom text-xs">{h.year}</span>
+                            <div className="flex items-center gap-4">
+                              <span className="font-manrope text-[10px] text-text-muted-custom">
+                                🅿 {h.applicants?.toLocaleString() ?? "?"}
                               </span>
-                            )}
+                              <span className="font-manrope text-[10px] text-text-muted-custom">
+                                🎯 {h.capacity?.toLocaleString() ?? "?"}
+                              </span>
+                              {h.passingGrade && (
+                                <span className="rounded-md bg-orange-100 px-2 py-0.5 font-manrope font-semibold text-[10px] text-orange-700">
+                                  {h.passingGrade}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                      {!snpmb.snbp.history?.length && (
-                        <div className="px-5 py-4 text-center font-manrope text-text-muted-custom text-xs">
-                          Belum ada data histori
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {snpmb.snbt && (
-                  <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-                    <div className="border-b bg-gradient-to-r from-orange-50 to-orange-50/50 px-5 py-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold font-bricolage text-brand-navy text-sm">SNBT</h3>
-                        <span className="rounded-md bg-orange-100 px-2 py-0.5 font-manrope font-semibold text-[10px] text-orange-700">
-                          Daya tampung: {snpmb.snbt.capacity ?? "-"}
-                        </span>
+                        ))}
+                        {!snpmb.snbt.history?.length && (
+                          <div className="px-5 py-4 text-center font-manrope text-text-muted-custom text-xs">
+                            Belum ada data histori
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="divide-y">
-                      {snpmb.snbt.history?.map((h: any) => (
-                        <div key={h.year} className="flex items-center justify-between px-5 py-3">
-                          <span className="font-manrope font-semibold text-text-muted-custom text-xs">{h.year}</span>
-                          <div className="flex items-center gap-4">
-                            <span className="font-manrope text-[10px] text-text-muted-custom">
-                              🅿 {h.applicants?.toLocaleString() ?? "?"}
-                            </span>
-                            <span className="font-manrope text-[10px] text-text-muted-custom">
-                              🎯 {h.capacity?.toLocaleString() ?? "?"}
-                            </span>
-                            {h.passingGrade && (
-                              <span className="rounded-md bg-orange-100 px-2 py-0.5 font-manrope font-semibold text-[10px] text-orange-700">
-                                {h.passingGrade}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {!snpmb.snbt.history?.length && (
-                        <div className="px-5 py-4 text-center font-manrope text-text-muted-custom text-xs">
-                          Belum ada data histori
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl border bg-gray-50 p-8 text-center">
+                <GraduationCap className="mx-auto h-8 w-8 text-gray-300" />
+                <p className="mt-2 font-manrope font-medium text-sm text-text-muted-custom">
+                  Data passing grade belum tersedia
+                </p>
+                <p className="mt-1 font-manrope text-text-muted-custom text-xs">
+                  Data daya tampung dan keketatan SNBP/SNBT hanya tersedia untuk program studi di PTN peserta SNPMB.
+                </p>
               </div>
-            </>
-          ) : (
-            <div className="rounded-xl border bg-gray-50 p-8 text-center">
-              <GraduationCap className="mx-auto h-8 w-8 text-gray-300" />
-              <p className="mt-2 font-manrope font-medium text-sm text-text-muted-custom">
-                Data passing grade belum tersedia
-              </p>
-              <p className="mt-1 font-manrope text-text-muted-custom text-xs">
-                Data daya tampung dan keketatan SNBP/SNBT hanya tersedia untuk program studi di PTN peserta SNPMB.
-              </p>
-            </div>
-          )}
+            )}
+          </AuthGate>
         </div>
       </section>
 
