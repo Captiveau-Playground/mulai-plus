@@ -103,7 +103,7 @@ export default function StudyProgramSlugPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="border-b bg-white pt-16 sm:pt-20">
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-3">
           <script
             id="jsonld-breadcrumb"
             type="application/ld+json"
@@ -112,7 +112,12 @@ export default function StudyProgramSlugPage() {
                 "@context": "https://schema.org",
                 "@type": "BreadcrumbList",
                 itemListElement: [
-                  { "@type": "ListItem", position: 1, name: "Home", item: "https://mulaiplus.id" },
+                  {
+                    "@type": "ListItem",
+                    position: 1,
+                    name: "Home",
+                    item: "https://mulaiplus.id",
+                  },
                   {
                     "@type": "ListItem",
                     position: 2,
@@ -144,7 +149,7 @@ export default function StudyProgramSlugPage() {
       </div>
 
       <section className="border-b bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-8">
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -173,8 +178,8 @@ export default function StudyProgramSlugPage() {
         </div>
       </section>
 
-      <section className="py-8 sm:py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="pt-8 sm:py-12">
+        <div className="mx-auto max-w-7xl px-4">
           {isLoading ? (
             <div className="space-y-4">
               {[1, 2].map((i) => (
@@ -328,7 +333,13 @@ export default function StudyProgramSlugPage() {
         </div>
       </section>
 
-      {detail && <ExploreFAQ items={getProgramFAQs(detail.name)} title={`Pertanyaan Umum tentang ${detail.name}`} />}
+      <section className="py-2">
+        <div className="mx-auto max-w-7xl px-4">
+          {detail && (
+            <ExploreFAQ items={getProgramFAQs(detail.name)} title={`Pertanyaan Umum tentang ${detail.name}`} />
+          )}
+        </div>
+      </section>
     </div>
   );
 }

@@ -27,8 +27,8 @@ export function ExploreFAQ({ items, title = "Pertanyaan Umum" }: { items: FAQIte
   return (
     <>
       <script id="jsonld-faq" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <section className="py-8 sm:py-12">
-        <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+      <section className="py-4 sm:py-4">
+        <div className="mx-auto max-w-7xl">
           <h2 className="mb-6 font-bold font-bricolage text-brand-navy text-lg">{title}</h2>
           <Accordion className="space-y-2">
             {items.map((item, i) => (

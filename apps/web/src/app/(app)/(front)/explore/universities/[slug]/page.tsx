@@ -42,7 +42,10 @@ export default function UniversityDetailPage() {
   const slug = params.slug as string;
   const [prodiSearch, setProdiSearch] = useState("");
   const [prodiLevel, setProdiLevel] = useState("all");
-  const [prodiSort, setProdiSort] = useState({ field: "name", dir: "asc" as "asc" | "desc" });
+  const [prodiSort, setProdiSort] = useState({
+    field: "name",
+    dir: "asc" as "asc" | "desc",
+  });
   const [prodiPage, setProdiPage] = useState(0);
   const PRODI_PAGE_SIZE = 15;
 
@@ -209,7 +212,12 @@ export default function UniversityDetailPage() {
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             itemListElement: [
-              { "@type": "ListItem", position: 1, name: "Home", item: "https://mulaiplus.id" },
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Home",
+                item: "https://mulaiplus.id",
+              },
               {
                 "@type": "ListItem",
                 position: 2,
@@ -730,6 +738,93 @@ export default function UniversityDetailPage() {
               </TabsContent>
             </Tabs>
           </div>
+
+          {/* Related Universities */}
+          {slugs.length > 1 && (
+            <section className="py-10 sm:py-14">
+              <div className="mx-auto max-w-7xl">
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="font-bold font-bricolage text-brand-navy text-lg">Universitas Lainnya</h2>
+                  <Link
+                    href="/explore/universities"
+                    className="font-manrope font-medium text-brand-orange text-xs hover:text-brand-orange/80"
+                  >
+                    Lihat semua →
+                  </Link>
+                </div>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                  {(() => {
+                    const CARD_COLORS = [
+                      {
+                        bg: "from-brand-navy/10 to-brand-orange/10",
+                        icon: "text-brand-navy/60",
+                      },
+                      {
+                        bg: "from-blue-500/10 to-cyan-500/10",
+                        icon: "text-blue-600/60",
+                      },
+                      {
+                        bg: "from-emerald-500/10 to-teal-500/10",
+                        icon: "text-emerald-600/60",
+                      },
+                      {
+                        bg: "from-violet-500/10 to-purple-500/10",
+                        icon: "text-violet-600/60",
+                      },
+                      {
+                        bg: "from-rose-500/10 to-pink-500/10",
+                        icon: "text-rose-600/60",
+                      },
+                      {
+                        bg: "from-amber-500/10 to-orange-500/10",
+                        icon: "text-amber-600/60",
+                      },
+                    ];
+                    const getType = (n: string) => {
+                      if (n.startsWith("Universitas")) return "Universitas";
+                      if (n.startsWith("Institut")) return "Institut";
+                      if (n.startsWith("Politeknik")) return "Politeknik";
+                      if (/^ST[AKMIK]/.test(n) || /Sekolah Tinggi/.test(n)) return "Sekolah Tinggi";
+                      if (n.startsWith("Akademi")) return "Akademi";
+                      return null;
+                    };
+                    return slugs
+                      .filter((s: any) => s.slug !== slug)
+                      .sort(() => 0.5 - Math.random())
+                      .slice(0, 4)
+                      .map((s: any, i: number) => {
+                        const color = CARD_COLORS[i % CARD_COLORS.length];
+                        const type = getType(s.name);
+                        return (
+                          <Link
+                            key={s.slug}
+                            href={`/explore/universities/${s.slug}`}
+                            className="group rounded-xl border bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-navy/20 hover:shadow-md"
+                          >
+                            <div
+                              className={
+                                "flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br transition-all" +
+                                color.bg
+                              }
+                            >
+                              <Building2 className={`h-5 w-5 transition-all${color.icon}`} />
+                            </div>
+                            <p className="mt-3 line-clamp-2 font-bold font-bricolage text-brand-navy text-sm leading-snug transition-colors group-hover:text-brand-orange">
+                              {s.name}
+                            </p>
+                            {type && (
+                              <span className="mt-1.5 inline-block rounded-md bg-brand-navy/5 px-2 py-0.5 font-manrope text-[9px] text-brand-navy/60">
+                                {type}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      });
+                  })()}
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* FAQ */}
           {uni && (
