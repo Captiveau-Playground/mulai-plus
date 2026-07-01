@@ -201,6 +201,31 @@ export default function UniversityDetailPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
+      <script
+        id="jsonld-breadcrumb"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: "https://mulaiplus.id" },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "Universities",
+                item: "https://mulaiplus.id/explore/universities",
+              },
+              {
+                "@type": "ListItem",
+                position: 3,
+                name: uni.name,
+                item: `https://mulaiplus.id/explore/universities/${slug}`,
+              },
+            ],
+          }),
+        }}
+      />
       <div className="border-b bg-white pt-16 sm:pt-20">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2 font-manrope text-text-muted-custom text-xs">

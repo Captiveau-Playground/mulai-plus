@@ -104,6 +104,31 @@ export default function StudyProgramSlugPage() {
     <div className="min-h-screen bg-white">
       <div className="border-b bg-white pt-16 sm:pt-20">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+          <script
+            id="jsonld-breadcrumb"
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "BreadcrumbList",
+                itemListElement: [
+                  { "@type": "ListItem", position: 1, name: "Home", item: "https://mulaiplus.id" },
+                  {
+                    "@type": "ListItem",
+                    position: 2,
+                    name: "Program Studi",
+                    item: "https://mulaiplus.id/explore/study-programs",
+                  },
+                  {
+                    "@type": "ListItem",
+                    position: 3,
+                    name: detail?.name ?? slug,
+                    item: `https://mulaiplus.id/explore/study-programs/${slug}`,
+                  },
+                ],
+              }),
+            }}
+          />
           <div className="flex items-center gap-2 font-manrope text-text-muted-custom text-xs">
             <Link href={"/" as any} className="transition-colors hover:text-brand-navy">
               Home
