@@ -30,11 +30,9 @@ interface ReportItem {
 interface Report {
   id: string;
   batchId?: string | null;
-  studentName?: string;
-  student?: { name?: string | null };
-  mentor?: { name?: string | null };
-  batch?: { id: string; name?: string | null } | null;
-  programName?: string;
+  student?: { id: string; name?: string | null } | null;
+  mentor?: { id: string; name?: string | null } | null;
+  batch?: { id: string; name?: string | null; program?: { name?: string | null } | null } | null;
   mentorNotes?: string | null;
   items?: ReportItem[];
 }
@@ -69,10 +67,10 @@ function DownloadButton({ report }: { report: Report }) {
     setLoading(true);
     try {
       const blob = await generateSummaryReportPdf({
-        studentName: report.studentName || report.student?.name || "Student",
+        studentName: report.student?.name || "Student",
         mentorName: report.mentor?.name || "Mentor",
         batchName: report.batch?.name || "",
-        programName: report.programName || "Mentoring Program",
+        programName: report.batch?.program?.name || "Mentoring Program",
         items: report.items?.map((i) => ({ title: i.title, description: i.description })) || [],
         mentorNotes: report.mentorNotes || null,
         date: format(new Date(), "dd MMMM yyyy", { locale: id }),

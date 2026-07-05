@@ -2123,8 +2123,12 @@ export const programsRouter = {
       const reports = await db.query.summaryReport.findMany({
         where: and(...conditions),
         with: {
+          student: { columns: { id: true, name: true } },
           mentor: { columns: { id: true, name: true } },
-          batch: { columns: { id: true, name: true } },
+          batch: {
+            columns: { id: true, name: true },
+            with: { program: { columns: { name: true } } },
+          },
           items: { orderBy: asc(summaryReportItem.order) },
         },
         orderBy: desc(summaryReport.createdAt),
@@ -2141,8 +2145,12 @@ export const programsRouter = {
           eq(summaryReport.status, "approved"),
         ),
         with: {
+          student: { columns: { id: true, name: true } },
           mentor: { columns: { id: true, name: true } },
-          batch: { columns: { id: true, name: true } },
+          batch: {
+            columns: { id: true, name: true },
+            with: { program: { columns: { name: true } } },
+          },
           items: { orderBy: asc(summaryReportItem.order) },
         },
       });
