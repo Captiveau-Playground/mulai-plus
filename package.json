@@ -59,6 +59,7 @@
     "@supabase/supabase-js": "^2.91.1",
     "date-fns-tz": "^3.2.0",
     "dotenv": "catalog:",
+    "qrcode": "^1.5.4",
     "zod": "catalog:"
   },
   "devDependencies": {
