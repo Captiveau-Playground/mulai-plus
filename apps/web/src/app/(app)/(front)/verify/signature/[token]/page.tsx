@@ -28,7 +28,7 @@ function roleLabel(role: string): string {
 function ErrorState({ icon, title, message }: { icon: "warning" | "invalid"; title: string; message: string }) {
   const isWarn = icon === "warning";
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4 py-16 sm:py-24">
+    <div className="flex min-h-[60vh] items-center justify-center bg-bg-light px-4 py-16 sm:py-24">
       <div className="w-full max-w-md text-center">
         <div className="relative mx-auto mb-8 w-fit">
           <div className="absolute inset-0 flex items-center justify-center">
@@ -162,7 +162,7 @@ async function VerifyContent({ token }: { token: string }) {
   const dateIssued = apiResult?.documentDate || info.t || "—";
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4 py-16 sm:py-20 lg:py-28">
+    <div className="flex min-h-[60vh] items-center justify-center bg-bg-light px-4 py-16 sm:py-20 lg:py-28">
       <div className="w-full max-w-lg">
         {/* Verified Badge */}
         <div className="mb-8 text-center sm:mb-10">
@@ -328,7 +328,7 @@ export default async function VerifySignaturePage({ params }: { params: Promise<
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <div className="flex min-h-[60vh] items-center justify-center bg-bg-light px-4">
           <div className="flex flex-col items-center gap-4">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-navy/20 border-t-brand-navy" />
             <p className="font-manrope text-sm text-text-muted-custom">Memverifikasi tanda tangan...</p>
