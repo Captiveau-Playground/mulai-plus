@@ -84,7 +84,9 @@ function DownloadButton({ report }: { report: Report }) {
         d: reportId.substring(0, 8),
         t: date,
       });
-      const encoded = btoa(data);
+      const encoded = btoa(data)
+        .replace(/[+/]/g, (c) => (c === "+" ? "-" : "_"))
+        .replace(/=+$/, "");
       return {
         name: signer.name,
         role: signer.role,
