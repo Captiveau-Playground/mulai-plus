@@ -65,59 +65,20 @@ function DownloadButton({ report }: { report: Report }) {
 
   const getSignatures = async (
     reportId: string,
-    _studentName: string,
-    _mentorName: string,
-    _programName: string,
-    _batchName: string,
-    date: string,
   ): Promise<{ name: string; role: string; verificationUrl: string }[]> => {
-    const signers: { name: string; role: "program_manager" | "founder" }[] = [
-      { name: "Salma Shidqiyah", role: "program_manager" },
-      { name: "Febby Dzurrotul Amaliyah", role: "founder" },
-    ];
-
-    // Try server-side HMAC signing via API
-    const results = await Promise.allSettled(
-      signers.map((s) =>
-        client.esign.signDocument({
-          signerName: s.name,
-          signerRole: s.role,
-          documentId: reportId,
-          documentDate: date,
-        }),
-      ),
-    );
-
-    const ok: { name: string; role: string; verificationUrl: string }[] = [];
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      if (r.status === "fulfilled") {
-        ok.push({
-          name: signers[i].name,
-          role: signers[i].role,
-          verificationUrl: `${window.location.origin}${r.value.url}`,
-        });
+    try {
+      const result = await client.esign.getSignaturesByDocument({ documentId: reportId });
+      if (result && result.length > 0) {
+        return result.map((r: any) => ({
+          name: r.signerName,
+          role: r.signerRole,
+          verificationUrl: `${window.location.origin}${r.url}`,
+        }));
       }
+    } catch {
+      // noop
     }
-    if (ok.length > 0) return ok;
-
-    // Fallback: client-side base64-only (tanpa HMAC)
-    return signers.map((signer) => {
-      const data = JSON.stringify({
-        r: signer.role,
-        n: signer.name,
-        d: reportId.substring(0, 8),
-        t: date,
-      });
-      const encoded = btoa(data)
-        .replace(/[+/]/g, (c) => (c === "+" ? "-" : "_"))
-        .replace(/=+$/, "");
-      return {
-        name: signer.name,
-        role: signer.role,
-        verificationUrl: `${window.location.origin}/verify/signature/${encoded}`,
-      };
-    });
+    return [];
   };
 
   const doDownload = async () => {
@@ -131,7 +92,7 @@ function DownloadButton({ report }: { report: Report }) {
       const items = report.items?.map((i) => ({ title: i.title, description: i.description })) || [];
 
       // Generate e-signatures
-      const signers = await getSignatures(report.id, studentName, mentorName, programName, batchName, date);
+      const signers = await getSignatures(report.id);
 
       const blob = await generateSummaryReportPdf({
         studentName,

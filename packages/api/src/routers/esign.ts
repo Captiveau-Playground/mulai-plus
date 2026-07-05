@@ -1,9 +1,10 @@
 import { createHmac, randomUUID } from "node:crypto";
-import { and, db, eq } from "@mulai-plus/db";
+import { and, count, db, desc, eq, sql } from "@mulai-plus/db";
+import { auditLog } from "@mulai-plus/db/schema/audit";
 import { esignSignature } from "@mulai-plus/db/schema/esign";
 import { env } from "@mulai-plus/env/server";
 import { z } from "zod";
-import { publicProcedure } from "../index";
+import { adminProcedure, publicProcedure } from "../index";
 
 // ── HMAC Signing ──
 const SECRET = env.ESIGN_SECRET;
@@ -38,15 +39,12 @@ function verifySignedToken(token: string): { valid: boolean; payload: Record<str
 
   const encoded = token.slice(0, dot);
   const sig = token.slice(dot + 1);
-
-  // Validate hex signature
   if (!/^[0-9a-f]{64}$/i.test(sig)) return { valid: false, payload: null };
 
   try {
     const data = b64urlDecode(encoded);
     const expectedSig = hmacSign(data);
     if (sig !== expectedSig) return { valid: false, payload: null };
-
     return { valid: true, payload: JSON.parse(data) };
   } catch {
     return { valid: false, payload: null };
@@ -55,9 +53,8 @@ function verifySignedToken(token: string): { valid: boolean; payload: Record<str
 
 export const esignRouter = {
   /**
-   * Generate an HMAC-signed e-signature token for a signer.
-   * Stateless — token contains all data + HMAC signature.
-   * Also stored in DB for audit trail.
+   * Generate an HMAC-signed e-signature token.
+   * Stateless (HMAC) + DB audit trail.
    */
   signDocument: publicProcedure
     .input(
@@ -69,16 +66,10 @@ export const esignRouter = {
       }),
     )
     .handler(async ({ input }) => {
-      const payload = {
-        n: input.signerName,
-        r: input.signerRole,
-        d: input.documentId,
-        t: input.documentDate,
-      };
-
+      const payload = { n: input.signerName, r: input.signerRole, d: input.documentId, t: input.documentDate };
       const token = createSignedToken(payload);
 
-      // Save to DB for audit trail (optional — HMAC alone is sufficient)
+      // DB audit trail
       try {
         const existing = await db.query.esignSignature.findFirst({
           where: and(eq(esignSignature.documentId, input.documentId), eq(esignSignature.signerRole, input.signerRole)),
@@ -93,9 +84,17 @@ export const esignRouter = {
             signerRole: input.signerRole,
             documentHash: hmacSign(input.documentId),
           });
+
+          await db.insert(auditLog).values({
+            id: randomUUID(),
+            action: "ESIGN_CREATED",
+            resource: "esign_signature",
+            resourceId: input.documentId,
+            details: { signerName: input.signerName, signerRole: input.signerRole, token },
+          });
         }
       } catch {
-        // DB failure doesn't block QR generation
+        // DB failure doesn't block QR
       }
 
       return { token, url: `/verify/signature/${token}` };
@@ -103,33 +102,24 @@ export const esignRouter = {
 
   /**
    * Verify an HMAC-signed token.
-   * First validates HMAC (cryptographic), then enriches with DB data if available.
    */
   verifySignature: publicProcedure.input(z.object({ token: z.string() })).handler(async ({ input }) => {
-    // 1. HMAC verification (cryptographic — works even without DB)
     const { valid, payload } = verifySignedToken(input.token);
     if (!valid || !payload) {
       return { valid: false, message: "Tanda tangan digital tidak valid atau telah diubah." };
     }
 
-    // 2. DB enrichment (optional — for audit trail + extra validation)
     let dbRecord = null;
     try {
-      dbRecord = await db.query.esignSignature.findFirst({
-        where: eq(esignSignature.token, input.token),
-      });
-
+      dbRecord = await db.query.esignSignature.findFirst({ where: eq(esignSignature.token, input.token) });
       if (dbRecord) {
         await db
           .update(esignSignature)
-          .set({
-            verifiedCount: (dbRecord.verifiedCount ?? 0) + 1,
-            lastVerifiedAt: new Date(),
-          })
+          .set({ verifiedCount: (dbRecord.verifiedCount ?? 0) + 1, lastVerifiedAt: new Date() })
           .where(eq(esignSignature.token, input.token));
       }
     } catch {
-      // DB failure doesn't block verification
+      // noop
     }
 
     return {
@@ -142,4 +132,93 @@ export const esignRouter = {
       totalVerifications: (dbRecord?.verifiedCount ?? 0) + 1,
     };
   }),
+
+  /**
+   * List all signatures (admin).
+   */
+  listSignatures: adminProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().default(50),
+          offset: z.number().default(0),
+        })
+        .optional(),
+    )
+    .handler(async ({ input }) => {
+      const limit = input?.limit ?? 50;
+      const offset = input?.offset ?? 0;
+
+      const items = await db
+        .select()
+        .from(esignSignature)
+        .orderBy(desc(esignSignature.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const [total] = await db.select({ count: count() }).from(esignSignature);
+
+      return {
+        data: items.map((s) => ({
+          ...s,
+          createdAt: s.createdAt?.toISOString() ?? null,
+          lastVerifiedAt: s.lastVerifiedAt?.toISOString() ?? null,
+        })),
+        pagination: { total: total?.count ?? 0, limit, offset },
+      };
+    }),
+
+  /**
+   * Get signature stats (admin).
+   */
+  getStats: adminProcedure.handler(async () => {
+    const [total] = await db.select({ count: count() }).from(esignSignature);
+    const [totalVerified] = await db
+      .select({ count: count() })
+      .from(esignSignature)
+      .where(sql`${esignSignature.verifiedCount} > 0`);
+
+    const roleDistribution = await db
+      .select({
+        role: esignSignature.signerRole,
+        count: count(),
+      })
+      .from(esignSignature)
+      .groupBy(esignSignature.signerRole);
+
+    const recent = await db.select().from(esignSignature).orderBy(desc(esignSignature.createdAt)).limit(5);
+
+    return {
+      total: total?.count ?? 0,
+      totalVerified: totalVerified?.count ?? 0,
+      roleDistribution,
+      recent: recent.map((s) => ({
+        signerName: s.signerName,
+        signerRole: s.signerRole,
+        documentId: s.documentId,
+        createdAt: s.createdAt?.toISOString(),
+        verifiedCount: s.verifiedCount,
+      })),
+    };
+  }),
+
+  /**
+   * Get signatures for a specific document (used by student page).
+   */
+  getSignaturesByDocument: publicProcedure.input(z.object({ documentId: z.string() })).handler(async ({ input }) => {
+    const records = await db.query.esignSignature.findMany({
+      where: eq(esignSignature.documentId, input.documentId),
+      orderBy: [desc(esignSignature.createdAt)],
+    });
+
+    return records.map((r) => ({
+      token: r.token,
+      signerName: r.signerName,
+      signerRole: r.signerRole,
+      url: `/verify/signature/${r.token}`,
+    }));
+  }),
 };
+
+// ── Exported utilities ──
+export { createSignedToken, hmacSign };
