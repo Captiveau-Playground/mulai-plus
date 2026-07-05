@@ -2041,7 +2041,10 @@ export const programsRouter = {
         z.object({
           batchId: z.string(),
           studentId: z.string(),
-          items: z.array(z.object({ title: z.string().min(1), description: z.string().min(1) })).length(5),
+          items: z
+            .array(z.object({ title: z.string().min(1), description: z.string().min(1) }))
+            .min(1)
+            .max(10),
         }),
       )
       .handler(async ({ input, context }) => {
