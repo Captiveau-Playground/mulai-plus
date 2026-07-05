@@ -3,10 +3,11 @@ import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+// ── Decode token (support both HMAC-signed and plain base64url) ──
 function decodeToken(token: string): Record<string, string> | null {
   try {
-    // Convert base64url → base64 (tambah padding jika perlu)
-    let b64 = token.replace(/-/g, "+").replace(/_/g, "/");
+    const parts = token.split(".");
+    let b64 = parts[0].replace(/-/g, "+").replace(/_/g, "/");
     while (b64.length % 4) b64 += "=";
     const raw = Buffer.from(b64, "base64").toString("utf-8");
     return JSON.parse(raw);
@@ -23,19 +24,85 @@ function roleLabel(role: string): string {
   return labels[role] || role;
 }
 
+// ── Reusable error state ──
+function ErrorState({ icon, title, message }: { icon: "warning" | "invalid"; title: string; message: string }) {
+  const isWarn = icon === "warning";
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center px-4 py-16 sm:py-24">
+      <div className="w-full max-w-md text-center">
+        <div className="relative mx-auto mb-8 w-fit">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className={`h-32 w-32 rounded-full blur-2xl ${isWarn ? "bg-amber-50" : "bg-red-50"}`} />
+          </div>
+          <div
+            className={`relative flex h-20 w-20 items-center justify-center rounded-2xl shadow-sm sm:h-24 sm:w-24 ${
+              isWarn ? "bg-amber-50" : "bg-red-50"
+            }`}
+          >
+            <svg
+              className={`h-10 w-10 sm:h-12 sm:w-12 ${isWarn ? "text-amber-500" : "text-red-500"}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              {isWarn ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+                />
+              )}
+            </svg>
+          </div>
+        </div>
+        <h1
+          className={`mb-2 font-bold font-bricolage text-2xl sm:text-3xl ${isWarn ? "text-amber-600" : "text-red-600"}`}
+        >
+          {title}
+        </h1>
+        <p className="mx-auto mb-8 max-w-sm font-manrope text-sm text-text-muted-custom sm:text-base">{message}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <a
+            href={"/" as Route}
+            className="btn-brand-navy inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-bold font-manrope text-sm shadow-md transition-all hover:translate-y-[-1px] hover:shadow-lg sm:px-8 sm:py-3.5"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
+            </svg>
+            Kembali ke Beranda
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main verify component ──
 async function VerifyContent({ token }: { token: string }) {
   const info = decodeToken(token);
-  const isValidToken = info?.r && info.n;
 
-  // Coba verifikasi via API dulu
+  // Try API verification first (supports HMAC-signed tokens)
   let apiResult: {
     valid: boolean;
-    message?: string;
-    totalVerifications?: number;
+    signerName?: string;
+    signerRole?: string;
+    documentId?: string;
+    documentDate?: string;
     verifiedAt?: string;
+    totalVerifications?: number;
+    message?: string;
   } | null = null;
 
-  if (isValidToken) {
+  let _apiFailed = false;
+
+  if (info) {
     try {
       const res = await fetch(`${env.NEXT_PUBLIC_SERVER_URL}/rpc`, {
         method: "POST",
@@ -49,116 +116,55 @@ async function VerifyContent({ token }: { token: string }) {
         cache: "no-store",
       });
       const json = await res.json();
-      if (json.result) {
-        apiResult = json.result;
-      }
+      if (json.result) apiResult = json.result;
     } catch {
-      // API not available, fallback to client-side decode
+      _apiFailed = true;
     }
   }
 
-  // ── CASE 1: Token invalid / parse gagal ──
-  if (!isValidToken) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4 py-16 sm:py-24">
-        <div className="w-full max-w-md text-center">
-          <div className="relative mx-auto mb-8 w-fit">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-32 w-32 rounded-full bg-red-50 blur-2xl" />
-            </div>
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-red-50 shadow-sm sm:h-24 sm:w-24">
-              <svg
-                className="h-10 w-10 text-red-500 sm:h-12 sm:w-12"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
-                />
-              </svg>
-            </div>
-          </div>
-          <h1 className="mb-2 font-bold font-bricolage text-2xl text-red-600 sm:text-3xl">Tanda Tangan Tidak Valid</h1>
-          <p className="mx-auto mb-8 max-w-sm font-manrope text-sm text-text-muted-custom sm:text-base">
-            QR code yang Anda scan tidak sesuai dengan format tanda tangan digital MULAI+. Pastikan Anda memindai QR
-            code yang benar.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <a
-              href={"/" as Route}
-              className="btn-brand-navy inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-bold font-manrope text-sm shadow-md transition-all hover:translate-y-[-1px] hover:shadow-lg sm:px-8 sm:py-3.5"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
-              </svg>
-              Kembali ke Beranda
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── CASE 2: Token valid tapi API bilang invalid ──
+  // ── HMAC invalid → token dirusak ──
   if (apiResult && !apiResult.valid) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4 py-16 sm:py-24">
-        <div className="w-full max-w-md text-center">
-          <div className="relative mx-auto mb-8 w-fit">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-32 w-32 rounded-full bg-amber-50 blur-2xl" />
-            </div>
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-amber-50 shadow-sm sm:h-24 sm:w-24">
-              <svg
-                className="h-10 w-10 text-amber-500 sm:h-12 sm:w-12"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-                />
-              </svg>
-            </div>
-          </div>
-          <h1 className="mb-2 font-bold font-bricolage text-2xl text-amber-600 sm:text-3xl">Dokumen Tidak Ditemukan</h1>
-          <p className="mx-auto mb-8 max-w-sm font-manrope text-sm text-text-muted-custom sm:text-base">
-            Tanda tangan digital ini tidak dapat diverifikasi di sistem MULAI+. Dokumen mungkin telah dihapus atau token
-            tidak lagi berlaku.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <a
-              href={"/" as Route}
-              className="btn-brand-navy inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-bold font-manrope text-sm shadow-md transition-all hover:translate-y-[-1px] hover:shadow-lg sm:px-8 sm:py-3.5"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
-              </svg>
-              Kembali ke Beranda
-            </a>
-          </div>
-        </div>
-      </div>
+      <ErrorState
+        icon="invalid"
+        title="Tanda Tangan Tidak Valid"
+        message="QR code yang Anda scan telah dirusak atau dipalsukan. Tanda tangan digital ini tidak dapat diverifikasi."
+      />
     );
   }
 
-  // ── CASE 3: Token valid — tampilkan detail ──
-  const signerName = info.n || "—";
-  const signerRole = info.r || "—";
-  const documentId = info.d || "—";
-  const dateIssued = info.t || "—";
+  // ── Token format invalid ──
+  if (!info) {
+    return (
+      <ErrorState
+        icon="invalid"
+        title="Tanda Tangan Tidak Dikenali"
+        message="QR code yang Anda scan tidak sesuai dengan format tanda tangan digital MULAI+. Pastikan Anda memindai QR code yang benar."
+      />
+    );
+  }
+
+  // ── API menolak (token terdaftar sebagai invalid) ──
+  if (apiResult && apiResult.valid === false) {
+    return (
+      <ErrorState
+        icon="warning"
+        title="Dokumen Tidak Ditemukan"
+        message="Tanda tangan digital ini tidak dapat diverifikasi di sistem MULAI+. Dokumen mungkin telah dihapus atau token tidak lagi berlaku."
+      />
+    );
+  }
+
+  // ── SUCCESS: tampilkan detail ──
+  const signerName = apiResult?.signerName || info.n || "—";
+  const signerRole = apiResult?.signerRole || info.r || "—";
+  const documentId = apiResult?.documentId || info.d || "—";
+  const dateIssued = apiResult?.documentDate || info.t || "—";
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-16 sm:py-20 lg:py-28">
       <div className="w-full max-w-lg">
-        {/* Badge Verifikasi */}
+        {/* Verified Badge */}
         <div className="mb-8 text-center sm:mb-10">
           <div className="relative mx-auto mb-5 w-fit">
             <div className="absolute inset-0 flex items-center justify-center">
@@ -194,9 +200,8 @@ async function VerifyContent({ token }: { token: string }) {
           </p>
         </div>
 
-        {/* Kartu Detail Signature */}
+        {/* Detail Card */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
-          {/* Header Kartu */}
           <div className="mb-5 flex items-center gap-3 sm:mb-6">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-navy/10 sm:h-12 sm:w-12">
               <svg
@@ -221,11 +226,9 @@ async function VerifyContent({ token }: { token: string }) {
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="mb-4 h-px bg-gray-100 sm:mb-5" />
+          <div className="h-px bg-gray-100" />
 
-          {/* Detail Info */}
-          <div className="space-y-3.5 sm:space-y-4">
+          <div className="mt-4 space-y-3.5 sm:mt-5 sm:space-y-4">
             <div className="flex items-center justify-between">
               <span className="font-manrope font-semibold text-[11px] text-text-muted-custom uppercase tracking-wider sm:text-xs">
                 Ditandatangani oleh
@@ -270,7 +273,6 @@ async function VerifyContent({ token }: { token: string }) {
             )}
           </div>
 
-          {/* Verification Badge */}
           <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-center sm:mt-6 sm:py-3.5">
             <div className="flex items-center justify-center gap-2">
               <svg
@@ -307,7 +309,6 @@ async function VerifyContent({ token }: { token: string }) {
           </div>
         </div>
 
-        {/* Footer Teks */}
         <p className="mt-6 text-center font-manrope text-[10px] text-text-muted-custom sm:text-[11px]">
           Verifikasi ini disediakan oleh <span className="font-semibold text-brand-navy">MULAI+</span> — Bimbingan
           Universitas, Jurusan & Beasiswa

@@ -63,21 +63,46 @@ function DownloadButton({ report }: { report: Report }) {
     }
   };
 
-  const getSignatures = (
+  const getSignatures = async (
     reportId: string,
     _studentName: string,
     _mentorName: string,
     _programName: string,
     _batchName: string,
     date: string,
-  ): { name: string; role: string; verificationUrl: string }[] => {
+  ): Promise<{ name: string; role: string; verificationUrl: string }[]> => {
     const signers: { name: string; role: "program_manager" | "founder" }[] = [
       { name: "Salma Shidqiyah", role: "program_manager" },
       { name: "Febby Dzurrotul Amaliyah", role: "founder" },
     ];
 
+    // Try server-side HMAC signing via API
+    const results = await Promise.allSettled(
+      signers.map((s) =>
+        client.esign.signDocument({
+          signerName: s.name,
+          signerRole: s.role,
+          documentId: reportId,
+          documentDate: date,
+        }),
+      ),
+    );
+
+    const ok: { name: string; role: string; verificationUrl: string }[] = [];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status === "fulfilled") {
+        ok.push({
+          name: signers[i].name,
+          role: signers[i].role,
+          verificationUrl: `${window.location.origin}${r.value.url}`,
+        });
+      }
+    }
+    if (ok.length > 0) return ok;
+
+    // Fallback: client-side base64-only (tanpa HMAC)
     return signers.map((signer) => {
-      // Encode signer data in base64 for stateless verification
       const data = JSON.stringify({
         r: signer.role,
         n: signer.name,

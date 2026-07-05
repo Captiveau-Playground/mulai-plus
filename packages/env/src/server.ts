@@ -27,6 +27,8 @@ export const env = createEnv({
     // AI Service
     AI_SERVICE_URL: z.string().url().optional(),
     AI_API_KEY: z.string().optional(),
+    // E-Sign
+    ESIGN_SECRET: z.string().min(16).default("mulai-plus-esign-secret-change-in-production"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

@@ -1,124 +1,145 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { and, db, eq } from "@mulai-plus/db";
 import { esignSignature } from "@mulai-plus/db/schema/esign";
+import { env } from "@mulai-plus/env/server";
 import { z } from "zod";
-import { protectedProcedure, publicProcedure } from "../index";
+import { publicProcedure } from "../index";
 
-// ── Deterministic hash of document snapshot ──
-function hashDocument(data: Record<string, unknown>): string {
-  // Simple SHA-256-like hash using crypto
-  const json = JSON.stringify(data, Object.keys(data).sort());
-  // Use a simple but collision-resistant hash; in production use Web Crypto
-  let hash = 0;
-  for (let i = 0; i < json.length; i++) {
-    const char = json.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16).padStart(8, "0");
+// ── HMAC Signing ──
+const SECRET = env.ESIGN_SECRET;
+
+function b64url(data: string): string {
+  return Buffer.from(data, "utf-8")
+    .toString("base64")
+    .replace(/[+/]/g, (c) => (c === "+" ? "-" : "_"))
+    .replace(/=+$/, "");
 }
 
-function generateToken(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  for (let i = 0; i < 32; i++) {
-    result += chars[bytes[i] % chars.length];
+function b64urlDecode(str: string): string {
+  let b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  return Buffer.from(b64, "base64").toString("utf-8");
+}
+
+function hmacSign(data: string): string {
+  return createHmac("sha256", SECRET).update(data).digest("hex");
+}
+
+function createSignedToken(payload: Record<string, unknown>): string {
+  const data = JSON.stringify(payload);
+  const encoded = b64url(data);
+  const sig = hmacSign(data);
+  return `${encoded}.${sig}`;
+}
+
+function verifySignedToken(token: string): { valid: boolean; payload: Record<string, unknown> | null } {
+  const dot = token.lastIndexOf(".");
+  if (dot === -1) return { valid: false, payload: null };
+
+  const encoded = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+
+  // Validate hex signature
+  if (!/^[0-9a-f]{64}$/i.test(sig)) return { valid: false, payload: null };
+
+  try {
+    const data = b64urlDecode(encoded);
+    const expectedSig = hmacSign(data);
+    if (sig !== expectedSig) return { valid: false, payload: null };
+
+    return { valid: true, payload: JSON.parse(data) };
+  } catch {
+    return { valid: false, payload: null };
   }
-  return result;
 }
 
 export const esignRouter = {
   /**
-   * Generate an e-signature for a signer on a document.
-   * Called for each role (program_manager, founder) when generating PDF.
+   * Generate an HMAC-signed e-signature token for a signer.
+   * Stateless — token contains all data + HMAC signature.
+   * Also stored in DB for audit trail.
    */
-  sign: protectedProcedure
+  signDocument: publicProcedure
     .input(
       z.object({
-        documentId: z.string(), // report id
-        documentType: z.string().default("summary_report"),
         signerName: z.string(),
         signerRole: z.enum(["program_manager", "founder"]),
-        documentSnapshot: z.object({
-          studentName: z.string(),
-          mentorName: z.string(),
-          programName: z.string(),
-          batchName: z.string(),
-          date: z.string(),
-          itemCount: z.number(),
-        }),
+        documentId: z.string(),
+        documentDate: z.string(),
       }),
     )
     .handler(async ({ input }) => {
-      // Check if this role already signed this document
-      const existingRole = await db.query.esignSignature.findFirst({
-        where: and(eq(esignSignature.documentId, input.documentId), eq(esignSignature.signerRole, input.signerRole)),
-      });
+      const payload = {
+        n: input.signerName,
+        r: input.signerRole,
+        d: input.documentId,
+        t: input.documentDate,
+      };
 
-      if (existingRole) {
-        return {
-          token: existingRole.token,
-          url: `/verify/signature/${existingRole.token}`,
-          signerName: existingRole.signerName,
-          signerRole: existingRole.signerRole,
-        };
+      const token = createSignedToken(payload);
+
+      // Save to DB for audit trail (optional — HMAC alone is sufficient)
+      try {
+        const existing = await db.query.esignSignature.findFirst({
+          where: and(eq(esignSignature.documentId, input.documentId), eq(esignSignature.signerRole, input.signerRole)),
+        });
+        if (!existing) {
+          await db.insert(esignSignature).values({
+            id: randomUUID(),
+            token,
+            documentType: "summary_report",
+            documentId: input.documentId,
+            signerName: input.signerName,
+            signerRole: input.signerRole,
+            documentHash: hmacSign(input.documentId),
+          });
+        }
+      } catch {
+        // DB failure doesn't block QR generation
       }
 
-      // Generate a unique token
-      const token = generateToken();
-      const docHash = hashDocument(input.documentSnapshot as Record<string, unknown>);
-
-      await db.insert(esignSignature).values({
-        id: randomUUID(),
-        token,
-        documentType: input.documentType,
-        documentId: input.documentId,
-        signerName: input.signerName,
-        signerRole: input.signerRole,
-        documentHash: docHash,
-        metadata: input.documentSnapshot,
-      });
-
-      return {
-        token,
-        url: `/verify/signature/${token}`,
-        signerName: input.signerName,
-        signerRole: input.signerRole,
-      };
+      return { token, url: `/verify/signature/${token}` };
     }),
 
   /**
-   * Verify a signature token.
+   * Verify an HMAC-signed token.
+   * First validates HMAC (cryptographic), then enriches with DB data if available.
    */
   verifySignature: publicProcedure.input(z.object({ token: z.string() })).handler(async ({ input }) => {
-    const record = await db.query.esignSignature.findFirst({
-      where: eq(esignSignature.token, input.token),
-    });
-
-    if (!record) {
-      return { valid: false, message: "Signature not found or invalid." };
+    // 1. HMAC verification (cryptographic — works even without DB)
+    const { valid, payload } = verifySignedToken(input.token);
+    if (!valid || !payload) {
+      return { valid: false, message: "Tanda tangan digital tidak valid atau telah diubah." };
     }
 
-    // Increment verification count
-    await db
-      .update(esignSignature)
-      .set({
-        verifiedCount: (record.verifiedCount ?? 0) + 1,
-        lastVerifiedAt: new Date(),
-      })
-      .where(eq(esignSignature.token, input.token));
+    // 2. DB enrichment (optional — for audit trail + extra validation)
+    let dbRecord = null;
+    try {
+      dbRecord = await db.query.esignSignature.findFirst({
+        where: eq(esignSignature.token, input.token),
+      });
+
+      if (dbRecord) {
+        await db
+          .update(esignSignature)
+          .set({
+            verifiedCount: (dbRecord.verifiedCount ?? 0) + 1,
+            lastVerifiedAt: new Date(),
+          })
+          .where(eq(esignSignature.token, input.token));
+      }
+    } catch {
+      // DB failure doesn't block verification
+    }
 
     return {
       valid: true,
-      signerName: record.signerName,
-      signerRole: record.signerRole,
-      documentType: record.documentType,
-      documentId: record.documentId,
-      timestamp: record.createdAt,
+      signerName: payload.n,
+      signerRole: payload.r,
+      documentId: payload.d,
+      documentDate: payload.t,
       verifiedAt: new Date().toISOString(),
-      totalVerifications: (record.verifiedCount ?? 0) + 1,
+      totalVerifications: (dbRecord?.verifiedCount ?? 0) + 1,
     };
   }),
 };
