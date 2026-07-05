@@ -30,11 +30,9 @@ interface ReportItem {
 interface Report {
   id: string;
   batchId?: string | null;
-  studentName?: string;
-  student?: { name?: string | null };
-  mentor?: { name?: string | null };
-  batch?: { id: string; name?: string | null } | null;
-  programName?: string;
+  student?: { id: string; name?: string | null } | null;
+  mentor?: { id: string; name?: string | null } | null;
+  batch?: { id: string; name?: string | null; program?: { name?: string | null } | null } | null;
   mentorNotes?: string | null;
   items?: ReportItem[];
 }
@@ -65,17 +63,46 @@ function DownloadButton({ report }: { report: Report }) {
     }
   };
 
+  const getSignatures = async (
+    reportId: string,
+  ): Promise<{ name: string; role: string; verificationUrl: string }[]> => {
+    try {
+      const result = await client.esign.getSignaturesByDocument({ documentId: reportId });
+      if (result && result.length > 0) {
+        return result.map((r: any) => ({
+          name: r.signerName,
+          role: r.signerRole,
+          verificationUrl: `${window.location.origin}${r.url}`,
+        }));
+      }
+    } catch {
+      // noop
+    }
+    return [];
+  };
+
   const doDownload = async () => {
     setLoading(true);
     try {
+      const studentName = report.student?.name || "Student";
+      const mentorName = report.mentor?.name || "Mentor";
+      const programName = report.batch?.program?.name || "Mentoring Program";
+      const batchName = report.batch?.name || "";
+      const date = format(new Date(), "dd MMMM yyyy", { locale: id });
+      const items = report.items?.map((i) => ({ title: i.title, description: i.description })) || [];
+
+      // Generate e-signatures
+      const signers = await getSignatures(report.id);
+
       const blob = await generateSummaryReportPdf({
-        studentName: report.studentName || report.student?.name || "Student",
-        mentorName: report.mentor?.name || "Mentor",
-        batchName: report.batch?.name || "",
-        programName: report.programName || "Mentoring Program",
-        items: report.items?.map((i) => ({ title: i.title, description: i.description })) || [],
+        studentName,
+        mentorName,
+        batchName,
+        programName,
+        items,
         mentorNotes: report.mentorNotes || null,
-        date: format(new Date(), "dd MMMM yyyy", { locale: id }),
+        date,
+        signers,
       });
 
       const url = URL.createObjectURL(blob);

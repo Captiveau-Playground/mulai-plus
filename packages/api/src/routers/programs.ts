@@ -1,7 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { and, asc, count, db, desc, eq, gt, inArray, isNotNull, isNull, ne, not, or, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
+import { esignSignature } from "@mulai-plus/db/schema/esign";
 import {
   batchReportTemplateItem,
   mentorMentee,
@@ -33,6 +34,7 @@ import {
 import { mail } from "../lib/mail";
 import { sendNotification } from "../lib/notification";
 import { getPathFromUrl, supabase } from "../lib/supabase";
+import { createSignedToken } from "./esign";
 
 function slugify(text: string) {
   return text
@@ -1938,6 +1940,48 @@ export const programsRouter = {
             .update(summaryReport)
             .set({ status: input.action, reviewNotes: input.notes || null })
             .where(eq(summaryReport.id, input.id));
+
+          // ════════════════════════════════════════════════════════
+          // Generate e-signatures when report is APPROVED
+          // ════════════════════════════════════════════════════════
+          if (input.action === "approved") {
+            const now = new Date().toISOString();
+            const signers = [
+              { name: "Salma Shidqiyah", role: "program_manager" as const },
+              { name: "Febby Dzurrotul Amaliyah", role: "founder" as const },
+            ];
+
+            for (const signer of signers) {
+              const payload = {
+                n: signer.name,
+                r: signer.role,
+                d: input.id,
+                t: now,
+              };
+              const token = createSignedToken(payload);
+
+              try {
+                const existing = await db.query.esignSignature.findFirst({
+                  where: and(eq(esignSignature.documentId, input.id), eq(esignSignature.signerRole, signer.role)),
+                });
+
+                if (!existing) {
+                  await db.insert(esignSignature).values({
+                    id: randomUUID(),
+                    token,
+                    documentType: "summary_report",
+                    documentId: input.id,
+                    signerName: signer.name,
+                    signerRole: signer.role,
+                    documentHash: createHmac("sha256", "esign").update(input.id).digest("hex"),
+                  });
+                }
+              } catch {
+                // DB failure doesn't block approval
+              }
+            }
+          }
+
           return { success: true };
         }),
     },
@@ -2123,8 +2167,12 @@ export const programsRouter = {
       const reports = await db.query.summaryReport.findMany({
         where: and(...conditions),
         with: {
+          student: { columns: { id: true, name: true } },
           mentor: { columns: { id: true, name: true } },
-          batch: { columns: { id: true, name: true } },
+          batch: {
+            columns: { id: true, name: true },
+            with: { program: { columns: { name: true } } },
+          },
           items: { orderBy: asc(summaryReportItem.order) },
         },
         orderBy: desc(summaryReport.createdAt),
@@ -2141,8 +2189,12 @@ export const programsRouter = {
           eq(summaryReport.status, "approved"),
         ),
         with: {
+          student: { columns: { id: true, name: true } },
           mentor: { columns: { id: true, name: true } },
-          batch: { columns: { id: true, name: true } },
+          batch: {
+            columns: { id: true, name: true },
+            with: { program: { columns: { name: true } } },
+          },
           items: { orderBy: asc(summaryReportItem.order) },
         },
       });

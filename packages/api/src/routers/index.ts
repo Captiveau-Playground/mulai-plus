@@ -7,6 +7,7 @@ import { protectedProcedure, publicProcedure } from "../index";
 import { auditRouter } from "./audit";
 import { articlesRouter, authorsRouter, categoriesRouter, mediaRouter, newsletterRouter, tagsRouter } from "./cms";
 import { emailAdminRouter } from "./email-admin";
+import { esignRouter } from "./esign";
 import { feedbackRouter } from "./feedback";
 import { lmsRouter } from "./lms";
 import { newsletterAdminRouter } from "./newsletter-admin";
@@ -33,6 +34,7 @@ export const appRouter = {
   payments: paymentsRouter,
   audit: auditRouter,
   email: emailAdminRouter,
+  esign: esignRouter,
   shortLinks: shortLinksRouter,
   notification: notificationRouter,
   newsletter: newsletterAdminRouter,

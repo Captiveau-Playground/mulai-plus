@@ -7,6 +7,7 @@ import {
   Computer,
   ExternalLink,
   FileText,
+  Fingerprint,
   Key,
   LayoutDashboard,
   Link as LinkIcon,
@@ -206,6 +207,11 @@ const data = {
     },
   ],
   navSystem: [
+    {
+      title: "E-Sign",
+      url: "/admin/esign",
+      icon: Fingerprint,
+    },
     {
       title: "Audit",
       url: "#",
