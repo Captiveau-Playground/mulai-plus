@@ -1,7 +1,9 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { and, count, db, desc, eq, sql } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
+import { user } from "@mulai-plus/db/schema/auth";
 import { esignSignature } from "@mulai-plus/db/schema/esign";
+import { program, programBatch, summaryReport } from "@mulai-plus/db/schema/programs";
 import { env } from "@mulai-plus/env/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
@@ -150,8 +152,29 @@ export const esignRouter = {
       const offset = input?.offset ?? 0;
 
       const items = await db
-        .select()
+        .select({
+          id: esignSignature.id,
+          token: esignSignature.token,
+          documentType: esignSignature.documentType,
+          documentId: esignSignature.documentId,
+          signerName: esignSignature.signerName,
+          signerRole: esignSignature.signerRole,
+          documentHash: esignSignature.documentHash,
+          verifiedCount: esignSignature.verifiedCount,
+          createdAt: esignSignature.createdAt,
+          lastVerifiedAt: esignSignature.lastVerifiedAt,
+          // Context from summary report
+          studentName: user.name,
+          mentorName: sql<string>`mentor.name`,
+          batchName: programBatch.name,
+          programName: program.name,
+        })
         .from(esignSignature)
+        .leftJoin(summaryReport, eq(esignSignature.documentId, summaryReport.id))
+        .leftJoin(user, eq(summaryReport.studentId, user.id))
+        .leftJoin(sql`${user} as mentor`, sql`mentor.id = ${summaryReport.mentorId}`)
+        .leftJoin(programBatch, eq(summaryReport.batchId, programBatch.id))
+        .leftJoin(program, eq(programBatch.programId, program.id))
         .orderBy(desc(esignSignature.createdAt))
         .limit(limit)
         .offset(offset);

@@ -39,8 +39,11 @@ export default function AdminESignPage() {
     (s: any) =>
       !search ||
       s.signerName?.toLowerCase().includes(search.toLowerCase()) ||
-      s.documentId?.toLowerCase().includes(search.toLowerCase()) ||
-      s.signerRole?.toLowerCase().includes(search.toLowerCase()),
+      s.studentName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.mentorName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.programName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.batchName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.documentId?.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -104,7 +107,7 @@ export default function AdminESignPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama, dokumen, atau role..."
+            placeholder="Cari signer, student, mentor, program..."
             className="rounded-xl border-gray-200 bg-white pl-9 font-manrope text-sm"
           />
         </div>
@@ -138,16 +141,19 @@ export default function AdminESignPage() {
                     Role
                   </TableHead>
                   <TableHead className="font-manrope font-semibold text-text-muted-custom text-xs uppercase tracking-wider">
-                    Dokumen ID
+                    Student
                   </TableHead>
                   <TableHead className="font-manrope font-semibold text-text-muted-custom text-xs uppercase tracking-wider">
-                    Tanggal Terbit
+                    Mentor
                   </TableHead>
                   <TableHead className="font-manrope font-semibold text-text-muted-custom text-xs uppercase tracking-wider">
-                    Di-scan
+                    Program / Batch
                   </TableHead>
                   <TableHead className="font-manrope font-semibold text-text-muted-custom text-xs uppercase tracking-wider">
-                    Terakhir
+                    Tanggal
+                  </TableHead>
+                  <TableHead className="font-manrope font-semibold text-text-muted-custom text-xs uppercase tracking-wider">
+                    Scan
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -160,24 +166,23 @@ export default function AdminESignPage() {
                         {roleLabel[sig.signerRole] || sig.signerRole}
                       </span>
                     </TableCell>
-                    <TableCell className="font-mono text-text-muted-custom text-xs">
-                      #{sig.documentId?.substring(0, 8) || "—"}
-                    </TableCell>
+                    <TableCell className="font-manrope text-sm text-text-main">{sig.studentName || "—"}</TableCell>
                     <TableCell className="font-manrope text-sm text-text-muted-custom">
-                      {sig.createdAt
-                        ? format(new Date(sig.createdAt), "dd MMM yyyy, HH:mm", {
-                            locale: id,
-                          })
-                        : "—"}
+                      {sig.mentorName || "—"}
                     </TableCell>
-                    <TableCell className="font-manrope text-sm text-text-main">{sig.verifiedCount ?? 0}x</TableCell>
-                    <TableCell>
-                      {sig.lastVerifiedAt ? (
-                        <span className="font-manrope text-text-muted-custom text-xs">
+                    <TableCell className="max-w-[200px]">
+                      <div className="truncate font-manrope text-sm text-text-main">{sig.programName || "—"}</div>
+                      <div className="truncate font-manrope text-text-muted-custom text-xs">{sig.batchName || ""}</div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-manrope text-sm text-text-muted-custom">
+                      {sig.createdAt ? format(new Date(sig.createdAt), "dd MMM yyyy", { locale: id }) : "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <div className="font-manrope text-sm text-text-main">{sig.verifiedCount ?? 0}x</div>
+                      {sig.lastVerifiedAt && (
+                        <div className="font-manrope text-[10px] text-text-muted-custom">
                           {format(new Date(sig.lastVerifiedAt), "dd MMM HH:mm", { locale: id })}
-                        </span>
-                      ) : (
-                        <span className="font-manrope text-text-muted-custom text-xs">—</span>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
