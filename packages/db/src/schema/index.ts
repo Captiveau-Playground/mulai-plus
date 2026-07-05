@@ -2,6 +2,7 @@ export * from "./audit";
 export * from "./auth";
 export * from "./chatbot";
 export * from "./cms";
+export * from "./esign";
 export * from "./lms";
 export * from "./newsletter";
 export * from "./notification";

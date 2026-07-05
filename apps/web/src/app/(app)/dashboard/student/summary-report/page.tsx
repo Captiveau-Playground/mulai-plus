@@ -63,17 +63,58 @@ function DownloadButton({ report }: { report: Report }) {
     }
   };
 
+  const getSignatures = (
+    reportId: string,
+    _studentName: string,
+    _mentorName: string,
+    _programName: string,
+    _batchName: string,
+    date: string,
+  ): { name: string; role: string; verificationUrl: string }[] => {
+    const signers: { name: string; role: "program_manager" | "founder" }[] = [
+      { name: "Salma Shidqiyah", role: "program_manager" },
+      { name: "Febby Dzurrotul Amaliyah", role: "founder" },
+    ];
+
+    return signers.map((signer) => {
+      // Encode signer data in base64 for stateless verification
+      const data = JSON.stringify({
+        r: signer.role,
+        n: signer.name,
+        d: reportId.substring(0, 8),
+        t: date,
+      });
+      const encoded = btoa(data);
+      return {
+        name: signer.name,
+        role: signer.role,
+        verificationUrl: `${window.location.origin}/verify/signature/${encoded}`,
+      };
+    });
+  };
+
   const doDownload = async () => {
     setLoading(true);
     try {
+      const studentName = report.student?.name || "Student";
+      const mentorName = report.mentor?.name || "Mentor";
+      const programName = report.batch?.program?.name || "Mentoring Program";
+      const batchName = report.batch?.name || "";
+      const date = format(new Date(), "dd MMMM yyyy", { locale: id });
+      const items = report.items?.map((i) => ({ title: i.title, description: i.description })) || [];
+
+      // Generate e-signatures
+      const signers = await getSignatures(report.id, studentName, mentorName, programName, batchName, date);
+
       const blob = await generateSummaryReportPdf({
-        studentName: report.student?.name || "Student",
-        mentorName: report.mentor?.name || "Mentor",
-        batchName: report.batch?.name || "",
-        programName: report.batch?.program?.name || "Mentoring Program",
-        items: report.items?.map((i) => ({ title: i.title, description: i.description })) || [],
+        studentName,
+        mentorName,
+        batchName,
+        programName,
+        items,
         mentorNotes: report.mentorNotes || null,
-        date: format(new Date(), "dd MMMM yyyy", { locale: id }),
+        date,
+        signers,
       });
 
       const url = URL.createObjectURL(blob);

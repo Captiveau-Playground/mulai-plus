@@ -1,8 +1,16 @@
-import type jsPDF from "jspdf";
+import * as QRCode from "qrcode";
+
+// Menggunakan Helvetica (built-in jsPDF)
 
 interface ReportItem {
   title: string;
   description: string;
+}
+
+interface SignatureSigner {
+  name: string;
+  role: string;
+  verificationUrl: string;
 }
 
 interface ReportData {
@@ -13,6 +21,7 @@ interface ReportData {
   items: ReportItem[];
   mentorNotes?: string | null;
   date: string;
+  signers?: SignatureSigner[];
 }
 
 // Scale: SVG 1240px → A4 210mm
@@ -38,34 +47,9 @@ async function loadImageAsBase64(url: string): Promise<string> {
   return base64;
 }
 
-// ── Load Bricolage Grotesque Bold font ──
-let fontRegistered = false;
-async function ensureFont(pdf: jsPDF) {
-  if (fontRegistered) return;
-  try {
-    const resp = await fetch("/fonts/BricolageGrotesque-Bold.ttf");
-    const blob = await resp.blob();
-    const reader = new FileReader();
-    const base64 = await new Promise<string>((resolve, reject) => {
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(",")[1]);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-    pdf.addFileToVFS("BricolageGrotesque-Bold.ttf", base64);
-    pdf.addFont("BricolageGrotesque-Bold.ttf", "BricolageGrotesque", "bold");
-    fontRegistered = true;
-  } catch {
-    console.warn("Bricolage Grotesque font not available, using Helvetica");
-  }
-}
-
 export async function generateSummaryReportPdf(report: ReportData): Promise<Blob> {
   const { default: JsPDF } = await import("jspdf");
   const pdf = new JsPDF("p", "mm", "a4");
-  await ensureFont(pdf);
 
   // ── Load images ──
   const [leftHdr, rightHdr, vectorLogo] = await Promise.all([
@@ -113,8 +97,8 @@ export async function generateSummaryReportPdf(report: ReportData): Promise<Blob
     circleGap: 8 * S,
     textAreaGap: 16 * S,
     textAreaH: 96 * S,
-    cityTop: 1472 * S,
-    sigTop: 1624 * S,
+    cityTop: 1370 * S,
+    sigTop: 1420 * S,
   };
 
   // ── Draw a single assessment item ──
@@ -164,6 +148,15 @@ export async function generateSummaryReportPdf(report: ReportData): Promise<Blob
 
   // ═══════════════════ PAGE 1 ═══════════════════
 
+  // ── PDF Metadata ──
+  pdf.setProperties({
+    title: `Summary Report - ${report.studentName}`,
+    subject: `Program ${report.programName} - ${report.batchName}`,
+    author: "MULAI+",
+    creator: "MULAI+ - Bimbingan Universitas, Jurusan & Beasiswa",
+    keywords: `summary report, mentoring, ${report.programName}, ${report.studentName}, ${report.mentorName}`,
+  });
+
   fillWhite();
 
   // ── Corner decorations (PNG images) ──
@@ -177,11 +170,7 @@ export async function generateSummaryReportPdf(report: ReportData): Promise<Blob
   pdf.addImage(vectorLogo, "PNG", logoX, L.logoTop, L.logoW, L.logoH);
 
   // ── "Student Summary Report" title ──
-  if (fontRegistered) {
-    pdf.setFont("BricolageGrotesque", "bold");
-  } else {
-    pdf.setFont("Helvetica", "bold");
-  }
+  pdf.setFont("Helvetica", "bold");
   pdf.setFontSize(26);
   pdf.setTextColor(26, 31, 109);
   pdf.text("Student Summary Report", pageW / 2, L.titleTop, { align: "center" });
@@ -245,12 +234,12 @@ export async function generateSummaryReportPdf(report: ReportData): Promise<Blob
     sigY = L.sigTop;
   } else {
     cityDateY = currentY + 12;
-    sigY = cityDateY + 12;
-    if (cityDateY + 20 > pageH) {
+    sigY = cityDateY + 16;
+    if (cityDateY + 30 > pageH) {
       pdf.addPage();
       fillWhite();
       cityDateY = 20;
-      sigY = cityDateY + 12;
+      sigY = cityDateY + 16;
     }
   }
 
@@ -259,20 +248,102 @@ export async function generateSummaryReportPdf(report: ReportData): Promise<Blob
   pdf.setTextColor(51, 51, 51);
   pdf.text(`Surabaya, ${report.date}`, pageW / 2, cityDateY, { align: "center" });
 
-  const sigLeftCx = mx + (258 * S) / 2;
-  const sigRightCx = 908 * S + (260 * S) / 2;
+  // ── Helper: QR dengan logo besar di tengah ──
+  async function qrWithLogo(url: string): Promise<string> {
+    const qrDataUrl = await QRCode.toDataURL(url, {
+      width: 400,
+      margin: 2,
+      color: { dark: "#000000", light: "#FFFFFF" },
+      errorCorrectionLevel: "H", // High: bisa tahan 30% noise/overlay
+    });
 
-  pdf.setFont("Helvetica", "bold");
-  pdf.setFontSize(8);
-  pdf.setTextColor(51, 51, 51);
-  pdf.text("Nama Program Manager", sigLeftCx, sigY, { align: "center" });
-  pdf.text("Nama Founder", sigRightCx, sigY, { align: "center" });
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 400;
+    const ctx = canvas.getContext("2d")!;
 
-  pdf.setFont("Helvetica", "normal");
-  pdf.setFontSize(8);
-  pdf.setTextColor(109, 109, 109);
-  pdf.text("Program Manager", sigLeftCx, sigY + 5, { align: "center" });
-  pdf.text("Founder", sigRightCx, sigY + 5, { align: "center" });
+    const qrImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = qrDataUrl;
+    });
+    ctx.drawImage(qrImg, 0, 0, 400, 400);
+
+    // Logo lebih besar tapi masih bisa di-scan (error correction H = 30%)
+    if (vectorLogo) {
+      const logoImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = vectorLogo;
+      });
+      const logoW = 120; // 30% dari 400px
+      const logoH = 30;
+      const lx = (400 - logoW) / 2;
+      const ly = (400 - logoH) / 2;
+
+      // White background behind logo
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(lx - 6, ly - 6, logoW + 12, logoH + 12);
+      ctx.drawImage(logoImg, lx, ly, logoW, logoH);
+    }
+
+    return canvas.toDataURL("image/png");
+  }
+
+  // ── QR Code Signatures ──
+  const pageCx = pageW / 2;
+  const halfGap = ((908 * S - mx) / 2) * 0.75;
+  const sigLeftCx = pageCx - halfGap;
+  const sigRightCx = pageCx + halfGap;
+  const qrSize = 26;
+  let hasQR = false;
+
+  if (report.signers && report.signers.length > 0) {
+    try {
+      for (const signer of report.signers) {
+        const isLeft = signer.role === "program_manager";
+        const cx = isLeft ? sigLeftCx : sigRightCx;
+        const qrX = cx - qrSize / 2;
+
+        const qrFinal = await qrWithLogo(signer.verificationUrl);
+        pdf.addImage(qrFinal, "PNG", qrX, sigY, qrSize, qrSize);
+
+        pdf.setFont("Helvetica", "bold");
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(51, 51, 51);
+        pdf.text(signer.name, cx, sigY + qrSize + 3.5, { align: "center" });
+
+        pdf.setFont("Helvetica", "normal");
+        pdf.setFontSize(6);
+        pdf.setTextColor(109, 109, 109);
+        const roleLabel =
+          signer.role === "program_manager" ? "Program Manager" : signer.role === "founder" ? "Founder" : signer.role;
+        pdf.text(roleLabel, cx, sigY + qrSize + 6.5, { align: "center" });
+      }
+
+      hasQR = true;
+      sigY = sigY + qrSize + 12;
+    } catch (e) {
+      console.warn("QR Code generation failed, falling back to text", e);
+    }
+  }
+
+  // ── Fallback: text-only signatures ──
+  if (!hasQR) {
+    pdf.setFont("Helvetica", "bold");
+    pdf.setFontSize(8);
+    pdf.setTextColor(51, 51, 51);
+    pdf.text("Nama Program Manager", sigLeftCx, sigY + 2, { align: "center" });
+    pdf.text("Nama Founder", sigRightCx, sigY + 2, { align: "center" });
+
+    pdf.setFont("Helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(109, 109, 109);
+    pdf.text("Program Manager", sigLeftCx, sigY + 7, { align: "center" });
+    pdf.text("Founder", sigRightCx, sigY + 7, { align: "center" });
+  }
 
   return pdf.output("blob");
 }
