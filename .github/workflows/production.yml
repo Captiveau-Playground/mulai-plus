@@ -262,6 +262,7 @@ jobs:
                   - CORS_ORIGIN=https://mulaiplus.id
                   - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
                   - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+                  - ESIGN_SECRET=${ESIGN_SECRET}
                   - PAYMENT_API_URL=${PAYMENT_API_URL}
                   - PAYMENT_API_KEY=${PAYMENT_API_KEY}
                   - UNOSEND_API_KEY=${UNOSEND_API_KEY}
@@ -298,6 +299,7 @@ jobs:
             BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            ESIGN_SECRET=${{ secrets.ESIGN_SECRET }}
             PAYMENT_API_URL=${{ secrets.PAYMENT_API_URL }}
             PAYMENT_API_KEY=${{ secrets.PAYMENT_API_KEY }}
             UNOSEND_API_KEY=${{ secrets.UNOSEND_API_KEY }}
