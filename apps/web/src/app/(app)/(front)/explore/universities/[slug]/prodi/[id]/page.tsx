@@ -370,6 +370,31 @@ export default function ProdiDetailPage() {
         </div>
       </section>
 
+      {/* Related Links */}
+      {prog && (
+        <section className="border-t bg-white py-8">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <h2 className="mb-4 font-bold font-bricolage text-brand-navy text-sm">Jelajahi Lebih Lanjut</h2>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href={`/explore/universities/${slug}`}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-text-main text-xs transition-all hover:border-brand-navy/30 hover:text-brand-navy"
+              >
+                <Building2 className="h-4 w-4" />
+                Program studi lain di {uniName ?? "universitas ini"}
+              </Link>
+              <Link
+                href={`/explore/study-programs?q=${encodeURIComponent(prog.name || "")}`}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-text-main text-xs transition-all hover:border-brand-navy/30 hover:text-brand-navy"
+              >
+                <BookOpen className="h-4 w-4" />
+                Cari {prog.name} di universitas lain
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* CTA */}
       <section className="relative overflow-hidden bg-brand-navy py-16 sm:py-20">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-navy to-brand-navy/80" />
