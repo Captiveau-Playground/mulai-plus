@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageState } from "@/components/ui/page-state";
+import { trackEvent } from "@/lib/analytics";
 import { generateSummaryReportPdf } from "@/lib/summary-report-pdf";
 import { client, orpc } from "@/utils/orpc";
 
@@ -116,6 +117,7 @@ function DownloadButton({ report }: { report: Report }) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       toast.success("PDF downloaded!");
+      trackEvent("summary_report_downloaded", { report_id: report.id });
     } catch (error) {
       toast.error("Failed to generate PDF");
       console.error(error);
