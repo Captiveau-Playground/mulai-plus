@@ -6,7 +6,7 @@ import {
   getRegistrationSuccessHtml,
   getScholarshipOfferHtml,
 } from "../lib/email";
-import { notFound } from "../lib/errors";
+import { badRequest, notFound } from "../lib/errors";
 import { mail } from "../lib/mail";
 import { resend } from "../lib/resend";
 
