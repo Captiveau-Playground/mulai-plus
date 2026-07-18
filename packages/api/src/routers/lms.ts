@@ -13,6 +13,7 @@ import {
 } from "@mulai-plus/db/schema/lms";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
+import { conflict } from "../lib/errors";
 
 export const lmsRouter = {
   admin: {
@@ -178,7 +179,7 @@ export const lmsRouter = {
             .limit(1);
 
           if (existing.length > 0) {
-            throw new Error("User already enrolled in this course");
+            conflict("User already enrolled in this course");
           }
 
           const id = randomUUID();

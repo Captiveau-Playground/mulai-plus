@@ -16,6 +16,7 @@ import {
 } from "@mulai-plus/db/schema/programs";
 import { z } from "zod";
 import { adminOrProgramManagerProcedure, protectedProcedure } from "../index";
+import { conflict, forbidden, notFound } from "../lib/errors";
 import { sendNotification } from "../lib/notification";
 
 export const programActivitiesRouter = {
@@ -120,7 +121,7 @@ export const programActivitiesRouter = {
           .where(and(eq(programBatchMentor.batchId, input.batchId), eq(programBatchMentor.userId, userId)));
 
         if (!assignment) {
-          throw new Error("Unauthorized: You are not assigned to this batch");
+          forbidden("You are not assigned to this batch");
         }
 
         const batch = await db.query.programBatch.findFirst({
@@ -135,7 +136,7 @@ export const programActivitiesRouter = {
         });
 
         if (!batch) {
-          throw new Error("Batch not found");
+          notFound("Batch not found");
         }
 
         const participants = await db.query.programParticipant.findMany({
@@ -194,7 +195,7 @@ export const programActivitiesRouter = {
           .where(and(eq(programBatchMentor.batchId, input.batchId), eq(programBatchMentor.userId, mentorId)));
 
         if (!assignment) {
-          throw new Error("Unauthorized: You are not assigned to this batch");
+          forbidden("You are not assigned to this batch");
         }
 
         // Verify session exists for this mentor, batch, week, and student
@@ -208,7 +209,7 @@ export const programActivitiesRouter = {
         });
 
         if (!session) {
-          throw new Error("No session scheduled for this student in this week");
+          notFound("No session scheduled for this student in this week");
         }
 
         const existing = await db.query.programAttendance.findFirst({
@@ -268,7 +269,7 @@ export const programActivitiesRouter = {
         });
 
         if (existingSession) {
-          throw new Error("A one-on-one session already exists for this student in this week");
+          conflict("A one-on-one session already exists for this student in this week");
         }
 
         const newId = randomUUID();
@@ -313,7 +314,7 @@ export const programActivitiesRouter = {
           .where(and(eq(programSession.id, id), eq(programSession.mentorId, context.session.user.id)));
 
         if (!existing) {
-          throw new Error("Session not found or unauthorized");
+          notFound("Session not found or unauthorized");
         }
 
         await db.update(programSession).set(data).where(eq(programSession.id, id));
@@ -327,7 +328,7 @@ export const programActivitiesRouter = {
         .where(and(eq(programSession.id, input.id), eq(programSession.mentorId, context.session.user.id)));
 
       if (!existing) {
-        throw new Error("Session not found or unauthorized");
+        notFound("Session not found or unauthorized");
       }
 
       await db.delete(programSession).where(eq(programSession.id, input.id));
@@ -418,7 +419,7 @@ export const programActivitiesRouter = {
           });
 
           if (existing) {
-            throw new Error("A one-on-one session already exists for this student in this week");
+            conflict("A one-on-one session already exists for this student in this week");
           }
         } else if (data.type === "group_mentoring") {
           const conditions = [
@@ -434,7 +435,7 @@ export const programActivitiesRouter = {
           });
 
           if (existing) {
-            throw new Error("A group mentoring session already exists for this week");
+            conflict("A group mentoring session already exists for this week");
           }
         }
 
@@ -539,7 +540,7 @@ export const programActivitiesRouter = {
         });
 
         if (!existing) {
-          throw new Error("Attachment not found");
+          notFound("Attachment not found");
         }
 
         const requestId = randomUUID();
@@ -576,7 +577,7 @@ export const programActivitiesRouter = {
       });
 
       if (!existing) {
-        throw new Error("Attachment not found");
+        notFound("Attachment not found");
       }
 
       const requestId = randomUUID();

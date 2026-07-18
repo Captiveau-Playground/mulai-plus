@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { adminProcedure } from "../index";
 import { getNewsletterTemplateList, NEWSLETTER_TEMPLATES } from "../lib/email";
+import { badRequest, notFound } from "../lib/errors";
 import { mail } from "../lib/mail";
 import { newsletter } from "../lib/newsletter";
 
@@ -31,7 +32,7 @@ export const newsletterAdminRouter = {
   /** Get a specific template's full HTML */
   getTemplate: adminProcedure.input(z.object({ templateId: z.string() })).handler(async ({ input }) => {
     const template = NEWSLETTER_TEMPLATES[input.templateId];
-    if (!template) throw new Error(`Template "${input.templateId}" not found`);
+    if (!template) notFound(`Template "${input.templateId}" not found`);
     return {
       id: template.id,
       label: template.label,
@@ -72,7 +73,7 @@ export const newsletterAdminRouter = {
     sync: adminProcedure.handler(async () => {
       const seg = await newsletter.getOrCreateSegment();
       if (!seg.success || !seg.segmentId) {
-        throw new Error(seg.error ?? "No segment available. Create one first.");
+        badRequest(seg.error ?? "No segment available. Create one first.");
       }
       return await newsletter.syncContacts(seg.segmentId);
     }),
@@ -81,7 +82,7 @@ export const newsletterAdminRouter = {
     syncAllUsers: adminProcedure.handler(async () => {
       const seg = await newsletter.getOrCreateSegment();
       if (!seg.success || !seg.segmentId) {
-        throw new Error(seg.error ?? "No segment available. Create one first.");
+        badRequest(seg.error ?? "No segment available. Create one first.");
       }
       return await newsletter.syncAllUsers(seg.segmentId);
     }),
@@ -98,7 +99,7 @@ export const newsletterAdminRouter = {
       .handler(async ({ input }) => {
         const seg = await newsletter.getOrCreateSegment();
         if (!seg.success || !seg.segmentId) {
-          throw new Error(seg.error ?? "No segment available.");
+          badRequest(seg.error ?? "No segment available.");
         }
         return await newsletter.addContact(input.email, seg.segmentId);
       }),
@@ -129,7 +130,7 @@ export const newsletterAdminRouter = {
     /** Get single broadcast with live Resend status */
     get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       const record = await newsletter.getBroadcast(input.id);
-      if (!record) throw new Error("Broadcast not found");
+      if (!record) notFound("Broadcast not found");
       return record;
     }),
 
@@ -156,7 +157,7 @@ export const newsletterAdminRouter = {
         });
 
         if (!result.success) {
-          throw new Error(result.error ?? "Failed to create broadcast");
+          badRequest(result.error ?? "Failed to create broadcast");
         }
 
         return result;
@@ -166,7 +167,7 @@ export const newsletterAdminRouter = {
     send: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       const result = await newsletter.sendBroadcast(input.id);
       if (!result.success) {
-        throw new Error(result.error ?? "Failed to send broadcast");
+        badRequest(result.error ?? "Failed to send broadcast");
       }
       return result;
     }),
@@ -208,7 +209,7 @@ export const newsletterAdminRouter = {
       });
 
       if (!result.success) {
-        throw new Error(result.error ?? "Failed to send broadcast");
+        badRequest(result.error ?? "Failed to send broadcast");
       }
 
       return result;
@@ -238,7 +239,7 @@ export const newsletterAdminRouter = {
       });
 
       if (!result.success) {
-        throw new Error(result.error ?? "Failed to schedule broadcast");
+        badRequest(result.error ?? "Failed to schedule broadcast");
       }
 
       return result;
@@ -261,7 +262,7 @@ export const newsletterAdminRouter = {
       });
 
       if (!result.success) {
-        throw new Error(typeof result.error === "string" ? result.error : "Failed to send test email");
+        badRequest(typeof result.error === "string" ? result.error : "Failed to send test email");
       }
 
       return { success: true, emailId: result.id };

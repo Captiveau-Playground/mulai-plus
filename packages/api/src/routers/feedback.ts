@@ -10,6 +10,7 @@ import {
 } from "@mulai-plus/db/schema/programs";
 import { z } from "zod";
 import { adminOrProgramManagerProcedure, protectedProcedure } from "../index";
+import { badRequest, notFound, preconditionFailed } from "../lib/errors";
 
 export const feedbackRouter = {
   // ─── Templates (Admin/PM only) ──────────────────────────
@@ -27,7 +28,7 @@ export const feedbackRouter = {
         where: eq(feedbackTemplate.id, input.id),
         with: { questions: { orderBy: asc(feedbackQuestion.order) } },
       });
-      if (!template) throw new Error("Template not found");
+      if (!template) notFound("Template not found");
       return template;
     }),
 
@@ -278,11 +279,12 @@ export const feedbackRouter = {
           where: eq(feedbackCampaign.id, input.campaignId),
           with: { template: true },
         });
-        if (!campaign) throw new Error("Campaign not found");
-        if (campaign.status !== "open") throw new Error("Campaign is not open");
+        if (!campaign) notFound("Campaign not found");
+        if (campaign.status !== "open") badRequest("Campaign is not open");
 
         const now = new Date();
-        if (now < campaign.startDate || now > campaign.endDate) throw new Error("Campaign is not within active period");
+        if (now < campaign.startDate || now > campaign.endDate)
+          preconditionFailed("Campaign is not within active period");
 
         const userId = context.session.user.id;
 

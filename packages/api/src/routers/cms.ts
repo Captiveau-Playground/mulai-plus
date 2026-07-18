@@ -14,6 +14,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
+import { badRequest } from "../lib/errors";
 import { newsletter } from "../lib/newsletter";
 
 function slugify(text: string) {
@@ -369,7 +370,7 @@ export const articlesRouter = {
         }
 
         if (!resolvedAuthorId) {
-          throw new Error("Author is required");
+          badRequest("Author is required");
         }
 
         // Start transaction
@@ -857,7 +858,7 @@ export const categoriesRouter = {
 
         // Prevent circular reference
         if (data.parentId === id) {
-          throw new Error("Category cannot be its own parent");
+          badRequest("Category cannot be its own parent");
         }
 
         await db.update(cmsCategory).set(data).where(eq(cmsCategory.id, id));
