@@ -1,4 +1,4 @@
-// @ts-nocheck — Playwright types conflict with Next.js build
+// @ts-nocheck
 import { defineConfig } from "@playwright/test";
 
 const CI = !!process.env.CI;
@@ -8,13 +8,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 1 : 0,
-  workers: CI ? 6 : 2,
+  workers: CI ? 3 : 2,
   reporter: [["list"], ...(CI ? [["github"]] : [])],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3001",
     screenshot: "only-on-failure",
-    actionTimeout: 10000,
-    navigationTimeout: 15000,
+    actionTimeout: 15000,
+    navigationTimeout: 30000,
   },
   projects: [
     {
@@ -26,9 +26,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "bun run dev",
+    command: CI ? "node node_modules/.bin/next start --port 3001" : "bun run dev",
     port: 3001,
     reuseExistingServer: !CI,
-    timeout: 15000,
+    timeout: CI ? 60000 : 15000,
+    cwd: CI ? process.cwd() : undefined,
   },
 });

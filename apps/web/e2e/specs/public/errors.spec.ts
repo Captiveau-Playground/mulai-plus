@@ -5,10 +5,8 @@ test.describe("Error Pages & Auth Guard", () => {
     await page.goto("/this-page-does-not-exist-xyz");
     await page.waitForLoadState("networkidle");
 
-    // Should show 404 decorative text or error content
-    const errorContent = page.getByText("404").first();
-    const notFound = page.getByText(/tidak.ditemukan|not.found/i).first();
-    await expect(errorContent.or(notFound)).toBeVisible({ timeout: 5000 });
+    // Should show 404 text
+    await expect(page.locator("text=404").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("redirects unauthenticated users from dashboard", async ({ page }) => {
