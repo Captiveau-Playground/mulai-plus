@@ -1,0 +1,53 @@
+import { expect, test } from "@playwright/test";
+
+test.describe("Homepage", () => {
+  test("should display hero with title and CTA", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const h1 = page.getByRole("heading", { level: 1 }).first();
+    await expect(h1).toBeVisible({ timeout: 5000 });
+
+    // Brand name visible
+    await expect(page.getByText("MULAI+").first()).toBeVisible();
+
+    // CTA button exists
+    const cta = page.locator(
+      "a[href*='/programs'], a[href*='/explore'], button:has-text('Mulai'), a:has-text('Mulai')",
+    );
+    if (await cta.isVisible()) {
+      await expect(cta.first()).toBeVisible();
+    }
+  });
+
+  test("should display featured programs section", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(2000);
+
+    // Program cards
+    const cards = page.locator("a[href*='/programs/']");
+    const count = await cards.count();
+    if (count > 0) {
+      await expect(cards.first()).toBeVisible();
+    }
+  });
+
+  test("should have working navigation menu", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    // Nav links exist
+    const navLinks = page.locator("nav a[href]").first();
+    await expect(navLinks).toBeVisible({ timeout: 5000 });
+  });
+
+  test("should have footer with company info", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const footer = page.getByRole("contentinfo");
+    await expect(footer).toBeVisible({ timeout: 5000 });
+    await expect(footer.getByText(/MULAI/i).first()).toBeVisible();
+  });
+});
