@@ -4,6 +4,7 @@ import { course, enrollment, paymentOrder } from "@mulai-plus/db/schema/lms";
 import { env } from "@mulai-plus/env/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
+import { badRequest } from "../lib/errors";
 
 const itemDetailSchema = z.object({
   id: z.string(),
@@ -125,7 +126,7 @@ export const paymentsRouter = {
 
     const rawBody = await res.text();
     if (!res.ok) {
-      throw new Error(rawBody || "Failed to create payment order");
+      badRequest(rawBody || "Failed to create payment order");
     }
 
     let json: Record<string, unknown> = {};
@@ -240,7 +241,7 @@ export const paymentsRouter = {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(text || "Failed to cancel payment order");
+      badRequest(text || "Failed to cancel payment order");
     }
     await db
       .update(paymentOrder)
@@ -257,7 +258,7 @@ export const paymentsRouter = {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(text || "Failed to fetch payment status");
+      badRequest(text || "Failed to fetch payment status");
     }
     const data = (await res.json()) as { status?: string };
     const status = mapRemoteStatus(data.status);
@@ -296,7 +297,7 @@ export const paymentsRouter = {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(text || "Failed to fetch payment status");
+      badRequest(text || "Failed to fetch payment status");
     }
     const data = (await res.json()) as { status?: string };
     const status = mapRemoteStatus(data.status);
