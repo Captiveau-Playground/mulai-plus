@@ -120,6 +120,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Push DB schema
+        working-directory: packages/db
         run: bun run db:push
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/mulai_plus

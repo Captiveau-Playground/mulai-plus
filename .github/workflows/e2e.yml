@@ -34,6 +34,7 @@ jobs:
       - name: Install deps
         run: bun install --frozen-lockfile
       - name: Push DB
+        working-directory: packages/db
         run: bun run db:push
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/mulai_plus
