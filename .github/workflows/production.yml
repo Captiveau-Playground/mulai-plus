@@ -56,7 +56,7 @@ jobs:
 
       - name: Run unit tests (no DB)
         working-directory: packages/api
-        run: bun test
+        run: bun run test:unit
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://test:test@localhost:5433/mulai_plus_test
