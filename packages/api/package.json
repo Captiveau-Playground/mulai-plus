@@ -37,7 +37,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@mulai-plus/config": "workspace:*",
     "typescript": "catalog:",
-    "@mulai-plus/config": "workspace:*"
+    "vitest": "^4.1.10"
   }
 }
