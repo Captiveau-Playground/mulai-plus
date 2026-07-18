@@ -79,8 +79,6 @@ jobs:
           ESIGN_SECRET: test-secret-key-for-unit-testing
           RESEND_API_KEY: re_test
           RESEND_FROM_EMAIL: test@test.com
-          UNOSEND_API_KEY: test
-          UNOSEND_FROM_EMAIL: test@test.com
 
   tag:
     needs: test
