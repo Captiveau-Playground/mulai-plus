@@ -1,9 +1,10 @@
 "use client";
 
+import * as amplitude from "@amplitude/unified";
 import { env } from "@mulai-plus/env/web";
 import { useEffect } from "react";
 
-// GA4 gtag type declaration
+// ── GA4 gtag type declaration ──
 declare global {
   interface Window {
     gtag: (command: string, target: string, config?: Record<string, unknown>) => void;
@@ -12,6 +13,9 @@ declare global {
 }
 
 type EventParams = Record<string, string | number | boolean | undefined>;
+
+// ── Amplitude (production only) ──
+const isProd = typeof window !== "undefined" && process.env.NODE_ENV === "production";
 
 /**
  * Track a GA4 event imperatively from anywhere.
@@ -26,6 +30,15 @@ export function trackEvent(action: string, params?: EventParams) {
     ...params,
     send_to: env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
   });
+
+  // Also fire to Amplitude
+  if (isProd) {
+    try {
+      amplitude.track(action, params);
+    } catch {
+      // noop
+    }
+  }
 }
 
 /**
