@@ -9,6 +9,5 @@ test.describe("Authentication", () => {
     // Check form elements exist (email input OR Google button)
     const emailField = page.locator('input[name="email"]').first();
     await expect(emailField).toBeVisible({ timeout: 5000 });
-    await expect(formField).toBeVisible({ timeout: 5000 });
   });
 });

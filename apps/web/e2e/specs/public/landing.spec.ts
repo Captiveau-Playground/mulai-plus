@@ -11,13 +11,9 @@ test.describe("Homepage", () => {
     // Brand name visible
     await expect(page.getByText("MULAI+").first()).toBeVisible();
 
-    // CTA button exists
-    const cta = page.locator(
-      "a[href*='/programs'], a[href*='/explore'], button:has-text('Mulai'), a:has-text('Mulai')",
-    );
-    if (await cta.isVisible()) {
-      await expect(cta.first()).toBeVisible();
-    }
+    // CTA button/link exists
+    const cta = page.locator("a[href*='/programs'], a[href*='/explore']").first();
+    await expect(cta).toBeVisible({ timeout: 5000 });
   });
 
   test("should display featured programs section", async ({ page }) => {
