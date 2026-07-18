@@ -154,7 +154,7 @@ jobs:
         working-directory: apps/web
         run: node node_modules/.bin/playwright install-deps chromium
       - name: Build Next.js
-        run: bun run build
+        run: bun run build:web
         working-directory: apps/web
         env:
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000

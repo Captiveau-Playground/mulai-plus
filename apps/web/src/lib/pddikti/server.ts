@@ -1,7 +1,7 @@
-import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import { studyPrograms, universities } from "../../../../../packages/db/src/schema/pddikti";
 
 const { Pool } = pg;
 
@@ -16,7 +16,9 @@ function getDb() {
       idleTimeoutMillis: 30000,
     });
   }
-  return drizzle(globalForDb._pddiktiPool, { schema: { universities, studyPrograms } });
+  return drizzle(globalForDb._pddiktiPool, {
+    schema: { universities, studyPrograms },
+  });
 }
 
 export async function getUniversityBySlug(slug: string) {

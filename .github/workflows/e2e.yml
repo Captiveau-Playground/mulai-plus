@@ -68,7 +68,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=test
           EOF
       - name: Build Next.js
-        run: bun run build
+        run: bun run build:web
         working-directory: apps/web
         env:
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
