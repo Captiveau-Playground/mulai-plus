@@ -10,6 +10,7 @@ import { articlesRouter, authorsRouter, categoriesRouter, mediaRouter, newslette
 import { emailAdminRouter } from "./email-admin";
 import { esignRouter } from "./esign";
 import { feedbackRouter } from "./feedback";
+import { hermesRouter } from "./hermes";
 import { lmsRouter } from "./lms";
 import { newsletterAdminRouter } from "./newsletter-admin";
 import { notificationRouter } from "./notification";
@@ -88,6 +89,7 @@ export const appRouter = {
     authors: authorsRouter,
     media: mediaRouter,
     newsletter: newsletterRouter,
+    hermes: hermesRouter,
   },
 
   privateData: protectedProcedure.handler(({ context }) => {
