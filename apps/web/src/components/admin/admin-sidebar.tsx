@@ -186,8 +186,12 @@ const data = {
       icon: Bot,
       items: [
         {
-          title: "Chatbot",
+          title: "Analytics",
           url: "/admin/chatbot-analytics",
+        },
+        {
+          title: "Users",
+          url: "/admin/chatbot-users",
         },
       ],
     },

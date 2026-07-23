@@ -23,6 +23,8 @@ from fastapi.responses import StreamingResponse
 from src import chatbot_db as cdb
 from src.config import settings
 from src.engine.responder import get_response
+from pydantic import BaseModel
+
 from src.schemas import (
     ChatRequest,
     ChatResponse,
@@ -57,12 +59,31 @@ async def health():
     return {"status": "ok", "service": "mulai-plus-ai", "version": "0.4.0"}
 
 
+# ─── Helper: get effective limit and check ban ───────────────
+
+async def _check_session_allowed(session_key: str, is_auth: bool) -> tuple[int, Optional[str]]:
+    """Returns (effective_limit, error_msg_or_None)."""
+    # Ban check
+    if await cdb.is_banned(session_key):
+        return 0, "Akun kamu telah dibatasi. Hubungi admin untuk informasi lebih lanjut."
+
+    # Check if user_id has any banned session
+    session = await cdb.get_or_create_session(session_key, None)
+    if session.get("user_id"):
+        user_session = await cdb.get_session_by_user(session["user_id"])
+        if user_session and user_session.get("banned"):
+            return 0, "Akun kamu telah dibatasi. Hubungi admin untuk informasi lebih lanjut."
+
+    default_limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
+    effective_limit = await cdb.get_active_limit(session_key, default_limit)
+    return effective_limit, None
+
+
 # ─── Chat (Streaming) ────────────────────────────────────────
 
 @chat_router.post("/chat")
 async def chat(req: ChatRequest, request: Request):
     session_key, user_id, is_auth = _get_session_key(request)
-    limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
 
     # Get or create session from DB
     session = await cdb.get_or_create_session(session_key, user_id)
@@ -72,8 +93,19 @@ async def chat(req: ChatRequest, request: Request):
     if is_auth and guest_sid and guest_sid != session_key:
         await cdb.link_session_to_user(guest_sid, user_id)
 
-    # Check limit
-    if session["message_count"] >= limit:
+    # Ban check
+    effective_limit, ban_msg = await _check_session_allowed(session_key, is_auth)
+    if ban_msg:
+        await cdb.save_message(session_key, "assistant", ban_msg)
+        return {
+            "reply": ban_msg,
+            "session_id": session_key,
+            "requires_auth": True,
+            "remaining": 0,
+        }
+
+    # Check limit (use effective_limit from admin override)
+    if session["message_count"] >= effective_limit:
         if is_auth:
             wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
             reply = f"Kamu sudah menggunakan batas chat. Klik link WhatsApp di bawah untuk request tambahan limit."
@@ -119,7 +151,7 @@ async def chat(req: ChatRequest, request: Request):
 
     await cdb.increment_message_count(session_key)
 
-    remaining = limit - session["message_count"] - 1
+    remaining = effective_limit - session["message_count"] - 1
 
     async def generate():
         metadata = {
@@ -149,7 +181,8 @@ async def chat(req: ChatRequest, request: Request):
 async def chat_sync(req: ChatRequest, request: Request):
     """Non-streaming version for backward compatibility."""
     session_key, user_id, is_auth = _get_session_key(request)
-    limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
+    default_limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
+    effective_limit = await cdb.get_active_limit(session_key, default_limit)
 
     session = await cdb.get_or_create_session(session_key, user_id)
 
@@ -158,7 +191,7 @@ async def chat_sync(req: ChatRequest, request: Request):
     if is_auth and guest_sid and guest_sid != session_key:
         await cdb.link_session_to_user(guest_sid, user_id)
 
-    if session["message_count"] >= limit:
+    if session["message_count"] >= effective_limit:
         wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
         auth_url = wa_link if is_auth else "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit"
         reply = "Kamu sudah menggunakan batas chat gratis. Klik tombol di bawah untuk request tambahan." if is_auth else "Kamu sudah menggunakan chat gratis! Login untuk lanjut."
@@ -175,7 +208,7 @@ async def chat_sync(req: ChatRequest, request: Request):
     )
     await cdb.save_message(session_key, "assistant", reply)
     await cdb.increment_message_count(session_key)
-    remaining = limit - session["message_count"] - 1
+    remaining = effective_limit - session["message_count"] - 1
 
     return ChatResponse(
         reply=reply,
@@ -202,12 +235,13 @@ async def chat_quota(request: Request):
     else:
         session_data = await cdb.get_or_create_session(session_key, user_id)
 
-    limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
+    default_limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
+    effective_limit = await cdb.get_active_limit(session_key, default_limit)
     session = await cdb.get_or_create_session(session_key, user_id)
-    remaining = max(0, limit - session["message_count"])
+    remaining = max(0, effective_limit - session["message_count"])
     return {
         "remaining": remaining,
-        "total": limit,
+        "total": effective_limit,
         "is_auth": is_auth,
         "redirect_url": "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat" if is_auth and remaining == 0 else "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit",
     }
@@ -252,3 +286,92 @@ async def capture_lead(req: LeadRequest):
 @admin_router.get("/stats", response_model=ChatStatsResponse)
 async def admin_stats():
     return await cdb.get_stats()
+
+
+# ─── Admin: Session Management ───────────────────────────────
+
+@admin_router.get("/sessions")
+async def list_sessions(
+    page: int = 0,
+    per_page: int = 20,
+    search: Optional[str] = None,
+    banned_only: bool = False,
+):
+    """List all chatbot sessions with stats. Admin-only (auth at proxy level)."""
+    return await cdb.list_sessions(
+        page=page,
+        per_page=min(per_page, 100),
+        search=search,
+        banned_only=banned_only,
+    )
+
+
+@admin_router.get("/sessions/{session_id}")
+async def get_session(session_id: str):
+    """Get full session detail with all messages."""
+    result = await cdb.get_session_detail(session_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return result
+
+
+class UpdateCreditRequest(BaseModel):
+    credit_limit: Optional[int] = None  # null = reset to default
+
+
+@admin_router.put("/sessions/{session_id}/credit")
+async def update_credit(session_id: str, req: UpdateCreditRequest):
+    """Set custom credit limit for a session. -1 = unlimited."""
+    if req.credit_limit is not None and req.credit_limit < -1:
+        raise HTTPException(status_code=400, detail="credit_limit must be >= -1 or null")
+    ok = await cdb.update_credit_limit(session_id, req.credit_limit)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"success": True, "session_id": session_id, "credit_limit": req.credit_limit}
+
+
+class BanRequest(BaseModel):
+    banned: bool
+    reason: Optional[str] = None
+
+
+@admin_router.put("/sessions/{session_id}/ban")
+async def toggle_ban(session_id: str, req: BanRequest):
+    """Ban or unban a session."""
+    ok = await cdb.toggle_ban(session_id, req.banned, req.reason)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {
+        "success": True,
+        "session_id": session_id,
+        "banned": req.banned,
+        "reason": req.reason,
+    }
+
+
+class NotesRequest(BaseModel):
+    notes: Optional[str] = None
+
+
+@admin_router.put("/sessions/{session_id}/notes")
+async def update_notes(session_id: str, req: NotesRequest):
+    """Set admin notes for a session."""
+    ok = await cdb.update_notes(session_id, req.notes)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"success": True, "session_id": session_id}
+
+
+class ResetUsageRequest(BaseModel):
+    message_count: int = 0  # 0 = reset, or set to specific value
+
+
+@admin_router.put("/sessions/{session_id}/reset-usage")
+async def reset_usage(session_id: str, req: ResetUsageRequest):
+    """Reset or set message_count for a session."""
+    if req.message_count < 0:
+        raise HTTPException(status_code=400, detail="message_count must be >= 0")
+    ok = await cdb.reset_message_count(session_id, req.message_count)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"success": True, "session_id": session_id, "message_count": req.message_count}
