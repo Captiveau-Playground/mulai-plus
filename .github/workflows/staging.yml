@@ -158,6 +158,42 @@ jobs:
         working-directory: apps/web
         env:
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+      - name: Start API server
+        working-directory: apps/server
+        run: |
+          bun run src/index.ts &
+          SERVER_PID=$!
+          echo "API server PID: $SERVER_PID"
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:3000/ > /dev/null 2>&1; then
+              echo "API server is ready on port 3000"
+              break
+            fi
+            echo "Waiting for API server... attempt $i/10"
+            sleep 2
+          done
+          # Verify it's still running
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "API server failed to start"
+            exit 1
+          fi
+        env:
+          PORT: 3000
+          DATABASE_URL: postgresql://test:test@localhost:5432/mulai_plus
+          BETTER_AUTH_SECRET: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          BETTER_AUTH_URL: http://localhost:3000
+          CORS_ORIGIN: http://localhost:3001
+          APP_URL: http://localhost:3000
+          GOOGLE_CLIENT_ID: test
+          GOOGLE_CLIENT_SECRET: test
+          R2_ACCOUNT_ID: test
+          R2_ACCESS_KEY_ID: test
+          R2_SECRET_ACCESS_KEY: test
+          R2_BUCKET_NAME: test
+          R2_PUBLIC_URL: http://test.com
+          PAYMENT_API_URL: http://localhost:3000
+          PAYMENT_API_KEY: test
+
       - name: Run E2E tests
         working-directory: apps/web
         run: node node_modules/.bin/playwright test --config=e2e/playwright.config.ts --workers=6
