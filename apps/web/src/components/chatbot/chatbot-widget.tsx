@@ -320,6 +320,11 @@ export function ChatbotWidget() {
 
   const _handleFollowUpClick = (q: string) => {
     if (requiresAuth) {
+      fetch("/ai/track/login-click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: getSessionId() }),
+      }).catch(() => {});
       window.location.href = "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=followup";
     } else {
       sendMessage(q);
@@ -511,6 +516,11 @@ export function ChatbotWidget() {
                   const page = window.location.pathname + window.location.search;
                   localStorage.setItem("chatbot_reopen", "true");
                   localStorage.setItem("chatbot_redirect", page);
+                  fetch("/ai/track/login-click", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: getSessionId() }),
+                  }).catch(() => {});
                   window.location.href = `/login?callbackUrl=${encodeURIComponent(page)}&utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit`;
                 }
               }}

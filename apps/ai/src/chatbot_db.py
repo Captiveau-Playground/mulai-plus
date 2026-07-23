@@ -38,6 +38,22 @@ async def get_pool() -> asyncpg.Pool:
     return _pool
 
 
+async def _ensure_migration(conn):
+    """Run pending column migrations idempotently."""
+    for col in [
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS clicked_login BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS credit_limit INTEGER",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned_reason TEXT",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS notes TEXT",
+    ]:
+        try:
+            await conn.execute(col)
+        except Exception:
+            pass
+
+
 async def create_tables():
     """Create tables if not exist (run on startup/idempotent).
     Tables are also created by Drizzle migrations; this ensures
@@ -56,24 +72,17 @@ async def create_tables():
                 banned_at TIMESTAMPTZ DEFAULT NULL,
                 banned_reason TEXT DEFAULT NULL,
                 notes TEXT DEFAULT NULL,
+                clicked_login BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 last_active TIMESTAMPTZ DEFAULT NOW()
             );
             CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_user
                 ON chatbot_sessions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_clicked
+                ON chatbot_sessions(clicked_login);
         """)
-        # Migration: add columns if they don't exist (idempotent for existing tables)
-        for col in [
-            "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS credit_limit INTEGER",
-            "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned BOOLEAN DEFAULT FALSE",
-            "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ",
-            "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned_reason TEXT",
-            "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS notes TEXT",
-        ]:
-            try:
-                await conn.execute(col)
-            except Exception:
-                pass  # some cols may already exist
+        # Migration: add columns for existing tables (idempotent)
+        await _ensure_migration(conn)
 
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS chatbot_messages (
@@ -341,6 +350,87 @@ async def get_active_limit(session_id: str, default_limit: int) -> int:
         if row and row["credit_limit"] is not None:
             return row["credit_limit"]
         return default_limit
+
+
+async def track_login_click(session_id: str) -> bool:
+    """Track that a user clicked the login/register button from the chatbot."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE chatbot_sessions SET clicked_login = TRUE WHERE id = $1",
+            session_id,
+        )
+        return "UPDATE 1" in result
+
+
+async def get_funnel_stats() -> dict[str, Any]:
+    """Get chatbot → login conversion funnel stats."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        # Ensure latest columns exist (safe even if already migrated)
+        await _ensure_migration(conn)
+        # Total sessions
+        total = (await conn.fetchval("SELECT COUNT(*) FROM chatbot_sessions")) or 0
+
+        # Guest: started without login
+        guest_total = (
+            await conn.fetchval("SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = FALSE")
+        ) or 0
+
+        # Guest hit limit (message_count >= 1 = GUEST_LIMIT)
+        guest_hit_limit = (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = FALSE AND message_count >= 1"
+            )
+        ) or 0
+
+        # Guest clicked login CTA
+        guest_clicked_login = (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = FALSE AND clicked_login = TRUE"
+            )
+        ) or 0
+
+        # Guest → Authenticated conversion (user_id was linked after creation)
+        guest_converted = (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = FALSE AND user_id IS NOT NULL"
+            )
+        ) or 0
+
+        # Authenticated sessions (started while logged in)
+        auth_total = (
+            await conn.fetchval("SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = TRUE")
+        ) or 0
+
+        # Total authenticated (either started auth or converted)
+        total_authenticated = auth_total + guest_converted
+
+        # All sessions with user_id set
+        total_with_user = (
+            await conn.fetchval("SELECT COUNT(*) FROM chatbot_sessions WHERE user_id IS NOT NULL")
+        ) or 0
+
+        return {
+            "total_sessions": total,
+            "guest_total": guest_total,
+            "guest_hit_limit": guest_hit_limit,
+            "guest_clicked_login": guest_clicked_login,
+            "guest_converted": guest_converted,
+            "auth_total": auth_total,
+            "total_authenticated": total_authenticated,
+            "total_with_user_id": total_with_user,
+            "conversion_rate": round(guest_converted / guest_total * 100, 1) if guest_total > 0 else 0.0,
+            "click_rate": round(guest_clicked_login / guest_hit_limit * 100, 1) if guest_hit_limit > 0 else 0.0,
+            "funnel": [
+                {"stage": "total_sessions", "label": "Total Sesi Chat", "count": total},
+                {"stage": "guest_total", "label": "Guest Mulai Chat", "count": guest_total},
+                {"stage": "guest_hit_limit", "label": "Guest Habis Limit", "count": guest_hit_limit},
+                {"stage": "guest_clicked_login", "label": "Guest Klik Login", "count": guest_clicked_login},
+                {"stage": "guest_converted", "label": "Guest → Login (Convert)", "count": guest_converted},
+                {"stage": "total_authenticated", "label": "Total Auth Users", "count": total_authenticated},
+            ],
+        }
 
 
 async def get_stats() -> dict[str, Any]:

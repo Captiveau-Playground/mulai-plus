@@ -375,3 +375,24 @@ async def reset_usage(session_id: str, req: ResetUsageRequest):
     if not ok:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"success": True, "session_id": session_id, "message_count": req.message_count}
+
+
+# ─── Track: Login Click ─────────────────────────────────────
+
+class TrackLoginClickRequest(BaseModel):
+    session_id: str
+
+
+@chat_router.post("/track/login-click")
+async def track_login_click(req: TrackLoginClickRequest):
+    """Track that a guest clicked the login/register CTA."""
+    await cdb.track_login_click(req.session_id)
+    return {"success": True}
+
+
+# ─── Admin: Funnel Stats ────────────────────────────────────
+
+@admin_router.get("/funnel")
+async def admin_funnel():
+    """Get chatbot → login conversion funnel."""
+    return await cdb.get_funnel_stats()
