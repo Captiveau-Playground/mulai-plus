@@ -111,7 +111,56 @@ export const rpcHandler = new RPCHandler(appRouter, {
 });
 
 // ── Proxy: AI Service ───────────────────────────────────────
+//   /ai/*          → proxied to AI service at /api/*
+//   /ai/admin/*    → requires admin role, then proxied to /api/admin/*
+//   /ai/chat       → proxied with user context for rate limiting
 if (env.AI_SERVICE_URL) {
+  const requireAdmin = async (c: any, next: any) => {
+    try {
+      const session = await auth.api.getSession({
+        headers: c.req.raw.headers,
+      });
+      if (!session?.user || session.user.role !== "admin") {
+        return c.json({ error: "Forbidden. Admin access required." }, 403);
+      }
+    } catch {
+      return c.json({ error: "Unauthorized. Please log in." }, 401);
+    }
+    await next();
+  };
+
+  // Admin-only routes: analytics, stats, admin endpoints
+  app.all("/ai/admin/*", requireAdmin, async (c) => {
+    const qs = new URLSearchParams(c.req.query() as Record<string, string>).toString();
+    const target = `${env.AI_SERVICE_URL}${c.req.path.replace("/ai", "/api")}${qs ? `?${qs}` : ""}`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (env.AI_API_KEY) {
+      headers.Authorization = `Bearer ${env.AI_API_KEY}`;
+    }
+    // Forward session ID for audit
+    const sessionId = c.req.header("x-session-id");
+    if (sessionId) {
+      headers["x-session-id"] = sessionId;
+    }
+
+    if (c.req.method === "GET") {
+      const resp = await fetch(target, { headers });
+      return c.newResponse(resp.body, resp);
+    }
+
+    const body = await c.req.json();
+    const resp = await fetch(target, {
+      method: c.req.method,
+      headers,
+      body: JSON.stringify(body),
+    });
+    return c.newResponse(resp.body, resp);
+  });
+
+  // Public chat & history routes — forward user context for rate limiting
   app.all("/ai/*", async (c) => {
     const qs = new URLSearchParams(c.req.query() as Record<string, string>).toString();
     const target = `${env.AI_SERVICE_URL}${c.req.path.replace("/ai", "/api")}${qs ? `?${qs}` : ""}`;
@@ -119,7 +168,6 @@ if (env.AI_SERVICE_URL) {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    // Forward API key if configured
     if (env.AI_API_KEY) {
       headers.Authorization = `Bearer ${env.AI_API_KEY}`;
     }
@@ -134,7 +182,6 @@ if (env.AI_SERVICE_URL) {
       }
     } catch {}
 
-    // Forward session ID from client if provided
     const sessionId = c.req.header("x-session-id");
     if (sessionId) {
       headers["x-session-id"] = sessionId;

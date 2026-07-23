@@ -2,13 +2,25 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+
+
+MAX_MESSAGE_LENGTH = 2000
+ALLOWED_FEEDBACK = {"up", "down"}
 
 
 class ChatRequest(BaseModel):
-    message: str
-    session_id: Optional[str] = None
+    message: str = Field(..., max_length=MAX_MESSAGE_LENGTH, description="User message to the chatbot")
+    session_id: Optional[str] = Field(None, max_length=128)
     context: Optional[dict] = None
+
+    @field_validator("message")
+    @classmethod
+    def message_not_empty(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Message cannot be empty")
+        return stripped
 
 
 class ChatResponse(BaseModel):
@@ -21,10 +33,10 @@ class ChatResponse(BaseModel):
 
 
 class LeadRequest(BaseModel):
-    session_id: str
-    name: str
-    email: str
-    phone: Optional[str] = None
+    session_id: str = Field(..., max_length=128)
+    name: str = Field(..., max_length=100)
+    email: str = Field(..., max_length=255)
+    phone: Optional[str] = Field(None, max_length=30)
 
 
 class LeadResponse(BaseModel):
@@ -33,8 +45,8 @@ class LeadResponse(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
-    message_id: int
-    feedback: str  # "up" or "down"
+    message_id: int = Field(..., gt=0)
+    feedback: str = Field(..., pattern=r"^(up|down)$")
 
 
 class FeedbackResponse(BaseModel):

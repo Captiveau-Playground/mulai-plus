@@ -38,8 +38,11 @@ async def get_pool() -> asyncpg.Pool:
     return _pool
 
 
-# Tables created by Drizzle migration
-    """Create tables if not exist (run on startup)."""
+async def create_tables():
+    """Create tables if not exist (run on startup/idempotent).
+    Tables are also created by Drizzle migrations; this ensures
+    the AI service can operate even before migrations run.
+    """
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("""
