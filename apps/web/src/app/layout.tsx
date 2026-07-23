@@ -6,8 +6,10 @@ import "../style/globals-app.css";
 import "../style/globals-internal.css";
 import { env } from "@mulai-plus/env/web";
 import { AmplitudeInit } from "@/components/amplitude-init";
+import { ChatbotProvider } from "@/components/chatbot/chatbot-provider";
 import { RedirectHandler } from "@/components/chatbot/redirect-handler";
 import Providers from "@/components/providers";
+import { FeaturesProvider } from "@/lib/features-context";
 import { SITE } from "@/lib/site-config";
 
 const geistSans = Geist({
@@ -116,7 +118,10 @@ export default function RootLayout({
         <Providers>
           <AmplitudeInit />
           <RedirectHandler />
-          {children}
+          <FeaturesProvider>
+            {children}
+            <ChatbotProvider />
+          </FeaturesProvider>
         </Providers>
       </body>
     </html>

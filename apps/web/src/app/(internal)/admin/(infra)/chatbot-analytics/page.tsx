@@ -5,6 +5,8 @@ import {
   BarChart3,
   Bot,
   DollarSign,
+  Eye,
+  EyeOff,
   Loader2,
   MessageSquare,
   RefreshCw,
@@ -13,10 +15,13 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { client } from "@/lib/client";
+import { useFeatures } from "@/lib/features-context";
 
 const API_STATS = "/ai/admin/stats";
 const API_FUNNEL = "/ai/admin/funnel";
@@ -124,6 +129,22 @@ export default function ChatbotAnalyticsPage() {
     refetchInterval: 30_000,
   });
 
+  // Feature flag (via React Context — shared with ChatbotProvider in root layout)
+  const { features, refresh } = useFeatures();
+  const [toggling, setToggling] = useState(false);
+
+  const chatbotVisible = features.chatbot_enabled;
+
+  const toggleChatbot = async () => {
+    const next = !chatbotVisible;
+    setToggling(true);
+    try {
+      await client.features.set({ flags: { chatbot_enabled: next } });
+      await refresh(); // ← updates context → ChatbotProvider re-renders instantly
+    } catch {}
+    setToggling(false);
+  };
+
   const { data: funnel } = useQuery<FunnelStats>({
     queryKey: ["chatbot-funnel"],
     queryFn: async () => {
@@ -167,9 +188,23 @@ export default function ChatbotAnalyticsPage() {
           <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Chatbot Analytics</h2>
           <p className="font-manrope text-sm text-text-muted-custom">Live stats dari MULAI+ AI chatbot.</p>
         </div>
-        <Button onClick={() => refetch()} variant="outline" size="sm" className="gap-2 rounded-xl">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {chatbotVisible !== null && (
+            <Button
+              onClick={toggleChatbot}
+              variant="outline"
+              size="sm"
+              disabled={toggling}
+              className={`gap-2 rounded-xl ${chatbotVisible ? "border-green-300 text-green-700" : "text-gray-500"}`}
+            >
+              {chatbotVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {chatbotVisible ? "Widget Aktif" : "Widget Tersembunyi"}
+            </Button>
+          )}
+          <Button onClick={() => refetch()} variant="outline" size="sm" className="gap-2 rounded-xl">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -233,7 +268,7 @@ export default function ChatbotAnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-bold font-bricolage text-3xl text-brand-navy">${data.total_cost.toFixed(4)}</p>
+            <p className="font-bold font-bricolage text-3xl text-brand-navy">{`$${data.total_cost.toFixed(4)}`}</p>
             <p className="font-manrope text-text-muted-custom text-xs">
               {data.total_prompt_tokens.toLocaleString()} prompt · {data.total_completion_tokens.toLocaleString()}{" "}
               completion

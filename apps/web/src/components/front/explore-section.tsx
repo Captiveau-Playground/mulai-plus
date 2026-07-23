@@ -2,17 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import {
-  ArrowRight,
-  BarChart3,
-  BookOpen,
-  Building2,
-  Loader2,
-  MessageCircleMore,
-  Search,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { ArrowRight, BarChart3, BookOpen, Building2, Loader2, Search, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -432,12 +422,6 @@ export function ExploreSection() {
                   title: "Passing Grade",
                   subtitle: "146 PTN",
                   icon: BarChart3,
-                },
-                {
-                  href: "/explore" as any,
-                  title: "Tanya Chatbot AI",
-                  subtitle: "Cari pake bahasa",
-                  icon: MessageCircleMore,
                 },
               ].map((card) => {
                 const Icon = card.icon;
