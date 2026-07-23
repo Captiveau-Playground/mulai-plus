@@ -19,7 +19,8 @@
     "test:integration:coverage": "vitest run --config vitest.integration.config.ts --coverage",
     "test:all": "npm run test:unit && npm run test:smoke",
     "test:full": "vitest run --coverage && vitest run --config vitest.integration.config.ts --coverage",
-    "test:regression": "vitest run"
+    "test:regression": "vitest run",
+    "e2e:seed": "bun run src/e2e-seed.ts"
   },
   "dependencies": {
     "@mulai-plus/auth": "workspace:*",
