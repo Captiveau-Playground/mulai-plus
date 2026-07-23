@@ -182,8 +182,14 @@ const data = {
   navAi: [
     {
       title: "Chatbot",
-      url: "/admin/chatbot-analytics",
+      url: "#",
       icon: Bot,
+      items: [
+        {
+          title: "Chatbot",
+          url: "/admin/chatbot-analytics",
+        },
+      ],
     },
   ],
   navPddikti: [
@@ -209,8 +215,14 @@ const data = {
   navSystem: [
     {
       title: "E-Sign",
-      url: "/admin/esign",
+      url: "#",
       icon: Fingerprint,
+      items: [
+        {
+          title: "E-Sign",
+          url: "admin/esign",
+        },
+      ],
     },
     {
       title: "Audit",
