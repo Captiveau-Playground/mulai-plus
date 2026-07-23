@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("Programs & Courses", () => {
   test("programs listing shows program cards", async ({ page }) => {
     await page.goto("/programs");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     await page.waitForTimeout(2000);
 
     // Heading
@@ -20,7 +20,7 @@ test.describe("Programs & Courses", () => {
 
   test("courses page shows course listing", async ({ page }) => {
     await page.goto("/courses");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
     await page.waitForTimeout(2000);
 
     const heading = page.getByRole("heading", { level: 1 }).first();
