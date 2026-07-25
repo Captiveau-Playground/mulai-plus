@@ -469,6 +469,7 @@ jobs:
                   - AI_SERVICE_URL=http://ai:8000
                   - AI_API_KEY=${AI_API_KEY}
                   - HERMES_API_KEY=${HERMES_API_KEY}
+                  - COOKIE_DOMAIN=${COOKIE_DOMAIN}
                 restart: always
                 networks:
                   - shared_proxy
@@ -507,6 +508,7 @@ jobs:
             R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
             R2_PUBLIC_URL=${{ secrets.R2_PUBLIC_URL }}
             HERMES_API_KEY=${{ secrets.HERMES_API_KEY }}
+            COOKIE_DOMAIN=${{ secrets.COOKIE_DOMAIN }}
             EOF
 
             # Pull image docker terbaru
