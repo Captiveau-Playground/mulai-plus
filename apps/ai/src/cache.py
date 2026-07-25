@@ -10,7 +10,7 @@ import re
 from difflib import SequenceMatcher
 from typing import Any, Optional
 
-from src.chatbot_db import get_pool
+from src.db import get_pool
 
 _CACHE_MAX_SIZE = 1000
 _CACHE_FUZZY_THRESHOLD = 0.82
@@ -48,7 +48,10 @@ async def get_cached_answer(question: str) -> Optional[dict]:
                 "UPDATE chatbot_cache SET hit_count = hit_count + 1, last_accessed_at = NOW() WHERE question_hash = $1",
                 q_hash,
             )
-            return {"reply": row["answer"], "follow_ups": row.get("follow_ups"), "from_cache": True, "token_usage": row.get("token_usage")}
+            tu = row.get("token_usage")
+            if isinstance(tu, str):
+                tu = json.loads(tu)
+            return {"reply": row["answer"], "follow_ups": row.get("follow_ups"), "from_cache": True, "token_usage": tu}
 
         rows = await conn.fetch(
             "SELECT question, question_normalized, answer, follow_ups, token_usage "
@@ -61,7 +64,10 @@ async def get_cached_answer(question: str) -> Optional[dict]:
                     "UPDATE chatbot_cache SET hit_count = hit_count + 1, last_accessed_at = NOW() WHERE question_hash = $1",
                     cache_hash,
                 )
-                return {"reply": r["answer"], "follow_ups": r.get("follow_ups"), "from_cache": True, "token_usage": r.get("token_usage")}
+                tu = r.get("token_usage")
+                if isinstance(tu, str):
+                    tu = json.loads(tu)
+                return {"reply": r["answer"], "follow_ups": r.get("follow_ups"), "from_cache": True, "token_usage": tu}
 
     return None
 

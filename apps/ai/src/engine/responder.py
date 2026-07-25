@@ -43,6 +43,7 @@ FOLLOWUPS_STATIC = {
     "prodi": ["Rekomendasi jurusan", "Info passing grade", "Prospek kerja jurusan"],
     "beasiswa": ["Info beasiswa LPDP", "Beasiswa dalam negeri", "Syarat beasiswa"],
     "mentoring": ["Program mentoring 1-on-1", "Testimoni alumni", "Biaya mentoring"],
+    "jurusan": ["Rekomendasi jurusan", "Info passing grade", "Prospek kerja lulusan"],
 }
 
 FALLBACK_REPLIES = [

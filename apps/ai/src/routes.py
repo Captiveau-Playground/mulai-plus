@@ -46,8 +46,51 @@ health_router = APIRouter()
 chat_router = APIRouter()
 admin_router = APIRouter()
 
-GUEST_LIMIT = 1
+GUEST_LIMIT = 3
 AUTH_LIMIT = 5
+
+# ─── In-memory rate limiters ─────────────────────────────────
+from collections import defaultdict
+from datetime import datetime, timedelta
+
+RateBucket = dict[str, list[datetime]]
+
+_feedback_limits: RateBucket = defaultdict(list)
+_guest_chat_limits: RateBucket = defaultdict(list)
+
+
+def _check_rate_limit(
+    bucket: RateBucket,
+    key: str,
+    max_requests: int = 10,
+    window_seconds: int = 60,
+) -> bool:
+    now = datetime.now()
+    cutoff = now - timedelta(seconds=window_seconds)
+    bucket[key] = [t for t in bucket[key] if t > cutoff]
+    if len(bucket[key]) >= max_requests:
+        return False
+    bucket[key].append(now)
+    return True
+
+
+def _check_guest_limit(ip: str) -> tuple[bool, int, int]:
+    """Guest: max 3 chats per IP per hari (reset otomatis setiap tengah malam)."""
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow = today_start + timedelta(days=1)
+    seconds_left = int((tomorrow - now).total_seconds())
+
+    bucket = _guest_chat_limits[ip]
+    # Bersihin entry sebelum hari ini
+    bucket[:] = [t for t in bucket if t > today_start]
+
+    allowed = len(bucket) < GUEST_LIMIT
+    remaining = max(0, GUEST_LIMIT - len(bucket))
+    if allowed:
+        bucket.append(now)
+
+    return allowed, remaining, seconds_left, seconds_left
 
 
 def _get_session_key(request: Request) -> tuple[str, Optional[str], bool]:
@@ -111,67 +154,69 @@ async def chat(req: ChatRequest, request: Request):
     if is_auth and guest_sid and guest_sid != session_key:
         await cdb.link_session_to_user(guest_sid, user_id)
 
+    # ── Check cache FIRST (skip quota buat pertanyaan mirror) ──
+    try:
+        cached = await cch.get_cached_answer(req.message)
+        if cached:
+            reply = cached["reply"]
+            msg_result = await cdb.save_message(session_key, "assistant", reply)
+            created_at = str(msg_result["created_at"])
+            msg_id = msg_result["id"]
+
+            async def gen_cached():
+                payload = json.dumps({
+                    "session_id": session_key,
+                    "message_id": msg_id,
+                    "created_at": created_at,
+                    "remaining": 0,
+                    "requires_auth": False,
+                    "full_reply": reply,
+                })
+                yield f"data: {payload}\n\n"
+
+            logger.info("Cache HIT for: %s", req.message[:60])
+            return StreamingResponse(
+                gen_cached(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+    except Exception as e:
+        logger.error("Cache error, falling back to LLM: %s", e, exc_info=True)
+        # fall through to LLM path
+
+    # ── IP-based guest rate limit (anti abuse refresh/incognito) ──
+    if not is_auth:
+        ip = request.client.host if request.client else request.headers.get("x-forwarded-for", "unknown")
+        ip_allowed, ip_remaining, ip_ttl = _check_guest_limit(ip)
+        if not ip_allowed:
+            reply = f"Kamu sudah menggunakan {GUEST_LIMIT} chat gratis. Reset dalam {ip_ttl // 60} jam lagi."
+            await cdb.save_message(session_key, "assistant", reply)
+            return {"reply": reply, "session_id": session_key, "requires_auth": True, "remaining": 0, "reset_in": ip_ttl}
+
     # Ban check
     effective_limit, ban_msg = await _check_session_allowed(session_key, is_auth)
     if ban_msg:
         await cdb.save_message(session_key, "assistant", ban_msg)
-        return {
-            "reply": ban_msg,
-            "session_id": session_key,
-            "requires_auth": True,
-            "remaining": 0,
-        }
+        return {"reply": ban_msg, "session_id": session_key, "requires_auth": True, "remaining": 0}
 
-    # Check limit (use effective_limit from admin override)
+    # Check limit
     if session["message_count"] >= effective_limit:
-        if is_auth:
-            wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
-            reply = f"Kamu sudah menggunakan batas chat. Klik link WhatsApp di bawah untuk request tambahan limit."
-            await cdb.save_message(session_key, "assistant", reply)
-            return {
-                "reply": reply,
-                "session_id": session_key,
-                "requires_auth": True,
-                "redirect_url": wa_link,
-            }
-        else:
-            reply = "Kamu sudah menggunakan chat gratis! Yuk login untuk lanjut konsultasi."
-            await cdb.save_message(session_key, "assistant", reply)
-            return {
-                "reply": reply,
-                "session_id": session_key,
-                "requires_auth": True,
-                "redirect_url": "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit",
-            }
+        wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
+        reply = "Kamu sudah menggunakan batas chat gratis. Klik link WhatsApp untuk request tambahan." if is_auth else "Kamu sudah menggunakan chat gratis! Yuk login untuk lanjut."
+        await cdb.save_message(session_key, "assistant", reply)
+        return {"reply": reply, "session_id": session_key, "requires_auth": True,
+                "redirect_url": wa_link if is_auth else "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit"}
 
-    # ── Check cache ────────────────────────────────────────────────
-    cached = await cch.get_cached_answer(req.message)
-    if cached:
-        reply = cached["reply"]
-        follow_ups = cached.get("follow_ups")
-        token_usage = cached.get("token_usage") or {"prompt": 0, "completion": 0, "cost": "0", "model": "cache"}
-    else:
-        history = await cdb.get_history(session_key)
-        reply, follow_ups, token_usage = await get_response(req.message, history)
-        await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
+    history = await cdb.get_history(session_key)
+    reply, follow_ups, token_usage = await get_response(req.message, history)
+    await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
 
-    # Save messages to DB
-    await cdb.save_message(
-        session_key, "user", req.message,
-        prompt_tokens=token_usage.get("prompt", 0),
-        cost=token_usage.get("cost", 0),
-        model=token_usage.get("model", settings.openai_model),
-    )
-
-    msg_result = await cdb.save_message(
-        session_key, "assistant", reply,
-        completion_tokens=token_usage.get("completion", 0),
-        cost=0,
-        model=token_usage.get("model", settings.openai_model),
-    )
+    await cdb.save_message(session_key, "user", req.message,
+        prompt_tokens=token_usage.get("prompt", 0), cost=token_usage.get("cost", 0), model=token_usage.get("model", settings.openai_model))
+    msg_result = await cdb.save_message(session_key, "assistant", reply,
+        completion_tokens=token_usage.get("completion", 0), cost=0, model=token_usage.get("model", settings.openai_model))
     msg_id = msg_result["id"]
     msg_created_at = msg_result["created_at"]
-
     await cdb.increment_message_count(session_key)
 
     remaining = effective_limit - session["message_count"] - 1
@@ -204,15 +249,19 @@ async def chat(req: ChatRequest, request: Request):
 async def chat_sync(req: ChatRequest, request: Request):
     """Non-streaming version for backward compatibility."""
     session_key, user_id, is_auth = _get_session_key(request)
-    default_limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
-    effective_limit = await cdb.get_active_limit(session_key, default_limit)
-
     session = await cdb.get_or_create_session(session_key, user_id)
 
-    # Link guest session ke user_id
     guest_sid = request.headers.get("x-session-id")
     if is_auth and guest_sid and guest_sid != session_key:
         await cdb.link_session_to_user(guest_sid, user_id)
+
+    # Cache check first
+    cached = await cch.get_cached_answer(req.message)
+    if cached:
+        return ChatResponse(reply=cached["reply"], session_id=session_key, requires_auth=False)
+
+    default_limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
+    effective_limit = await cdb.get_active_limit(session_key, default_limit)
 
     if session["message_count"] >= effective_limit:
         wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
@@ -222,13 +271,10 @@ async def chat_sync(req: ChatRequest, request: Request):
 
     history = await cdb.get_history(session_key)
     reply, follow_ups, token_usage = await get_response(req.message, history)
+    await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
 
-    await cdb.save_message(
-        session_key, "user", req.message,
-        prompt_tokens=token_usage.get("prompt", 0),
-        cost=token_usage.get("cost", 0),
-        model=token_usage.get("model", settings.openai_model),
-    )
+    await cdb.save_message(session_key, "user", req.message,
+        prompt_tokens=token_usage.get("prompt", 0), cost=token_usage.get("cost", 0), model=token_usage.get("model", settings.openai_model))
     await cdb.save_message(session_key, "assistant", reply)
     await cdb.increment_message_count(session_key)
     remaining = effective_limit - session["message_count"] - 1
@@ -273,17 +319,22 @@ async def chat_quota(request: Request):
 # ─── Chat History ────────────────────────────────────────────
 
 @chat_router.get("/history")
-async def chat_history(session_id: str):
-    """Get chat history for a session."""
-    messages = await cdb.get_history(session_id)
+async def chat_history(request: Request, session_id: str, limit: int = 5):
+    """Get chat history. Prioritaskan x-user-id kalo ada (auth user)."""
+    user_id = request.headers.get("x-user-id")
+    sid = user_id or session_id
+    messages = await cdb.get_history(sid, limit=limit)
     return {"messages": messages}
 
 
 # ─── Feedback ────────────────────────────────────────────────
 
 @chat_router.post("/feedback", response_model=FeedbackResponse)
-async def submit_feedback(req: FeedbackRequest):
-    """Submit thumbs up/down for a message."""
+async def submit_feedback(req: FeedbackRequest, request: Request):
+    """Submit thumbs up/down for a message. Rate limited per IP: 10 req/min."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(_feedback_limits, f"feedback:{client_ip}", max_requests=10, window_seconds=60):
+        raise HTTPException(status_code=429, detail="Too many requests. Slow down.")
     await cdb.set_feedback(req.message_id, req.feedback)
     return FeedbackResponse(success=True)
 

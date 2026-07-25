@@ -130,26 +130,28 @@ export function ChatbotWidget() {
     if (open) setTimeout(() => inputRef.current?.focus(), 300);
   }, [open]);
 
-  // Load history + auto-open after login
+  // Load history (last 5 aja) + auto-open after login
   useEffect(() => {
-    fetch(`/ai/history?session_id=${getSessionId()}`)
+    fetch(`${AI_BASE}/ai/history?session_id=${getSessionId()}&limit=5`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         if (data.messages?.length > 0) {
           setMessages(data.messages);
+          setRemaining(null); // tunggu SSE atau quota fetch
         }
       })
       .catch(() => {});
 
-    // Cek sisa quota — kalo 0 langsung show CTA
-    fetch(`/ai/quota?session_id=${getSessionId()}`)
+    // Cek quota — dipake buat AUTH_GATE awal aja
+    fetch(`${AI_BASE}/ai/quota?session_id=${getSessionId()}`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
-        setRemaining(data.remaining);
         if (data.remaining <= 0) {
           setRequiresAuth(true);
           setRedirectUrl(data.redirect_url || "");
         }
+        // Jangan setRemaining di sini — biar SSE yang update
+        // biar konsisten antara header quota sama real count
       })
       .catch(() => {});
 
@@ -185,6 +187,7 @@ export function ChatbotWidget() {
         const res = await fetch(API_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-session-id": getSessionId() },
+          credentials: "include",
           body: JSON.stringify({ message: text, session_id: getSessionId() }),
         });
         if (!res.ok) throw new Error("API error");
@@ -309,7 +312,11 @@ export function ChatbotWidget() {
     prevLoading.current = loading;
   }, [loading, streamContent, streamMsgId, streamCreatedAt]);
 
+  const [feedbackLoading, setFeedbackLoading] = useState<Set<number>>(new Set());
+
   const submitFeedback = async (messageId: number, feedback: "up" | "down") => {
+    if (feedbackLoading.has(messageId)) return;
+    setFeedbackLoading((prev) => new Set(prev).add(messageId));
     try {
       await fetch(`${AI_BASE}/ai/feedback`, {
         method: "POST",
@@ -318,6 +325,11 @@ export function ChatbotWidget() {
       });
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, feedback } : m)));
     } catch {}
+    setFeedbackLoading((prev) => {
+      const next = new Set(prev);
+      next.delete(messageId);
+      return next;
+    });
   };
 
   const _handleFollowUpClick = (q: string) => {
@@ -451,9 +463,11 @@ export function ChatbotWidget() {
                       <button
                         type="button"
                         onClick={() => submitFeedback(msg.id!, "up")}
+                        disabled={msg.feedback === "up" || feedbackLoading.has(msg.id)}
                         className={cn(
                           "flex h-6 w-6 items-center justify-center rounded transition-colors sm:h-5 sm:w-5",
                           msg.feedback === "up" ? "bg-green-50 text-green-600" : "text-gray-400 hover:text-gray-600",
+                          (msg.feedback === "up" || feedbackLoading.has(msg.id)) && "cursor-not-allowed opacity-40",
                         )}
                       >
                         <ThumbsUp className="h-3.5 w-3.5 sm:h-2.5 sm:w-2.5" />
@@ -461,9 +475,11 @@ export function ChatbotWidget() {
                       <button
                         type="button"
                         onClick={() => submitFeedback(msg.id!, "down")}
+                        disabled={msg.feedback === "down" || feedbackLoading.has(msg.id)}
                         className={cn(
                           "flex h-6 w-6 items-center justify-center rounded transition-colors sm:h-5 sm:w-5",
                           msg.feedback === "down" ? "bg-red-50 text-red-600" : "text-gray-400 hover:text-gray-600",
+                          (msg.feedback === "down" || feedbackLoading.has(msg.id)) && "cursor-not-allowed opacity-40",
                         )}
                       >
                         <ThumbsDown className="h-3.5 w-3.5 sm:h-2.5 sm:w-2.5" />
