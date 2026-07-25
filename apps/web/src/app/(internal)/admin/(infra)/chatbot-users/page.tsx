@@ -126,7 +126,7 @@ export default function ChatbotUsersPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const PER_PAGE = 20;
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const fetchSessions = useCallback(async (p: number, q: string, banned: boolean) => {
     setLoading(true);
@@ -612,7 +612,8 @@ export default function ChatbotUsersPage() {
             </Button>
             <Button
               onClick={() =>
-                handleAction(actionSession?.id, "credit", {
+                actionSession?.id &&
+                handleAction(actionSession.id, "credit", {
                   credit_limit: creditValue === "" ? null : Number(creditValue),
                 })
               }
@@ -663,7 +664,8 @@ export default function ChatbotUsersPage() {
             </Button>
             <Button
               onClick={() =>
-                handleAction(actionSession?.id, "ban", { banned: !actionSession?.banned, reason: banReason || null })
+                actionSession?.id &&
+                handleAction(actionSession.id, "ban", { banned: !actionSession?.banned, reason: banReason || null })
               }
               disabled={actionLoading}
               className={
@@ -703,7 +705,9 @@ export default function ChatbotUsersPage() {
               Batal
             </Button>
             <Button
-              onClick={() => handleAction(actionSession?.id, "notes", { notes: notesValue || null })}
+              onClick={() =>
+                actionSession?.id && handleAction(actionSession.id, "notes", { notes: notesValue || null })
+              }
               disabled={actionLoading}
               className="rounded-xl bg-brand-navy text-white hover:bg-brand-navy/90"
             >

@@ -46,7 +46,7 @@ export const appRouter = {
     set: adminProcedure
       .input(
         z.object({
-          flags: z.record(z.boolean()),
+          flags: z.record(z.string(), z.boolean()),
         }),
       )
       .handler(async ({ input }) => {
