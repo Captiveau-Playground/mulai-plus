@@ -38,8 +38,27 @@ async def get_pool() -> asyncpg.Pool:
     return _pool
 
 
-# Tables created by Drizzle migration
-    """Create tables if not exist (run on startup)."""
+async def _ensure_migration(conn):
+    """Run pending column migrations idempotently."""
+    for col in [
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS clicked_login BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS credit_limit INTEGER",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS banned_reason TEXT",
+        "ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS notes TEXT",
+    ]:
+        try:
+            await conn.execute(col)
+        except Exception:
+            pass
+
+
+async def create_tables():
+    """Create tables if not exist (run on startup/idempotent).
+    Tables are also created by Drizzle migrations; this ensures
+    the AI service can operate even before migrations run.
+    """
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("""
@@ -48,12 +67,23 @@ async def get_pool() -> asyncpg.Pool:
                 user_id TEXT,
                 is_auth BOOLEAN DEFAULT FALSE,
                 message_count INTEGER DEFAULT 0,
+                credit_limit INTEGER DEFAULT NULL,
+                banned BOOLEAN DEFAULT FALSE,
+                banned_at TIMESTAMPTZ DEFAULT NULL,
+                banned_reason TEXT DEFAULT NULL,
+                notes TEXT DEFAULT NULL,
+                clicked_login BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 last_active TIMESTAMPTZ DEFAULT NOW()
             );
             CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_user
                 ON chatbot_sessions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_clicked
+                ON chatbot_sessions(clicked_login);
         """)
+        # Migration: add columns for existing tables (idempotent)
+        await _ensure_migration(conn)
+
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS chatbot_messages (
                 id SERIAL PRIMARY KEY,
@@ -162,6 +192,247 @@ async def set_feedback(message_id: int, feedback: str):
         )
 
 
+async def list_sessions(
+    page: int = 0,
+    per_page: int = 20,
+    search: Optional[str] = None,
+    banned_only: bool = False,
+) -> dict[str, Any]:
+    """List all chatbot sessions with user info and stats."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        conditions: list[str] = []
+        params: list[Any] = []
+        param_idx = 1
+
+        if search:
+            conditions.append(f"(s.id ILIKE ${param_idx} OR s.user_id ILIKE ${param_idx})")
+            params.append(f"%{search}%")
+            param_idx += 1
+
+        if banned_only:
+            conditions.append("s.banned = TRUE")
+
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+        # Count
+        count_sql = f"SELECT COUNT(*) FROM chatbot_sessions s{where}"
+        total = await conn.fetchval(count_sql, *params)
+
+        # Fetch page
+        offset = page * per_page
+        rows = await conn.fetch(
+            f"""
+            SELECT s.*,
+                   u.name as user_name,
+                   u.email as user_email,
+                   u.image as user_image,
+                   (SELECT COUNT(*) FROM chatbot_messages WHERE session_id = s.id) as total_messages,
+                   COALESCE((SELECT SUM(cost) FROM chatbot_messages WHERE session_id = s.id), 0) as total_cost,
+                   CASE
+                       WHEN s.credit_limit IS NOT NULL THEN
+                           CASE WHEN s.credit_limit = -1 THEN NULL ELSE GREATEST(0, s.credit_limit - s.message_count) END
+                       WHEN s.is_auth THEN GREATEST(0, 5 - s.message_count)
+                       ELSE GREATEST(0, 1 - s.message_count)
+                   END as remaining
+            FROM chatbot_sessions s
+            LEFT JOIN "user" u ON u.id = s.user_id
+            {where}
+            ORDER BY s.last_active DESC NULLS LAST
+            LIMIT ${param_idx} OFFSET ${param_idx + 1}
+            """,
+            *params, per_page, offset,
+        )
+
+        return {
+            "sessions": [dict(r) for r in rows],
+            "total": total or 0,
+            "page": page,
+            "per_page": per_page,
+        }
+
+
+async def get_session_detail(session_id: str) -> Optional[dict[str, Any]]:
+    """Get session with all messages."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT s.*, u.name as user_name, u.email as user_email, u.image as user_image
+               FROM chatbot_sessions s
+               LEFT JOIN "user" u ON u.id = s.user_id
+               WHERE s.id = $1""",
+            session_id,
+        )
+        if not row:
+            return None
+
+        messages = await conn.fetch(
+            """SELECT id, role, content, prompt_tokens, completion_tokens,
+                      model, cost, feedback, created_at
+               FROM chatbot_messages
+               WHERE session_id = $1
+               ORDER BY id ASC""",
+            session_id,
+        )
+
+        result = dict(row)
+        result["messages"] = [dict(m) for m in messages]
+        result["total_messages"] = len(messages)
+        result["total_cost"] = sum(float(m.get("cost", 0) or 0) for m in messages) if messages else 0.0
+        return result
+
+
+async def update_credit_limit(session_id: str, limit: Optional[int]) -> bool:
+    """Set custom credit limit for a session (NULL = use default)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE chatbot_sessions SET credit_limit = $1 WHERE id = $2",
+            limit, session_id,
+        )
+        return "UPDATE 1" in result
+
+
+async def toggle_ban(
+    session_id: str,
+    banned: bool,
+    reason: Optional[str] = None,
+) -> bool:
+    """Ban or unban a session."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        now = datetime.now(timezone.utc)
+        if banned:
+            result = await conn.execute(
+                """UPDATE chatbot_sessions
+                   SET banned = TRUE, banned_at = $1, banned_reason = $2
+                   WHERE id = $3""",
+                now, reason, session_id,
+            )
+        else:
+            result = await conn.execute(
+                """UPDATE chatbot_sessions
+                   SET banned = FALSE, banned_at = NULL, banned_reason = NULL
+                   WHERE id = $1""",
+                session_id,
+            )
+        return "UPDATE 1" in result
+
+
+async def update_notes(session_id: str, notes: Optional[str]) -> bool:
+    """Set admin notes for a session."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE chatbot_sessions SET notes = $1 WHERE id = $2",
+            notes, session_id,
+        )
+        return "UPDATE 1" in result
+
+
+async def is_banned(session_id: str) -> bool:
+    """Check if a session is banned."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT banned FROM chatbot_sessions WHERE id = $1", session_id
+        )
+        return row["banned"] if row else False
+
+
+async def get_active_limit(session_id: str, default_limit: int) -> int:
+    """Get effective credit limit, checking custom override first."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT credit_limit FROM chatbot_sessions WHERE id = $1", session_id
+        )
+        if row and row["credit_limit"] is not None:
+            return row["credit_limit"]
+        return default_limit
+
+
+async def track_login_click(session_id: str) -> bool:
+    """Track that a user clicked the login/register button from the chatbot."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE chatbot_sessions SET clicked_login = TRUE WHERE id = $1",
+            session_id,
+        )
+        return "UPDATE 1" in result
+
+
+async def get_funnel_stats() -> dict[str, Any]:
+    """Get chatbot → login conversion funnel stats."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        # Ensure latest columns exist (safe even if already migrated)
+        await _ensure_migration(conn)
+        # Total sessions
+        total = (await conn.fetchval("SELECT COUNT(*) FROM chatbot_sessions")) or 0
+
+        # Guest: started without login
+        guest_total = (
+            await conn.fetchval("SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = FALSE")
+        ) or 0
+
+        # Guest hit limit (message_count >= 1 = GUEST_LIMIT)
+        guest_hit_limit = (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = FALSE AND message_count >= 1"
+            )
+        ) or 0
+
+        # Guest clicked login CTA
+        guest_clicked_login = (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = FALSE AND clicked_login = TRUE"
+            )
+        ) or 0
+
+        # Guest → Authenticated conversion (user_id was linked after creation)
+        guest_converted = (
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = FALSE AND user_id IS NOT NULL"
+            )
+        ) or 0
+
+        # Authenticated sessions (started while logged in)
+        auth_total = (
+            await conn.fetchval("SELECT COUNT(*) FROM chatbot_sessions WHERE is_auth = TRUE")
+        ) or 0
+
+        # Total authenticated (either started auth or converted)
+        total_authenticated = auth_total + guest_converted
+
+        # All sessions with user_id set
+        total_with_user = (
+            await conn.fetchval("SELECT COUNT(*) FROM chatbot_sessions WHERE user_id IS NOT NULL")
+        ) or 0
+
+        return {
+            "total_sessions": total,
+            "guest_total": guest_total,
+            "guest_hit_limit": guest_hit_limit,
+            "guest_clicked_login": guest_clicked_login,
+            "guest_converted": guest_converted,
+            "auth_total": auth_total,
+            "total_authenticated": total_authenticated,
+            "total_with_user_id": total_with_user,
+            "conversion_rate": round(guest_converted / guest_total * 100, 1) if guest_total > 0 else 0.0,
+            "click_rate": round(guest_clicked_login / guest_hit_limit * 100, 1) if guest_hit_limit > 0 else 0.0,
+            "funnel": [
+                {"stage": "total_sessions", "label": "Total Sesi Chat", "count": total},
+                {"stage": "guest_total", "label": "Guest Mulai Chat", "count": guest_total},
+                {"stage": "guest_hit_limit", "label": "Guest Habis Limit", "count": guest_hit_limit},
+                {"stage": "guest_clicked_login", "label": "Guest Klik Login", "count": guest_clicked_login},
+                {"stage": "guest_converted", "label": "Guest → Login (Convert)", "count": guest_converted},
+                {"stage": "total_authenticated", "label": "Total Auth Users", "count": total_authenticated},
+            ],
+        }
+
+
 async def get_stats() -> dict[str, Any]:
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -215,6 +486,17 @@ async def get_stats() -> dict[str, Any]:
             "total_prompt_tokens": cost_row["total_prompt"] or 0 if cost_row else 0,
             "total_completion_tokens": cost_row["total_completion"] or 0 if cost_row else 0,
         }
+
+
+async def reset_message_count(session_id: str, count: int = 0) -> bool:
+    """Reset or set message_count for a session (admin use)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE chatbot_sessions SET message_count = $1 WHERE id = $2",
+            count, session_id,
+        )
+        return "UPDATE 1" in result
 
 
 async def close():

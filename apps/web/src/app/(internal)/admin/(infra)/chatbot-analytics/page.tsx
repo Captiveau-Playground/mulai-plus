@@ -5,19 +5,26 @@ import {
   BarChart3,
   Bot,
   DollarSign,
+  Eye,
+  EyeOff,
   Loader2,
   MessageSquare,
   RefreshCw,
   TrendingUp,
   UserCheck,
+  UserPlus,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { client } from "@/lib/client";
+import { useFeatures } from "@/lib/features-context";
 
-const API_ENDPOINT = "/ai/admin/stats";
+const API_STATS = "/ai/admin/stats";
+const API_FUNNEL = "/ai/admin/funnel";
 
 interface Stats {
   total_sessions: number;
@@ -33,15 +40,119 @@ interface Stats {
   total_completion_tokens: number;
 }
 
+interface FunnelStage {
+  stage: string;
+  label: string;
+  count: number;
+}
+
+interface FunnelStats {
+  total_sessions: number;
+  guest_total: number;
+  guest_hit_limit: number;
+  guest_clicked_login: number;
+  guest_converted: number;
+  auth_total: number;
+  total_authenticated: number;
+  conversion_rate: number;
+  click_rate: number;
+  funnel: FunnelStage[];
+}
+
+function FunnelStep({
+  label,
+  count,
+  prevCount,
+  maxCount,
+  isFirst,
+}: {
+  label: string;
+  count: number;
+  prevCount: number;
+  maxCount: number;
+  isFirst: boolean;
+}) {
+  const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
+  const dropoff = !isFirst && prevCount > 0 ? ((prevCount - count) / prevCount) * 100 : null;
+  const completion = maxCount > 0 ? (count / maxCount) * 100 : 0;
+
+  return (
+    <div className="relative">
+      {/* Connector line between steps */}
+      {!isFirst && <div className="absolute top-0 left-[11px] -z-10 h-6 w-0.5 bg-gray-200" />}
+
+      <div className="flex items-start gap-4">
+        {/* Dot indicator */}
+        <div className="mt-0.5 flex shrink-0 flex-col items-center">
+          <div
+            className={`h-5 w-5 rounded-full border-2 ${isFirst ? "border-brand-navy bg-brand-navy" : "border-gray-300 bg-white"}`}
+          >
+            {isFirst && <div className="m-auto mt-[3px] h-2 w-2 rounded-full bg-white" />}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="min-w-0 flex-1 pb-5">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="truncate font-manrope text-sm text-text-main">{label}</span>
+            <div className="flex shrink-0 items-baseline gap-3">
+              <span className="font-manrope font-semibold text-brand-navy text-sm tabular-nums">
+                {count.toLocaleString()}
+              </span>
+              {!isFirst && dropoff !== null && (
+                <span className="font-manrope text-gray-400 text-xs tabular-nums">
+                  {dropoff > 0 ? `−${dropoff.toFixed(0)}%` : `${dropoff.toFixed(0)}%`}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-sm bg-gray-100">
+            <div className="h-full rounded-sm bg-gray-400 transition-all" style={{ width: `${barWidth}%` }} />
+          </div>
+          <div className="mt-0.5 font-manrope text-[10px] text-gray-400 tabular-nums">
+            {completion.toFixed(0)}% dari total sesi
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatbotAnalyticsPage() {
   const { data, isLoading, isError, refetch } = useQuery<Stats>({
     queryKey: ["chatbot-analytics"],
     queryFn: async () => {
-      const res = await fetch(API_ENDPOINT, {});
+      const res = await fetch(API_STATS);
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
-    refetchInterval: 30_000, // refresh every 30s
+    refetchInterval: 30_000,
+  });
+
+  // Feature flag (via React Context — shared with ChatbotProvider in root layout)
+  const { features, refresh } = useFeatures();
+  const [toggling, setToggling] = useState(false);
+
+  const chatbotVisible = features.chatbot_enabled;
+
+  const toggleChatbot = async () => {
+    const next = !chatbotVisible;
+    setToggling(true);
+    try {
+      await client.features.set({ flags: { chatbot_enabled: next } });
+      await refresh(); // ← updates context → ChatbotProvider re-renders instantly
+    } catch {}
+    setToggling(false);
+  };
+
+  const { data: funnel } = useQuery<FunnelStats>({
+    queryKey: ["chatbot-funnel"],
+    queryFn: async () => {
+      const res = await fetch(API_FUNNEL);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    refetchInterval: 30_000,
   });
 
   if (isLoading) {
@@ -77,9 +188,23 @@ export default function ChatbotAnalyticsPage() {
           <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Chatbot Analytics</h2>
           <p className="font-manrope text-sm text-text-muted-custom">Live stats dari MULAI+ AI chatbot.</p>
         </div>
-        <Button onClick={() => refetch()} variant="outline" size="sm" className="gap-2 rounded-xl">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {chatbotVisible !== null && (
+            <Button
+              onClick={toggleChatbot}
+              variant="outline"
+              size="sm"
+              disabled={toggling}
+              className={`gap-2 rounded-xl ${chatbotVisible ? "border-green-300 text-green-700" : "text-gray-500"}`}
+            >
+              {chatbotVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {chatbotVisible ? "Widget Aktif" : "Widget Tersembunyi"}
+            </Button>
+          )}
+          <Button onClick={() => refetch()} variant="outline" size="sm" className="gap-2 rounded-xl">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -143,7 +268,7 @@ export default function ChatbotAnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-bold font-bricolage text-3xl text-brand-navy">${data.total_cost.toFixed(4)}</p>
+            <p className="font-bold font-bricolage text-3xl text-brand-navy">{`$${data.total_cost.toFixed(4)}`}</p>
             <p className="font-manrope text-text-muted-custom text-xs">
               {data.total_prompt_tokens.toLocaleString()} prompt · {data.total_completion_tokens.toLocaleString()}{" "}
               completion
@@ -151,6 +276,40 @@ export default function ChatbotAnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Conversion Funnel ── */}
+      {funnel && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-bricolage text-brand-navy text-lg">
+              <UserPlus className="h-5 w-5 text-brand-orange" /> Chatbot → Login Funnel
+            </CardTitle>
+            <CardDescription className="font-manrope">
+              <span className="font-semibold">{funnel.conversion_rate}%</span> guest conversion ·{" "}
+              <span className="font-semibold">{funnel.click_rate}%</span> login click rate ·{" "}
+              <span className="font-semibold">{funnel.total_authenticated}</span> total authenticated
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="ml-1">
+              {funnel.funnel.map((stage, i) => {
+                const maxCount = funnel.funnel[0].count;
+                const prevCount = i > 0 ? funnel.funnel[i - 1].count : stage.count;
+                return (
+                  <FunnelStep
+                    key={stage.stage}
+                    label={stage.label}
+                    count={stage.count}
+                    prevCount={prevCount}
+                    maxCount={maxCount}
+                    isFirst={i === 0}
+                  />
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Top Questions & Recent Questions */}
       <div className="grid gap-6 lg:grid-cols-2">

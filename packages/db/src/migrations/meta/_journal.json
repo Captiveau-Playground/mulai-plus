@@ -92,6 +92,20 @@
       "when": 1780909210760,
       "tag": "0012_exotic_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780910000000,
+      "tag": "0013_hermes_newsletter_sent",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784809411270,
+      "tag": "0014_add_newsletter_sent",
+      "breakpoints": true
     }
   ]
 }
