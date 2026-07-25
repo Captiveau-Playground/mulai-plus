@@ -189,9 +189,10 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
             "completion": total_completion,
             "cost": round(_calc_cost(total_prompt, total_completion), 8),
             "model": model_used,
+            "cacheable": True,
         }
 
     except Exception as e:
         logger.error("LLM error: %s", e, exc_info=True)
         reply, suggestions = random.choice(FALLBACK_REPLIES)
-        return reply, suggestions, {"prompt": 0, "completion": 0, "cost": 0, "model": model_used}
+        return reply, suggestions, {"prompt": 0, "completion": 0, "cost": 0, "model": model_used, "cacheable": False}

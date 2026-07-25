@@ -107,17 +107,16 @@ async def create_tables():
 async def get_or_create_session(session_id: str, user_id: Optional[str] = None) -> dict[str, Any]:
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM chatbot_sessions WHERE id = $1", session_id
-        )
-        if row:
-            return dict(row)
+        # Idempotent: ON CONFLICT DO NOTHING + RETURNING mencegah duplikat
         is_auth = user_id is not None
-        await conn.execute(
-            "INSERT INTO chatbot_sessions (id, user_id, is_auth) VALUES ($1, $2, $3)",
+        row = await conn.fetchrow(
+            """INSERT INTO chatbot_sessions (id, user_id, is_auth)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (id) DO UPDATE SET last_active = NOW()
+               RETURNING *""",
             session_id, user_id, is_auth,
         )
-        return {"id": session_id, "user_id": user_id, "is_auth": is_auth, "message_count": 0}
+        return dict(row)
 
 
 async def link_session_to_user(session_id: str, user_id: str):

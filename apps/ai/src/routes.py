@@ -168,11 +168,12 @@ def _check_guest_limit(ip: str) -> tuple[bool, int, int]:
     return allowed, remaining, seconds_left
 
 
-def _get_session_key(request: Request) -> tuple[str, Optional[str], bool]:
+def _get_session_key(request: Request, query_sid: str = "") -> tuple[str, Optional[str], bool]:
     user_id = request.headers.get("x-user-id")
     if user_id:
         return user_id, user_id, True
-    session_id = request.headers.get("x-session-id") or str(uuid.uuid4())
+    # Prioritas: header x-session-id → query param session_id → random UUID
+    session_id = request.headers.get("x-session-id") or query_sid or str(uuid.uuid4())
     return session_id, None, False
 
 
@@ -297,7 +298,8 @@ async def chat(req: ChatRequest, request: Request):
 
     history = await cdb.get_history(session_key)
     reply, follow_ups, token_usage = await get_response(req.message, history)
-    await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
+    if token_usage.get("cacheable"):
+        await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
 
     await cdb.save_message(session_key, "user", req.message,
         prompt_tokens=token_usage.get("prompt", 0), cost=token_usage.get("cost", 0), model=token_usage.get("model", settings.openai_model))
@@ -359,7 +361,8 @@ async def chat_sync(req: ChatRequest, request: Request):
 
     history = await cdb.get_history(session_key)
     reply, follow_ups, token_usage = await get_response(req.message, history)
-    await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
+    if token_usage.get("cacheable"):
+        await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
 
     await cdb.save_message(session_key, "user", req.message,
         prompt_tokens=token_usage.get("prompt", 0), cost=token_usage.get("cost", 0), model=token_usage.get("model", settings.openai_model))
@@ -379,9 +382,9 @@ async def chat_sync(req: ChatRequest, request: Request):
 # ─── Quota ─────────────────────────────────────────────────
 
 @chat_router.get("/quota")
-async def chat_quota(request: Request):
+async def chat_quota(request: Request, session_id: str = ""):
     """Return remaining chat quota for current user."""
-    session_key, user_id, is_auth = _get_session_key(request)
+    session_key, user_id, is_auth = _get_session_key(request, query_sid=session_id)
 
     # Fallback: cek apakah session_id pernah dipake oleh auth user
     if not is_auth:

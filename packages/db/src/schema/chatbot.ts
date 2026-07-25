@@ -11,7 +11,7 @@ export const chatbotSession = pgTable(
     userId: text("user_id"),
     isAuth: boolean("is_auth").default(false).notNull(),
     messageCount: integer("message_count").default(0).notNull(),
-    creditLimit: integer("credit_limit").default(30),
+    creditLimit: integer("credit_limit").default(5),
     banned: boolean("banned").default(false).notNull(),
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     bannedReason: text("banned_reason"),
