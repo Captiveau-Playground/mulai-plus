@@ -171,16 +171,37 @@ async def save_message(
         return {"id": row["id"], "created_at": row["created_at"].isoformat()}
 
 
-async def get_history(session_id: str, limit: int = 20) -> list[dict[str, Any]]:
+async def get_history(
+    session_id: str,
+    limit: int = 5,
+    offset: int = 0,
+) -> tuple[list[dict[str, Any]], int]:
+    """Get chat history with pagination. Returns (messages, total_count)."""
     pool = await get_pool()
     async with pool.acquire() as conn:
+        # Total count for pagination
+        total = await conn.fetchval(
+            "SELECT COUNT(*) FROM chatbot_messages WHERE session_id = $1", session_id
+        ) or 0
+
+        # Fetch reversed (newest first), then reverse client-side
         rows = await conn.fetch(
-            """SELECT role, content FROM chatbot_messages
+            """SELECT id, role, content, prompt_tokens, completion_tokens, cost, created_at
+               FROM chatbot_messages
                WHERE session_id = $1
-               ORDER BY id ASC LIMIT $2""",
-            session_id, limit,
+               ORDER BY id DESC
+               LIMIT $2 OFFSET $3""",
+            session_id, limit, offset,
         )
-        return [dict(r) for r in rows]
+        messages = []
+        for r in reversed(rows):
+            messages.append({
+                "id": r["id"],
+                "role": r["role"],
+                "content": r["content"],
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+            })
+        return messages, total
 
 
 async def set_feedback(message_id: int, feedback: str):

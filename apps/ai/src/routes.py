@@ -407,12 +407,17 @@ async def chat_quota(request: Request):
 # ─── Chat History ────────────────────────────────────────────
 
 @chat_router.get("/history")
-async def chat_history(request: Request, session_id: str, limit: int = 5):
-    """Get chat history. Prioritaskan x-user-id kalo ada (auth user)."""
+async def chat_history(
+    request: Request,
+    session_id: str,
+    limit: int = 5,
+    offset: int = 0,
+):
+    """Get chat history with pagination. Prioritaskan x-user-id (auth user)."""
     user_id = request.headers.get("x-user-id")
     sid = user_id or session_id
-    messages = await cdb.get_history(sid, limit=limit)
-    return {"messages": messages}
+    messages, total = await cdb.get_history(sid, limit=limit, offset=offset)
+    return {"messages": messages, "total": total, "limit": limit, "offset": offset}
 
 
 # ─── Feedback ────────────────────────────────────────────────
