@@ -58,6 +58,81 @@ RateBucket = dict[str, list[datetime]]
 _feedback_limits: RateBucket = defaultdict(list)
 _guest_chat_limits: RateBucket = defaultdict(list)
 
+# ─── Cache metrics ───────────────────────────────────────────
+_cache_metrics = {
+    "total": 0,
+    "exact_hit": 0,
+    "fuzzy_hit": 0,
+    "miss": 0,
+    "cost_saved": 0.0,
+}
+
+
+def _track_cache(match_type: str, cost_saved: float = 0):
+    _cache_metrics["total"] += 1
+    if match_type == "exact":
+        _cache_metrics["exact_hit"] += 1
+    elif match_type == "fuzzy":
+        _cache_metrics["fuzzy_hit"] += 1
+    else:
+        _cache_metrics["miss"] += 1
+    _cache_metrics["cost_saved"] += cost_saved
+
+
+# ─── Intent classification (rule-based, no LLM) ─────────────
+
+_GREETINGS = {
+    "halo", "hai", "hi", "hey", "hello", "pagi", "siang", "sore", "malam",
+    "selamat pagi", "selamat siang", "selamat sore", "selamat malam",
+    "assalamualaikum", "assalamu'alaikum", "permisi", "tes", "test", "coba",
+}
+
+_GREETING_RESPONSES = [
+    "Halo! Ada yang bisa aku bantu? 🎓",
+    "Hai! Mau tanya soal universitas, jurusan, atau beasiswa?",
+    "Hey! Aku siap bantu kamu cari info pendidikan. Tanya aja!",
+    "Halo! Bingung mau kuliah di mana? Coba tanya ke aku ya!",
+]
+
+_THANKS = {"makasih", "terima kasih", "thanks", "thank you", "thankyou", "thx", "oke", "ok", "okay", "siap"}
+
+_THANKS_RESPONSES = [
+    "Sama-sama! Ada lagi yang mau ditanyakan? 😊",
+    "Happy to help! Kalau ada pertanyaan lain, bilang aja.",
+    "Sip! Jangan sungkan tanya-tanya lagi ya.",
+]
+
+_FAQ_EXACT = {
+    "apa itu mulai plus": "MULAI+ adalah platform bimbingan universitas, jurusan, dan beasiswa di Indonesia. Kami punya 408+ data PTN/PTS, 18.881 program studi, passing grade 5 tahun terakhir, dan program mentoring 1-on-1. Ada yang mau ditanyakan?",
+    "mulai plus itu apa": "MULAI+ adalah platform bimbingan universitas, jurusan, dan beasiswa di Indonesia. Kami punya 408+ data PTN/PTS, 18.881 program studi, passing grade 5 tahun terakhir, dan program mentoring 1-on-1. Ada yang mau ditanyakan?",
+    "berapa biaya mentoring": "Biaya program mentoring bervariasi tergantung paket. Tapi ada juga program beasiswa mentoring (seleksi). Info lengkap bisa cek di website MULAI+ ya! Atau mau ditanyakan lebih detail?",
+    "program mentoring": "Program mentoring MULAI+ adalah bimbingan 1-on-1 dengan mentor berpengalaman. Ada beberapa paket yang bisa disesuaikan dengan kebutuhan kamu. Juga ada program beasiswa mentoring untuk yang lolos seleksi. Tertarik?",
+}
+
+
+def _classify_intent(message: str) -> Optional[dict]:
+    """
+    Classify user intent. Returns response dict or None (need LLM).
+    """
+    m = message.strip().lower()
+
+    # FAQ exact
+    if m in _FAQ_EXACT:
+        import random
+        return {"reply": _FAQ_EXACT[m], "follow_ups": ["Cari universitas", "Info passing grade", "Program mentoring"]}
+
+    # Sapaan
+    if m in _GREETINGS or any(g in m.split() for g in _GREETINGS):
+        import random
+        return {"reply": random.choice(_GREETING_RESPONSES), "follow_ups": ["Cari universitas negeri", "Rekomendasi jurusan", "Info beasiswa"]}
+
+    # Ucapan terima kasih
+    if m in _THANKS or m.startswith("makasih") or m.startswith("terima"):
+        import random
+        return {"reply": random.choice(_THANKS_RESPONSES), "follow_ups": ["Cari universitas", "Info passing grade", "Tanya mentoring"]}
+
+    return None
+
 
 def _check_rate_limit(
     bucket: RateBucket,
@@ -90,7 +165,7 @@ def _check_guest_limit(ip: str) -> tuple[bool, int, int]:
     if allowed:
         bucket.append(now)
 
-    return allowed, remaining, seconds_left, seconds_left
+    return allowed, remaining, seconds_left
 
 
 def _get_session_key(request: Request) -> tuple[str, Optional[str], bool]:
@@ -154,6 +229,17 @@ async def chat(req: ChatRequest, request: Request):
     if is_auth and guest_sid and guest_sid != session_key:
         await cdb.link_session_to_user(guest_sid, user_id)
 
+    # ── Intent classification (rule-based, skip LLM & cache) ──
+    intent = _classify_intent(req.message)
+    if intent:
+        reply = intent["reply"]
+        follow_ups = intent.get("follow_ups", [])
+        msg_result = await cdb.save_message(session_key, "assistant", reply)
+        remaining = max(0, (GUEST_LIMIT if not is_auth else AUTH_LIMIT) - session["message_count"])
+        async def gen_intent():
+            yield f"data: {json.dumps({'session_id': session_key, 'message_id': msg_result['id'], 'created_at': str(msg_result['created_at']), 'remaining': remaining, 'requires_auth': False, 'full_reply': reply})}\n\n"
+        return StreamingResponse(gen_intent(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
     # ── Check cache FIRST (skip quota buat pertanyaan mirror) ──
     try:
         cached = await cch.get_cached_answer(req.message)
@@ -174,6 +260,7 @@ async def chat(req: ChatRequest, request: Request):
                 })
                 yield f"data: {payload}\n\n"
 
+            _track_cache("exact" if cached.get("similarity") is None else "fuzzy", cached.get("token_usage", {}).get("cost", 0))
             logger.info("Cache HIT for: %s", req.message[:60])
             return StreamingResponse(
                 gen_cached(),
@@ -182,7 +269,8 @@ async def chat(req: ChatRequest, request: Request):
             )
     except Exception as e:
         logger.error("Cache error, falling back to LLM: %s", e, exc_info=True)
-        # fall through to LLM path
+
+    _track_cache("miss")
 
     # ── IP-based guest rate limit (anti abuse refresh/incognito) ──
     if not is_auth:
@@ -449,5 +537,20 @@ async def track_login_click(req: TrackLoginClickRequest):
 
 @admin_router.get("/funnel")
 async def admin_funnel():
-    """Get chatbot → login conversion funnel."""
+    """Get chatbot to login conversion funnel."""
     return await cdb.get_funnel_stats()
+
+
+@admin_router.get("/cache-stats")
+async def admin_cache_stats():
+    """Get cache hit/miss metrics."""
+    m = _cache_metrics
+    hit_rate = ((m["exact_hit"] + m["fuzzy_hit"]) / max(m["total"], 1)) * 100
+    return {
+        "total_requests": m["total"],
+        "exact_hits": m["exact_hit"],
+        "fuzzy_hits": m["fuzzy_hit"],
+        "misses": m["miss"],
+        "hit_rate_percent": round(hit_rate, 1),
+        "cost_saved_usd": round(m["cost_saved"], 6),
+    }
