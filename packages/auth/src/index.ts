@@ -58,6 +58,8 @@ export const auth = betterAuth({
       session: {
         attributes: {
           domain: resolveCookieDomain(),
+          sameSite: "none",
+          secure: true,
         },
       },
     },

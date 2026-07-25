@@ -57,7 +57,7 @@ app.use(
   cors({
     origin: env.CORS_ORIGIN,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "x-session-id", "x-api-key"],
     credentials: true,
   }),
 );
@@ -202,9 +202,17 @@ if (env.AI_SERVICE_URL) {
     // Handle SSE streaming responses
     const contentType = resp.headers.get("content-type") || "";
     if (contentType.includes("text/event-stream")) {
+      // Merge CORS headers from middleware with SSE headers
+      const corsHeaders: Record<string, string> = {};
+      for (const [key, val] of c.res.headers.entries()) {
+        if (key.toLowerCase().startsWith("access-control-")) {
+          corsHeaders[key] = val;
+        }
+      }
       return c.newResponse(resp.body, {
         status: resp.status,
         headers: {
+          ...corsHeaders,
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
           "X-Accel-Buffering": "no",
