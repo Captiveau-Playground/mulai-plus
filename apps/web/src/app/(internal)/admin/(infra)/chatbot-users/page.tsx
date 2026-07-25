@@ -28,8 +28,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-
-const API = "/ai/admin";
+import { client } from "@/lib/client";
 
 interface Session {
   id: string;
@@ -139,9 +138,12 @@ export default function ChatbotUsersPage() {
       if (q) params.set("search", q);
       if (banned) params.set("banned_only", "true");
 
-      const res = await fetch(`${API}/sessions?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data: SessionsResponse = await res.json();
+      const data: SessionsResponse = await client.ai.admin.sessions.list({
+        page: p,
+        per_page: PER_PAGE,
+        search: q,
+        banned_only: banned,
+      });
       setSessions(data.sessions);
       setTotal(data.total);
     } catch (e) {
@@ -168,9 +170,7 @@ export default function ChatbotUsersPage() {
     setDetailLoading(true);
     setDetail(null);
     try {
-      const res = await fetch(`${API}/sessions/${sessionId}`);
-      if (!res.ok) throw new Error("Not found");
-      const data: SessionDetail = await res.json();
+      const data: SessionDetail = await client.ai.admin.sessions.get({ session_id: sessionId });
       setDetail(data);
     } catch {
       setError("Failed to load session detail");
@@ -198,15 +198,8 @@ export default function ChatbotUsersPage() {
   const handleAction = async (sessionId: string, action: string, body: unknown) => {
     setActionLoading(true);
     try {
-      const res = await fetch(`${API}/sessions/${sessionId}/${action}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Action failed");
-      }
+      const method = action === "credit" ? "updateCredit" : action === "ban" ? "toggleBan" : "updateNotes";
+      await (client.ai.admin.sessions as any)[method]({ session_id: sessionId, ...(body as Record<string, unknown>) });
       closeAction();
       await fetchSessions(page, search, bannedOnly);
       if (detail?.id === sessionId) {
@@ -398,11 +391,7 @@ export default function ChatbotUsersPage() {
                             if (window.confirm(`Reset usage untuk session ini? (${s.message_count} → 0)`)) {
                               setActionLoading(true);
                               try {
-                                await fetch(`${API}/sessions/${s.id}/reset-usage`, {
-                                  method: "PUT",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ message_count: 0 }),
-                                });
+                                await client.ai.admin.sessions.resetUsage({ session_id: s.id });
                                 await fetchSessions(page, search, bannedOnly);
                               } catch {}
                               setActionLoading(false);

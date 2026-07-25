@@ -5,6 +5,7 @@ import { program, programApplication } from "@mulai-plus/db/schema/programs";
 import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
+import { aiRouter } from "./ai";
 import { auditRouter } from "./audit";
 import { articlesRouter, authorsRouter, categoriesRouter, mediaRouter, newsletterRouter, tagsRouter } from "./cms";
 import { emailAdminRouter } from "./email-admin";
@@ -82,6 +83,7 @@ export const appRouter = {
   newsletter: newsletterAdminRouter,
   feedback: feedbackRouter,
   pddikti: pddiktiRouter,
+  ai: aiRouter,
   cms: {
     articles: articlesRouter,
     categories: categoriesRouter,

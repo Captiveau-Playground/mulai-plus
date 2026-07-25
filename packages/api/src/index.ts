@@ -85,7 +85,7 @@ const requireRole = (allowedRoles: string[]) =>
       throw new ORPCError("UNAUTHORIZED");
     }
 
-    const userRole = context.session.user.role;
+    const userRole = (context.session.user as any).role;
     if (!userRole || !allowedRoles.includes(userRole)) {
       throw new ORPCError("FORBIDDEN", {
         message: `Role '${userRole || "unknown"}' is not allowed to access this resource. Required roles: ${allowedRoles.join(", ")}`,
