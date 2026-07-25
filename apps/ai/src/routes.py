@@ -12,18 +12,20 @@ Changes in this version:
 from __future__ import annotations
 
 import json
+import logging
 import uuid
-from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
+logger = logging.getLogger("routes")
+
+from src import cache as cch
 from src import chatbot_db as cdb
 from src.config import settings
 from src.engine.responder import get_response
-from pydantic import BaseModel
 
 from src.schemas import (
     ChatRequest,
@@ -33,13 +35,17 @@ from src.schemas import (
     FeedbackResponse,
     LeadRequest,
     LeadResponse,
+    UpdateCreditRequest,
+    BanRequest,
+    NotesRequest,
+    ResetUsageRequest,
+    TrackLoginClickRequest,
 )
 
 health_router = APIRouter()
 chat_router = APIRouter()
 admin_router = APIRouter()
 
-# Rate limits
 GUEST_LIMIT = 1
 AUTH_LIMIT = 5
 
@@ -50,6 +56,18 @@ def _get_session_key(request: Request) -> tuple[str, Optional[str], bool]:
         return user_id, user_id, True
     session_id = request.headers.get("x-session-id") or str(uuid.uuid4())
     return session_id, None, False
+
+
+async def _check_and_get_session(request: Request, session_key: str, user_id: Optional[str], is_auth: bool) -> tuple[dict, int, Optional[str]]:
+    """Get session, link guest, check ban/limit. Returns (session, effective_limit, ban_msg_or_None)."""
+    session = await cdb.get_or_create_session(session_key, user_id)
+
+    guest_sid = request.headers.get("x-session-id")
+    if is_auth and guest_sid and guest_sid != session_key:
+        await cdb.link_session_to_user(guest_sid, user_id)
+
+    effective_limit, ban_msg = await _check_session_allowed(session_key, is_auth)
+    return session, effective_limit, ban_msg
 
 
 # ─── Health ──────────────────────────────────────────────────
@@ -126,11 +144,16 @@ async def chat(req: ChatRequest, request: Request):
                 "redirect_url": "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit",
             }
 
-    # Load chat history from DB
-    history = await cdb.get_history(session_key)
-
-    # Generate response via LLM (with tool calling)
-    reply, follow_ups, token_usage = await get_response(req.message, history)
+    # ── Check cache ────────────────────────────────────────────────
+    cached = await cch.get_cached_answer(req.message)
+    if cached:
+        reply = cached["reply"]
+        follow_ups = cached.get("follow_ups")
+        token_usage = cached.get("token_usage") or {"prompt": 0, "completion": 0, "cost": "0", "model": "cache"}
+    else:
+        history = await cdb.get_history(session_key)
+        reply, follow_ups, token_usage = await get_response(req.message, history)
+        await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
 
     # Save messages to DB
     await cdb.save_message(
@@ -270,13 +293,15 @@ async def submit_feedback(req: FeedbackRequest):
 @chat_router.post("/lead", response_model=LeadResponse)
 async def capture_lead(req: LeadRequest):
     if not settings.api_server_url:
-        raise HTTPException(status_code=500, detail="API_SERVER_URL not configured")
-    async with httpx.AsyncClient() as client:
+        logger.error("API_SERVER_URL not configured")
+        raise HTTPException(status_code=500, detail="Lead capture not available")
+    async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
             f"{settings.api_server_url}/rpc/chatbot.captureLead",
             json=req.model_dump(),
         )
         if resp.status_code != 200:
+            logger.warning("Lead capture failed: %s %s", resp.status_code, await resp.aread())
             raise HTTPException(status_code=resp.status_code, detail="Failed to capture lead")
     return LeadResponse(success=True, message="Lead captured")
 
@@ -315,10 +340,6 @@ async def get_session(session_id: str):
     return result
 
 
-class UpdateCreditRequest(BaseModel):
-    credit_limit: Optional[int] = None  # null = reset to default
-
-
 @admin_router.put("/sessions/{session_id}/credit")
 async def update_credit(session_id: str, req: UpdateCreditRequest):
     """Set custom credit limit for a session. -1 = unlimited."""
@@ -328,11 +349,6 @@ async def update_credit(session_id: str, req: UpdateCreditRequest):
     if not ok:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"success": True, "session_id": session_id, "credit_limit": req.credit_limit}
-
-
-class BanRequest(BaseModel):
-    banned: bool
-    reason: Optional[str] = None
 
 
 @admin_router.put("/sessions/{session_id}/ban")
@@ -349,10 +365,6 @@ async def toggle_ban(session_id: str, req: BanRequest):
     }
 
 
-class NotesRequest(BaseModel):
-    notes: Optional[str] = None
-
-
 @admin_router.put("/sessions/{session_id}/notes")
 async def update_notes(session_id: str, req: NotesRequest):
     """Set admin notes for a session."""
@@ -360,10 +372,6 @@ async def update_notes(session_id: str, req: NotesRequest):
     if not ok:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"success": True, "session_id": session_id}
-
-
-class ResetUsageRequest(BaseModel):
-    message_count: int = 0  # 0 = reset, or set to specific value
 
 
 @admin_router.put("/sessions/{session_id}/reset-usage")
@@ -378,10 +386,6 @@ async def reset_usage(session_id: str, req: ResetUsageRequest):
 
 
 # ─── Track: Login Click ─────────────────────────────────────
-
-class TrackLoginClickRequest(BaseModel):
-    session_id: str
-
 
 @chat_router.post("/track/login-click")
 async def track_login_click(req: TrackLoginClickRequest):

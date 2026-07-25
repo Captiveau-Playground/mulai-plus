@@ -9,33 +9,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-import asyncpg
-
+from src.db import get_pool as _get_pool
 from src.config import settings
 
-_pool: asyncpg.Pool | None = None
 
-
-def _clean_dsn(dsn: str) -> str:
-    """Remove unsupported query params from DSN for asyncpg compat."""
-    if "?pgbouncer=" in dsn:
-        dsn = dsn.split("?pgbouncer=")[0]
-    if "?" in dsn and "=" not in dsn.split("?")[-1]:
-        dsn = dsn.split("?")[0]
-    return dsn
-
-
-async def get_pool() -> asyncpg.Pool:
-    global _pool
-    if _pool is None:
-        _pool = await asyncpg.create_pool(
-            dsn=_clean_dsn(settings.database_url),
-            min_size=1,
-            max_size=3,
-            command_timeout=10,
-            statement_cache_size=0,
-        )
-    return _pool
+async def get_pool():
+    """Re-export shared pool from db.py."""
+    return await _get_pool()
 
 
 async def _ensure_migration(conn):
@@ -101,6 +81,26 @@ async def create_tables():
                 ON chatbot_messages(session_id);
             CREATE INDEX IF NOT EXISTS idx_chatbot_messages_created
                 ON chatbot_messages(created_at);
+        """)
+
+        # Chatbot answer cache (exact + fuzzy match, LFU/LRU)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS chatbot_cache (
+                id SERIAL PRIMARY KEY,
+                question_hash TEXT NOT NULL UNIQUE,
+                question TEXT NOT NULL,
+                question_normalized TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                follow_ups JSONB,
+                token_usage JSONB,
+                hit_count INTEGER DEFAULT 1,
+                last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hash
+                ON chatbot_cache(question_hash);
+            CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hit
+                ON chatbot_cache(hit_count DESC);
         """)
 
 
@@ -364,7 +364,7 @@ async def track_login_click(session_id: str) -> bool:
 
 
 async def get_funnel_stats() -> dict[str, Any]:
-    """Get chatbot → login conversion funnel stats."""
+    """Get chatbot to login conversion funnel stats."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Ensure latest columns exist (safe even if already migrated)
