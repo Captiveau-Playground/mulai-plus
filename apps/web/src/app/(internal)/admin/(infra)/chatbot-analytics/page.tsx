@@ -23,9 +23,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { client } from "@/lib/client";
 import { useFeatures } from "@/lib/features-context";
 
-const API_STATS = "/ai/admin/stats";
-const API_FUNNEL = "/ai/admin/funnel";
-
 interface Stats {
   total_sessions: number;
   guest_sessions: number;
@@ -121,11 +118,7 @@ function FunnelStep({
 export default function ChatbotAnalyticsPage() {
   const { data, isLoading, isError, refetch } = useQuery<Stats>({
     queryKey: ["chatbot-analytics"],
-    queryFn: async () => {
-      const res = await fetch(API_STATS);
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
-    },
+    queryFn: () => client.ai.admin.stats(),
     refetchInterval: 30_000,
   });
 
@@ -147,11 +140,7 @@ export default function ChatbotAnalyticsPage() {
 
   const { data: funnel } = useQuery<FunnelStats>({
     queryKey: ["chatbot-funnel"],
-    queryFn: async () => {
-      const res = await fetch(API_FUNNEL);
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
-    },
+    queryFn: () => client.ai.admin.funnel(),
     refetchInterval: 30_000,
   });
 

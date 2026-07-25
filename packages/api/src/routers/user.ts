@@ -79,7 +79,7 @@ export const userRouter = {
 
   myPermissions: protectedProcedure.handler(async ({ context }) => {
     if (!context.session?.user) return [];
-    const userRole = context.session.user.role || "student";
+    const userRole = (context.session.user as any).role || "student";
     const [roleData] = await db.select().from(role).where(eq(role.id, userRole));
     return roleData?.permissions || [];
   }),

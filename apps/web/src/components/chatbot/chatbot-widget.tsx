@@ -1,5 +1,6 @@
 "use client";
 
+import { env } from "@mulai-plus/env/web";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Loader2, MessageSquare, Send, Sparkles, ThumbsDown, ThumbsUp, X } from "lucide-react";
@@ -10,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-const API_ENDPOINT = "/ai/chat";
+const AI_BASE = env.NEXT_PUBLIC_SERVER_URL.replace(/\/$/, "");
+const API_ENDPOINT = `${AI_BASE}/ai/chat`;
 const SESSION_KEY = "mulaiplus-chat-session";
 
 interface ChatMessage {
@@ -309,7 +311,7 @@ export function ChatbotWidget() {
 
   const submitFeedback = async (messageId: number, feedback: "up" | "down") => {
     try {
-      await fetch("/ai/feedback", {
+      await fetch(`${AI_BASE}/ai/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message_id: messageId, feedback }),
@@ -320,7 +322,7 @@ export function ChatbotWidget() {
 
   const _handleFollowUpClick = (q: string) => {
     if (requiresAuth) {
-      fetch("/ai/track/login-click", {
+      fetch(`${AI_BASE}/ai/track/login-click`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: getSessionId() }),
@@ -516,7 +518,7 @@ export function ChatbotWidget() {
                   const page = window.location.pathname + window.location.search;
                   localStorage.setItem("chatbot_reopen", "true");
                   localStorage.setItem("chatbot_redirect", page);
-                  fetch("/ai/track/login-click", {
+                  fetch(`${AI_BASE}/ai/track/login-click`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ session_id: getSessionId() }),
