@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, db, desc, eq, gte, inArray, isNull, lte, or } from "@mulai-plus/db";
+import { and, asc, db, desc, eq, gte, inArray, lte, or } from "@mulai-plus/db";
 import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import {
   feedbackCampaign,
@@ -346,21 +346,43 @@ export const feedbackRouter = {
         return responses.filter((r) => r.campaign.template.type === "mentee_to_mentor");
       }),
 
-    // ─── Student: cek apakah ada completion feedback yg belum diisi ───
-    // Logic: cukup 1x respon per template type (mentee_to_mentor / mentee_to_platform).
-    // Jika student sudah pernah merespon campaign apapun dengan tipe tsb (periode 1 atau 2),
-    // maka semua campaign bertipe sama dianggap selesai — tidak perlu isi ulang.
+    // ─── Cek apakah ada completion feedback yg belum diisi ───
+    // Logic:
+    //   - Student  → wajib isi mentee_to_mentor + mentee_to_platform
+    //   - Mentor   → wajib isi mentor_to_platform
+    //   - Cukup 1x respon per template type (tidak peduli periode 1 atau 2).
+    //     Jika user sudah pernah merespon campaign apapun dengan tipe tsb,
+    //     maka semua campaign bertipe sama dianggap selesai.
     pendingCompletion: protectedProcedure
       .input(z.object({ batchId: z.string().optional() }))
       .handler(async ({ input, context }) => {
         const userId = context.session.user.id;
         const now = new Date();
 
-        // Cari batch dimana student terdaftar
+        // Dapatkan role user
+        const [currentUser] = await db
+          .select({ role: userSchema.role })
+          .from(userSchema)
+          .where(eq(userSchema.id, userId));
+
+        if (!currentUser) return { pending: [] };
+
+        // Template type yg wajib diisi berdasarkan role
+        const roleRequiredTypes: Record<string, string[]> = {
+          student: ["mentee_to_mentor", "mentee_to_platform"],
+          mentor: ["mentor_to_platform"],
+        };
+
+        const requiredTypes = roleRequiredTypes[currentUser.role];
+        if (!requiredTypes || requiredTypes.length === 0) return { pending: [] };
+
+        // Cari batch dimana user terdaftar
         const myBatches = await db
           .select({ batchId: mentorMentee.batchId })
           .from(mentorMentee)
-          .where(eq(mentorMentee.studentId, userId));
+          .where(
+            currentUser.role === "student" ? eq(mentorMentee.studentId, userId) : eq(mentorMentee.mentorId, userId),
+          );
 
         const myBatchIds = myBatches.map((b) => b.batchId);
         if (myBatchIds.length === 0) return { pending: [] };
@@ -368,11 +390,11 @@ export const feedbackRouter = {
         const targetBatchIds = input.batchId ? myBatchIds.filter((id) => id === input.batchId) : myBatchIds;
         if (targetBatchIds.length === 0) return { pending: [] };
 
-        // Ambil semua campaign completion untuk batch student
+        // Ambil semua campaign completion untuk batch user
         const campaigns = await db.query.feedbackCampaign.findMany({
           where: and(
             inArray(feedbackCampaign.batchId, targetBatchIds),
-            or(eq(feedbackCampaign.campaignType, "completion"), isNull(feedbackCampaign.campaignType)),
+            inArray(feedbackCampaign.campaignType, ["completion"]),
             or(inArray(feedbackCampaign.status, ["open", "closed"]), lte(feedbackCampaign.endDate, now)),
           ),
           with: {
@@ -382,8 +404,12 @@ export const feedbackRouter = {
 
         if (campaigns.length === 0) return { pending: [] };
 
+        // Filter campaign berdasarkan role: hanya template type yg relevan
+        const filteredCampaigns = campaigns.filter((c) => requiredTypes.includes(c.template.type));
+        if (filteredCampaigns.length === 0) return { pending: [] };
+
         // Cari campaign mana saja yg sudah direspon oleh user
-        const campaignIds = campaigns.map((c) => c.id);
+        const campaignIds = filteredCampaigns.map((c) => c.id);
         const responded = await db
           .select({ campaignId: feedbackResponse.campaignId })
           .from(feedbackResponse)
@@ -393,7 +419,7 @@ export const feedbackRouter = {
 
         // Kumpulkan template type mana yg SUDAH pernah direspon (via campaign manapun)
         const respondedTemplateTypes = new Set<string>();
-        for (const c of campaigns) {
+        for (const c of filteredCampaigns) {
           if (respondedCampaignIds.has(c.id)) {
             respondedTemplateTypes.add(c.template.type);
           }
@@ -402,7 +428,7 @@ export const feedbackRouter = {
         // Filter: skip campaign yg sudah direspon, skip yg template type-nya sudah tercover
         // Deduplikasi: maksimal 1 pending per template type
         const seenTypes = new Set<string>();
-        const pending = campaigns
+        const pending = filteredCampaigns
           .filter((c) => {
             if (respondedCampaignIds.has(c.id)) return false;
             if (respondedTemplateTypes.has(c.template.type)) return false;
