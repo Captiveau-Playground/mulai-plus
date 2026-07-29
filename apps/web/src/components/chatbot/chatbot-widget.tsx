@@ -158,7 +158,7 @@ export function ChatbotWidget() {
   const loadingHistoryRef = useRef(false); // guard double-fetch
   const hasUserScrolledRef = useRef(false); // prevent auto-load on mount
   const historyFullyLoadedRef = useRef(false); // shortcut once all loaded
-  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Safety timeout: force-clear loading ──────────────
   useEffect(() => {
