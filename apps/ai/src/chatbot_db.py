@@ -9,33 +9,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-import asyncpg
-
+from src.db import get_pool as _get_pool
 from src.config import settings
 
-_pool: asyncpg.Pool | None = None
 
-
-def _clean_dsn(dsn: str) -> str:
-    """Remove unsupported query params from DSN for asyncpg compat."""
-    if "?pgbouncer=" in dsn:
-        dsn = dsn.split("?pgbouncer=")[0]
-    if "?" in dsn and "=" not in dsn.split("?")[-1]:
-        dsn = dsn.split("?")[0]
-    return dsn
-
-
-async def get_pool() -> asyncpg.Pool:
-    global _pool
-    if _pool is None:
-        _pool = await asyncpg.create_pool(
-            dsn=_clean_dsn(settings.database_url),
-            min_size=1,
-            max_size=3,
-            command_timeout=10,
-            statement_cache_size=0,
-        )
-    return _pool
+async def get_pool():
+    """Re-export shared pool from db.py."""
+    return await _get_pool()
 
 
 async def _ensure_migration(conn):
@@ -103,21 +83,40 @@ async def create_tables():
                 ON chatbot_messages(created_at);
         """)
 
+        # Chatbot answer cache (exact + fuzzy match, LFU/LRU)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS chatbot_cache (
+                id SERIAL PRIMARY KEY,
+                question_hash TEXT NOT NULL UNIQUE,
+                question TEXT NOT NULL,
+                question_normalized TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                follow_ups JSONB,
+                token_usage JSONB,
+                hit_count INTEGER DEFAULT 1,
+                last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hash
+                ON chatbot_cache(question_hash);
+            CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hit
+                ON chatbot_cache(hit_count DESC);
+        """)
+
 
 async def get_or_create_session(session_id: str, user_id: Optional[str] = None) -> dict[str, Any]:
     pool = await get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM chatbot_sessions WHERE id = $1", session_id
-        )
-        if row:
-            return dict(row)
+        # Idempotent: ON CONFLICT DO NOTHING + RETURNING mencegah duplikat
         is_auth = user_id is not None
-        await conn.execute(
-            "INSERT INTO chatbot_sessions (id, user_id, is_auth) VALUES ($1, $2, $3)",
+        row = await conn.fetchrow(
+            """INSERT INTO chatbot_sessions (id, user_id, is_auth)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (id) DO UPDATE SET last_active = NOW()
+               RETURNING *""",
             session_id, user_id, is_auth,
         )
-        return {"id": session_id, "user_id": user_id, "is_auth": is_auth, "message_count": 0}
+        return dict(row)
 
 
 async def link_session_to_user(session_id: str, user_id: str):
@@ -171,16 +170,37 @@ async def save_message(
         return {"id": row["id"], "created_at": row["created_at"].isoformat()}
 
 
-async def get_history(session_id: str, limit: int = 20) -> list[dict[str, Any]]:
+async def get_history(
+    session_id: str,
+    limit: int = 5,
+    offset: int = 0,
+) -> tuple[list[dict[str, Any]], int]:
+    """Get chat history with pagination. Returns (messages, total_count)."""
     pool = await get_pool()
     async with pool.acquire() as conn:
+        # Total count for pagination
+        total = await conn.fetchval(
+            "SELECT COUNT(*) FROM chatbot_messages WHERE session_id = $1", session_id
+        ) or 0
+
+        # Fetch reversed (newest first), then reverse client-side
         rows = await conn.fetch(
-            """SELECT role, content FROM chatbot_messages
+            """SELECT id, role, content, prompt_tokens, completion_tokens, cost, created_at
+               FROM chatbot_messages
                WHERE session_id = $1
-               ORDER BY id ASC LIMIT $2""",
-            session_id, limit,
+               ORDER BY id DESC
+               LIMIT $2 OFFSET $3""",
+            session_id, limit, offset,
         )
-        return [dict(r) for r in rows]
+        messages = []
+        for r in reversed(rows):
+            messages.append({
+                "id": r["id"],
+                "role": r["role"],
+                "content": r["content"],
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+            })
+        return messages, total
 
 
 async def set_feedback(message_id: int, feedback: str):
@@ -364,7 +384,7 @@ async def track_login_click(session_id: str) -> bool:
 
 
 async def get_funnel_stats() -> dict[str, Any]:
-    """Get chatbot → login conversion funnel stats."""
+    """Get chatbot to login conversion funnel stats."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Ensure latest columns exist (safe even if already migrated)

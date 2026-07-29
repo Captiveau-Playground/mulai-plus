@@ -53,6 +53,29 @@ class FeedbackResponse(BaseModel):
     success: bool
 
 
+# ─── Admin Request Models ───────────────────────────────────────
+
+class UpdateCreditRequest(BaseModel):
+    credit_limit: Optional[int] = None  # null = reset to default
+
+
+class BanRequest(BaseModel):
+    banned: bool
+    reason: Optional[str] = None
+
+
+class NotesRequest(BaseModel):
+    notes: Optional[str] = None
+
+
+class ResetUsageRequest(BaseModel):
+    message_count: int = 0
+
+
+class TrackLoginClickRequest(BaseModel):
+    session_id: str
+
+
 class ChatStatsResponse(BaseModel):
     total_sessions: int
     guest_sessions: int

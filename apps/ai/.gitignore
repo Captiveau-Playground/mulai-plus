@@ -1,2 +1,6 @@
 .venv
 .env
+__pycache__/*
+engine/*
+engine/__pycache__
+src/__pycache__/*
