@@ -158,18 +158,20 @@ export function ChatbotWidget() {
   const loadingHistoryRef = useRef(false); // guard double-fetch
   const hasUserScrolledRef = useRef(false); // prevent auto-load on mount
   const historyFullyLoadedRef = useRef(false); // shortcut once all loaded
-  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Safety timeout: force-clear loading ──────────────
   useEffect(() => {
     if (loading) {
-      clearTimeout(loadingTimeoutRef.current);
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       loadingTimeoutRef.current = setTimeout(() => {
         setLoading(false);
         setStreamContent("");
       }, 30_000);
     }
-    return () => clearTimeout(loadingTimeoutRef.current);
+    return () => {
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    };
   }, [loading]);
 
   // ── Scroll helpers ────────────────────────────────────
