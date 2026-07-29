@@ -163,13 +163,15 @@ export function ChatbotWidget() {
   // ── Safety timeout: force-clear loading ──────────────
   useEffect(() => {
     if (loading) {
-      clearTimeout(loadingTimeoutRef.current);
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       loadingTimeoutRef.current = setTimeout(() => {
         setLoading(false);
         setStreamContent("");
       }, 30_000);
     }
-    return () => clearTimeout(loadingTimeoutRef.current);
+    return () => {
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    };
   }, [loading]);
 
   // ── Scroll helpers ────────────────────────────────────
