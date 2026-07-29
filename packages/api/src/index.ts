@@ -1,4 +1,5 @@
 import { db, schema } from "@mulai-plus/db";
+import { env } from "@mulai-plus/env/server";
 import { ORPCError, os } from "@orpc/server";
 
 import type { Context } from "./context";
@@ -84,7 +85,7 @@ const requireRole = (allowedRoles: string[]) =>
       throw new ORPCError("UNAUTHORIZED");
     }
 
-    const userRole = context.session.user.role;
+    const userRole = (context.session.user as any).role;
     if (!userRole || !allowedRoles.includes(userRole)) {
       throw new ORPCError("FORBIDDEN", {
         message: `Role '${userRole || "unknown"}' is not allowed to access this resource. Required roles: ${allowedRoles.join(", ")}`,
@@ -107,6 +108,19 @@ export const programManagerProcedure = protectedProcedure.use(requireRole(["prog
 export const adminOrProgramManagerProcedure = protectedProcedure.use(
   requireRole(["admin", "program_manager", "mentor"]),
 );
+
+// ── Hermes Procedure (Machine-to-Machine via API Key) ─────────
+const requireHermesKey = o.middleware(async ({ context, next }) => {
+  const apiKey = (context.headers as Headers)?.get?.("x-api-key");
+  if (!apiKey || apiKey !== env.HERMES_API_KEY) {
+    throw new ORPCError("UNAUTHORIZED", {
+      message: "Invalid or missing x-api-key",
+    });
+  }
+  return next({});
+});
+
+export const hermesProcedure = publicProcedure.use(requireHermesKey).use(auditMiddleware);
 
 export * from "./lib/email-templates";
 export * from "./lib/mail";

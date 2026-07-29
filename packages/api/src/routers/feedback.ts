@@ -10,6 +10,7 @@ import {
 } from "@mulai-plus/db/schema/programs";
 import { z } from "zod";
 import { adminOrProgramManagerProcedure, protectedProcedure } from "../index";
+import { badRequest, notFound, preconditionFailed } from "../lib/errors";
 
 export const feedbackRouter = {
   // ─── Templates (Admin/PM only) ──────────────────────────
@@ -27,7 +28,7 @@ export const feedbackRouter = {
         where: eq(feedbackTemplate.id, input.id),
         with: { questions: { orderBy: asc(feedbackQuestion.order) } },
       });
-      if (!template) throw new Error("Template not found");
+      if (!template) notFound("Template not found");
       return template;
     }),
 
@@ -278,11 +279,12 @@ export const feedbackRouter = {
           where: eq(feedbackCampaign.id, input.campaignId),
           with: { template: true },
         });
-        if (!campaign) throw new Error("Campaign not found");
-        if (campaign.status !== "open") throw new Error("Campaign is not open");
+        if (!campaign) notFound("Campaign not found");
+        if (campaign.status !== "open") badRequest("Campaign is not open");
 
         const now = new Date();
-        if (now < campaign.startDate || now > campaign.endDate) throw new Error("Campaign is not within active period");
+        if (now < campaign.startDate || now > campaign.endDate)
+          preconditionFailed("Campaign is not within active period");
 
         const userId = context.session.user.id;
 
@@ -345,14 +347,13 @@ export const feedbackRouter = {
       }),
 
     // ─── Student: cek apakah ada completion feedback yg belum diisi ───
+    // Logic: cukup 1x respon per template type (mentee_to_mentor / mentee_to_platform).
+    // Jika student sudah pernah merespon campaign apapun dengan tipe tsb (periode 1 atau 2),
+    // maka semua campaign bertipe sama dianggap selesai — tidak perlu isi ulang.
     pendingCompletion: protectedProcedure
       .input(z.object({ batchId: z.string().optional() }))
       .handler(async ({ input, context }) => {
         const userId = context.session.user.id;
-
-        // Cari campaign completion yg:
-        // - terkait batch student (dari mentorMentee)
-        // - status open/closed, ATAU endDate sudah lewat
         const now = new Date();
 
         // Cari batch dimana student terdaftar
@@ -364,11 +365,10 @@ export const feedbackRouter = {
         const myBatchIds = myBatches.map((b) => b.batchId);
         if (myBatchIds.length === 0) return { pending: [] };
 
-        // Filter by specific batchId if provided
         const targetBatchIds = input.batchId ? myBatchIds.filter((id) => id === input.batchId) : myBatchIds;
-
         if (targetBatchIds.length === 0) return { pending: [] };
 
+        // Ambil semua campaign completion untuk batch student
         const campaigns = await db.query.feedbackCampaign.findMany({
           where: and(
             inArray(feedbackCampaign.batchId, targetBatchIds),
@@ -382,17 +382,34 @@ export const feedbackRouter = {
 
         if (campaigns.length === 0) return { pending: [] };
 
-        // Cari mana yg sudah direspon user
+        // Cari campaign mana saja yg sudah direspon oleh user
         const campaignIds = campaigns.map((c) => c.id);
         const responded = await db
           .select({ campaignId: feedbackResponse.campaignId })
           .from(feedbackResponse)
           .where(and(eq(feedbackResponse.fromUserId, userId), inArray(feedbackResponse.campaignId, campaignIds)));
 
-        const respondedIds = new Set(responded.map((r) => r.campaignId));
+        const respondedCampaignIds = new Set(responded.map((r) => r.campaignId));
 
+        // Kumpulkan template type mana yg SUDAH pernah direspon (via campaign manapun)
+        const respondedTemplateTypes = new Set<string>();
+        for (const c of campaigns) {
+          if (respondedCampaignIds.has(c.id)) {
+            respondedTemplateTypes.add(c.template.type);
+          }
+        }
+
+        // Filter: skip campaign yg sudah direspon, skip yg template type-nya sudah tercover
+        // Deduplikasi: maksimal 1 pending per template type
+        const seenTypes = new Set<string>();
         const pending = campaigns
-          .filter((c) => !respondedIds.has(c.id))
+          .filter((c) => {
+            if (respondedCampaignIds.has(c.id)) return false;
+            if (respondedTemplateTypes.has(c.template.type)) return false;
+            if (seenTypes.has(c.template.type)) return false;
+            seenTypes.add(c.template.type);
+            return true;
+          })
           .map((c) => ({
             id: c.id,
             type: c.template.type,

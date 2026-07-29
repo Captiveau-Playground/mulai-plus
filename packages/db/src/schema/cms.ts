@@ -107,6 +107,7 @@ export const cmsArticle = pgTable(
     featured: boolean("featured").default(false).notNull(),
     allowComments: boolean("allow_comments").default(true).notNull(),
     readingTimeMinutes: integer("reading_time_minutes"),
+    newsletterSent: boolean("newsletter_sent").default(false).notNull(),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")

@@ -11,7 +11,16 @@
   },
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run --exclude 'src/__tests__/integration/**'",
+    "test:smoke": "vitest run src/__tests__/smoke.test.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:coverage": "vitest run --config vitest.integration.config.ts --coverage",
+    "test:all": "npm run test:unit && npm run test:smoke",
+    "test:full": "vitest run --coverage && vitest run --config vitest.integration.config.ts --coverage",
+    "test:regression": "vitest run",
+    "e2e:seed": "bun run src/e2e-seed.ts"
   },
   "dependencies": {
     "@mulai-plus/auth": "workspace:*",
@@ -29,7 +38,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@mulai-plus/config": "workspace:*",
     "typescript": "catalog:",
-    "@mulai-plus/config": "workspace:*"
+    "vitest": "^4.1.10"
   }
 }

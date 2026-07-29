@@ -13,7 +13,98 @@ permissions:
   packages: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: mulai_plus_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Push schema to test DB
+        working-directory: packages/db
+        run: bun run db:push
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5433/mulai_plus_test
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          CORS_ORIGIN: http://localhost:3000
+          GOOGLE_CLIENT_ID: test
+          GOOGLE_CLIENT_SECRET: test
+          R2_ACCOUNT_ID: test
+          R2_ACCESS_KEY_ID: test
+          R2_SECRET_ACCESS_KEY: test
+          R2_BUCKET_NAME: test
+          R2_PUBLIC_URL: http://test.com
+          AI_SERVICE_URL: ""
+
+      - name: Run unit tests (no DB)
+        working-directory: packages/api
+        run: bun run test:unit
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5433/mulai_plus_test
+          BETTER_AUTH_SECRET: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          BETTER_AUTH_URL: http://localhost:3000
+          CORS_ORIGIN: http://localhost:3000
+          GOOGLE_CLIENT_ID: test
+          GOOGLE_CLIENT_SECRET: test
+          R2_ACCOUNT_ID: test
+          R2_ACCESS_KEY_ID: test
+          R2_SECRET_ACCESS_KEY: test
+          R2_BUCKET_NAME: test
+          R2_PUBLIC_URL: http://test.com
+          PAYMENT_API_URL: http://test.com
+          PAYMENT_API_KEY: test
+          UNOSEND_API_KEY: test
+          UNOSEND_FROM_EMAIL: test@test.com
+          RESEND_API_KEY: re_test
+          RESEND_FROM_EMAIL: test@test.com
+          APP_URL: http://localhost:3000
+          ESIGN_SECRET: test-secret-key-for-unit-testing
+
+      - name: Run integration tests
+        working-directory: packages/api
+        run: bun run test:integration
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5433/mulai_plus_test
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          BETTER_AUTH_URL: http://localhost:3000
+          CORS_ORIGIN: http://localhost:3000
+          GOOGLE_CLIENT_ID: test
+          GOOGLE_CLIENT_SECRET: test
+          R2_ACCOUNT_ID: test
+          R2_ACCESS_KEY_ID: test
+          R2_SECRET_ACCESS_KEY: test
+          R2_BUCKET_NAME: test
+          R2_PUBLIC_URL: http://test.com
+          PAYMENT_API_URL: http://test.com
+          PAYMENT_API_KEY: test
+          UNOSEND_API_KEY: test
+          UNOSEND_FROM_EMAIL: test@test.com
+          APP_URL: http://localhost:3000
+          ESIGN_SECRET: test-secret-key-for-unit-testing
+          RESEND_API_KEY: re_test
+          RESEND_FROM_EMAIL: test@test.com
+
   tag:
+    needs: test
     runs-on: ubuntu-latest
     outputs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
@@ -276,6 +367,8 @@ jobs:
                   - R2_PUBLIC_URL=${R2_PUBLIC_URL}
                   - AI_SERVICE_URL=http://ai:8000
                   - AI_API_KEY=${AI_API_KEY}
+                  - HERMES_API_KEY=${HERMES_API_KEY}
+                  - COOKIE_DOMAIN=${COOKIE_DOMAIN}
                 restart: always
                 networks:
                   - shared_proxy
@@ -311,6 +404,8 @@ jobs:
             R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}
             R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
             R2_PUBLIC_URL=${{ secrets.R2_PUBLIC_URL }}
+            HERMES_API_KEY=${{ secrets.HERMES_API_KEY }}
+            COOKIE_DOMAIN=${{ secrets.COOKIE_DOMAIN }}
             EOF
 
             docker compose -p mulaiplus-production -f docker-compose.production.yml --env-file .env.production pull
@@ -318,3 +413,31 @@ jobs:
             docker compose -p mulaiplus-production -f docker-compose.production.yml --env-file .env.production up -d --force-recreate
 
             docker image prune -f --filter "label=project=mulai-plus"
+
+  e2e-smoke:
+    needs: deploy
+    if: always()
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Cache Playwright
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}
+      - name: Install Playwright
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        working-directory: apps/web
+        run: node node_modules/.bin/playwright install chromium
+      - name: Run smoke tests against production
+        working-directory: apps/web
+        run: node node_modules/.bin/playwright test --config=e2e/playwright.config.ts --workers=4 -g "Landing|login|404|footer"
+        env:
+          PLAYWRIGHT_BASE_URL: https://mulaiplus.id
+          CI: true

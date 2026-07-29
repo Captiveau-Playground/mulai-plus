@@ -8,6 +8,23 @@ import { admin, username } from "better-auth/plugins";
 import { auditPlugin } from "./audit-plugin";
 import { ac, getAdminUserIds, getRoles } from "./permissions";
 
+// ─── Cookie domain ────────────────────────────────────────────────
+// Session cookie harus bisa dipake bareng frontend & API di subdomain berbeda.
+// Kalau env COOKIE_DOMAIN diset, pake itu. Fallback: ekstrak dari BETTER_AUTH_URL.
+function resolveCookieDomain(): string | undefined {
+  if (env.COOKIE_DOMAIN) return env.COOKIE_DOMAIN;
+  try {
+    const url = new URL(env.BETTER_AUTH_URL);
+    const host = url.hostname;
+    if (host === "localhost" || host === "127.0.0.1") return undefined;
+    const parts = host.split(".");
+    if (parts.length >= 2) return `.${parts.slice(-2).join(".")}`;
+    return `.${host}`;
+  } catch {
+    return undefined;
+  }
+}
+
 const roles = await getRoles();
 const adminUserIds = await getAdminUserIds();
 
@@ -37,6 +54,15 @@ export const auth = betterAuth({
   },
   advanced: {
     cookiePrefix: "mulaiplus",
+    cookies: {
+      session: {
+        attributes: {
+          domain: resolveCookieDomain(),
+          sameSite: "none",
+          secure: true,
+        },
+      },
+    },
   },
   rateLimit: {
     enabled: true,

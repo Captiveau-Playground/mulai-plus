@@ -31,6 +31,7 @@ import {
   getApplicationRejectedHtml,
   getRegistrationSuccessHtml,
 } from "../lib/email-templates";
+import { badRequest, conflict, notFound, preconditionFailed, unauthorized } from "../lib/errors";
 import { mail } from "../lib/mail";
 import { sendNotification } from "../lib/notification";
 import { getPathFromUrl, supabase } from "../lib/supabase";
@@ -174,26 +175,26 @@ export const programsRouter = {
       });
 
       if (!batchItem) {
-        throw new Error("Batch not found");
+        notFound("Batch not found");
       }
 
       if (batchItem.programId !== input.programId) {
-        throw new Error("Batch does not belong to this program");
+        badRequest("Batch does not belong to this program");
       }
 
       if (batchItem.status === "closed" || batchItem.status === "completed") {
-        throw new Error("Registration is closed for this batch");
+        badRequest("Registration is closed for this batch");
       }
 
       const now = new Date();
       if (now < batchItem.registrationStartDate) {
-        throw new Error("Registration has not started yet");
+        badRequest("Registration has not started yet");
       }
       if (now > batchItem.registrationEndDate) {
-        throw new Error("Registration has ended");
+        badRequest("Registration has ended");
       }
       const userId = context?.session?.user?.id;
-      if (!userId) throw new Error("Unauthorized");
+      if (!userId) unauthorized();
 
       // 3. Check if already applied
       const existingApplication = await db.query.programApplication.findFirst({
@@ -205,7 +206,7 @@ export const programsRouter = {
       });
 
       if (existingApplication) {
-        throw new Error("You have already applied to this program batch");
+        conflict("You have already applied to this program batch");
       }
 
       // 4. Create application
@@ -300,7 +301,7 @@ export const programsRouter = {
 
     myPrograms: publicProcedure.handler(async ({ context }) => {
       const userId = context?.session?.user?.id;
-      if (!userId) throw new Error("Unauthorized");
+      if (!userId) unauthorized();
 
       const participations = await db.query.programParticipant.findMany({
         where: and(eq(programParticipant.userId, userId), isNotNull(programParticipant.batchId)),
@@ -327,7 +328,7 @@ export const programsRouter = {
       .input(z.object({ programId: z.string(), batchId: z.string() }))
       .handler(async ({ input, context }) => {
         const userId = context?.session?.user?.id;
-        if (!userId) throw new Error("Unauthorized");
+        if (!userId) unauthorized();
 
         const application = await db.query.programApplication.findFirst({
           where: and(
@@ -345,7 +346,7 @@ export const programsRouter = {
 
     get: publicProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
       const userId = context?.session?.user?.id;
-      if (!userId) throw new Error("Unauthorized");
+      if (!userId) unauthorized();
 
       const participant = await db.query.programParticipant.findFirst({
         where: and(eq(programParticipant.userId, userId), eq(programParticipant.programId, input.id)),
@@ -370,7 +371,7 @@ export const programsRouter = {
       });
 
       if (!participant?.batch) {
-        throw new Error("Program not found or you are not enrolled");
+        notFound("Program not found or you are not enrolled");
       }
 
       const sessions = await db.query.programSession.findMany({
@@ -605,7 +606,7 @@ export const programsRouter = {
         const batch = await db.query.programBatch.findFirst({
           where: eq(programBatch.id, input.id),
         });
-        if (!batch) throw new Error("Batch not found");
+        if (!batch) notFound("Batch not found");
         return batch;
       }),
       list: adminOrProgramManagerProcedure.input(z.object({ programId: z.string() })).handler(async ({ input }) => {
@@ -796,12 +797,12 @@ export const programsRouter = {
             const batch = await db.query.programBatch.findFirst({
               where: eq(programBatch.id, input.batchId),
             });
-            if (!batch) throw new Error("Batch not found");
+            if (!batch) notFound("Batch not found");
 
             await db.transaction(async (tx) => {
               for (const update of input.updates) {
                 if (update.week < 1 || update.week > batch.durationWeeks) {
-                  throw new Error(`Invalid week ${update.week}. Batch duration is ${batch.durationWeeks} weeks.`);
+                  badRequest(`Invalid week ${update.week}. Batch duration is ${batch.durationWeeks} weeks.`);
                 }
 
                 // Upsert logic
@@ -1124,7 +1125,7 @@ export const programsRouter = {
         });
 
         if (!mentor) {
-          throw new Error("Mentor not found");
+          notFound("Mentor not found");
         }
 
         const totalSessions = await db
@@ -1660,12 +1661,12 @@ export const programsRouter = {
           const batch = await db.query.programBatch.findFirst({
             where: eq(programBatch.id, input.batchId),
           });
-          if (!batch) throw new Error("Batch not found");
+          if (!batch) notFound("Batch not found");
 
           await db.transaction(async (tx) => {
             for (const record of input.records) {
               if (record.week < 1 || record.week > batch.durationWeeks) {
-                throw new Error(`Invalid week ${record.week}. Batch duration is ${batch.durationWeeks} weeks.`);
+                badRequest(`Invalid week ${record.week}. Batch duration is ${batch.durationWeeks} weeks.`);
               }
 
               // Check if exists
@@ -1756,8 +1757,8 @@ export const programsRouter = {
             where: eq(programAttachmentRequest.id, input.requestId),
           });
 
-          if (!request) throw new Error("Request not found");
-          if (request.status !== "pending") throw new Error("Request is not pending");
+          if (!request) notFound("Request not found");
+          if (request.status !== "pending") badRequest("Request is not pending");
 
           await db.transaction(async (tx) => {
             const data = request.data as Record<string, unknown>;
@@ -1772,10 +1773,10 @@ export const programsRouter = {
                 url: typedData.url,
               });
             } else if (request.action === "update") {
-              if (!request.attachmentId) throw new Error("Attachment ID missing for update");
+              if (!request.attachmentId) badRequest("Attachment ID missing for update");
               await tx.update(programAttachment).set(data).where(eq(programAttachment.id, request.attachmentId));
             } else if (request.action === "delete") {
-              if (!request.attachmentId) throw new Error("Attachment ID missing for delete");
+              if (!request.attachmentId) badRequest("Attachment ID missing for delete");
               await tx.delete(programAttachment).where(eq(programAttachment.id, request.attachmentId));
             }
 
@@ -1808,7 +1809,7 @@ export const programsRouter = {
             where: eq(programAttachmentRequest.id, input.requestId),
           });
 
-          if (!request) throw new Error("Request not found");
+          if (!request) notFound("Request not found");
 
           await db
             .update(programAttachmentRequest)
@@ -1929,7 +1930,7 @@ export const programsRouter = {
             items: { orderBy: asc(summaryReportItem.order) },
           },
         });
-        if (!report) throw new Error("Report not found");
+        if (!report) notFound("Report not found");
         return report;
       }),
 
@@ -2076,7 +2077,7 @@ export const programsRouter = {
           items: { orderBy: asc(summaryReportItem.order) },
         },
       });
-      if (!report) throw new Error("Report not found");
+      if (!report) notFound("Report not found");
       return report;
     }),
 
@@ -2150,8 +2151,9 @@ export const programsRouter = {
       const report = await db.query.summaryReport.findFirst({
         where: and(eq(summaryReport.id, input.id), eq(summaryReport.mentorId, context.session.user.id)),
       });
-      if (!report) throw new Error("Report not found");
-      if (report.status !== "draft" && report.status !== "revision") throw new Error("Cannot submit in current status");
+      if (!report) notFound("Report not found");
+      if (report.status !== "draft" && report.status !== "revision")
+        preconditionFailed("Cannot submit in current status");
 
       await db.update(summaryReport).set({ status: "submitted" }).where(eq(summaryReport.id, input.id));
       return { success: true };
@@ -2198,7 +2200,7 @@ export const programsRouter = {
           items: { orderBy: asc(summaryReportItem.order) },
         },
       });
-      if (!report) throw new Error("Report not found");
+      if (!report) notFound("Report not found");
       return report;
     }),
   },

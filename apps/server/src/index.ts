@@ -13,7 +13,7 @@ import { createContext } from "@mulai-plus/api/context";
 import { newsletter } from "@mulai-plus/api/lib/newsletter";
 import { appRouter } from "@mulai-plus/api/routers/index";
 import { auth } from "@mulai-plus/auth";
-import { and, db, eq, lte } from "@mulai-plus/db";
+import { and, db, eq, gte, lte } from "@mulai-plus/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { cmsArticle } from "@mulai-plus/db/schema/cms";
 import { env } from "@mulai-plus/env/server";
@@ -56,8 +56,8 @@ app.use(
   "/*",
   cors({
     origin: env.CORS_ORIGIN,
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization", "x-session-id", "x-api-key"],
     credentials: true,
   }),
 );
@@ -111,7 +111,56 @@ export const rpcHandler = new RPCHandler(appRouter, {
 });
 
 // ── Proxy: AI Service ───────────────────────────────────────
+//   /ai/*          → proxied to AI service at /api/*
+//   /ai/admin/*    → requires admin role, then proxied to /api/admin/*
+//   /ai/chat       → proxied with user context for rate limiting
 if (env.AI_SERVICE_URL) {
+  const requireAdmin = async (c: any, next: any) => {
+    try {
+      const session = await auth.api.getSession({
+        headers: c.req.raw.headers,
+      });
+      if (!session?.user || session.user.role !== "admin") {
+        return c.json({ error: "Forbidden. Admin access required." }, 403);
+      }
+    } catch {
+      return c.json({ error: "Unauthorized. Please log in." }, 401);
+    }
+    await next();
+  };
+
+  // Admin-only routes: analytics, stats, admin endpoints
+  app.all("/ai/admin/*", requireAdmin, async (c) => {
+    const qs = new URLSearchParams(c.req.query() as Record<string, string>).toString();
+    const target = `${env.AI_SERVICE_URL}${c.req.path.replace("/ai", "/api")}${qs ? `?${qs}` : ""}`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (env.AI_API_KEY) {
+      headers.Authorization = `Bearer ${env.AI_API_KEY}`;
+    }
+    // Forward session ID for audit
+    const sessionId = c.req.header("x-session-id");
+    if (sessionId) {
+      headers["x-session-id"] = sessionId;
+    }
+
+    if (c.req.method === "GET") {
+      const resp = await fetch(target, { headers });
+      return c.newResponse(resp.body, resp);
+    }
+
+    const body = await c.req.json();
+    const resp = await fetch(target, {
+      method: c.req.method,
+      headers,
+      body: JSON.stringify(body),
+    });
+    return c.newResponse(resp.body, resp);
+  });
+
+  // Public chat & history routes — forward user context for rate limiting
   app.all("/ai/*", async (c) => {
     const qs = new URLSearchParams(c.req.query() as Record<string, string>).toString();
     const target = `${env.AI_SERVICE_URL}${c.req.path.replace("/ai", "/api")}${qs ? `?${qs}` : ""}`;
@@ -119,7 +168,6 @@ if (env.AI_SERVICE_URL) {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    // Forward API key if configured
     if (env.AI_API_KEY) {
       headers.Authorization = `Bearer ${env.AI_API_KEY}`;
     }
@@ -134,7 +182,6 @@ if (env.AI_SERVICE_URL) {
       }
     } catch {}
 
-    // Forward session ID from client if provided
     const sessionId = c.req.header("x-session-id");
     if (sessionId) {
       headers["x-session-id"] = sessionId;
@@ -155,9 +202,17 @@ if (env.AI_SERVICE_URL) {
     // Handle SSE streaming responses
     const contentType = resp.headers.get("content-type") || "";
     if (contentType.includes("text/event-stream")) {
+      // Merge CORS headers from middleware with SSE headers
+      const corsHeaders: Record<string, string> = {};
+      for (const [key, val] of c.res.headers.entries()) {
+        if (key.toLowerCase().startsWith("access-control-")) {
+          corsHeaders[key] = val;
+        }
+      }
       return c.newResponse(resp.body, {
         status: resp.status,
         headers: {
+          ...corsHeaders,
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
           "X-Accel-Buffering": "no",
@@ -170,7 +225,6 @@ if (env.AI_SERVICE_URL) {
     return c.json(data, resp.status as Parameters<typeof c.json>[1]);
   });
 }
-
 app.use("/*", async (c, next) => {
   const context = await createContext({ context: c });
 
@@ -240,9 +294,10 @@ setInterval(
             ? `<img src="${article.coverImageUrl}" alt="${article.title}" style="width:100%;max-width:600px;border-radius:12px;margin:16px 0" />`
             : "";
 
+          const bName1 = `${typeLabel} Baru: ${article.title}`.substring(0, 70);
           await newsletter.sendBroadcastNow({
-            name: `${typeLabel} Baru: ${article.title}`,
-            subject: `${typeLabel} Baru — ${article.title}`,
+            name: bName1,
+            subject: bName1,
             html: `
             <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
               <div style="text-align:center;padding:16px 0;border-bottom:2px solid #1A1F6D">
@@ -266,15 +321,79 @@ setInterval(
             articleId: article.id,
           });
         } catch (err) {
-          console.error(`[Cron] Failed to send newsletter for ${article.id}:`, err);
+          console.error(`[Cron] Newsletter failed for ${article.id}:`, err);
+          continue; // cron akan retry di loop Part 2
         }
+
+        // Newsletter sukses — tandai
+        await db.update(cmsArticle).set({ newsletterSent: true }).where(eq(cmsArticle.id, article.id));
       }
 
       if (scheduled.length > 0) {
         console.log(`[Cron] Auto-published ${scheduled.length} articles`);
       }
+
+      // ── Part 2: Retry newsletter — hanya artikel yang baru dipublikasikan ──
+      // Filter publishedAt >= 1 jam yang lalu, biar artikel lawas nggak kena spam
+      const missed = await db
+        .select()
+        .from(cmsArticle)
+        .where(
+          and(
+            eq(cmsArticle.status, "published"),
+            eq(cmsArticle.newsletterSent, false),
+            gte(cmsArticle.publishedAt, new Date(Date.now() - 60 * 60 * 1000)),
+          ),
+        )
+        .limit(20);
+
+      for (const article of missed) {
+        try {
+          const typeLabel = article.type === "news" ? "News" : "Artikel";
+          const siteUrl = env.APP_URL;
+          const articleUrl = `${siteUrl}/blog/${article.type === "news" ? "news" : "articles"}/${article.slug}`;
+          const coverImage = article.coverImageUrl
+            ? `<img src="${article.coverImageUrl}" alt="${article.title}" style="width:100%;max-width:600px;border-radius:12px;margin:16px 0" />`
+            : "";
+
+          const bName2 = `${typeLabel} Baru: ${article.title}`.substring(0, 70);
+          await newsletter.sendBroadcastNow({
+            name: bName2,
+            subject: bName2,
+            html: `
+              <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+                <div style="text-align:center;padding:16px 0;border-bottom:2px solid #1A1F6D">
+                  <h1 style="color:#1A1F6D;font-size:24px;margin:0">MULAI+</h1>
+                  <p style="color:#888;font-size:12px">Bimbingan Universitas, Jurusan & Beasiswa</p>
+                </div>
+                ${coverImage}
+                <h2 style="color:#1A1F6D;font-size:20px;margin:16px 0 8px">${article.title}</h2>
+                ${article.excerpt ? `<p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 16px">${article.excerpt}</p>` : ""}
+                <div style="margin:24px 0;text-align:center">
+                  <a href="${articleUrl}" style="display:inline-block;background:#1A1F6D;color:#fff;padding:12px 32px;border-radius:999px;text-decoration:none;font-size:14px">
+                    Baca ${typeLabel} Lengkap →
+                  </a>
+                </div>
+                <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#aaa">
+                  <p>Dikirim oleh MULAI+ — ${siteUrl}</p>
+                  <p><a href="{{{{RESEND_UNSUBSCRIBE_URL}}}}" style="color:#888">Berhenti berlangganan</a></p>
+                </div>
+              </div>
+            `,
+            articleId: article.id,
+          });
+
+          await db.update(cmsArticle).set({ newsletterSent: true }).where(eq(cmsArticle.id, article.id));
+        } catch (err) {
+          console.error(`[Cron] Retry newsletter failed for ${article.id}:`, err);
+        }
+      }
+
+      if (missed.length > 0) {
+        console.log(`[Cron] Retried newsletter for ${missed.length} missed articles`);
+      }
     } catch (err) {
-      console.error("[Cron] Error auto-publishing articles:", err);
+      console.error("[Cron] Error:", err);
     }
   },
   5 * 60 * 1000,
