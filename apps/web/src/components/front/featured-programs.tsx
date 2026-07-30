@@ -18,12 +18,13 @@ const getIcon = (name: string | null | undefined): LucideIcon => {
   return Icon || Icons.CheckCircle2;
 };
 
-export function FeaturedPrograms() {
-  const { data: programsData, isLoading } = useQuery(
-    orpc.programs.public.list.queryOptions({
+export function FeaturedPrograms({ initialData }: { initialData?: any }) {
+  const { data: programsData, isLoading } = useQuery({
+    ...orpc.programs.public.list.queryOptions({
       input: { limit: 10 }, // Fetch more programs to collect batches
     }),
-  );
+    initialData,
+  });
 
   const programs = programsData?.data || [];
 
@@ -124,7 +125,7 @@ export function FeaturedPrograms() {
   const now = new Date();
   const sortedBatchCards = programs
     .flatMap((program) =>
-      (program.batches || []).map((batch) => ({
+      (program.batches || []).map((batch: { startDate: string; [key: string]: unknown }) => ({
         ...batch,
         program,
         // For sorting: absolute diff from now, prefer future dates
@@ -135,16 +136,19 @@ export function FeaturedPrograms() {
     .slice(0, 2);
 
   // Optional: compute total batch count per program for "X/Y" label
-  const programBatchCounts = programs.reduce<Record<string, number>>((acc, p) => {
+  const programBatchCounts = programs.reduce((acc: Record<string, number>, p) => {
     acc[p.id] = (p.batches || []).length;
     return acc;
   }, {});
-  const batchIndexMap = sortedBatchCards.reduce<Record<string, number>>((acc, card) => {
-    const batches = card.program.batches || [];
-    const idx = batches.findIndex((b) => b.id === card.id);
-    acc[card.id] = idx >= 0 ? idx + 1 : 1;
-    return acc;
-  }, {});
+  const batchIndexMap = sortedBatchCards.reduce(
+    (acc: Record<string, number>, card: (typeof sortedBatchCards)[number]) => {
+      const batches = card.program.batches || [];
+      const idx = batches.findIndex((b) => b.id === card.id);
+      acc[card.id] = idx >= 0 ? idx + 1 : 1;
+      return acc;
+    },
+    {},
+  );
 
   return (
     <div className="bg-white">
