@@ -1,8 +1,9 @@
 "use client";
 
+import { env } from "@mulai-plus/env/web";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { Loader2, MessageSquare, Send, Sparkles, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { Check, Copy, Loader2, MessageSquare, Send, Sparkles, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -10,17 +11,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-const API_ENDPOINT = "/ai/chat";
+// ─── Constants ────────────────────────────────────────────────────────────
+
+const AI_BASE = env.NEXT_PUBLIC_SERVER_URL.replace(/\/$/, "");
+const API_CHAT = `${AI_BASE}/ai/chat`;
 const SESSION_KEY = "mulaiplus-chat-session";
+const PAGE_SIZE = 10;
+
+// ─── Types ────────────────────────────────────────────────────────────────
 
 interface ChatMessage {
   id?: number;
   role: "user" | "assistant";
   content: string;
   createdAt?: string;
-  followUps?: string[];
   feedback?: string | null;
-  displayedContent?: string;
 }
 
 interface StreamMetadata {
@@ -33,6 +38,8 @@ interface StreamMetadata {
   full_reply: string;
   redirect_url?: string;
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
 
 function getSessionId(): string {
   if (typeof window === "undefined") return "";
@@ -49,104 +56,224 @@ function formatTime(isoStr?: string): string {
   return format(new Date(isoStr), "HH:mm", { locale: id });
 }
 
-/** Typewriter: reveal text char by char */
+// ─── Typewriter ───────────────────────────────────────────────────────────
+
 function useTypewriter(fullText: string, speed = 15) {
   const [displayed, setDisplayed] = useState("");
-  const indexRef = useRef(0);
+  const ref = useRef(0);
 
   useEffect(() => {
     if (!fullText) return;
-    indexRef.current = 0;
+    ref.current = 0;
     setDisplayed("");
-
     const interval = setInterval(() => {
-      if (indexRef.current < fullText.length) {
-        setDisplayed(fullText.slice(0, indexRef.current + 1));
-        indexRef.current++;
-      } else {
+      setDisplayed((prev) => {
+        if (ref.current < fullText.length) {
+          ref.current++;
+          return fullText.slice(0, ref.current);
+        }
         clearInterval(interval);
-      }
+        return prev;
+      });
     }, speed);
-
     return () => clearInterval(interval);
   }, [fullText, speed]);
 
   return displayed;
 }
 
+// ─── Markdown Components ──────────────────────────────────────────────────
+
+const mdComponents = {
+  strong: ({ children }: any) => <strong className="font-bold text-gray-900">{children}</strong>,
+  em: ({ children }: any) => <em className="text-gray-700 italic">{children}</em>,
+  p: ({ children }: any) => <p className="mb-2 leading-relaxed last:mb-0">{children}</p>,
+  ul: ({ children }: any) => <ul className="my-1.5 list-disc space-y-0.5 pl-5">{children}</ul>,
+  ol: ({ children }: any) => <ol className="my-1.5 list-decimal space-y-0.5 pl-5">{children}</ol>,
+  li: ({ children }: any) => <li className="text-gray-800 leading-relaxed">{children}</li>,
+  a: ({ href, children }: any) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">
+      {children}
+    </a>
+  ),
+  h1: ({ children }: any) => <h1 className="mt-3 mb-1 font-bold text-base text-gray-900">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="mt-2 mb-1 font-bold text-gray-900 text-sm">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="mt-2 mb-1 font-semibold text-gray-800 text-sm">{children}</h3>,
+  code: ({ children, className }: any) => {
+    if (!className)
+      return <code className="rounded bg-gray-200/80 px-1.5 py-0.5 font-mono text-pink-600 text-sm">{children}</code>;
+    return (
+      <code className="block w-full overflow-x-auto rounded-lg bg-gray-900 p-3 font-mono text-gray-100 text-sm">
+        {children}
+      </code>
+    );
+  },
+  pre: ({ children }: any) => <div className="my-2">{children}</div>,
+  table: ({ children }: any) => (
+    <div className="my-2 overflow-x-auto rounded-lg border border-gray-200">
+      <table className="min-w-full divide-y divide-gray-200 text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: any) => <thead className="bg-gray-50">{children}</thead>,
+  th: ({ children }: any) => <th className="px-3 py-2 text-left font-semibold text-gray-700">{children}</th>,
+  td: ({ children }: any) => <td className="px-3 py-2 text-gray-600">{children}</td>,
+  blockquote: ({ children }: any) => (
+    <blockquote className="my-2 border-brand-navy/30 border-l-4 pl-3 text-gray-500 italic">{children}</blockquote>
+  ),
+  hr: () => <hr className="my-3 border-gray-200" />,
+};
+
 function TypewriterMessage({ content }: { content: string }) {
   const displayed = useTypewriter(content);
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        strong: ({ children }) => <span className="font-bold">{children}</span>,
-        ul: ({ children }) => <ul className="my-1 list-disc pl-4">{children}</ul>,
-        ol: ({ children }) => <ol className="my-1 list-decimal pl-4">{children}</ol>,
-        p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
-        a: ({ href, children }) => (
-          <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
-            {children}
-          </a>
-        ),
-      }}
-    >
-      {content ? displayed || "█" : ""}
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+      {displayed || "█"}
     </ReactMarkdown>
   );
 }
 
+// ─── Widget ───────────────────────────────────────────────────────────────
+
 export function ChatbotWidget() {
+  // ── State ────────────────────────────────────────────
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamContent, setStreamContent] = useState("");
-  const [streamCreatedAt, setStreamCreatedAt] = useState<string>("");
+  const [streamCreatedAt, _setStreamCreatedAt] = useState<string>("");
   const [remaining, setRemaining] = useState<number | null>(null);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState<string>("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [totalHistory, setTotalHistory] = useState(0);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState<Set<number>>(new Set());
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
+  // ── Refs ──────────────────────────────────────────────
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const loadingHistoryRef = useRef(false); // guard double-fetch
+  const hasUserScrolledRef = useRef(false); // prevent auto-load on mount
+  const historyFullyLoadedRef = useRef(false); // shortcut once all loaded
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Safety timeout: force-clear loading ──────────────
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (loading) {
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = setTimeout(() => {
+        setLoading(false);
+        setStreamContent("");
+      }, 30_000);
+    }
+    return () => {
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    };
+  }, [loading]);
+
+  // ── Scroll helpers ────────────────────────────────────
+  const scrollToBottom = useCallback((force = false) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (!force) {
+      const threshold = 120;
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+      if (!isNearBottom) return; // user sedang baca history — jangan ganggu
+    }
+    bottomRef.current?.scrollIntoView({ behavior: force ? "instant" : "smooth" });
   }, []);
 
+  // Initial load: paksa ke bawah. Load more / chat baru: cek posisi user
+  useEffect(() => {
+    scrollToBottom();
+  }, [scrollToBottom]);
+
+  // ResizeObserver — scroll ke bawah kalo user di bawah
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+    const obs = new ResizeObserver(() => scrollToBottom());
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [scrollToBottom]);
 
+  // Focus input on open
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 300);
   }, [open]);
 
-  // Load history + auto-open after login
-  useEffect(() => {
-    fetch(`/ai/history?session_id=${getSessionId()}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.messages?.length > 0) {
-          setMessages(data.messages);
-        }
-      })
-      .catch(() => {});
+  // ── Load history ──────────────────────────────────────
+  const fetchHistory = useCallback(async (offset: number) => {
+    if (loadingHistoryRef.current || historyFullyLoadedRef.current) return;
+    loadingHistoryRef.current = true;
+    setLoadingHistory(true);
 
-    // Cek sisa quota — kalo 0 langsung show CTA
-    fetch(`/ai/quota?session_id=${getSessionId()}`)
+    const prevScroll = scrollRef.current?.scrollHeight ?? 0;
+
+    try {
+      const res = await fetch(
+        `${AI_BASE}/ai/history?session_id=${getSessionId()}&limit=${PAGE_SIZE}&offset=${offset}`,
+        { credentials: "include" },
+      );
+      const data = await res.json();
+
+      if (data.messages?.length > 0) {
+        const mapped: ChatMessage[] = data.messages.map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          createdAt: m.created_at,
+        }));
+
+        if (offset === 0) {
+          setMessages(mapped);
+          // Initial load: tunggu DOM render dulu, baru scroll ke bawah
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              bottomRef.current?.scrollIntoView({ behavior: "instant" });
+            });
+          });
+        } else {
+          setMessages((prev) => [...mapped, ...prev]);
+          // Preserve scroll position after prepend
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              const el = scrollRef.current;
+              if (el) {
+                el.scrollTop = el.scrollHeight - prevScroll;
+              }
+            });
+          });
+        }
+
+        setTotalHistory(data.total);
+        if (data.total <= offset + mapped.length) {
+          historyFullyLoadedRef.current = true;
+        }
+      } else {
+        historyFullyLoadedRef.current = true;
+      }
+    } catch {
+      // silent
+    }
+
+    loadingHistoryRef.current = false;
+    setLoadingHistory(false);
+  }, []);
+
+  // Initial load on mount
+  useEffect(() => {
+    fetchHistory(0);
+    // Quota check
+    fetch(`${AI_BASE}/ai/quota?session_id=${getSessionId()}`, { credentials: "include" })
       .then((r) => r.json())
-      .then((data) => {
-        setRemaining(data.remaining);
-        if (data.remaining <= 0) {
+      .then((d: any) => {
+        if (d.remaining <= 0) {
           setRequiresAuth(true);
-          setRedirectUrl(data.redirect_url || "");
+          setRedirectUrl(d.redirect_url ?? "");
         }
       })
       .catch(() => {});
@@ -161,15 +288,48 @@ export function ChatbotWidget() {
         window.location.href = redirect;
       }
     }
-  }, []);
+  }, [fetchHistory]);
 
+  // ── Infinite scroll up ────────────────────────────────
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    const container = scrollRef.current;
+    if (!sentinel || !container) return;
+
+    // Only activate after user explicitly scrolls up
+    const handleScroll = () => {
+      hasUserScrolledRef.current = true;
+    };
+    container.addEventListener("scroll", handleScroll, { passive: true });
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (
+          entry.isIntersecting &&
+          messages.length < totalHistory &&
+          !loadingHistoryRef.current &&
+          hasUserScrolledRef.current
+        ) {
+          fetchHistory(messages.length);
+        }
+      },
+      { root: container, rootMargin: "80px" },
+    );
+    obs.observe(sentinel);
+
+    return () => {
+      obs.disconnect();
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [messages.length, totalHistory, fetchHistory]);
+
+  // ── Send message ──────────────────────────────────────
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || loading) return;
 
       const now = new Date().toISOString();
-      const userMsg: ChatMessage = { role: "user", content: text, createdAt: now };
-      setMessages((prev) => [...prev, userMsg]);
+      setMessages((prev) => [...prev, { role: "user", content: text, createdAt: now }]);
       setInput("");
       setLoading(true);
       setStreamContent("");
@@ -180,57 +340,72 @@ export function ChatbotWidget() {
       }
 
       try {
-        const res = await fetch(API_ENDPOINT, {
+        const res = await fetch(API_CHAT, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-session-id": getSessionId() },
+          credentials: "include",
           body: JSON.stringify({ message: text, session_id: getSessionId() }),
         });
         if (!res.ok) throw new Error("API error");
 
-        const contentType = res.headers.get("content-type") || "";
+        const ct = res.headers.get("content-type") ?? "";
 
-        // Handle JSON response (limit reached, not SSE)
-        if (contentType.includes("application/json")) {
-          const data = await res.json();
-          const botMsg: ChatMessage = {
-            role: "assistant",
-            content: data.reply || "Chat habis. Login untuk lanjut.",
-            createdAt: new Date().toISOString(),
-          };
-          setMessages((prev) => [...prev, botMsg]);
+        if (ct.includes("application/json")) {
+          const data: any = await res.json();
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: data.reply ?? "Chat habis. Login untuk lanjut.",
+              createdAt: new Date().toISOString(),
+            },
+          ]);
           setRequiresAuth(data.requires_auth ?? true);
-          setRedirectUrl(data.redirect_url || "");
+          setRedirectUrl(data.redirect_url ?? "");
           setRemaining(0);
           return;
         }
 
-        // Handle SSE stream
         const reader = res.body?.getReader();
         if (!reader) throw new Error("No reader");
+
         const decoder = new TextDecoder();
-        let buffer = "";
+        let buf = "";
+        let msgId: number | null = null;
+        let createdAt = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
 
           for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const data: StreamMetadata = JSON.parse(line.slice(6));
-                setStreamMsgId(data.message_id);
-                setStreamCreatedAt(data.created_at);
-                setRemaining(data.remaining);
-                setRequiresAuth(data.requires_auth);
-                setStreamContent(data.full_reply);
-                if (data.redirect_url) setRedirectUrl(data.redirect_url);
-              } catch {}
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const d: StreamMetadata = JSON.parse(line.slice(6));
+              msgId = d.message_id;
+              createdAt = d.created_at;
+              setRemaining(d.remaining);
+              setRequiresAuth(d.requires_auth);
+              setStreamContent(d.full_reply);
+              if (d.redirect_url) setRedirectUrl(d.redirect_url);
+            } catch {
+              /* ignore parse errors */
             }
           }
         }
+
+        // SSR stream finished — add to messages after typewriter
+        if (!msgId && !createdAt) return;
+        const _serverMsgId = msgId;
+        const _serverCreatedAt = createdAt;
+
+        // Wait for typewriter (~200ms buffer), then add to history
+        const _content = streamContent;
+        // Use a longer delay so typewriter runs smoothly
+        // The actual streamContent state will be used in the cleanup effect below
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -244,87 +419,52 @@ export function ChatbotWidget() {
         setLoading(false);
       }
     },
-    [loading, requiresAuth],
+    [loading, requiresAuth, streamContent],
   );
 
-  const [streamMsgId, setStreamMsgId] = useState<number | null>(null);
-
-  // When streaming finishes, add the message to history
+  // ── After streaming completes, persist to message list ──
+  const prevLoadingRef = useRef(loading);
   useEffect(() => {
-    if (!streamContent || loading) return;
-
-    const timer = setTimeout(() => {
-      // Typewriter effect is handled by TypewriterMessage component
-      // but we need to add the final message to history
-      const botMsg: ChatMessage = {
-        id: streamMsgId ?? undefined,
-        role: "assistant",
-        content: streamContent,
-        createdAt: streamCreatedAt || new Date().toISOString(),
-        followUps: undefined, // will be set after stream
-      };
-
-      // Check if we already have suggested questions (from stream metadata)
-      // We need to store them - for now, set them after stream
-      setMessages((prev) => {
-        // Don't add duplicate if stream already added
-        if (prev.some((m) => m.role === "assistant" && m.content === streamContent)) {
-          return prev;
-        }
-        return [...prev, botMsg];
-      });
-      setStreamContent("");
-      setStreamMsgId(null);
-    }, 3000); // Wait for typewriter to finish
-
-    return () => clearTimeout(timer);
-  }, [streamContent, loading, streamMsgId, streamCreatedAt]);
-
-  // Actually, let's use a simpler approach:
-  // When stream finishes and loading stops, add to messages
-  const prevLoading = useRef(loading);
-  useEffect(() => {
-    if (prevLoading.current && !loading && streamContent) {
+    if (prevLoadingRef.current && !loading && streamContent) {
       setMessages((prev) => {
         if (prev.some((m) => m.role === "assistant" && m.content === streamContent)) return prev;
         return [
           ...prev,
           {
-            id: streamMsgId ?? undefined,
             role: "assistant" as const,
             content: streamContent,
             createdAt: streamCreatedAt || new Date().toISOString(),
           },
         ];
       });
-      // Don't clear streamContent yet — typewriter still showing
-      const t = setTimeout(() => {
-        setStreamContent("");
-        setStreamMsgId(null);
-      }, 100);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setStreamContent(""), 100);
+      return () => clearTimeout(timer);
     }
-    prevLoading.current = loading;
-  }, [loading, streamContent, streamMsgId, streamCreatedAt]);
+    prevLoadingRef.current = loading;
+  }, [loading, streamContent, streamCreatedAt]);
 
-  const submitFeedback = async (messageId: number, feedback: "up" | "down") => {
+  // ── Feedback ──────────────────────────────────────────
+  const submitFeedback = async (messageId: number, fb: "up" | "down") => {
+    if (feedbackLoading.has(messageId)) return;
+    setFeedbackLoading((prev) => new Set(prev).add(messageId));
     try {
-      await fetch("/ai/feedback", {
+      await fetch(`${AI_BASE}/ai/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message_id: messageId, feedback }),
+        body: JSON.stringify({ message_id: messageId, feedback: fb }),
       });
-      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, feedback } : m)));
-    } catch {}
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, feedback: fb } : m)));
+    } catch {
+      /* */
+    }
+    setFeedbackLoading((prev) => {
+      const next = new Set(prev);
+      next.delete(messageId);
+      return next;
+    });
   };
 
-  const _handleFollowUpClick = (q: string) => {
-    if (requiresAuth) {
-      window.location.href = "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=followup";
-    } else {
-      sendMessage(q);
-    }
-  };
+  // ── Render ────────────────────────────────────────────
 
   return (
     <>
@@ -344,11 +484,8 @@ export function ChatbotWidget() {
       <div
         className={cn(
           "fixed z-50 flex flex-col overflow-hidden border border-gray-200/80 bg-white shadow-2xl transition-all duration-300",
-          // Mobile: full width with margin, not full height
           "right-4 bottom-4 left-4 h-[520px] max-h-[70vh] rounded-2xl",
-          // Tablet: fixed width bottom-right
           "sm:right-6 sm:bottom-6 sm:left-auto sm:h-[600px] sm:w-[400px]",
-          // Large screens
           "lg:h-[640px] lg:w-[440px]",
           open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
         )}
@@ -379,6 +516,7 @@ export function ChatbotWidget() {
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           {messages.length === 0 && !streamContent ? (
+            /* ── Empty state ── */
             <div className="flex h-full flex-col items-center justify-center px-4 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-navy/10 sm:h-20 sm:w-20">
                 <Sparkles className="h-8 w-8 text-brand-navy sm:h-10 sm:w-10" />
@@ -405,7 +543,16 @@ export function ChatbotWidget() {
               </div>
             </div>
           ) : (
+            /* ── Messages list ── */
             <div className="space-y-3 sm:space-y-2">
+              {/* Sentinel */}
+              <div ref={topSentinelRef} className="h-1" />
+              {loadingHistory && (
+                <div className="flex justify-center py-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                </div>
+              )}
+
               {messages.map((msg, i) => (
                 <div key={i}>
                   <div className={cn("flex flex-col", msg.role === "user" ? "items-end" : "items-start")}>
@@ -415,20 +562,7 @@ export function ChatbotWidget() {
                         msg.role === "user" ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-800",
                       )}
                     >
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          strong: ({ children }) => <span className="font-bold">{children}</span>,
-                          ul: ({ children }) => <ul className="my-1 list-disc pl-4">{children}</ul>,
-                          ol: ({ children }) => <ol className="my-1 list-decimal pl-4">{children}</ol>,
-                          p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
-                          a: ({ href, children }) => (
-                            <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
-                              {children}
-                            </a>
-                          ),
-                        }}
-                      >
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
                         {msg.content}
                       </ReactMarkdown>
                     </div>
@@ -439,14 +573,17 @@ export function ChatbotWidget() {
                     )}
                   </div>
 
+                  {/* Assistant actions: thumbs + copy */}
                   {msg.id && msg.role === "assistant" && (
                     <div className="mt-0.5 ml-2 flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => submitFeedback(msg.id!, "up")}
+                        disabled={msg.feedback === "up" || feedbackLoading.has(msg.id!)}
                         className={cn(
                           "flex h-6 w-6 items-center justify-center rounded transition-colors sm:h-5 sm:w-5",
                           msg.feedback === "up" ? "bg-green-50 text-green-600" : "text-gray-400 hover:text-gray-600",
+                          (msg.feedback === "up" || feedbackLoading.has(msg.id!)) && "cursor-not-allowed opacity-40",
                         )}
                       >
                         <ThumbsUp className="h-3.5 w-3.5 sm:h-2.5 sm:w-2.5" />
@@ -454,19 +591,35 @@ export function ChatbotWidget() {
                       <button
                         type="button"
                         onClick={() => submitFeedback(msg.id!, "down")}
+                        disabled={msg.feedback === "down" || feedbackLoading.has(msg.id!)}
                         className={cn(
                           "flex h-6 w-6 items-center justify-center rounded transition-colors sm:h-5 sm:w-5",
                           msg.feedback === "down" ? "bg-red-50 text-red-600" : "text-gray-400 hover:text-gray-600",
+                          (msg.feedback === "down" || feedbackLoading.has(msg.id!)) && "cursor-not-allowed opacity-40",
                         )}
                       >
                         <ThumbsDown className="h-3.5 w-3.5 sm:h-2.5 sm:w-2.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(msg.content);
+                          setCopiedId(msg.id!);
+                          setTimeout(() => setCopiedId(null), 1500);
+                        }}
+                        className="flex h-6 w-6 items-center justify-center rounded text-gray-400 transition-colors hover:text-gray-600 sm:h-5 sm:w-5"
+                      >
+                        {copiedId === msg.id ? (
+                          <Check className="h-3.5 w-3.5 text-green-500 sm:h-2.5 sm:w-2.5" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 sm:h-2.5 sm:w-2.5" />
+                        )}
                       </button>
                     </div>
                   )}
                 </div>
               ))}
 
-              {/* Streaming message with typewriter */}
               {streamContent && (
                 <div className="flex flex-col items-start">
                   <div className="max-w-[88%] rounded-2xl bg-gray-100 px-4 py-3 text-gray-800 text-sm leading-relaxed sm:max-w-[80%] sm:px-3.5 sm:py-2.5">
@@ -480,25 +633,29 @@ export function ChatbotWidget() {
                 </div>
               )}
 
-              {loading && !streamContent && (
-                <div className="flex justify-start">
-                  <div className="flex items-center gap-2.5 rounded-2xl bg-gray-100 px-4 py-3 sm:gap-2 sm:px-3.5 sm:py-2.5">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    <span className="font-manrope text-gray-500 text-xs sm:text-xs">Mengetik...</span>
-                  </div>
-                </div>
-              )}
-
               <div ref={bottomRef} />
             </div>
           )}
         </div>
 
+        {/* Typing indicator — fixed above input */}
+        {loading && !streamContent && (
+          <div className="flex shrink-0 items-center gap-2.5 border-gray-100 border-t bg-gray-50/50 px-4 py-3 sm:px-5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-navy/10">
+              <Loader2 className="h-4 w-4 animate-spin text-brand-navy" />
+            </div>
+            <div>
+              <p className="font-manrope font-medium text-brand-navy text-sm">Mengetik...</p>
+              <p className="font-manrope text-gray-400 text-xs">AI sedang memproses jawaban</p>
+            </div>
+          </div>
+        )}
+
         {/* Auth gate */}
         {requiresAuth && (
           <div className="shrink-0 border-gray-100 border-t bg-amber-50 px-4 py-4 sm:px-5 sm:py-3">
             <p className="mb-3 font-manrope text-amber-800 text-sm leading-relaxed sm:mb-2 sm:text-xs">
-              {remaining === 0 && redirectUrl.includes("wa.me")
+              {redirectUrl?.includes("wa.me")
                 ? "Limit chat habis! Klik tombol di bawah untuk request tambahan."
                 : "Chat gratis habis! Daftar untuk lanjut konsultasi."}
             </p>
@@ -511,12 +668,17 @@ export function ChatbotWidget() {
                   const page = window.location.pathname + window.location.search;
                   localStorage.setItem("chatbot_reopen", "true");
                   localStorage.setItem("chatbot_redirect", page);
+                  fetch(`${AI_BASE}/ai/track/login-click`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ session_id: getSessionId() }),
+                  }).catch(() => {});
                   window.location.href = `/login?callbackUrl=${encodeURIComponent(page)}&utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit`;
                 }
               }}
               className="w-full cursor-pointer rounded-xl bg-brand-navy px-5 py-3.5 font-manrope text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90 active:scale-[0.98] sm:px-4 sm:py-3"
             >
-              {redirectUrl.includes("wa.me") ? "Request via WhatsApp" : "Login / Daftar Gratis"}
+              {redirectUrl?.includes("wa.me") ? "Request via WhatsApp" : "Login / Daftar Gratis"}
             </button>
           </div>
         )}

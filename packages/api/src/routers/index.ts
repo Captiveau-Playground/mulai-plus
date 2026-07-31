@@ -2,13 +2,16 @@ import { count, db, desc, eq, sql } from "@mulai-plus/db";
 import { permission, role, session, user } from "@mulai-plus/db/schema/auth";
 import { program, programApplication } from "@mulai-plus/db/schema/programs";
 
+import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { z } from "zod";
-import { protectedProcedure, publicProcedure } from "../index";
+import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
+import { aiRouter } from "./ai";
 import { auditRouter } from "./audit";
 import { articlesRouter, authorsRouter, categoriesRouter, mediaRouter, newsletterRouter, tagsRouter } from "./cms";
 import { emailAdminRouter } from "./email-admin";
 import { esignRouter } from "./esign";
 import { feedbackRouter } from "./feedback";
+import { hermesRouter } from "./hermes";
 import { lmsRouter } from "./lms";
 import { newsletterAdminRouter } from "./newsletter-admin";
 import { notificationRouter } from "./notification";
@@ -27,6 +30,46 @@ export const appRouter = {
   }),
   user: userRouter,
   settings: settingsRouter,
+  features: {
+    get: publicProcedure.handler(async () => {
+      try {
+        const setting = await db.query.systemSettings.findFirst({
+          where: eq(systemSettings.key, "feature_flags"),
+        });
+        if (setting) {
+          return setting.value as { chatbot_enabled: boolean };
+        }
+      } catch {
+        // DB unavailable
+      }
+      return { chatbot_enabled: process.env.CHATBOT_ENABLED === "true" };
+    }),
+    set: adminProcedure
+      .input(
+        z.object({
+          flags: z.record(z.string(), z.boolean()),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { flags } = input;
+        const existing = await db.query.systemSettings.findFirst({
+          where: eq(systemSettings.key, "feature_flags"),
+        });
+        if (existing) {
+          await db
+            .update(systemSettings)
+            .set({ value: flags as any, updatedAt: new Date() })
+            .where(eq(systemSettings.key, "feature_flags"));
+        } else {
+          await db.insert(systemSettings).values({
+            key: "feature_flags",
+            value: flags as any,
+            description: "Runtime feature flags",
+          });
+        }
+        return { success: true, flags };
+      }),
+  },
   testimonials: testimonialsRouter,
   lms: lmsRouter,
   programs: programsRouter,
@@ -40,6 +83,7 @@ export const appRouter = {
   newsletter: newsletterAdminRouter,
   feedback: feedbackRouter,
   pddikti: pddiktiRouter,
+  ai: aiRouter,
   cms: {
     articles: articlesRouter,
     categories: categoriesRouter,
@@ -47,6 +91,7 @@ export const appRouter = {
     authors: authorsRouter,
     media: mediaRouter,
     newsletter: newsletterRouter,
+    hermes: hermesRouter,
   },
 
   privateData: protectedProcedure.handler(({ context }) => {

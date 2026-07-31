@@ -1,5 +1,9 @@
 {
   "name": "mulai-plus",
+  "author": {
+    "email": "hello@mulaiplus.id",
+    "name": "mulaiplus"
+  },
   "private": true,
   "resolutions": {
     "zod": "^4.3.6",

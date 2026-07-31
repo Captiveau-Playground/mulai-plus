@@ -14,6 +14,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
+import { badRequest } from "../lib/errors";
 import { newsletter } from "../lib/newsletter";
 
 function slugify(text: string) {
@@ -369,7 +370,7 @@ export const articlesRouter = {
         }
 
         if (!resolvedAuthorId) {
-          throw new Error("Author is required");
+          badRequest("Author is required");
         }
 
         // Start transaction
@@ -574,8 +575,9 @@ export const articlesRouter = {
                 ? `<img src="${fullArticle.coverImageUrl}" alt="${fullArticle.title}" style="width:100%;max-width:600px;border-radius:12px;margin:16px 0" />`
                 : "";
 
+              const name1 = `${typeLabel} Baru: ${fullArticle.title}`.substring(0, 70);
               await newsletter.sendBroadcastNow({
-                name: `${typeLabel} Baru: ${fullArticle.title}`,
+                name: name1,
                 subject: `${typeLabel} Baru — ${fullArticle.title}`,
                 html: `
                   <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
@@ -643,8 +645,9 @@ export const articlesRouter = {
               ? `<img src="${article.coverImageUrl}" alt="${article.title}" style="width:100%;max-width:600px;border-radius:12px;margin:16px 0" />`
               : "";
 
+            const name2 = `${typeLabel} Baru: ${article.title}`.substring(0, 70);
             await newsletter.sendBroadcastNow({
-              name: `${typeLabel} Baru: ${article.title}`,
+              name: name2,
               subject: `${typeLabel} Baru — ${article.title}`,
               html: `
                 <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
@@ -669,6 +672,9 @@ export const articlesRouter = {
               `,
               articleId: article.id,
             });
+
+            // Newsletter sukses — tandai
+            await db.update(cmsArticle).set({ newsletterSent: true }).where(eq(cmsArticle.id, article.id));
           } catch (err) {
             console.error("Failed to send newsletter for published article:", err);
           }
@@ -857,7 +863,7 @@ export const categoriesRouter = {
 
         // Prevent circular reference
         if (data.parentId === id) {
-          throw new Error("Category cannot be its own parent");
+          badRequest("Category cannot be its own parent");
         }
 
         await db.update(cmsCategory).set(data).where(eq(cmsCategory.id, id));

@@ -5,6 +5,45 @@
     ".": {
       "default": "./src/index.ts"
     },
+    "./schema/pddikti": {
+      "default": "./src/schema/pddikti.ts"
+    },
+    "./schema/audit": {
+      "default": "./src/schema/audit.ts"
+    },
+    "./schema/programs": {
+      "default": "./src/schema/programs.ts"
+    },
+    "./schema/esign": {
+      "default": "./src/schema/esign.ts"
+    },
+    "./schema/auth": {
+      "default": "./src/schema/auth.ts"
+    },
+    "./schema/cms": {
+      "default": "./src/schema/cms.ts"
+    },
+    "./schema/feedback": {
+      "default": "./src/schema/feedback.ts"
+    },
+    "./schema/lms": {
+      "default": "./src/schema/lms.ts"
+    },
+    "./schema/settings": {
+      "default": "./src/schema/settings.ts"
+    },
+    "./schema/testimonials": {
+      "default": "./src/schema/testimonials.ts"
+    },
+    "./schema/notification": {
+      "default": "./src/schema/notification.ts"
+    },
+    "./schema/chatbot": {
+      "default": "./src/schema/chatbot.ts"
+    },
+    "./schema/newsletter": {
+      "default": "./src/schema/newsletter.ts"
+    },
     "./*": {
       "default": "./src/*.ts"
     }

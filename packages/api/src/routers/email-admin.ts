@@ -6,6 +6,7 @@ import {
   getRegistrationSuccessHtml,
   getScholarshipOfferHtml,
 } from "../lib/email";
+import { badRequest, notFound } from "../lib/errors";
 import { mail } from "../lib/mail";
 import { resend } from "../lib/resend";
 
@@ -123,7 +124,7 @@ export const emailAdminRouter = {
     )
     .handler(async ({ input }) => {
       const template = EMAIL_TEMPLATES.find((t) => t.id === input.templateId);
-      if (!template) throw new Error(`Template "${input.templateId}" not found`);
+      if (!template) notFound(`Template "${input.templateId}" not found`);
 
       const vars = populateDefaults(input.variables ?? ({} as Record<string, string>), template);
       const html = template.render(vars);
@@ -152,7 +153,7 @@ export const emailAdminRouter = {
     )
     .handler(async ({ input }) => {
       const template = EMAIL_TEMPLATES.find((t) => t.id === input.templateId);
-      if (!template) throw new Error(`Template "${input.templateId}" not found`);
+      if (!template) notFound(`Template "${input.templateId}" not found`);
 
       const vars = populateDefaults(input.variables ?? ({} as Record<string, string>), template);
       const html = template.render(vars);
@@ -178,7 +179,7 @@ export const emailAdminRouter = {
       }
 
       if (!result.success) {
-        throw new Error(
+        badRequest(
           typeof result.error === "object"
             ? JSON.stringify(result.error)
             : String(result.error ?? "Failed to send email"),
@@ -210,7 +211,7 @@ export const emailAdminRouter = {
     )
     .handler(async ({ input }) => {
       const template = EMAIL_TEMPLATES.find((t) => t.id === input.templateId);
-      if (!template) throw new Error(`Template "${input.templateId}" not found`);
+      if (!template) notFound(`Template "${input.templateId}" not found`);
 
       const defaultSubject =
         input.subject ??
