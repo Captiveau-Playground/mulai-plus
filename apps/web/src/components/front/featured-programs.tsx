@@ -18,6 +18,28 @@ const getIcon = (name: string | null | undefined): LucideIcon => {
   return Icon || Icons.CheckCircle2;
 };
 
+interface ProgramBenefit {
+  id: string;
+  title: string;
+  icon?: string | null;
+}
+
+interface ProgramBatch {
+  id: string;
+  name: string;
+  startDate: string;
+  [key: string]: any;
+}
+
+interface Program {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  benefits?: ProgramBenefit[];
+  batches?: ProgramBatch[];
+}
+
 export function FeaturedPrograms({ initialData }: { initialData?: any }) {
   const { data: programsData, isLoading } = useQuery({
     ...orpc.programs.public.list.queryOptions({
@@ -26,7 +48,7 @@ export function FeaturedPrograms({ initialData }: { initialData?: any }) {
     initialData,
   });
 
-  const programs = programsData?.data || [];
+  const programs = (programsData?.data || []) as Program[];
 
   if (isLoading) {
     return (
@@ -125,7 +147,7 @@ export function FeaturedPrograms({ initialData }: { initialData?: any }) {
   const now = new Date();
   const sortedBatchCards = programs
     .flatMap((program) =>
-      (program.batches || []).map((batch: { startDate: string; [key: string]: unknown }) => ({
+      (program.batches || []).map((batch: ProgramBatch) => ({
         ...batch,
         program,
         // For sorting: absolute diff from now, prefer future dates
