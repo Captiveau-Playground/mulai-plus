@@ -1,4 +1,5 @@
 import { AboutUs } from "@/components/front/about-us";
+import { AssessmentSection } from "@/components/front/assessment-section";
 import { BlogSection } from "@/components/front/blog-section";
 import { CTASection } from "@/components/front/cta-section";
 import { ExploreSection } from "@/components/front/explore-section";
@@ -35,6 +36,7 @@ export default async function LandingPage() {
       />
       <HeroSection />
       <AboutUs />
+      <AssessmentSection />
       <FeaturedPrograms initialData={programsData} />
       <ExploreSection />
       <BlogSection initialData={articlesData} />

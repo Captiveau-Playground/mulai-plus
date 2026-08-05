@@ -56,7 +56,7 @@ export function HeroSection() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-orange opacity-60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-orange" />
               </span>
-              Bimbingan Universitas &amp; Beasiswa
+              Tes Minat Bakat · Bimbingan Universitas &amp; Beasiswa
             </span>
           </motion.div>
 
@@ -68,8 +68,7 @@ export function HeroSection() {
             animate="show"
             className="max-w-3xl font-bold font-bricolage text-3xl text-brand-navy leading-[1.08] tracking-tight md:text-5xl lg:text-[72px] lg:leading-[1.05]"
           >
-            <span className="text-brand-red">Temukan Jurusan &amp; PTN</span> Impianmu dengan Data Real-time &amp;
-            Mentor Personal
+            <span className="text-brand-red">Kenali Dirimu,</span> Temukan Jurusan &amp; PTN Impianmu
           </motion.h1>
 
           {/* ── Description ── */}
@@ -80,7 +79,8 @@ export function HeroSection() {
             animate="show"
             className="max-w-xl font-manrope text-base text-text-muted leading-relaxed md:text-lg lg:text-xl"
           >
-            Ribuan data passing grade, akreditasi, dan mentor 1-on-1 yang siap bimbing kamu menentukan masa depan.
+            Mulai dari <b className="text-gray-700">Tes Minat Bakat gratis</b> (20 soal, ±10 menit) untuk mengenali
+            arahmu — lalu dalami dengan data passing grade 10k+ prodi, akreditasi, dan mentor 1-on-1.
           </motion.p>
 
           {/* ── Stats Row ── */}
@@ -104,12 +104,12 @@ export function HeroSection() {
             animate="show"
             className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center"
           >
-            <Link href="#featured-programs" className="w-full sm:w-auto">
+            <Link href="/assessment" className="w-full sm:w-auto">
               <button
                 type="button"
                 className="w-full cursor-pointer rounded-full bg-brand-red px-8 py-4 font-bold font-manrope text-base text-white shadow-brand-red/25 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-brand-red/90 hover:shadow-xl active:scale-[0.98] sm:px-10 sm:py-4"
               >
-                Cari Program Mentoring
+                Kenali Dirimu — Gratis
               </button>
             </Link>
 
