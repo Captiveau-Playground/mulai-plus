@@ -149,6 +149,26 @@ async def increment_message_count(session_id: str):
         )
 
 
+async def reserve_message_slot(session_id: str, max_count: int) -> Optional[int]:
+    """Atomic: increment message_count HANYA jika masih di bawah limit.
+
+    Return message_count baru jika slot berhasil di-reserve (atau None jika limit penuh).
+    Dipakai SEBELUM LLM call supaya request paralel tidak bisa lolos quota
+    (cegah race: check-then-increment dengan snapshot yang basi).
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        now = datetime.now(timezone.utc)
+        row = await conn.fetchrow(
+            """UPDATE chatbot_sessions
+               SET message_count = message_count + 1, last_active = $1
+               WHERE id = $2 AND message_count < $3
+               RETURNING message_count""",
+            now, session_id, max_count,
+        )
+        return row["message_count"] if row else None
+
+
 async def save_message(
     session_id: str,
     role: str,
@@ -185,7 +205,7 @@ async def get_history(
 
         # Fetch reversed (newest first), then reverse client-side
         rows = await conn.fetch(
-            """SELECT id, role, content, prompt_tokens, completion_tokens, cost, created_at
+            """SELECT id, role, content, prompt_tokens, completion_tokens, cost, feedback, created_at
                FROM chatbot_messages
                WHERE session_id = $1
                ORDER BY id DESC
@@ -198,6 +218,7 @@ async def get_history(
                 "id": r["id"],
                 "role": r["role"],
                 "content": r["content"],
+                "feedback": r["feedback"],
                 "created_at": r["created_at"].isoformat() if r["created_at"] else None,
             })
         return messages, total

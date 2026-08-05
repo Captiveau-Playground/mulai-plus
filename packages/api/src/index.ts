@@ -18,6 +18,7 @@ function resolveResource(path: string[]): string {
   const resourceMap: Record<string, string> = {
     programs: "program",
     feedback: "feedback",
+    tmb: "assessment",
     users: "user",
     user: "user",
     role: "role",

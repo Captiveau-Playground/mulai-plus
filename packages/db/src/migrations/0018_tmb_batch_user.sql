@@ -1,0 +1,1 @@
+ALTER TABLE "tmb_batch_students" ADD COLUMN "user_id" text;

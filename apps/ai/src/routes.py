@@ -35,6 +35,8 @@ from src.schemas import (
     FeedbackResponse,
     LeadRequest,
     LeadResponse,
+    TmbSummaryRequest,
+    TmbSummaryResponse,
     UpdateCreditRequest,
     BanRequest,
     NotesRequest,
@@ -246,6 +248,9 @@ async def chat(req: ChatRequest, request: Request):
         cached = await cch.get_cached_answer(req.message)
         if cached:
             reply = cached["reply"]
+            # Simpan pesan user + assistant biar history konsisten
+            # (sebelumnya hanya assistant — bikin orphan message di riwayat)
+            await cdb.save_message(session_key, "user", req.message)
             msg_result = await cdb.save_message(session_key, "assistant", reply)
             created_at = str(msg_result["created_at"])
             msg_id = msg_result["id"]
@@ -288,15 +293,17 @@ async def chat(req: ChatRequest, request: Request):
         await cdb.save_message(session_key, "assistant", ban_msg)
         return {"reply": ban_msg, "session_id": session_key, "requires_auth": True, "remaining": 0}
 
-    # Check limit
-    if session["message_count"] >= effective_limit:
+    # Check limit — reserve slot atomik SEBELUM LLM call (cegah race condition)
+    # Kalau tidak ada slot tersisa → quota habis, TANPA panggil LLM.
+    reserved_count = await cdb.reserve_message_slot(session_key, effective_limit)
+    if reserved_count is None:
         wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
         reply = "Kamu sudah menggunakan batas chat gratis. Klik link WhatsApp untuk request tambahan." if is_auth else "Kamu sudah menggunakan chat gratis! Yuk login untuk lanjut."
         await cdb.save_message(session_key, "assistant", reply)
         return {"reply": reply, "session_id": session_key, "requires_auth": True,
                 "redirect_url": wa_link if is_auth else "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit"}
 
-    history = await cdb.get_history(session_key)
+    history, _ = await cdb.get_history(session_key)
     reply, follow_ups, token_usage = await get_response(req.message, history)
     if token_usage.get("cacheable"):
         await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
@@ -307,9 +314,8 @@ async def chat(req: ChatRequest, request: Request):
         completion_tokens=token_usage.get("completion", 0), cost=0, model=token_usage.get("model", settings.openai_model))
     msg_id = msg_result["id"]
     msg_created_at = msg_result["created_at"]
-    await cdb.increment_message_count(session_key)
 
-    remaining = effective_limit - session["message_count"] - 1
+    remaining = effective_limit - reserved_count
 
     async def generate():
         metadata = {
@@ -348,18 +354,23 @@ async def chat_sync(req: ChatRequest, request: Request):
     # Cache check first
     cached = await cch.get_cached_answer(req.message)
     if cached:
+        # Simpan user + assistant biar history konsisten
+        await cdb.save_message(session_key, "user", req.message)
+        await cdb.save_message(session_key, "assistant", cached["reply"])
         return ChatResponse(reply=cached["reply"], session_id=session_key, requires_auth=False)
 
     default_limit = AUTH_LIMIT if is_auth else GUEST_LIMIT
     effective_limit = await cdb.get_active_limit(session_key, default_limit)
 
-    if session["message_count"] >= effective_limit:
+    # Reserve slot atomik SEBELUM LLM call — kalau habis, TANPA panggil LLM
+    reserved_count = await cdb.reserve_message_slot(session_key, effective_limit)
+    if reserved_count is None:
         wa_link = "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20request%20tambahan%20limit%20chat"
         auth_url = wa_link if is_auth else "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit"
         reply = "Kamu sudah menggunakan batas chat gratis. Klik tombol di bawah untuk request tambahan." if is_auth else "Kamu sudah menggunakan chat gratis! Login untuk lanjut."
         return ChatResponse(reply=reply, session_id=session_key, requires_auth=True, redirect_url=auth_url)
 
-    history = await cdb.get_history(session_key)
+    history, _ = await cdb.get_history(session_key)
     reply, follow_ups, token_usage = await get_response(req.message, history)
     if token_usage.get("cacheable"):
         await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
@@ -367,8 +378,7 @@ async def chat_sync(req: ChatRequest, request: Request):
     await cdb.save_message(session_key, "user", req.message,
         prompt_tokens=token_usage.get("prompt", 0), cost=token_usage.get("cost", 0), model=token_usage.get("model", settings.openai_model))
     await cdb.save_message(session_key, "assistant", reply)
-    await cdb.increment_message_count(session_key)
-    remaining = effective_limit - session["message_count"] - 1
+    remaining = effective_limit - reserved_count
 
     return ChatResponse(
         reply=reply,
@@ -562,3 +572,50 @@ async def admin_cache_stats():
         "hit_rate_percent": round(hit_rate, 1),
         "cost_saved_usd": round(m["cost_saved"], 6),
     }
+
+
+# ─── TMB AI Summary (Test by MULAI+) ───────────────────────
+
+TMB_SUMMARY_PROMPT = """Kamu adalah asisten pembuat ringkasan hasil Tes Minat Bakat (Holland RIASEC + kemampuan) dari MULAI+.
+
+Buat narasi ringkas (2-4 paragraf) dalam Bahasa Indonesia yang ramah untuk siswa:
+1. Jelaskan tipe minat utamanya (kode Holland + arti singkat)
+2. Sebutkan kekuatan kemampuan yang menonjol
+3. Sebutkan area yang bisa dikembangkan
+4. Hubungkan dengan rekomendasi jurusan teratas (sebutkan 2-3) dan kenapa cocok
+5. Tutup dengan semangat/motivasi singkat
+
+Gunakan markdown sederhana. Jangan mengarang data — gunakan hanya profil yang diberikan."""
+
+
+@chat_router.post("/tmb/summary")
+async def tmb_summary(req: TmbSummaryRequest, request: Request):
+    """Generate AI summary untuk hasil Tes Minat Bakat."""
+    if settings.ai_api_key:
+        auth = request.headers.get("authorization", "")
+        if auth != f"Bearer {settings.ai_api_key}":
+            raise HTTPException(status_code=401, detail="Unauthorized. Provide valid API key.")
+
+    import json as _json
+
+    profile_text = _json.dumps(req.profile, ensure_ascii=False, indent=1)
+    prompt = f"{TMB_SUMMARY_PROMPT}\n\nPROFIL HASIL TEST:\n{profile_text}"
+
+    from src.engine.responder import _chat, _get_client, _strip_think
+
+    try:
+        client = _get_client()
+        messages = [
+            {"role": "system", "content": TMB_SUMMARY_PROMPT},
+            {"role": "user", "content": profile_text},
+        ]
+        resp = await _chat(client, messages)
+        content = _strip_think(resp.choices[0].message.content or "")
+        if not content.strip():
+            content = "Hasil tesmu sudah siap! Lihat rekomendasi jurusan dan karier di bawah untuk penjelasan lengkap. 🎉"
+        return TmbSummaryResponse(summary=content)
+    except Exception as e:
+        logger.error("TMB summary error: %s", e, exc_info=True)
+        return TmbSummaryResponse(
+            summary="Hasil tesmu sudah siap! Rekomendasi jurusan dan karier lengkap ada di bawah. 🎉"
+        )

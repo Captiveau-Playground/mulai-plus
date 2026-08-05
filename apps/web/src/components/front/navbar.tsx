@@ -4,9 +4,12 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import {
   BarChart3,
   BookOpen,
+  Brain,
   ChevronDown,
+  Compass,
   GraduationCap,
   HeartHandshake,
+  Lightbulb,
   Loader2,
   Menu,
   Search,
@@ -88,6 +91,29 @@ const NAV_ITEMS = [
         href: "/programs",
         desc: "Program seleksi",
         icon: HeartHandshake,
+      },
+    ],
+  },
+  {
+    label: "Assessment",
+    children: [
+      {
+        label: "Tes Minat Bakat",
+        href: "/assessment",
+        desc: "20 soal · gratis · ±10 menit",
+        icon: Compass,
+      },
+      {
+        label: "Tes Minat (Holland)",
+        href: "/assessment/minat",
+        desc: "6 tipe minat RIASEC",
+        icon: Brain,
+      },
+      {
+        label: "Tes Bakat",
+        href: "/assessment/bakat",
+        desc: "5 kemampuan dasar",
+        icon: Lightbulb,
       },
     ],
   },
