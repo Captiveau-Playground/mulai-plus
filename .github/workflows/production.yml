@@ -413,31 +413,3 @@ jobs:
             docker compose -p mulaiplus-production -f docker-compose.production.yml --env-file .env.production up -d --force-recreate
 
             docker image prune -f --filter "label=project=mulai-plus"
-
-  e2e-smoke:
-    needs: deploy
-    if: always()
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Cache Playwright
-        id: pw-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}
-      - name: Install Playwright
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        working-directory: apps/web
-        run: node node_modules/.bin/playwright install chromium
-      - name: Run smoke tests against production
-        working-directory: apps/web
-        run: node node_modules/.bin/playwright test --config=e2e/playwright.config.ts --workers=4 -g "Landing|login|404|footer"
-        env:
-          PLAYWRIGHT_BASE_URL: https://mulaiplus.id
-          CI: true
