@@ -24,7 +24,7 @@
     "@mulai-plus/env": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
-    "@orpc/tanstack-query": "^1.12.2",
+    "@orpc/tanstack-query": "1.14.14",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@sentry/nextjs": "^10.59.0",

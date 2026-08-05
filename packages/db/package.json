@@ -58,7 +58,7 @@
   },
   "devDependencies": {
     "@mulai-plus/config": "workspace:*",
-    "@orpc/server": "^1.14.14",
+    "@orpc/server": "1.14.14",
     "@types/pg": "^8.15.6",
     "drizzle-kit": "^0.31.8",
     "typescript": "catalog:"
