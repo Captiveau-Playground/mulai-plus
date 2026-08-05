@@ -360,12 +360,14 @@ export function Navbar() {
       {/* Mobile: Hamburger */}
       <div className="flex md:hidden">
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetTrigger>
-            <Button variant="ghost" size="icon" className={isExploreLight ? "text-white" : "text-text-main"}>
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Menu</span>
-            </Button>
-          </SheetTrigger>
+          <SheetTrigger
+            render={
+              <Button variant="ghost" size="icon" className={isExploreLight ? "text-white" : "text-text-main"}>
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Menu</span>
+              </Button>
+            }
+          />
           <SheetContent side="right" showCloseButton={false} className="w-full border-none bg-white p-0 sm:w-72">
             <div className="flex h-full flex-col p-5">
               {/* Sheet header */}

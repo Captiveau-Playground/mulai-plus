@@ -1,5 +1,3 @@
-"use client";
-
 import { AboutUs } from "@/components/front/about-us";
 import { BlogSection } from "@/components/front/blog-section";
 import { CTASection } from "@/components/front/cta-section";
@@ -8,9 +6,15 @@ import { FAQSection } from "@/components/front/faq-section";
 import { FeaturedPrograms } from "@/components/front/featured-programs";
 import { HeroSection } from "@/components/front/hero-section";
 import { MeetTheMentor } from "@/components/front/meet-the-mentor";
+import { client } from "@/lib/client";
 import { FAQS, jsonLdBreadcrumb, jsonLdFAQ, jsonLdOrganization, jsonLdWebpage, jsonLdWebsite } from "@/lib/site-config";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const [programsData, articlesData] = await Promise.all([
+    client.programs.public.list({ limit: 10 }).catch(() => ({ data: [] })),
+    client.cms.articles.public.list({ limit: 4, offset: 0 }).catch(() => ({ data: [] })),
+  ]);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -31,9 +35,9 @@ export default function LandingPage() {
       />
       <HeroSection />
       <AboutUs />
-      <FeaturedPrograms />
+      <FeaturedPrograms initialData={programsData} />
       <ExploreSection />
-      <BlogSection />
+      <BlogSection initialData={articlesData} />
       <MeetTheMentor />
       <FAQSection />
       <CTASection />
