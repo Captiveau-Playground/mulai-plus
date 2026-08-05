@@ -12,7 +12,7 @@ export default function TestMinatBakatLandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#eef2ff] via-white to-white">
       {/* Hero */}
-      <section className="mx-auto flex max-w-md flex-col items-center px-5 pt-12 pb-8 text-center">
+      <section className="mx-auto flex max-w-md flex-col items-center px-5 pt-12 pb-8 text-center md:max-w-2xl">
         <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-navy to-brand-navy-light text-4xl shadow-xl">
           🧭
         </span>
@@ -38,8 +38,8 @@ export default function TestMinatBakatLandingPage() {
       </section>
 
       {/* Features */}
-      <section className="mx-auto max-w-md px-5 py-6">
-        <div className="grid grid-cols-2 gap-3">
+      <section className="mx-auto max-w-md px-5 py-6 md:max-w-2xl">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {FEATURES.map((f, i) => (
             <div key={i} className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
               <span className="text-3xl">{f.emoji}</span>
@@ -51,7 +51,7 @@ export default function TestMinatBakatLandingPage() {
       </section>
 
       {/* How it works */}
-      <section className="mx-auto max-w-md px-5 py-6">
+      <section className="mx-auto max-w-md px-5 py-6 md:max-w-2xl">
         <h2 className="font-bold font-bricolage text-gray-900 text-lg">Cara Kerjanya</h2>
         <div className="mt-3 space-y-2.5">
           {[

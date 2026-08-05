@@ -22,7 +22,7 @@ import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
 import { shortLinksRouter } from "./short-links";
 import { testimonialsRouter } from "./testimonials";
-import { tmbAdminRouter, tmbGuestRouter, tmbRouter } from "./tmb";
+import { tmbAdminRouter, tmbRouter } from "./tmb";
 import { userRouter } from "./user";
 
 export const appRouter = {
@@ -74,7 +74,6 @@ export const appRouter = {
   testimonials: testimonialsRouter,
   tmb: tmbRouter,
   tmbAdmin: tmbAdminRouter,
-  tmbGuest: tmbGuestRouter,
   lms: lmsRouter,
   programs: programsRouter,
   programActivities: programActivitiesRouter,

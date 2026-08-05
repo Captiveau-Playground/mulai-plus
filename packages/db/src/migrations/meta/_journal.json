@@ -120,6 +120,27 @@
       "when": 1785926589638,
       "tag": "0016_tmb_guest_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785931903055,
+      "tag": "0017_tmb_schools",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785933391383,
+      "tag": "0018_tmb_batch_user",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785934449940,
+      "tag": "0019_tmb_batch_invite",
+      "breakpoints": true
     }
   ]
 }

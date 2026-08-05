@@ -2,13 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Copy, FileSpreadsheet, Loader2, Mail, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Check, Copy, FileSpreadsheet, Loader2, Mail, QrCode, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import QRCode from "qrcode";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -32,7 +34,6 @@ export default function BatchDetailPage() {
 
   const [studentName, setStudentName] = useState("");
   const [csvText, setCsvText] = useState("");
-  const [inviteLinks, setInviteLinks] = useState<{ id: string; name: string; link: string }[] | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
   const addStudent = useMutation({
@@ -63,13 +64,34 @@ export default function BatchDetailPage() {
   });
 
   const invite = useMutation({
-    ...orpc.tmbAdmin.students.invite.mutationOptions(),
+    ...orpc.tmbAdmin.students.sendInviteEmails.mutationOptions(),
     onSuccess: (d) => {
-      setInviteLinks(d.results);
-      toast.success("Link undangan dibuat!");
+      toast.success(
+        d.sent > 0
+          ? `${d.sent} email undangan terkirim! 📧`
+          : "Kode sudah siap — kirim via email atau bagikan link/QR.",
+      );
+      if (d.failed?.length) toast.error(`${d.failed.length} email gagal terkirim`);
     },
-    onError: (e) => toast.error(e.message || "Gagal membuat undangan"),
+    onError: (e) => toast.error(e.message || "Gagal mengirim undangan"),
   });
+
+  const copyCode = (link: string) => {
+    const full = `${window.location.origin}${link}`;
+    navigator.clipboard.writeText(full);
+    setCopied("code");
+    setTimeout(() => setCopied(null), 1500);
+    toast.success("Link undangan disalin!");
+  };
+
+  const [sendEmail, setSendEmail] = useState(false);
+  const [qrTarget, setQrTarget] = useState<{ name: string; link: string; dataUrl: string } | null>(null);
+
+  const showQr = async (link: string) => {
+    const full = `${window.location.origin}${link}`;
+    const dataUrl = await QRCode.toDataURL(full, { width: 220, margin: 1 });
+    setQrTarget({ name: "Undangan Batch", link: full, dataUrl });
+  };
 
   const analytics = useQuery({
     ...orpc.tmbAdmin.analytics.queryOptions({ input: { batchId } }),
@@ -98,14 +120,6 @@ export default function BatchDetailPage() {
   const students = data?.students ?? [];
   const ana = analytics.data;
 
-  const copyLink = (link: string, id: string) => {
-    const full = `${window.location.origin}${link}`;
-    navigator.clipboard.writeText(full);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 1500);
-    toast.success("Link disalin!");
-  };
-
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -118,7 +132,7 @@ export default function BatchDetailPage() {
     return (
       <div className="py-20 text-center">
         <p className="font-manrope text-gray-500">Batch tidak ditemukan.</p>
-        <Link href="/tmb/admin" className="mt-3 inline-block font-bold font-manrope text-mentor-teal text-sm">
+        <Link href="/admin/assessment" className="mt-3 inline-block font-bold font-manrope text-mentor-teal text-sm">
           ← Kembali
         </Link>
       </div>
@@ -131,7 +145,7 @@ export default function BatchDetailPage() {
     <div className="space-y-5">
       <div>
         <Link
-          href="/tmb/admin"
+          href="/admin/assessment"
           className="flex items-center gap-1 font-manrope font-semibold text-gray-400 text-xs hover:text-gray-600"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Kelola Sekolah
@@ -145,7 +159,7 @@ export default function BatchDetailPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2.5 md:grid-cols-4 md:gap-4">
         {[
           { label: "Total", value: students.length, color: "text-brand-navy" },
           { label: "Selesai", value: done, color: "text-green-600" },
@@ -199,42 +213,68 @@ export default function BatchDetailPage() {
       {/* Invite */}
       <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
         <h3 className="font-bold font-bricolage text-gray-900 text-sm">📨 Undangan</h3>
-        <p className="mt-1 font-manrope text-gray-500 text-xs">Buat link undangan untuk siswa yang belum mulai.</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Button
-            onClick={() =>
-              invite.mutate({ studentIds: students.filter((s: any) => s.status === "invited").map((s: any) => s.id) })
-            }
-            disabled={invite.isPending || students.length === 0}
-            className="rounded-xl bg-brand-navy px-4 py-2 font-bold font-manrope text-white text-xs hover:bg-brand-navy-light"
-          >
-            {invite.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}{" "}
-            Generate Semua Link
-          </Button>
-        </div>
+        <p className="mt-1 font-manrope text-gray-500 text-xs">
+          1 kode untuk seluruh batch — siswa login & klaim dengan email yang terdaftar.
+        </p>
 
-        {inviteLinks && inviteLinks.length > 0 && (
-          <div className="mt-3 space-y-1.5">
-            {inviteLinks.map((inv) => (
-              <div key={inv.id} className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2">
-                <span className="w-28 truncate font-manrope font-semibold text-gray-700 text-xs">{inv.name}</span>
-                <span className="min-w-0 flex-1 truncate font-manrope text-[10px] text-gray-400">{inv.link}</span>
-                <button
-                  type="button"
-                  onClick={() => copyLink(inv.link, inv.id)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-gray-500 shadow-sm"
-                  aria-label="Salin link"
-                >
-                  {copied === inv.id ? (
-                    <Check className="h-3.5 w-3.5 text-green-600" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                </button>
-              </div>
-            ))}
+        {batch.inviteCode && (
+          <div className="mt-3 flex items-center gap-3 rounded-2xl bg-brand-navy p-4 text-white">
+            <div className="flex-1">
+              <p className="font-manrope text-[10px] text-white/60 uppercase tracking-wide">Kode Undangan</p>
+              <p className="font-bold font-bricolage text-3xl tracking-widest">{batch.inviteCode}</p>
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => showQr(`/assessment/invite/${batch.inviteCode}`)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 transition-colors hover:bg-white/25"
+                aria-label="QR"
+              >
+                <QrCode className="h-[18px] w-[18px]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => copyCode(`/assessment/invite/${batch.inviteCode}`)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 transition-colors hover:bg-white/25"
+                aria-label="Salin link"
+              >
+                {copied === "code" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl bg-gray-50 px-3 py-2">
+            <input
+              type="checkbox"
+              checked={sendEmail}
+              onChange={(e) => setSendEmail(e.target.checked)}
+              className="h-4 w-4 accent-mentor-teal"
+            />
+            <span className="font-manrope font-semibold text-gray-600 text-xs">Kirim via email ke semua siswa</span>
+          </label>
+          <Button
+            onClick={() => {
+              if (sendEmail) {
+                invite.mutate({ batchId });
+              } else if (batch.inviteCode) {
+                copyCode(`/assessment/invite/${batch.inviteCode}`);
+              }
+            }}
+            disabled={invite.isPending || !batch.inviteCode}
+            className="rounded-xl bg-brand-navy px-4 py-2 font-bold font-manrope text-white text-xs hover:bg-brand-navy-light"
+          >
+            {invite.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : sendEmail ? (
+              <Mail className="h-3.5 w-3.5" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}{" "}
+            {sendEmail ? "Kirim Email Undangan" : "Salin Kode / Bagikan"}
+          </Button>
+        </div>
       </div>
 
       {/* Export */}
@@ -318,6 +358,11 @@ export default function BatchDetailPage() {
                       {s.nis ? `NIS ${s.nis} · ` : ""}
                       {s.email ?? "tanpa email"}
                     </p>
+                    {!s.email && (
+                      <p className="font-manrope font-semibold text-[10px] text-amber-600">
+                        ⚠️ perlu email agar bisa klaim undangan
+                      </p>
+                    )}
                   </div>
                   <span
                     className={cn(
@@ -330,7 +375,7 @@ export default function BatchDetailPage() {
                   </span>
                   {s.resultId && (
                     <Link
-                      href={`/tmb/admin/students/${s.id}`}
+                      href={`/admin/assessment/students/${s.id}`}
                       className="shrink-0 rounded-lg bg-white px-2.5 py-1 font-bold font-manrope text-[10px] text-mentor-teal shadow-sm hover:bg-mentor-teal/5"
                     >
                       Lihat
@@ -350,6 +395,25 @@ export default function BatchDetailPage() {
           </div>
         )}
       </div>
+
+      {/* QR Dialog */}
+      <Dialog open={!!qrTarget} onOpenChange={(o) => !o && setQrTarget(null)}>
+        <DialogContent className="max-w-xs rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-bricolage text-brand-navy">QR Undangan</DialogTitle>
+            <DialogDescription className="font-manrope">{qrTarget?.name}</DialogDescription>
+          </DialogHeader>
+          {qrTarget && (
+            <div className="flex flex-col items-center gap-3">
+              {/* biome-ignore lint/performance/noImgElement: QR data URL lokal */}
+              <img src={qrTarget.dataUrl} alt="QR undangan" className="h-48 w-48 rounded-xl border border-gray-100" />
+              <p className="w-full break-all rounded-xl bg-gray-50 p-2 font-manrope text-[10px] text-gray-500">
+                {qrTarget.link}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Download, Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
@@ -38,8 +39,10 @@ export default function TmbResultPage() {
   const queryClient = useQueryClient();
   const [downloading, setDownloading] = useState(false);
   const { data: session } = authClient.useSession();
+  const searchParams = useSearchParams();
+  const resultId = searchParams.get("resultId") ?? undefined;
   const { data, isLoading } = useQuery({
-    ...orpc.tmb.result.get.queryOptions({ input: {} }),
+    ...orpc.tmb.result.get.queryOptions({ input: { resultId } }),
     retry: false,
   });
 
@@ -72,7 +75,7 @@ export default function TmbResultPage() {
           Selesaikan kedua test dulu untuk melihat rekomendasi jurusan & kariermu.
         </p>
         <Link
-          href="/tmb"
+          href="/dashboard/student/assessment"
           className="mt-6 rounded-2xl bg-brand-navy px-6 py-3.5 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
         >
           Mulai Test
@@ -117,7 +120,7 @@ export default function TmbResultPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `laporan-test-minat-bakat-${hollandCode}.pdf`;
+      a.download = `assessment-report-${hollandCode}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -153,97 +156,99 @@ export default function TmbResultPage() {
         </div>
       </motion.div>
 
-      {/* RIASEC */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
-      >
-        <h2 className="font-bold font-bricolage text-gray-900">
-          Kode Minat: <span className="text-mentor-teal">{hollandCode}</span>
-        </h2>
-        <div className="mt-4 grid grid-cols-2 gap-2.5">
-          {codeLetters.map((letter, i) => {
-            const info = HOLLAND_INFO[letter];
-            if (!info) return null;
-            const score = Math.round((hollandScores[letter] ?? 0) * 100);
-            return (
-              <motion.div
-                key={letter}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * i }}
-                className="rounded-2xl bg-gray-50 p-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xl">{info.emoji}</span>
-                  <span className="font-bold font-bricolage text-brand-navy text-lg">{letter}</span>
-                </div>
-                <p className="mt-1 font-manrope font-semibold text-gray-700 text-xs">{info.name}</p>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-200">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-mentor-teal to-teal-400"
-                    style={{ width: `${score}%` }}
-                  />
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-        <p className="mt-3 font-manrope text-gray-500 text-xs leading-relaxed">
-          {codeLetters
-            .map((l) => HOLLAND_INFO[l]?.name)
-            .filter(Boolean)
-            .join(" → ")}{" "}
-          — kombinasi minat utamamu
-        </p>
-      </motion.div>
+      {/* RIASEC + Ability — lg: 2 kolom */}
+      <div className="grid gap-5 md:gap-6 lg:grid-cols-2">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
+        >
+          <h2 className="font-bold font-bricolage text-gray-900">
+            Kode Minat: <span className="text-mentor-teal">{hollandCode}</span>
+          </h2>
+          <div className="mt-4 grid grid-cols-2 gap-2.5">
+            {codeLetters.map((letter, i) => {
+              const info = HOLLAND_INFO[letter];
+              if (!info) return null;
+              const score = Math.round((hollandScores[letter] ?? 0) * 100);
+              return (
+                <motion.div
+                  key={letter}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 * i }}
+                  className="rounded-2xl bg-gray-50 p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl">{info.emoji}</span>
+                    <span className="font-bold font-bricolage text-brand-navy text-lg">{letter}</span>
+                  </div>
+                  <p className="mt-1 font-manrope font-semibold text-gray-700 text-xs">{info.name}</p>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-mentor-teal to-teal-400"
+                      style={{ width: `${score}%` }}
+                    />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+          <p className="mt-3 font-manrope text-gray-500 text-xs leading-relaxed">
+            {codeLetters
+              .map((l) => HOLLAND_INFO[l]?.name)
+              .filter(Boolean)
+              .join(" → ")}{" "}
+            — kombinasi minat utamamu
+          </p>
+        </motion.div>
 
-      {/* Ability */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
-      >
-        <h2 className="font-bold font-bricolage text-gray-900">Profil Kemampuan</h2>
-        <div className="mt-4 space-y-3">
-          {Object.entries(ABILITY_INFO).map(([key, info]) => {
-            const s = abilityScores[key] ?? { correct: 0, total: 0 };
-            const level = abilityLevels[key] ?? "medium";
-            const pct = s.total ? (s.correct / s.total) * 100 : 0;
-            return (
-              <div key={key}>
-                <div className="flex items-center justify-between">
-                  <span className="font-manrope font-medium text-gray-700 text-sm">
-                    {info.emoji} {info.label}
-                  </span>
-                  <span className="font-manrope text-gray-400 text-xs">
-                    {s.correct}/{s.total} ·{" "}
-                    <b
-                      className={cn(
-                        "uppercase",
-                        level === "high" ? "text-green-600" : level === "medium" ? "text-amber-600" : "text-red-500",
-                      )}
-                    >
-                      {level === "high" ? "Tinggi" : level === "medium" ? "Sedang" : "Perlu Pengembangan"}
-                    </b>
-                  </span>
+        {/* Ability */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
+        >
+          <h2 className="font-bold font-bricolage text-gray-900">Profil Kemampuan</h2>
+          <div className="mt-4 space-y-3">
+            {Object.entries(ABILITY_INFO).map(([key, info]) => {
+              const s = abilityScores[key] ?? { correct: 0, total: 0 };
+              const level = abilityLevels[key] ?? "medium";
+              const pct = s.total ? (s.correct / s.total) * 100 : 0;
+              return (
+                <div key={key}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-manrope font-medium text-gray-700 text-sm">
+                      {info.emoji} {info.label}
+                    </span>
+                    <span className="font-manrope text-gray-400 text-xs">
+                      {s.correct}/{s.total} ·{" "}
+                      <b
+                        className={cn(
+                          "uppercase",
+                          level === "high" ? "text-green-600" : level === "medium" ? "text-amber-600" : "text-red-500",
+                        )}
+                      >
+                        {level === "high" ? "Tinggi" : level === "medium" ? "Sedang" : "Perlu Pengembangan"}
+                      </b>
+                    </span>
+                  </div>
+                  <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-gray-100">
+                    <motion.div
+                      className={cn("h-full rounded-full", LEVEL_COLOR[level] ?? "bg-gray-400")}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.6, delay: 0.15 }}
+                    />
+                  </div>
                 </div>
-                <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-gray-100">
-                  <motion.div
-                    className={cn("h-full rounded-full", LEVEL_COLOR[level] ?? "bg-gray-400")}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.6, delay: 0.15 }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      </div>
 
       {/* AI Summary */}
       <motion.div
@@ -356,7 +361,7 @@ export default function TmbResultPage() {
       {/* Retake CTA */}
       <div className="flex flex-col gap-2 pb-4">
         <Link
-          href="/tmb/test/interest"
+          href="/dashboard/student/assessment/take/interest"
           className="flex items-center justify-center gap-2 rounded-2xl bg-gray-100 px-6 py-3.5 font-bold font-manrope text-gray-600 text-sm transition-all hover:bg-gray-200"
         >
           🔄 Ulangi Test

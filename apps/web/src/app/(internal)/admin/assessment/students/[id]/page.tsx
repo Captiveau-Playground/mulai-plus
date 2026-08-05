@@ -43,7 +43,7 @@ export default function StudentDetailPage() {
     return (
       <div className="py-20 text-center">
         <p className="font-manrope text-gray-500">Siswa tidak ditemukan.</p>
-        <Link href="/tmb/admin" className="mt-3 inline-block font-bold font-manrope text-mentor-teal text-sm">
+        <Link href="/admin/assessment" className="mt-3 inline-block font-bold font-manrope text-mentor-teal text-sm">
           ← Kembali
         </Link>
       </div>
@@ -59,7 +59,7 @@ export default function StudentDetailPage() {
     <div className="space-y-5">
       <div>
         <Link
-          href="/tmb/admin"
+          href="/admin/assessment"
           className="flex items-center gap-1 font-manrope font-semibold text-gray-400 text-xs hover:text-gray-600"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Kelola Sekolah

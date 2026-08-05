@@ -161,15 +161,30 @@ export const tmbCareerMappings = pgTable("tmb_career_mappings", {
 
 // ─── B2B ───────────────────────────────────────────────
 
+export const tmbSchoolStatusEnum = pgEnum("tmb_school_status", ["prospek", "aktif", "selesai"]);
+
+export const tmbSchools = pgTable("tmb_schools", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  address: text("address"),
+  phone: text("phone"),
+  email: text("email"),
+  city: text("city"),
+  status: tmbSchoolStatusEnum("status").notNull().default("prospek"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const tmbBatches = pgTable("tmb_batches", {
   id: text("id").primaryKey(),
   schoolId: text("school_id")
     .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
+    .references(() => tmbSchools.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   className: text("class_name"),
   major: text("major"), // IPA / IPS / Bahasa / SMK
   graduationYear: integer("graduation_year"),
+  inviteCode: text("invite_code").unique(), // 1 kode untuk seluruh batch
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -185,23 +200,12 @@ export const tmbBatchStudents = pgTable(
     nis: text("nis"),
     gender: text("gender"),
     status: tmbBatchStudentStatusEnum("status").notNull().default("invited"),
-    invitationCode: text("invitation_code"),
+    userId: text("user_id"), // akun student yang meng-klaim undangan (wajib login)
     resultId: text("result_id").references(() => tmbAssessmentResults.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("idx_tmb_batch_students_batch").on(table.batchId)],
 );
-
-export const tmbInvitations = pgTable("tmb_invitations", {
-  id: text("id").primaryKey(),
-  batchStudentId: text("batch_student_id")
-    .notNull()
-    .references(() => tmbBatchStudents.id, { onDelete: "cascade" }),
-  linkToken: text("link_token").notNull().unique(),
-  qrUrl: text("qr_url"),
-  sentAt: timestamp("sent_at"),
-  expiresAt: timestamp("expires_at"),
-});
 
 // ─── Relations ─────────────────────────────────────────
 

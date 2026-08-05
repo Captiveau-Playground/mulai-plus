@@ -1,24 +1,26 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, inArray, isNotNull } from "@mulai-plus/db";
+import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
   tmbAiSummaries,
   tmbAssessmentResults,
   tmbBatches,
   tmbBatchStudents,
-  tmbInvitations,
   tmbMajorPatterns,
   tmbProfiles,
   tmbQuestionBank,
   tmbRecommendations,
+  tmbSchools,
   tmbTestAnswers,
   tmbTestAttempts,
   tmbTestCatalog,
   tmbUserStats,
 } from "@mulai-plus/db/schema/tmb";
 import { z } from "zod";
-import { protectedProcedure, publicProcedure } from "../index";
+import { adminProcedure, protectedProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
+import { mail } from "../lib/mail";
 
 // ─── Konstanta ───────────────────────────────────────────
 
@@ -305,6 +307,13 @@ export const tmbRouter = {
 
         const id = randomUUID();
         await db.insert(tmbTestAttempts).values({ id, userId, testCode: input.testCode });
+
+        // jika user ter-link ke batch_student (undangan) → status in_progress
+        await db
+          .update(tmbBatchStudents)
+          .set({ status: "in_progress" })
+          .where(and(eq(tmbBatchStudents.userId, userId), eq(tmbBatchStudents.status, "invited")));
+
         return { attemptId: id, total: catalog.totalQuestions, current: 0, resumed: false };
       }),
 
@@ -440,18 +449,28 @@ export const tmbRouter = {
       const abilityAttempt = attempt.testCode === "ability" ? attempt : otherAttempt;
       const resultId = await computeResult(userId, interestAttempt.id, abilityAttempt.id);
 
+      // sync ke batch_student (jika ter-link undangan)
+      await db
+        .update(tmbBatchStudents)
+        .set({ resultId, status: "completed" })
+        .where(eq(tmbBatchStudents.userId, userId));
+
       return { resultId, alreadyCompleted: false, bothDone: true };
     }),
   },
 
   result: {
-    get: protectedProcedure.handler(async ({ context }) => {
+    get: protectedProcedure.input(z.object({ resultId: z.string().optional() })).handler(async ({ input, context }) => {
       const userId = context.session.user.id;
-      const result = await db.query.tmbAssessmentResults.findFirst({
-        where: eq(tmbAssessmentResults.userId, userId),
-        orderBy: desc(tmbAssessmentResults.createdAt),
-      });
-      if (!result) notFound("Belum ada hasil — selesaikan kedua test dulu");
+      const result = input.resultId
+        ? await db.query.tmbAssessmentResults.findFirst({
+            where: and(eq(tmbAssessmentResults.id, input.resultId), eq(tmbAssessmentResults.userId, userId)),
+          })
+        : await db.query.tmbAssessmentResults.findFirst({
+            where: eq(tmbAssessmentResults.userId, userId),
+            orderBy: desc(tmbAssessmentResults.createdAt),
+          });
+      if (!result) notFound("Hasil tidak ditemukan");
 
       const [recommendations, summary, stats, profile] = await Promise.all([
         db.query.tmbRecommendations.findMany({
@@ -471,11 +490,68 @@ export const tmbRouter = {
 
     history: protectedProcedure.handler(async ({ context }) => {
       const userId = context.session.user.id;
-      return db.query.tmbAssessmentResults.findMany({
+      const results = await db.query.tmbAssessmentResults.findMany({
         where: eq(tmbAssessmentResults.userId, userId),
         orderBy: desc(tmbAssessmentResults.createdAt),
         limit: 10,
       });
+      const recos = await db.query.tmbRecommendations.findMany({
+        where: and(
+          eq(tmbRecommendations.type, "major"),
+          inArray(
+            tmbRecommendations.resultId,
+            results.map((r) => r.id),
+          ),
+        ),
+      });
+      const topMajorMap = new Map<string, string>();
+      for (const rec of recos) {
+        if (!topMajorMap.has(rec.resultId)) topMajorMap.set(rec.resultId, rec.itemName);
+      }
+      return Promise.all(
+        results.map(async (r) => ({
+          id: r.id,
+          hollandCode: r.hollandCode,
+          confidenceScore: r.confidenceScore,
+          createdAt: r.createdAt,
+          topMajor: topMajorMap.get(r.id) ?? null,
+          source: await resolveResultSource(r.id),
+        })),
+      );
+    }),
+  },
+
+  invite: {
+    claim: protectedProcedure.input(z.object({ code: z.string().min(4) })).handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      const code = input.code.trim().toUpperCase();
+
+      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, code) });
+      if (!batch) notFound("Kode undangan tidak valid — pastikan kode sesuai dari sekolahmu");
+
+      // cari siswa di batch ini yang emailnya cocok dengan akun login
+      const [currentUser] = await db
+        .select({ email: userSchema.email })
+        .from(userSchema)
+        .where(eq(userSchema.id, userId));
+      const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
+      if (!userEmail) preconditionFailed("Akunmu tidak punya email — hubungi admin");
+
+      const student = await db.query.tmbBatchStudents.findFirst({
+        where: and(eq(tmbBatchStudents.batchId, batch.id), eq(tmbBatchStudents.email, userEmail)),
+      });
+      if (!student) {
+        preconditionFailed(
+          `Email akunmu (${currentUser?.email}) tidak terdaftar di batch "${batch.name}" — hubungi sekolahmu`,
+        );
+      }
+
+      // tautkan akun ke batch_student (claim sekali)
+      if (!student.userId) {
+        await db.update(tmbBatchStudents).set({ userId }).where(eq(tmbBatchStudents.id, student.id));
+      }
+      const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
+      return { studentName: student.name, schoolName: school?.name ?? batch.name ?? null };
     }),
   },
 
@@ -684,51 +760,139 @@ function parseCsv(text: string): string[][] {
 }
 
 export const tmbAdminRouter = {
-  batches: {
-    list: protectedProcedure.handler(async ({ context }) => {
-      return db.query.tmbBatches.findMany({
-        where: eq(tmbBatches.schoolId, context.session.user.id),
-        orderBy: desc(tmbBatches.createdAt),
-      });
+  schools: {
+    list: adminProcedure.handler(async () => {
+      const schools = await db.query.tmbSchools.findMany({ orderBy: desc(tmbSchools.createdAt) });
+      const batches = await db.query.tmbBatches.findMany();
+      const students = await db.query.tmbBatchStudents.findMany();
+      return schools.map((s) => ({
+        ...s,
+        batchCount: batches.filter((b) => b.schoolId === s.id).length,
+        studentCount: students.filter((st) => batches.some((b) => b.id === st.batchId && b.schoolId === s.id)).length,
+      }));
     }),
 
-    create: protectedProcedure
+    create: adminProcedure
       .input(
         z.object({
+          name: z.string().min(1),
+          address: z.string().optional(),
+          phone: z.string().optional(),
+          email: z.string().optional(),
+          city: z.string().optional(),
+          status: z.enum(["prospek", "aktif", "selesai"]).default("prospek"),
+          notes: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const id = randomUUID();
+        await db.insert(tmbSchools).values({ id, ...input });
+        return { id };
+      }),
+
+    get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, input.id) });
+      if (!school) notFound("Sekolah tidak ditemukan");
+      const batches = await db.query.tmbBatches.findMany({
+        where: eq(tmbBatches.schoolId, input.id),
+        orderBy: desc(tmbBatches.createdAt),
+      });
+      const students = await db.query.tmbBatchStudents.findMany({
+        where: inArray(
+          tmbBatchStudents.batchId,
+          batches.map((b) => b.id),
+        ),
+      });
+      return {
+        school,
+        batches,
+        stats: { total: students.length, completed: students.filter((s) => s.status === "completed").length },
+      };
+    }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          name: z.string().optional(),
+          address: z.string().optional(),
+          phone: z.string().optional(),
+          email: z.string().optional(),
+          city: z.string().optional(),
+          status: z.enum(["prospek", "aktif", "selesai"]).optional(),
+          notes: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        await db.update(tmbSchools).set(rest).where(eq(tmbSchools.id, id));
+        return { success: true };
+      }),
+  },
+
+  batches: {
+    list: adminProcedure.handler(async () => {
+      const batches = await db.query.tmbBatches.findMany({ orderBy: desc(tmbBatches.createdAt) });
+      const schools = await db.query.tmbSchools.findMany();
+      const students = await db.query.tmbBatchStudents.findMany();
+      const schoolMap = new Map(schools.map((s) => [s.id, s]));
+      return batches.map((b) => ({
+        ...b,
+        school: schoolMap.get(b.schoolId) ?? null,
+        studentCount: students.filter((s) => s.batchId === b.id).length,
+      }));
+    }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          schoolId: z.string().min(1),
           name: z.string().min(1),
           className: z.string().optional(),
           major: z.string().optional(),
           graduationYear: z.number().int().optional(),
         }),
       )
-      .handler(async ({ input, context }) => {
+      .handler(async ({ input }) => {
+        const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, input.schoolId) });
+        if (!school) notFound("Sekolah tidak ditemukan");
         const id = randomUUID();
-        await db.insert(tmbBatches).values({ id, schoolId: context.session.user.id, ...input });
+        await db.insert(tmbBatches).values({
+          id,
+          schoolId: input.schoolId,
+          name: input.name,
+          className: input.className,
+          major: input.major,
+          graduationYear: input.graduationYear,
+          inviteCode: generateClaimCode(),
+        });
         return { id };
       }),
 
-    get: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
-      const batch = await db.query.tmbBatches.findFirst({
-        where: and(eq(tmbBatches.id, input.id), eq(tmbBatches.schoolId, context.session.user.id)),
-      });
+    regenerateCode: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      await db.update(tmbBatches).set({ inviteCode: generateClaimCode() }).where(eq(tmbBatches.id, input.id));
+      return { success: true };
+    }),
+
+    get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, input.id) });
       if (!batch) notFound("Batch tidak ditemukan");
+      const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
       const students = await db.query.tmbBatchStudents.findMany({
         where: eq(tmbBatchStudents.batchId, input.id),
         orderBy: asc(tmbBatchStudents.createdAt),
       });
-      return { batch, students };
+      return { batch, school, students };
     }),
 
-    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input, context }) => {
-      await db
-        .delete(tmbBatches)
-        .where(and(eq(tmbBatches.id, input.id), eq(tmbBatches.schoolId, context.session.user.id)));
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      await db.delete(tmbBatches).where(eq(tmbBatches.id, input.id));
       return { success: true };
     }),
   },
 
   students: {
-    add: protectedProcedure
+    add: adminProcedure
       .input(
         z.object({
           batchId: z.string(),
@@ -749,12 +913,12 @@ export const tmbAdminRouter = {
         return { id };
       }),
 
-    remove: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    remove: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(tmbBatchStudents).where(eq(tmbBatchStudents.id, input.id));
       return { success: true };
     }),
 
-    detail: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    detail: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       const student = await db.query.tmbBatchStudents.findFirst({ where: eq(tmbBatchStudents.id, input.id) });
       if (!student) notFound("Siswa tidak ditemukan");
       let result = null;
@@ -772,7 +936,7 @@ export const tmbAdminRouter = {
       return { student, result };
     }),
 
-    import: protectedProcedure
+    import: adminProcedure
       .input(
         z.object({
           batchId: z.string(),
@@ -804,35 +968,38 @@ export const tmbAdminRouter = {
         return { imported: valid.length, totalRows: rows.length - 1 };
       }),
 
-    invite: protectedProcedure
-      .input(z.object({ studentIds: z.array(z.string()).min(1) }))
-      .handler(async ({ input }) => {
-        const results: { id: string; name: string; link: string; qr: string | null }[] = [];
-        for (const sid of input.studentIds) {
-          const student = await db.query.tmbBatchStudents.findFirst({ where: eq(tmbBatchStudents.id, sid) });
-          if (!student) continue;
+    sendInviteEmails: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, input.batchId) });
+      if (!batch) notFound("Batch tidak ditemukan");
+      if (!batch.inviteCode) preconditionFailed("Batch belum punya kode undangan");
 
-          let inv = await db.query.tmbInvitations.findFirst({ where: eq(tmbInvitations.batchStudentId, sid) });
-          if (!inv) {
-            const token = randomUUID().replace(/-/g, "");
-            const id = randomUUID();
-            await db.insert(tmbInvitations).values({
-              id,
-              batchStudentId: sid,
-              linkToken: token,
-              expiresAt: new Date(Date.now() + 30 * 24 * 3600_000),
-            });
-            inv = { id, batchStudentId: sid, linkToken: token, qrUrl: null, sentAt: null, expiresAt: null } as any;
-          }
+      const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+      const link = `${base}/assessment/invite/${batch.inviteCode}`;
+      const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
+      const schoolName = school?.name ?? batch.name;
 
-          // link relatif — frontend yang menempelkan origin (biar benar di dev & prod)
-          const link = `/tmb-invite/${inv?.linkToken}`;
-          results.push({ id: student.id, name: student.name, link, qr: null });
+      const students = await db.query.tmbBatchStudents.findMany({
+        where: and(eq(tmbBatchStudents.batchId, input.batchId), isNotNull(tmbBatchStudents.email)),
+      });
+
+      let sent = 0;
+      const failed: string[] = [];
+      for (const s of students) {
+        try {
+          await mail.send({
+            to: s.email!,
+            subject: `Undangan Test Minat Bakat by MULAI+ — ${schoolName} 🧭`,
+            html: inviteEmailHtml(s.name, link, schoolName),
+          });
+          sent++;
+        } catch {
+          failed.push(s.name);
         }
-        return { results };
-      }),
+      }
+      return { sent, failed, code: batch.inviteCode, link };
+    }),
 
-    exportRekap: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+    exportRekap: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
       const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
       const rows: any[] = [];
       for (const s of students) {
@@ -868,7 +1035,7 @@ export const tmbAdminRouter = {
     }),
   },
 
-  analytics: protectedProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+  analytics: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
     const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
     const total = students.length;
     const completed = students.filter((s) => s.status === "completed").length;
@@ -923,173 +1090,159 @@ export const tmbAdminRouter = {
 
     return { total, completed, inProgress, invited, hollandDistribution, abilityAvg: abilityAvgClean, topMajors };
   }),
+
+  // ── B2C: statistik & history seluruh pengguna ──
+  b2c: {
+    stats: adminProcedure.handler(async () => {
+      const [resultCount, userCount, attemptCount, completedCount] = await Promise.all([
+        db.select({ n: count() }).from(tmbAssessmentResults),
+        db
+          .select({ userId: tmbAssessmentResults.userId })
+          .from(tmbAssessmentResults)
+          .groupBy(tmbAssessmentResults.userId),
+        db.select({ n: count() }).from(tmbTestAttempts),
+        db.select({ n: count() }).from(tmbTestAttempts).where(eq(tmbTestAttempts.status, "completed")),
+      ]);
+
+      // distribusi Holland (semua hasil)
+      const results = await db.query.tmbAssessmentResults.findMany({
+        columns: { id: true, hollandCode: true, confidenceScore: true, createdAt: true },
+      });
+      const hollandCount: Record<string, number> = {};
+      let totalConfidence = 0;
+      for (const r of results) {
+        if (r.hollandCode) {
+          const primary = r.hollandCode[0]!;
+          hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
+        }
+        totalConfidence += Number(r.confidenceScore ?? 0);
+      }
+
+      // top jurusan (rekomendasi)
+      const recoRows = await db
+        .select({ itemName: tmbRecommendations.itemName })
+        .from(tmbRecommendations)
+        .where(eq(tmbRecommendations.type, "major"));
+      const majorCount: Record<string, number> = {};
+      for (const r of recoRows) majorCount[r.itemName] = (majorCount[r.itemName] ?? 0) + 1;
+      const topMajors = Object.entries(majorCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+
+      // aktivitas terakhir
+      const recent = results.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
+      void recent;
+
+      return {
+        totalAssessments: resultCount[0]?.n ?? 0,
+        totalUsers: userCount.length,
+        totalAttempts: attemptCount[0]?.n ?? 0,
+        completedAttempts: completedCount[0]?.n ?? 0,
+        hollandDistribution: Object.entries(hollandCount)
+          .map(([code, count]) => ({ code, count }))
+          .sort((a, b) => b.count - a.count),
+        topMajors,
+        avgConfidence: results.length ? Math.round(totalConfidence / results.length) : 0,
+      };
+    }),
+
+    history: adminProcedure
+      .input(z.object({ limit: z.number().int().default(20), offset: z.number().int().default(0) }))
+      .handler(async ({ input }) => {
+        const rows = await db.query.tmbAssessmentResults.findMany({
+          orderBy: desc(tmbAssessmentResults.createdAt),
+          limit: input.limit,
+          offset: input.offset,
+        });
+        const total = await db.select({ n: count() }).from(tmbAssessmentResults);
+
+        // nama user: user table utk akun, batch_students utk guest
+        const userRows = await db.query.user.findMany({
+          where: inArray(
+            userSchema.id,
+            rows.filter((r) => !r.userId.startsWith("guest-")).map((r) => r.userId),
+          ),
+        });
+        const userMap = new Map(userRows.map((u) => [u.id, u.name]));
+        const guestRows = await db.query.tmbBatchStudents.findMany();
+        const guestMap = new Map(guestRows.map((g) => [`guest-${g.id}`, g.name]));
+
+        // top major per result
+        const resultIds = rows.map((r) => r.id);
+        const recos = await db.query.tmbRecommendations.findMany({
+          where: and(eq(tmbRecommendations.type, "major"), inArray(tmbRecommendations.resultId, resultIds)),
+        });
+        const topMajorMap = new Map<string, string>();
+        for (const rec of recos) {
+          if (!topMajorMap.has(rec.resultId)) topMajorMap.set(rec.resultId, rec.itemName);
+        }
+
+        return {
+          total: total[0]?.n ?? 0,
+          items: await Promise.all(
+            rows.map(async (r) => ({
+              id: r.id,
+              name: userMap.get(r.userId) ?? guestMap.get(r.userId) ?? "Guest",
+              isGuest: r.userId.startsWith("guest-"),
+              hollandCode: r.hollandCode,
+              confidenceScore: r.confidenceScore,
+              topMajor: topMajorMap.get(r.id) ?? null,
+              createdAt: r.createdAt,
+              source: await resolveResultSource(r.id),
+            })),
+          ),
+        };
+      }),
+  },
 };
 
-// ─── Guest flow (siswa B2B via undangan) ─────────────────
-
-function resolveGuest(token: string) {
-  return {
-    async student() {
-      const inv = await db.query.tmbInvitations.findFirst({ where: eq(tmbInvitations.linkToken, token) });
-      if (!inv) return null;
-      if (inv.expiresAt && inv.expiresAt < new Date()) return null;
-      const student = await db.query.tmbBatchStudents.findFirst({ where: eq(tmbBatchStudents.id, inv.batchStudentId) });
-      return student;
-    },
-  };
+// ─── Sumber test: mandiri (B2C) vs via sekolah (B2B batch) ───
+async function resolveResultSource(resultId: string) {
+  const bs = await db.query.tmbBatchStudents.findFirst({ where: eq(tmbBatchStudents.resultId, resultId) });
+  if (!bs) return { kind: "self" as const };
+  const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, bs.batchId) });
+  const school = batch ? await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) }) : null;
+  return { kind: "batch" as const, batchName: batch?.name ?? null, schoolName: school?.name ?? null };
 }
 
-export const tmbGuestRouter = {
-  start: publicProcedure
-    .input(z.object({ token: z.string(), testCode: z.enum(["interest", "ability"]) }))
-    .handler(async ({ input }) => {
-      const student = await resolveGuest(input.token).student();
-      if (!student) notFound("Undangan tidak valid atau sudah kedaluwarsa");
-      const guestId = `guest-${student.id}`;
+// ─── Short claim code (tanpa huruf ambigu O/0/I/1/L) ───
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-      const existing = await db.query.tmbTestAttempts.findFirst({
-        where: and(
-          eq(tmbTestAttempts.userId, guestId),
-          eq(tmbTestAttempts.testCode, input.testCode),
-          eq(tmbTestAttempts.status, "in_progress"),
-        ),
-      });
-      if (existing)
-        return {
-          attemptId: existing.id,
-          total: existing.currentQuestion,
-          current: existing.currentQuestion,
-          resumed: true,
-        };
+function generateClaimCode(len = 6): string {
+  let out = "";
+  for (let i = 0; i < len; i++) {
+    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  }
+  return out;
+}
 
-      const id = randomUUID();
-      await db.insert(tmbTestAttempts).values({ id, userId: guestId, testCode: input.testCode });
-      return { attemptId: id, total: 10, current: 0, resumed: false };
-    }),
+// ─── Email undangan ─────────────────────────────────────
 
-  question: publicProcedure.input(z.object({ attemptId: z.string() })).handler(async ({ input }) => {
-    const attempt = await db.query.tmbTestAttempts.findFirst({ where: eq(tmbTestAttempts.id, input.attemptId) });
-    if (!attempt) notFound("Attempt tidak ditemukan");
-    const questions = await db.query.tmbQuestionBank.findMany({
-      where: and(eq(tmbQuestionBank.testCode, attempt.testCode), eq(tmbQuestionBank.isActive, true)),
-      orderBy: asc(tmbQuestionBank.order),
-    });
-    const index = Math.min(attempt.currentQuestion, questions.length - 1);
-    const q = questions[index];
-    if (!q) return { done: true, question: null, total: questions.length, progress: questions.length };
-    const answered = await db.query.tmbTestAnswers.findFirst({
-      where: and(eq(tmbTestAnswers.attemptId, attempt.id), eq(tmbTestAnswers.questionId, q.id)),
-    });
-    return {
-      done: false,
-      total: questions.length,
-      progress: index + 1,
-      question: {
-        id: q.id,
-        text: q.text,
-        dimension: q.dimension,
-        optionA: q.optionA,
-        optionB: q.optionB,
-        optionC: q.optionC,
-        optionD: q.optionD,
-        answered: answered?.selectedOption ?? null,
-      },
-    };
-  }),
-
-  answer: publicProcedure
-    .input(z.object({ attemptId: z.string(), questionId: z.string(), selectedOption: z.string() }))
-    .handler(async ({ input }) => {
-      const attempt = await db.query.tmbTestAttempts.findFirst({ where: eq(tmbTestAttempts.id, input.attemptId) });
-      if (!attempt || attempt.status === "completed") preconditionFailed("Test sudah selesai");
-      const question = await db.query.tmbQuestionBank.findFirst({ where: eq(tmbQuestionBank.id, input.questionId) });
-      if (!question) notFound("Soal tidak ditemukan");
-      const isCorrect = question.answer ? question.answer === input.selectedOption : null;
-
-      await db
-        .insert(tmbTestAnswers)
-        .values({
-          id: randomUUID(),
-          attemptId: attempt.id,
-          questionId: input.questionId,
-          selectedOption: input.selectedOption,
-          isCorrect,
-        })
-        .onConflictDoUpdate({
-          target: [tmbTestAnswers.attemptId, tmbTestAnswers.questionId],
-          set: { selectedOption: input.selectedOption, isCorrect, answeredAt: new Date() },
-        });
-
-      const total = await db.query.tmbQuestionBank.findMany({
-        where: and(eq(tmbQuestionBank.testCode, attempt.testCode), eq(tmbQuestionBank.isActive, true)),
-        columns: { id: true },
-      });
-      const answeredCount = await db
-        .select({ n: count() })
-        .from(tmbTestAnswers)
-        .where(eq(tmbTestAnswers.attemptId, attempt.id));
-      const next = Math.min(attempt.currentQuestion + 1, total.length);
-      await db.update(tmbTestAttempts).set({ currentQuestion: next }).where(eq(tmbTestAttempts.id, attempt.id));
-      const isLast = (answeredCount[0]?.n ?? 0) >= total.length || next >= total.length;
-      return { progress: next, total: total.length, done: isLast, isCorrect };
-    }),
-
-  finish: publicProcedure.input(z.object({ token: z.string(), attemptId: z.string() })).handler(async ({ input }) => {
-    const student = await resolveGuest(input.token).student();
-    if (!student) notFound("Undangan tidak valid");
-    const guestId = `guest-${student.id}`;
-    const attempt = await db.query.tmbTestAttempts.findFirst({
-      where: and(eq(tmbTestAttempts.id, input.attemptId), eq(tmbTestAttempts.userId, guestId)),
-    });
-    if (!attempt) notFound("Attempt tidak ditemukan");
-
-    const answers = await db.query.tmbTestAnswers.findMany({
-      where: eq(tmbTestAnswers.attemptId, attempt.id),
-      with: { question: true },
-    });
-    if (answers.length === 0) preconditionFailed("Belum ada jawaban");
-    await db
-      .update(tmbTestAttempts)
-      .set({ status: "completed", finishedAt: new Date() })
-      .where(eq(tmbTestAttempts.id, attempt.id));
-
-    const otherCode = attempt.testCode === "interest" ? "ability" : "interest";
-    const otherAttempt = await db.query.tmbTestAttempts.findFirst({
-      where: and(
-        eq(tmbTestAttempts.userId, guestId),
-        eq(tmbTestAttempts.testCode, otherCode),
-        eq(tmbTestAttempts.status, "completed"),
-      ),
-    });
-    await db
-      .update(tmbBatchStudents)
-      .set({ status: otherAttempt ? "completed" : "in_progress" })
-      .where(eq(tmbBatchStudents.id, student.id));
-
-    if (!otherAttempt) return { resultId: null, bothDone: false };
-
-    const interestAttempt = attempt.testCode === "interest" ? attempt : otherAttempt;
-    const abilityAttempt = attempt.testCode === "ability" ? attempt : otherAttempt;
-    const resultId = await computeResult(guestId, interestAttempt.id, abilityAttempt.id);
-    await db.update(tmbBatchStudents).set({ resultId, status: "completed" }).where(eq(tmbBatchStudents.id, student.id));
-    return { resultId, bothDone: true };
-  }),
-
-  result: publicProcedure.input(z.object({ token: z.string() })).handler(async ({ input }) => {
-    const student = await resolveGuest(input.token).student();
-    if (!student?.resultId) notFound("Belum ada hasil");
-    const result = await db.query.tmbAssessmentResults.findFirst({
-      where: eq(tmbAssessmentResults.id, student.resultId),
-    });
-    const [recommendations, summary] = await Promise.all([
-      db.query.tmbRecommendations.findMany({
-        where: eq(tmbRecommendations.resultId, student.resultId!),
-        orderBy: asc(tmbRecommendations.rank),
-      }),
-      db.query.tmbAiSummaries.findFirst({ where: eq(tmbAiSummaries.resultId, student.resultId!) }),
-    ]);
-    return { student: { name: student.name }, result, recommendations, summary: summary?.content ?? null };
-  }),
-};
+function inviteEmailHtml(name: string, link: string, schoolName?: string) {
+  const escaped = link.replace(/&/g, "&amp;");
+  return `
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#fafafc">
+  <div style="background:linear-gradient(135deg,#1a1f6d,#272c75);border-radius:16px;padding:28px;text-align:center;color:#fff">
+    <p style="font-size:28px;margin:0">🧭</p>
+    <h1 style="margin:8px 0 4px;font-size:20px">Kamu Diundang!</h1>
+    <p style="margin:0;opacity:.8;font-size:14px">Test Minat Bakat by MULAI+</p>
+  </div>
+  <div style="background:#fff;border-radius:16px;padding:24px;margin-top:16px">
+    <p style="font-size:15px;color:#333;line-height:1.6">Halo <b>${name}</b>,</p>
+    <p style="font-size:14px;color:#555;line-height:1.6">
+      ${schoolName ? `<b>${schoolName}</b> mengundang kamu mengikuti ` : "Sekolahmu mengundang kamu mengikuti "}<b>Test Minat Bakat by MULAI+</b> —
+      20 soal cepat (±10 menit) untuk menemukan jurusan & karier yang cocok.
+    </p>
+    <div style="text-align:center;margin:24px 0">
+      <a href="${escaped}" style="background:#fe9114;color:#fff;text-decoration:none;padding:14px 32px;border-radius:14px;font-size:15px;font-weight:bold;display:inline-block">
+        Mulai Test →
+      </a>
+    </div>
+    <p style="font-size:12px;color:#999;text-align:center">Link berlaku 30 hari. Hasil akan dikirim ke sekolahmu.</p>
+  </div>
+  <p style="text-align:center;font-size:11px;color:#bbb;margin-top:16px">Test by MULAI+ · mulaiplus.id</p>
+</div>`;
+}
 
 export const tmbScoring = { computeHolland, computeAbility, computeRecommendations };

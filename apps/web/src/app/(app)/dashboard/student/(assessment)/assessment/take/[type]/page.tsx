@@ -31,7 +31,7 @@ function fireConfetti() {
 export default function TmbTestPage() {
   const params = useParams();
   const router = useRouter();
-  const testCode = params.code as "interest" | "ability";
+  const testCode = (params.type as string) === "ability" ? "ability" : "interest";
   const isInterest = testCode === "interest";
   const queryClient = useQueryClient();
 
@@ -196,14 +196,14 @@ export default function TmbTestPage() {
         <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
           {bothDone || (!isInterest && resultId) ? (
             <Link
-              href="/tmb/result"
+              href="/dashboard/student/assessment/result"
               className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
             >
               <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
             </Link>
           ) : (
             <Link
-              href={isInterest ? "/tmb/test/ability" : "/tmb"}
+              href={isInterest ? "/dashboard/student/assessment/take/ability" : "/dashboard/student/assessment"}
               className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
             >
               {isInterest ? "Lanjut ke Test Bakat" : "Kembali ke Beranda"}
@@ -211,7 +211,7 @@ export default function TmbTestPage() {
             </Link>
           )}
           <Link
-            href="/tmb"
+            href="/dashboard/student/assessment"
             className="flex items-center justify-center gap-1.5 font-manrope font-semibold text-gray-400 text-sm hover:text-gray-600"
           >
             <Home className="h-4 w-4" /> Beranda
@@ -238,7 +238,7 @@ export default function TmbTestPage() {
       <div className="mb-5 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => router.push("/tmb")}
+          onClick={() => router.push("/dashboard/student/assessment")}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500"
           aria-label="Keluar test"
         >
