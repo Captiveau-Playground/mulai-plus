@@ -126,7 +126,7 @@ function CardSkeleton() {
 
 export function BlogSection({ initialData }: { initialData?: any }) {
   const { data, isLoading } = useQuery({
-    ...orpc.cms.articles.public.list.queryOptions({ limit: 4, offset: 0 }),
+    ...orpc.cms.articles.public.list.queryOptions({ input: { limit: 4, offset: 0 } }),
     initialData,
   });
   const allArticles = ((data?.data ?? []) as ArticleItem[]).slice(0, 4);

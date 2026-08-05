@@ -41,13 +41,15 @@ export function ArticleList() {
 
   const { data, isLoading } = useQuery({
     ...orpc.cms.articles.admin.list.queryOptions({
-      type: filters.type,
-      status: filters.status,
-      search: filters.search,
-      authorId: filters.authorId,
-      categoryId: filters.categoryId,
-      limit: pageSize,
-      offset: page * pageSize,
+      input: {
+        type: filters.type,
+        status: filters.status,
+        search: filters.search,
+        authorId: filters.authorId,
+        categoryId: filters.categoryId,
+        limit: pageSize,
+        offset: page * pageSize,
+      },
     }),
     staleTime: 1000 * 60 * 2,
   });

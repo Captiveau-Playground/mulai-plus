@@ -77,7 +77,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   // Fetch authors
   const { data: authors } = useQuery(
     orpc.cms.authors.admin.list.queryOptions({
-      roles: ["mentor", "program_manager"],
+      input: { roles: ["mentor", "program_manager"] },
     }),
   );
 
