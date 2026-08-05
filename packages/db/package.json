@@ -53,13 +53,15 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "bun run scripts/seed-roles.ts"
+    "db:seed": "bun run scripts/seed-roles.ts",
+    "db:seed:tmb": "bun run scripts/seed-tmb.ts"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.8",
+    "@mulai-plus/config": "workspace:*",
+    "@orpc/server": "^1.14.14",
     "@types/pg": "^8.15.6",
-    "typescript": "catalog:",
-    "@mulai-plus/config": "workspace:*"
+    "drizzle-kit": "^0.31.8",
+    "typescript": "catalog:"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",

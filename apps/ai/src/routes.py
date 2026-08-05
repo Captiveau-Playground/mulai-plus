@@ -35,6 +35,8 @@ from src.schemas import (
     FeedbackResponse,
     LeadRequest,
     LeadResponse,
+    TmbSummaryRequest,
+    TmbSummaryResponse,
     UpdateCreditRequest,
     BanRequest,
     NotesRequest,
@@ -570,3 +572,50 @@ async def admin_cache_stats():
         "hit_rate_percent": round(hit_rate, 1),
         "cost_saved_usd": round(m["cost_saved"], 6),
     }
+
+
+# ─── TMB AI Summary (Test by MULAI+) ───────────────────────
+
+TMB_SUMMARY_PROMPT = """Kamu adalah asisten pembuat ringkasan hasil Tes Minat Bakat (Holland RIASEC + kemampuan) dari MULAI+.
+
+Buat narasi ringkas (2-4 paragraf) dalam Bahasa Indonesia yang ramah untuk siswa:
+1. Jelaskan tipe minat utamanya (kode Holland + arti singkat)
+2. Sebutkan kekuatan kemampuan yang menonjol
+3. Sebutkan area yang bisa dikembangkan
+4. Hubungkan dengan rekomendasi jurusan teratas (sebutkan 2-3) dan kenapa cocok
+5. Tutup dengan semangat/motivasi singkat
+
+Gunakan markdown sederhana. Jangan mengarang data — gunakan hanya profil yang diberikan."""
+
+
+@chat_router.post("/tmb/summary")
+async def tmb_summary(req: TmbSummaryRequest, request: Request):
+    """Generate AI summary untuk hasil Tes Minat Bakat."""
+    if settings.ai_api_key:
+        auth = request.headers.get("authorization", "")
+        if auth != f"Bearer {settings.ai_api_key}":
+            raise HTTPException(status_code=401, detail="Unauthorized. Provide valid API key.")
+
+    import json as _json
+
+    profile_text = _json.dumps(req.profile, ensure_ascii=False, indent=1)
+    prompt = f"{TMB_SUMMARY_PROMPT}\n\nPROFIL HASIL TEST:\n{profile_text}"
+
+    from src.engine.responder import _chat, _get_client, _strip_think
+
+    try:
+        client = _get_client()
+        messages = [
+            {"role": "system", "content": TMB_SUMMARY_PROMPT},
+            {"role": "user", "content": profile_text},
+        ]
+        resp = await _chat(client, messages)
+        content = _strip_think(resp.choices[0].message.content or "")
+        if not content.strip():
+            content = "Hasil tesmu sudah siap! Lihat rekomendasi jurusan dan karier di bawah untuk penjelasan lengkap. 🎉"
+        return TmbSummaryResponse(summary=content)
+    except Exception as e:
+        logger.error("TMB summary error: %s", e, exc_info=True)
+        return TmbSummaryResponse(
+            summary="Hasil tesmu sudah siap! Rekomendasi jurusan dan karier lengkap ada di bawah. 🎉"
+        )
