@@ -14,6 +14,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
 import { UspStrip } from "@/components/front/assessment-usp";
@@ -52,10 +53,10 @@ const ABILITIES = [
 ];
 
 const KEY_FACTS = [
-  { icon: Brain, value: "5 dimensi", label: "kemampuan dasar" },
-  { icon: ClipboardList, value: "10 soal", label: "pilihan ganda" },
-  { icon: Clock, value: "±5 menit", label: "waktu pengerjaan" },
-  { icon: TrendingUp, value: "3 level", label: "tinggi · sedang · berkembang" },
+  { icon: Brain, valueNum: 5, suffix: " dimensi", prefix: "", label: "kemampuan dasar" },
+  { icon: ClipboardList, valueNum: 10, suffix: " soal", prefix: "", label: "pilihan ganda" },
+  { icon: Clock, valueNum: 5, suffix: " menit", prefix: "±", label: "waktu pengerjaan" },
+  { icon: TrendingUp, valueNum: 3, suffix: " level", prefix: "", label: "tinggi · sedang · berkembang" },
 ];
 
 export default function AssessmentBakatPage() {
@@ -70,7 +71,7 @@ export default function AssessmentBakatPage() {
         </div>
         <div className="relative mx-auto max-w-7xl px-4 pt-12 pb-14 sm:px-6 md:pt-16 md:pb-20 lg:px-8">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-            <div>
+            <Reveal>
               <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/5 px-3 py-1">
                 <Brain className="h-3.5 w-3.5 text-teal-600" />
                 <span className="font-manrope font-medium text-teal-700 text-xs">Tes Bakat · 5 Kemampuan Dasar</span>
@@ -92,29 +93,32 @@ export default function AssessmentBakatPage() {
               >
                 Mulai Tes Bakat <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
-            </div>
+            </Reveal>
 
             {/* key facts */}
-            <div className="grid grid-cols-2 gap-4">
+            <StaggerGroup className="grid grid-cols-2 gap-4">
               {KEY_FACTS.map((f) => (
-                <div key={f.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+                <StaggerItem key={f.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
                   <f.icon className="h-5 w-5 text-teal-600" />
-                  <p className="mt-3 font-bold font-bricolage text-brand-navy text-xl">{f.value}</p>
+                  <p className="mt-3 font-bold font-bricolage text-brand-navy text-xl">
+                    {f.prefix}
+                    <CountUp value={f.valueNum} suffix={f.suffix} />
+                  </p>
                   <p className="mt-0.5 font-manrope text-gray-500 text-xs">{f.label}</p>
-                </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </div>
       </section>
 
-      {/* USP strip */}
+      {/* USP */}
       <UspStrip />
 
       {/* 5 KEMAMPUAN */}
       <section className="border-gray-100 border-t">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">
               Blueprint Kemampuan
             </p>
@@ -126,11 +130,11 @@ export default function AssessmentBakatPage() {
               <span className="font-semibold text-gray-700">Tinggi · Sedang · Perlu Pengembangan</span> — lalu digabung
               dengan profil minatmu untuk rekomendasi yang akurat.
             </p>
-          </div>
+          </Reveal>
 
-          <div className="mt-12 space-y-3">
+          <StaggerGroup className="mt-12 space-y-3">
             {ABILITIES.map((a, i) => (
-              <div
+              <StaggerItem
                 key={a.name}
                 className="group flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-6 transition-all hover:border-teal-500/30 hover:shadow-md md:flex-row md:items-center"
               >
@@ -150,23 +154,23 @@ export default function AssessmentBakatPage() {
                   </p>
                   <p className="mt-0.5 font-manrope text-gray-600 text-sm">{a.sample}</p>
                 </div>
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </div>
       </section>
 
       {/* SKORING */}
       <section className="border-gray-100 border-y bg-gray-50/60">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">Cara Baca Hasil</p>
             <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight">
               Profil yang Langsung Bisa Dipakai
             </h2>
-          </div>
+          </Reveal>
 
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
+          <StaggerGroup className="mt-12 grid gap-5 md:grid-cols-3">
             {[
               {
                 icon: BarChart3,
@@ -184,7 +188,7 @@ export default function AssessmentBakatPage() {
                 desc: "Dimensi terendah ditandai sebagai area yang bisa diasah.",
               },
             ].map((s) => (
-              <div
+              <StaggerItem
                 key={s.title}
                 className="rounded-2xl border border-gray-100 bg-white p-6 text-center transition-all hover:-translate-y-1 hover:shadow-lg"
               >
@@ -193,18 +197,21 @@ export default function AssessmentBakatPage() {
                 </div>
                 <h3 className="mt-4 font-bold font-bricolage text-base text-gray-900">{s.title}</h3>
                 <p className="mt-1.5 font-manrope text-gray-500 text-sm">{s.desc}</p>
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
 
-          <div className="mx-auto mt-8 flex max-w-3xl items-start gap-3 rounded-2xl border border-teal-100 bg-teal-50/60 p-5">
+          <Reveal
+            delay={0.1}
+            className="mx-auto mt-8 flex max-w-3xl items-start gap-3 rounded-2xl border border-teal-100 bg-teal-50/60 p-5"
+          >
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-teal-600" />
             <p className="font-manrope text-sm text-teal-900 leading-relaxed">
               <span className="font-bold">Kombinasi minat + bakat:</span> jurusan direkomendasikan berdasarkan kecocokan
               minat (Holland) <span className="font-medium italic">dan</span> kemampuan yang dibutuhkannya — jadi
               rekomendasi bukan cuma "kamu suka", tapi juga "kamu bisa".
             </p>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -235,7 +242,7 @@ export default function AssessmentBakatPage() {
 
       {/* CTA */}
       <section className="border-gray-100 border-t">
-        <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-20 lg:px-8">
+        <Reveal className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-20 lg:px-8">
           <h2 className="font-bold font-bricolage text-3xl text-brand-navy tracking-tight">Ukur Kekuatanmu Sekarang</h2>
           <p className="mt-3 font-manrope text-gray-500">Gratis, ±5 menit, hasil langsung.</p>
           <Link
@@ -244,7 +251,7 @@ export default function AssessmentBakatPage() {
           >
             Mulai Tes Bakat <ArrowRight className="h-5 w-5" />
           </Link>
-        </div>
+        </Reveal>
       </section>
     </div>
   );

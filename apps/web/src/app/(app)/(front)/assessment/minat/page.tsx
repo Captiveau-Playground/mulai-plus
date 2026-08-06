@@ -12,6 +12,7 @@ import {
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
+import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
 import { UspStrip } from "@/components/front/assessment-usp";
@@ -62,10 +63,10 @@ const RIASEC = [
 ];
 
 const KEY_FACTS = [
-  { icon: Compass, value: "6 tipe", label: "kepribadian karier (Holland)" },
-  { icon: FlaskConical, value: "10 soal", label: "pilihan aktivitas" },
-  { icon: Clock, value: "±7 menit", label: "waktu pengerjaan" },
-  { icon: Target, value: "Kode 3 huruf", label: "gambaran minat utamamu" },
+  { icon: Compass, valueNum: 6, suffix: " tipe", prefix: "", label: "kepribadian karier (Holland)" },
+  { icon: FlaskConical, valueNum: 10, suffix: " soal", prefix: "", label: "pilihan aktivitas" },
+  { icon: Clock, valueNum: 7, suffix: " menit", prefix: "±", label: "waktu pengerjaan" },
+  { icon: Target, valueNum: 3, suffix: " huruf", prefix: "Kode ", label: "gambaran minat utamamu" },
 ];
 
 export default function AssessmentMinatPage() {
@@ -83,7 +84,7 @@ export default function AssessmentMinatPage() {
         </div>
         <div className="relative mx-auto max-w-7xl px-4 pt-12 pb-14 sm:px-6 md:pt-16 md:pb-20 lg:px-8">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-            <div>
+            <Reveal>
               <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/5 px-3 py-1">
                 <Compass className="h-3.5 w-3.5 text-violet-600" />
                 <span className="font-manrope font-medium text-violet-700 text-xs">Tes Minat · Holland RIASEC</span>
@@ -105,29 +106,32 @@ export default function AssessmentMinatPage() {
               >
                 Mulai Tes Minat <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
-            </div>
+            </Reveal>
 
             {/* key facts */}
-            <div className="grid grid-cols-2 gap-4">
+            <StaggerGroup className="grid grid-cols-2 gap-4">
               {KEY_FACTS.map((f) => (
-                <div key={f.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+                <StaggerItem key={f.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
                   <f.icon className="h-5 w-5 text-violet-600" />
-                  <p className="mt-3 font-bold font-bricolage text-brand-navy text-xl">{f.value}</p>
+                  <p className="mt-3 font-bold font-bricolage text-brand-navy text-xl">
+                    {f.prefix}
+                    <CountUp value={f.valueNum} suffix={f.suffix} />
+                  </p>
                   <p className="mt-0.5 font-manrope text-gray-500 text-xs">{f.label}</p>
-                </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </div>
       </section>
 
-      {/* USP strip */}
+      {/* USP */}
       <UspStrip />
 
       {/* 6 TIPE */}
       <section className="border-gray-100 border-t">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <p className="font-bold font-manrope text-violet-600 text-xs uppercase tracking-widest">Model Holland</p>
             <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight md:text-4xl">
               6 Tipe Minat
@@ -137,11 +141,11 @@ export default function AssessmentMinatPage() {
               <span className="font-semibold text-gray-700">kode 3 huruf</span> (misal IAC) yang merepresentasikan
               dominasi minatmu.
             </p>
-          </div>
+          </Reveal>
 
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StaggerGroup className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {RIASEC.map((r) => (
-              <div
+              <StaggerItem
                 key={r.code}
                 className="group rounded-2xl border border-gray-100 bg-white p-6 transition-all hover:-translate-y-1 hover:border-violet-500/30 hover:shadow-lg"
               >
@@ -158,9 +162,9 @@ export default function AssessmentMinatPage() {
                 <p className="mt-4 border-gray-50 border-t pt-3 font-manrope text-gray-400 text-xs">
                   <span className="font-semibold text-gray-500">Contoh jurusan:</span> {r.careers}
                 </p>
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </div>
       </section>
 
@@ -168,7 +172,7 @@ export default function AssessmentMinatPage() {
       <section className="border-gray-100 border-y bg-gray-50/60">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-            <div>
+            <Reveal>
               <p className="font-bold font-manrope text-violet-600 text-xs uppercase tracking-widest">
                 Seperti Apa Soalnya?
               </p>
@@ -189,9 +193,9 @@ export default function AssessmentMinatPage() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </Reveal>
 
-            <div className="mx-auto w-full max-w-md">
+            <Reveal delay={0.15} className="mx-auto w-full max-w-md">
               <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-brand-navy/5 shadow-xl">
                 <p className="font-manrope font-semibold text-violet-600 text-xs uppercase tracking-wide">
                   Contoh Soal
@@ -223,7 +227,7 @@ export default function AssessmentMinatPage() {
                   </p>
                 </div>
               </div>
-            </div>
+            </Reveal>
           </div>
         </div>
       </section>
@@ -258,7 +262,7 @@ export default function AssessmentMinatPage() {
 
       {/* CTA */}
       <section className="border-gray-100 border-t">
-        <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-20 lg:px-8">
+        <Reveal className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-20 lg:px-8">
           <h2 className="font-bold font-bricolage text-3xl text-brand-navy tracking-tight">
             Siap Menemukan Tipe Minatmu?
           </h2>
@@ -269,7 +273,7 @@ export default function AssessmentMinatPage() {
           >
             Mulai Tes Minat <ArrowRight className="h-5 w-5" />
           </Link>
-        </div>
+        </Reveal>
       </section>
     </div>
   );
