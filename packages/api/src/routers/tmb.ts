@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNotNull } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne } from "@mulai-plus/db";
 import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
@@ -7,6 +7,7 @@ import {
   tmbAssessmentResults,
   tmbBatches,
   tmbBatchStudents,
+  tmbCareerMappings,
   tmbMajorPatterns,
   tmbProfiles,
   tmbQuestionBank,
@@ -412,6 +413,24 @@ function computeRecommendations(
   }));
 
   return { majors, careers: careerRecos, byCategory: Object.fromEntries(byCategory) };
+}
+
+// ─── Helpers konten admin ────────────────────────────────
+
+function validatePatternRegex(pattern: string) {
+  try {
+    new RegExp(pattern, "i");
+  } catch {
+    preconditionFailed(`Regex tidak valid: ${pattern}`);
+  }
+}
+
+async function syncCatalogTotal(testCode: "interest" | "ability") {
+  const rows = await db.query.tmbQuestionBank.findMany({
+    where: eq(tmbQuestionBank.testCode, testCode),
+    columns: { id: true },
+  });
+  await db.update(tmbTestCatalog).set({ totalQuestions: rows.length }).where(eq(tmbTestCatalog.code, testCode));
 }
 
 // ─── Router ──────────────────────────────────────────────
@@ -1169,7 +1188,52 @@ export const tmbAdminRouter = {
         await db.update(tmbSchools).set(rest).where(eq(tmbSchools.id, id));
         return { success: true };
       }),
+
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      await db.delete(tmbSchools).where(eq(tmbSchools.id, input.id));
+      return { success: true };
+    }),
   },
+
+  overview: adminProcedure.handler(async () => {
+    const [schools, batches, students, results, qInterest, qAbility, patterns, careers, stats] = await Promise.all([
+      db.query.tmbSchools.findMany({ columns: { id: true, status: true } }),
+      db.query.tmbBatches.findMany({ columns: { id: true } }),
+      db.query.tmbBatchStudents.findMany({ columns: { id: true, status: true } }),
+      db.query.tmbAssessmentResults.findMany({ columns: { id: true } }),
+      db.query.tmbQuestionBank.findMany({
+        where: and(eq(tmbQuestionBank.testCode, "interest"), eq(tmbQuestionBank.isActive, true)),
+        columns: { id: true },
+      }),
+      db.query.tmbQuestionBank.findMany({
+        where: and(eq(tmbQuestionBank.testCode, "ability"), eq(tmbQuestionBank.isActive, true)),
+        columns: { id: true },
+      }),
+      db.query.tmbMajorPatterns.findMany({ columns: { id: true, isActive: true } }),
+      db.query.tmbCareerMappings.findMany({ columns: { id: true } }),
+      db.query.tmbUserStats.findMany({ columns: { testsCompleted: true } }),
+    ]);
+
+    return {
+      b2b: {
+        schools: schools.length,
+        activeSchools: schools.filter((s) => s.status === "aktif").length,
+        batches: batches.length,
+        students: students.length,
+        completedStudents: students.filter((s) => s.status === "completed").length,
+      },
+      b2c: {
+        results: results.length,
+        testsCompleted: stats.reduce((a: number, s) => a + (s.testsCompleted ?? 0), 0),
+      },
+      content: {
+        interestQuestions: qInterest.length,
+        abilityQuestions: qAbility.length,
+        patterns: patterns.filter((p) => p.isActive).length,
+        careers: careers.length,
+      },
+    };
+  }),
 
   batches: {
     list: adminProcedure.handler(async () => {
@@ -1208,6 +1272,22 @@ export const tmbAdminRouter = {
           inviteCode: generateClaimCode(),
         });
         return { id };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          name: z.string().min(1).optional(),
+          className: z.string().optional(),
+          major: z.string().optional(),
+          graduationYear: z.number().int().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        await db.update(tmbBatches).set(rest).where(eq(tmbBatches.id, id));
+        return { success: true };
       }),
 
     regenerateCode: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
@@ -1252,6 +1332,23 @@ export const tmbAdminRouter = {
           nis: input.nis || null,
         });
         return { id };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          name: z.string().min(1).optional(),
+          email: z.string().email().optional().or(z.literal("")),
+          nis: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        const patch: Record<string, unknown> = { ...rest };
+        if ("email" in patch) patch.email = (patch.email as string) || null;
+        await db.update(tmbBatchStudents).set(patch).where(eq(tmbBatchStudents.id, id));
+        return { success: true };
       }),
 
     remove: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
@@ -1380,6 +1477,262 @@ export const tmbAdminRouter = {
       }
       return { rows };
     }),
+  },
+
+  // ─── Konten Test: soal, pola jurusan, mapping karier, catalog ───
+  questions: {
+    list: adminProcedure
+      .input(z.object({ testCode: z.enum(["interest", "ability"]).optional() }))
+      .handler(async ({ input }) => {
+        const where = input.testCode ? eq(tmbQuestionBank.testCode, input.testCode) : undefined;
+        const rows = await db.query.tmbQuestionBank.findMany({
+          where,
+          orderBy: asc(tmbQuestionBank.order),
+        });
+        return { items: rows, total: rows.length };
+      }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          testCode: z.enum(["interest", "ability"]),
+          dimension: z.string().min(1),
+          pairDimension: z.string().optional().nullable(),
+          text: z.string().min(3),
+          optionA: z.string().min(1),
+          optionB: z.string().min(1),
+          optionC: z.string().optional().nullable(),
+          optionD: z.string().optional().nullable(),
+          answer: z.string().optional().nullable(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        // validasi ability: jawaban wajib & harus salah satu opsi
+        if (input.testCode === "ability") {
+          const opts = [input.optionA, input.optionB, input.optionC, input.optionD].filter(Boolean);
+          if (!input.answer) preconditionFailed("Soal kemampuan harus punya kunci jawaban");
+          if (!opts.includes(input.answer)) preconditionFailed("Kunci jawaban harus salah satu opsi");
+        }
+        const maxOrder = await db
+          .select({ m: max(tmbQuestionBank.order) })
+          .from(tmbQuestionBank)
+          .where(eq(tmbQuestionBank.testCode, input.testCode));
+        const id = randomUUID();
+        await db.insert(tmbQuestionBank).values({
+          id,
+          testCode: input.testCode,
+          dimension: input.dimension,
+          pairDimension: input.pairDimension ?? null,
+          text: input.text,
+          optionA: input.optionA,
+          optionB: input.optionB,
+          optionC: input.optionC ?? null,
+          optionD: input.optionD ?? null,
+          answer: input.answer ?? null,
+          order: (maxOrder[0]?.m ?? 0) + 1,
+          isActive: true,
+        });
+        await syncCatalogTotal(input.testCode);
+        return { id };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          dimension: z.string().min(1).optional(),
+          pairDimension: z.string().optional().nullable(),
+          text: z.string().min(3).optional(),
+          optionA: z.string().min(1).optional(),
+          optionB: z.string().min(1).optional(),
+          optionC: z.string().optional().nullable(),
+          optionD: z.string().optional().nullable(),
+          answer: z.string().optional().nullable(),
+          isActive: z.boolean().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const question = await db.query.tmbQuestionBank.findFirst({ where: eq(tmbQuestionBank.id, input.id) });
+        if (!question) notFound("Soal tidak ditemukan");
+        const { id, ...rest } = input;
+        if (question.testCode === "ability" && "answer" in rest && !rest.answer) {
+          preconditionFailed("Soal kemampuan harus punya kunci jawaban");
+        }
+        await db.update(tmbQuestionBank).set(rest).where(eq(tmbQuestionBank.id, id));
+        return { success: true };
+      }),
+
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      const question = await db.query.tmbQuestionBank.findFirst({ where: eq(tmbQuestionBank.id, input.id) });
+      if (!question) notFound("Soal tidak ditemukan");
+      await db.delete(tmbQuestionBank).where(eq(tmbQuestionBank.id, input.id));
+      await syncCatalogTotal(question.testCode);
+      return { success: true };
+    }),
+
+    toggle: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      const question = await db.query.tmbQuestionBank.findFirst({ where: eq(tmbQuestionBank.id, input.id) });
+      if (!question) notFound("Soal tidak ditemukan");
+      await db.update(tmbQuestionBank).set({ isActive: !question.isActive }).where(eq(tmbQuestionBank.id, input.id));
+      return { success: true, isActive: !question.isActive };
+    }),
+
+    reorder: adminProcedure
+      .input(z.object({ testCode: z.enum(["interest", "ability"]), ids: z.array(z.string()).min(1) }))
+      .handler(async ({ input }) => {
+        for (const [i, id] of input.ids.entries()) {
+          await db
+            .update(tmbQuestionBank)
+            .set({ order: i + 1 })
+            .where(and(eq(tmbQuestionBank.id, id), eq(tmbQuestionBank.testCode, input.testCode)));
+        }
+        return { success: true };
+      }),
+  },
+
+  patterns: {
+    list: adminProcedure.handler(async () => {
+      const rows = await db.query.tmbMajorPatterns.findMany({
+        orderBy: asc(tmbMajorPatterns.categoryName),
+      });
+      const prodiList = await getProdiList();
+      return {
+        items: rows.map((p) => {
+          let count = 0;
+          try {
+            const re = new RegExp(p.pattern, "i");
+            count = prodiList.filter((x) => re.test(x.name)).length;
+          } catch {
+            count = -1;
+          }
+          return { ...p, prodiCount: count };
+        }),
+      };
+    }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          categoryKey: z.string().min(2),
+          categoryName: z.string().min(2),
+          pattern: z.string().min(2),
+          hollandPrimary: z.string().length(1),
+          hollandSecondary: z.string().length(1),
+          abilityWeights: z.record(z.string(), z.number().min(0).max(1)),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const exists = await db.query.tmbMajorPatterns.findFirst({
+          where: eq(tmbMajorPatterns.categoryKey, input.categoryKey),
+        });
+        if (exists) preconditionFailed(`Kategori "${input.categoryKey}" sudah ada`);
+        validatePatternRegex(input.pattern);
+        await db.insert(tmbMajorPatterns).values({ id: randomUUID(), isActive: true, ...input });
+        return { success: true };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          categoryKey: z.string().min(2).optional(),
+          categoryName: z.string().min(2).optional(),
+          pattern: z.string().min(2).optional(),
+          hollandPrimary: z.string().length(1).optional(),
+          hollandSecondary: z.string().length(1).optional(),
+          abilityWeights: z.record(z.string(), z.number().min(0).max(1)).optional(),
+          isActive: z.boolean().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        if (rest.pattern) validatePatternRegex(rest.pattern);
+        if (rest.categoryKey) {
+          const exists = await db.query.tmbMajorPatterns.findFirst({
+            where: and(eq(tmbMajorPatterns.categoryKey, rest.categoryKey), ne(tmbMajorPatterns.id, id)),
+          });
+          if (exists) preconditionFailed(`Kategori "${rest.categoryKey}" sudah ada`);
+        }
+        await db.update(tmbMajorPatterns).set(rest).where(eq(tmbMajorPatterns.id, id));
+        return { success: true };
+      }),
+
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      await db.delete(tmbMajorPatterns).where(eq(tmbMajorPatterns.id, input.id));
+      return { success: true };
+    }),
+
+    preview: adminProcedure
+      .input(z.object({ pattern: z.string().min(2), limit: z.number().int().min(1).max(20).optional() }))
+      .handler(async ({ input }) => {
+        validatePatternRegex(input.pattern);
+        const prodiList = await getProdiList();
+        const re = new RegExp(input.pattern, "i");
+        const matched = prodiList.filter((x) => re.test(x.name));
+        return { count: matched.length, examples: matched.slice(0, input.limit ?? 5) };
+      }),
+  },
+
+  careers: {
+    list: adminProcedure.handler(async () => {
+      const rows = await db.query.tmbCareerMappings.findMany({
+        orderBy: asc(tmbCareerMappings.careerName),
+      });
+      return { items: rows };
+    }),
+
+    create: adminProcedure
+      .input(z.object({ majorCategory: z.string().min(2), careerName: z.string().min(2) }))
+      .handler(async ({ input }) => {
+        const exists = await db.query.tmbCareerMappings.findFirst({
+          where: and(
+            eq(tmbCareerMappings.careerName, input.careerName),
+            eq(tmbCareerMappings.majorCategory, input.majorCategory),
+          ),
+        });
+        if (exists) preconditionFailed("Karier ini sudah terdaftar di kategori tersebut");
+        await db
+          .insert(tmbCareerMappings)
+          .values({ id: randomUUID(), careerName: input.careerName, majorCategory: input.majorCategory });
+        return { success: true };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          majorCategory: z.string().min(2).optional(),
+          careerName: z.string().min(2).optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        await db.update(tmbCareerMappings).set(rest).where(eq(tmbCareerMappings.id, id));
+        return { success: true };
+      }),
+
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      await db.delete(tmbCareerMappings).where(eq(tmbCareerMappings.id, input.id));
+      return { success: true };
+    }),
+  },
+
+  catalog: {
+    update: adminProcedure
+      .input(
+        z.object({
+          code: z.enum(["interest", "ability"]),
+          name: z.string().min(1).optional(),
+          description: z.string().optional(),
+          xpReward: z.number().int().min(0).optional(),
+          isActive: z.boolean().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { code, ...rest } = input;
+        await db.update(tmbTestCatalog).set(rest).where(eq(tmbTestCatalog.code, code));
+        return { success: true };
+      }),
   },
 
   analytics: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {

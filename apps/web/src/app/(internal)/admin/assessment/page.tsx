@@ -1,236 +1,221 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowRight, Loader2, Plus, School } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  Brain,
+  Building2,
+  ClipboardList,
+  GraduationCap,
+  History,
+  ListChecks,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  prospek: { label: "Prospek", cls: "bg-amber-50 text-amber-600" },
-  aktif: { label: "Aktif", cls: "bg-green-50 text-green-600" },
-  selesai: { label: "Selesai", cls: "bg-gray-100 text-gray-500" },
-};
-
-const MODE_TABS = [
-  { href: "/admin/assessment" as const, label: "B2B — Sekolah", icon: "🏫" },
-  { href: "/admin/assessment/b2c" as const, label: "B2C — Statistik", icon: "📈" },
-  { href: "/admin/assessment/b2c/history" as const, label: "B2C — History", icon: "🕘" },
+const ENTRY_CARDS = [
+  {
+    href: "/admin/assessment/schools" as const,
+    icon: Building2,
+    title: "Sekolah & Batch",
+    desc: "Kelola sekolah partner, buat batch test, undangan, dan rekap siswa B2B.",
+    accent: "bg-brand-navy/5 text-brand-navy",
+    arrow: "text-brand-navy",
+    group: "b2b",
+    statLabel: "sekolah · batch · siswa",
+  },
+  {
+    href: "/admin/assessment/b2c" as const,
+    icon: BarChart3,
+    title: "Statistik B2C",
+    desc: "Rekap pengguna mandiri: test selesai, kode Holland, dan distribusi minat.",
+    accent: "bg-teal-500/10 text-teal-600",
+    arrow: "text-teal-600",
+    group: "b2c",
+    statLabel: "hasil · test selesai",
+  },
+  {
+    href: "/admin/assessment/b2c/history" as const,
+    icon: History,
+    title: "History B2C",
+    desc: "Riwayat hasil test semua pengguna mandiri, lengkap dengan sumbernya.",
+    accent: "bg-violet-500/10 text-violet-600",
+    arrow: "text-violet-600",
+    group: "b2c",
+    statLabel: "riwayat per pengguna",
+  },
+  {
+    href: "/admin/assessment/questions" as const,
+    icon: BookOpen,
+    title: "Konten Test",
+    desc: "Bank soal minat & bakat, pola jurusan (Holland + bobot), dan mapping karier.",
+    accent: "bg-brand-orange/10 text-brand-orange",
+    arrow: "text-brand-orange",
+    group: "content",
+    statLabel: "soal · pola · karier",
+  },
 ];
 
-function ModeTabs() {
-  const pathname = usePathname();
-  return (
-    <div className="flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-sm">
-      {MODE_TABS.map((t) => {
-        const active = t.href === "/admin/assessment" ? pathname === t.href : pathname.startsWith(t.href);
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 font-manrope font-semibold text-sm transition-colors",
-              active ? "bg-brand-navy text-white shadow-sm" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
-            )}
-          >
-            <span>{t.icon}</span>
-            {t.label}
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-export default function AdminAssessmentPage() {
-  const queryClient = useQueryClient();
+export default function AdminAssessmentHub() {
   const { data, isLoading } = useQuery({
-    ...orpc.tmbAdmin.schools.list.queryOptions({ input: {} }),
+    ...orpc.tmbAdmin.overview.queryOptions({ input: {} }),
   });
 
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
-  const [city, setCity] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState("prospek");
-
-  const createSchool = useMutation({
-    ...orpc.tmbAdmin.schools.create.mutationOptions(),
-    onSuccess: () => {
-      toast.success("Sekolah terdaftar!");
-      setShowForm(false);
-      setName("");
-      setCity("");
-      setEmail("");
-      setPhone("");
-      setStatus("prospek");
-      queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.schools.list.key() });
+  const o = data;
+  const stats = [
+    { icon: Users, label: "Siswa batch", value: o?.b2b.students ?? 0, cls: "from-brand-navy to-brand-navy-light" },
+    {
+      icon: GraduationCap,
+      label: "Test selesai (B2C)",
+      value: o?.b2c.testsCompleted ?? 0,
+      cls: "from-mentor-teal to-teal-700",
     },
-    onError: (e) => toast.error(e.message || "Gagal mendaftarkan sekolah"),
-  });
-
-  const schools = data ?? [];
+    { icon: ListChecks, label: "Hasil assessment", value: o?.b2c.results ?? 0, cls: "from-violet-500 to-purple-700" },
+    {
+      icon: ClipboardList,
+      label: "Sekolah aktif",
+      value: o?.b2b.activeSchools ?? 0,
+      cls: "from-amber-500 to-orange-600",
+    },
+  ];
 
   return (
-    <div className="space-y-5">
-      <ModeTabs />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-bold font-bricolage text-2xl text-brand-navy">Sekolah Kerjasama</h1>
-          <p className="mt-1 font-manrope text-gray-500 text-sm">
-            Kelola sekolah partner — buat batch test, undang siswa, dan pantau rekap.
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-brand-navy p-6 text-white md:p-8">
+        <div
+          className="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rounded-full bg-mentor-teal/20 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-12 left-1/3 h-36 w-36 rounded-full bg-brand-orange/20 blur-3xl"
+          aria-hidden
+        />
+        <div className="relative">
+          <p className="font-manrope text-[11px] text-white/60 uppercase tracking-wide">Admin · Assessment</p>
+          <h1 className="mt-1 font-bold font-bricolage text-2xl md:text-3xl">Dashboard Assessment</h1>
+          <p className="mt-2 max-w-xl font-manrope text-sm text-white/70">
+            Pusat kendali Test Minat Bakat: sekolah & batch (B2B), pengguna mandiri (B2C), dan konten test.
           </p>
         </div>
-        <Button
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-xl bg-brand-navy font-bold font-bricolage text-white shadow-sm hover:bg-brand-navy-light"
-        >
-          <Plus className="mr-1.5 h-4 w-4" /> Daftarkan Sekolah
-        </Button>
       </div>
 
-      {/* Create school */}
-      {showForm && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:grid-cols-2"
-        >
-          <div className="md:col-span-2">
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Nama Sekolah *</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="misal: SMAN 1 Bandung"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
-            />
-          </div>
-          <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Kota</Label>
-            <Input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder="Bandung"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
-            />
-          </div>
-          <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v ?? "prospek")}>
-              <SelectTrigger className="mt-1 rounded-xl border-gray-200 bg-gray-50">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="prospek">Prospek</SelectItem>
-                <SelectItem value="aktif">Aktif</SelectItem>
-                <SelectItem value="selesai">Selesai</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Email Kontak</Label>
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@sekolah.sch.id"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
-            />
-          </div>
-          <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Telepon</Label>
-            <Input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="022-xxxx"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Button
-              onClick={() =>
-                createSchool.mutate({
-                  name,
-                  city: city || undefined,
-                  email: email || undefined,
-                  phone: phone || undefined,
-                  status: status as any,
-                })
-              }
-              disabled={!name.trim() || createSchool.isPending}
-              className="w-full rounded-xl bg-mentor-teal py-5 font-bold font-bricolage text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
-            >
-              {createSchool.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Daftarkan Sekolah"}
-            </Button>
-          </div>
-        </motion.div>
-      )}
+      {/* Quick stats */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 * i }}
+            className={cn("rounded-2xl bg-gradient-to-br p-4 text-white", s.cls)}
+          >
+            <s.icon className="h-5 w-5 opacity-80" />
+            <p className="mt-2 font-bold font-bricolage text-2xl">
+              {isLoading ? "…" : s.value.toLocaleString("id-ID")}
+            </p>
+            <p className="font-manrope text-[11px] text-white/70">{s.label}</p>
+          </motion.div>
+        ))}
+      </div>
 
-      {/* School list */}
-      {isLoading ? (
-        <div className="flex min-h-[30vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" />
-        </div>
-      ) : schools.length === 0 ? (
-        <div className="flex flex-col items-center rounded-2xl border border-gray-200 border-dashed bg-white px-6 py-14 text-center">
-          <span className="text-5xl">🏫</span>
-          <h3 className="mt-3 font-bold font-bricolage text-gray-900">Belum ada sekolah partner</h3>
-          <p className="mt-1 max-w-xs font-manrope text-gray-500 text-sm">
-            Daftarkan sekolah yang bekerjasama dengan MULAI+, lalu buat batch test untuk mereka.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {schools.map((s: any, i: number) => {
-            const st = STATUS_META[s.status] ?? STATUS_META.prospek;
+      {/* Entry points */}
+      <div>
+        <h2 className="mb-3 font-bold font-bricolage text-gray-900 text-lg">Menu Assessment</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          {ENTRY_CARDS.map((c, i) => {
+            const Icon = c.icon;
             return (
               <motion.div
-                key={s.id}
-                initial={{ opacity: 0, y: 10 }}
+                key={c.href}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.03 * i }}
+                transition={{ delay: 0.08 + 0.06 * i }}
               >
                 <Link
-                  href={`/admin/assessment/schools/${s.id}`}
-                  className="group flex flex-col rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-mentor-teal/40 hover:shadow-md"
+                  href={c.href}
+                  className="group flex h-full items-start gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-teal-500/30 hover:shadow-md"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-navy/5">
-                      <School className="h-6 w-6 text-brand-navy" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-bold font-bricolage text-gray-900">{s.name}</p>
-                      <p className="font-manrope text-gray-500 text-xs">{s.city || "—"}</p>
-                    </div>
-                    <span className={cn("rounded-full px-2.5 py-0.5 font-bold font-manrope text-[10px]", st.cls)}>
-                      {st.label}
-                    </span>
+                  <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", c.accent)}>
+                    <Icon className="h-6 w-6" />
                   </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="rounded-lg bg-gray-50 px-2.5 py-1 font-manrope text-[11px] text-gray-600">
-                      {s.batchCount} batch
-                    </span>
-                    <span className="rounded-lg bg-gray-50 px-2.5 py-1 font-manrope text-[11px] text-gray-600">
-                      {s.studentCount} siswa
-                    </span>
-                    <span className="ml-auto flex items-center gap-1 font-bold font-manrope text-mentor-teal text-xs">
-                      Kelola <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                    </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold font-bricolage text-base text-gray-900">{c.title}</h3>
+                      <span className="rounded-full bg-gray-50 px-2 py-0.5 font-manrope font-semibold text-[10px] text-gray-500">
+                        {c.group === "b2b" ? "B2B" : c.group === "b2c" ? "B2C" : "Konten"}
+                      </span>
+                    </div>
+                    <p className="mt-1 font-manrope text-gray-500 text-sm leading-relaxed">{c.desc}</p>
+                    <p className="mt-2 font-manrope font-medium text-[11px] text-gray-400">
+                      {c.statLabel}:{" "}
+                      <b className="text-gray-600">
+                        {isLoading
+                          ? "…"
+                          : c.group === "b2b"
+                            ? `${o?.b2b.schools ?? 0} · ${o?.b2b.batches ?? 0} · ${o?.b2b.students ?? 0}`
+                            : c.group === "b2c"
+                              ? `${o?.b2c.results ?? 0} · ${o?.b2c.testsCompleted ?? 0}`
+                              : `${(o?.content.interestQuestions ?? 0) + (o?.content.abilityQuestions ?? 0)} · ${o?.content.patterns ?? 0} · ${o?.content.careers ?? 0}`}
+                      </b>
+                    </p>
                   </div>
+                  <ArrowRight
+                    className={cn("mt-3 h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1", c.arrow)}
+                  />
                 </Link>
               </motion.div>
             );
           })}
         </div>
-      )}
+      </div>
+
+      {/* Konten Test sub-entries */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Brain className="h-5 w-5 text-brand-orange" />
+          <h3 className="font-bold font-bricolage text-base text-gray-900">Langsung ke Konten Test</h3>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {[
+            {
+              href: "/admin/assessment/questions" as const,
+              label: "Soal",
+              desc: `${o?.content.interestQuestions ?? 0} minat · ${o?.content.abilityQuestions ?? 0} bakat`,
+              icon: BookOpen,
+            },
+            {
+              href: "/admin/assessment/patterns" as const,
+              label: "Pola Jurusan",
+              desc: `${o?.content.patterns ?? 0} kategori`,
+              icon: Brain,
+            },
+            {
+              href: "/admin/assessment/careers" as const,
+              label: "Mapping Karier",
+              desc: `${o?.content.careers ?? 0} profesi`,
+              icon: ClipboardList,
+            },
+          ].map((s) => (
+            <Link
+              key={s.href}
+              href={s.href}
+              className="group flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3.5 py-3 transition-colors hover:border-teal-500/30 hover:bg-teal-500/5"
+            >
+              <s.icon className="h-4 w-4 shrink-0 text-brand-orange" />
+              <div className="min-w-0">
+                <p className="font-bold font-manrope text-gray-800 text-sm">{s.label}</p>
+                <p className="font-manrope text-[11px] text-gray-400">{s.desc}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
