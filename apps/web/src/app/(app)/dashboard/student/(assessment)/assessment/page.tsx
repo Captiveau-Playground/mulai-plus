@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, PlayCircle, RotateCcw } from "lucide-react";
 import Link from "next/link";
+import { ProgressCharts } from "@/components/student/progress-charts";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -41,6 +42,7 @@ export default function AssessmentHomePage() {
   const tests = data?.tests ?? [];
   const status = data?.status ?? {};
   const hasResult = !!data?.latestResult;
+  const progress = data?.progress ?? [];
 
   const xpToNext = (stats.level + 1) * 150;
   const levelProgress = Math.min(100, ((stats.xp - (stats.level - 1) * 150) / 150) * 100);
@@ -183,6 +185,17 @@ export default function AssessmentHomePage() {
           })}
         </div>
       </div>
+
+      {/* Progres */}
+      {progress.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <div className="mb-3">
+            <h2 className="font-bold font-bricolage text-base text-gray-800 md:text-lg">Progres Kamu</h2>
+            <p className="font-manrope text-gray-400 text-xs">Perkembangan skor tiap kali kamu mengulang test</p>
+          </div>
+          <ProgressCharts progress={progress} />
+        </motion.div>
+      )}
 
       {/* Result CTA */}
       {hasResult && (

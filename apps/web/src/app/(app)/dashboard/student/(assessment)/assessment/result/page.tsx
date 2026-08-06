@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Download, Loader2, Map as MapIcon, Sparkles } from "lucide-react";
+import { ArrowUpRight, Download, Loader2, Map as MapIcon, RotateCcw, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -250,6 +250,27 @@ export default function TmbResultPage() {
               );
             })}
           </div>
+
+          {Object.entries(ABILITY_INFO).some(([key]) => (abilityLevels[key] ?? "medium") === "low") && (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <p className="font-bold font-bricolage text-gray-900 text-sm">
+                  Ada{" "}
+                  {Object.entries(ABILITY_INFO).filter(([key]) => (abilityLevels[key] ?? "medium") === "low").length}{" "}
+                  kemampuan yang perlu pengembangan
+                </p>
+                <p className="mt-0.5 font-manrope text-gray-500 text-xs">
+                  Ulangi Tes Bakat untuk mencoba lagi — skor terbaikmu yang tercatat.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/student/assessment/take/ability"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-orange px-5 py-2.5 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-105 active:scale-[0.98]"
+              >
+                <RotateCcw className="h-4 w-4" /> Ulangi Tes Bakat
+              </Link>
+            </div>
+          )}
         </motion.div>
       </div>
 

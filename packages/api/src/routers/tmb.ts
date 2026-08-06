@@ -478,6 +478,23 @@ export const tmbRouter = {
         stats: stats ?? { xp: 0, level: 1, streak: 0, testsCompleted: 0 },
         latestResult: results[0] ?? null,
         hasCompletedBoth: results.length > 0,
+        // progres per percobaan (ascending by tanggal) — untuk grafik naik/turun
+        progress: [...results].reverse().map((r) => {
+          const ability = (r.abilityScores ?? { scores: {} }) as {
+            scores?: Record<string, { correct: number; total: number }>;
+          };
+          const abilityPct: Record<string, number> = {};
+          for (const [dim, s] of Object.entries(ability.scores ?? {})) {
+            abilityPct[dim] = s.total ? Math.round((s.correct / s.total) * 100) : 0;
+          }
+          return {
+            createdAt: r.createdAt,
+            confidenceScore: Number(r.confidenceScore ?? 0),
+            hollandCode: r.hollandCode,
+            hollandScores: (r.hollandScores ?? {}) as Record<string, number>,
+            abilityPct,
+          };
+        }),
       };
     }),
 
