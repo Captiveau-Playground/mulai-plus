@@ -22,8 +22,28 @@ const footerNavLinks = [
     links: EXPLORE_LINKS,
   },
   {
+    title: "Assessment",
+    links: [
+      { label: "Tes Minat Bakat", href: "/assessment" },
+      { label: "Tes Minat (Holland)", href: "/assessment/minat" },
+      { label: "Tes Bakat", href: "/assessment/bakat" },
+    ],
+  },
+  {
     title: "Blog",
     links: BLOG_LINKS,
+  },
+  {
+    title: "About",
+    links: [
+      { label: "About Us", href: "/#about" },
+      { label: "Mentors", href: "/#mentors" },
+      { label: "FAQ", href: "/#faq" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: OTHER_LINKS,
   },
   {
     title: "Contact",
@@ -41,18 +61,6 @@ const footerNavLinks = [
         external: true,
       },
     ],
-  },
-  {
-    title: "About",
-    links: [
-      { label: "About Us", href: "/#about" },
-      { label: "Mentors", href: "/#mentors" },
-      { label: "FAQ", href: "/#faq" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: OTHER_LINKS,
   },
 ];
 

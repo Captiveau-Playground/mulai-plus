@@ -1,5 +1,7 @@
-import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
+import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
 
 const RIASEC = [
   {
@@ -55,20 +57,17 @@ const RIASEC = [
 export default function AssessmentMinatPage() {
   return (
     <div className="overflow-hidden">
+      <AssessmentBreadcrumb
+        trail={[{ label: "Test Minat Bakat", href: "/assessment" }]}
+        current="Tes Minat (Holland)"
+      />
       {/* Hero */}
       <section className="relative bg-gradient-to-b from-violet-50 via-white to-white">
         <div
           className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl"
           aria-hidden
         />
-        <div className="mx-auto max-w-7xl px-5 pt-14 pb-10 md:pt-20">
-          <Link
-            href="/assessment"
-            className="inline-flex items-center gap-1 font-manrope font-semibold text-gray-400 text-sm hover:text-gray-600"
-          >
-            <ArrowLeft className="h-4 w-4" /> Test Minat Bakat
-          </Link>
-
+        <div className="mx-auto max-w-7xl px-5 pt-8 pb-10 md:pt-10">
           <div className="mt-5 flex flex-col items-center text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 to-purple-600 text-3xl shadow-xl">
               🧠
@@ -176,6 +175,35 @@ export default function AssessmentMinatPage() {
           </div>
         </div>
       </section>
+
+      {/* Registrasi */}
+      <AssessmentPricingSection />
+
+      {/* FAQ */}
+      <AssessmentFaq
+        items={[
+          {
+            q: "Apa itu Tes Minat Holland RIASEC?",
+            a: "Tes yang memetakan kecenderungan minatmu ke 6 tipe kepribadian karier (Realistic, Investigative, Artistic, Social, Enterprising, Conventional) berdasarkan teori John Holland. Hasilnya berupa kode 3 huruf yang menggambarkan kombinasi minat utamamu.",
+          },
+          {
+            q: "Berapa lama tesnya?",
+            a: "Sekitar 7 menit untuk 10 soal pilihan aktivitas. Tidak ada timer — kamu bisa santai menjawab.",
+          },
+          {
+            q: "Apakah ada jawaban benar atau salah?",
+            a: "Tidak ada. Kamu hanya memilih aktivitas yang paling kamu sukai antara dua pilihan. Jawab sesuai dirimu, bukan yang kamu pikir 'seharusnya'.",
+          },
+          {
+            q: "Bagaimana hasil tes ini digunakan?",
+            a: "Kode minatmu digabung dengan hasil Tes Bakat untuk merekomendasikan jurusan dan karier yang cocok — dicocokkan dengan 18.000+ program studi di Indonesia.",
+          },
+          {
+            q: "Apakah tesnya gratis?",
+            a: "Ya, sepenuhnya gratis untuk individu. Kamu bisa ikut kapan saja setelah login.",
+          },
+        ]}
+      />
 
       {/* CTA */}
       <section className="mx-auto max-w-7xl bg-white px-5 py-14 text-center">

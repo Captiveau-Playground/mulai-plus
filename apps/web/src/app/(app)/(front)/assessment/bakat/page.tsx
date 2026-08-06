@@ -1,5 +1,7 @@
-import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
+import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
 
 const ABILITIES = [
   {
@@ -37,20 +39,14 @@ const ABILITIES = [
 export default function AssessmentBakatPage() {
   return (
     <div className="overflow-hidden">
+      <AssessmentBreadcrumb trail={[{ label: "Test Minat Bakat", href: "/assessment" }]} current="Tes Bakat" />
       {/* Hero */}
       <section className="relative bg-gradient-to-b from-teal-50 via-white to-white">
         <div
           className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-teal-500/10 blur-3xl"
           aria-hidden
         />
-        <div className="mx-auto max-w-7xl px-5 pt-14 pb-10 md:pt-20">
-          <Link
-            href="/assessment"
-            className="inline-flex items-center gap-1 font-manrope font-semibold text-gray-400 text-sm hover:text-gray-600"
-          >
-            <ArrowLeft className="h-4 w-4" /> Test Minat Bakat
-          </Link>
-
+        <div className="mx-auto max-w-7xl px-5 pt-8 pb-10 md:pt-10">
           <div className="mt-5 flex flex-col items-center text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-mentor-teal to-teal-700 text-3xl shadow-xl">
               💡
@@ -139,6 +135,32 @@ export default function AssessmentBakatPage() {
           </div>
         </div>
       </section>
+
+      {/* Registrasi */}
+      <AssessmentPricingSection />
+
+      {/* FAQ */}
+      <AssessmentFaq
+        items={[
+          {
+            q: "Apa yang diukur Tes Bakat?",
+            a: "Lima kemampuan dasar: numerik (angka & pola), verbal (kosakata & bahasa), logika (penalaran), spasial (visualisasi ruang), dan ketelitian (kecepatan & akurasi detail).",
+          },
+          {
+            q: "Berapa lama tesnya?",
+            a: "Sekitar 5 menit untuk 10 soal pilihan ganda. Ada jawaban benar, tapi tidak ada timer yang menekan.",
+          },
+          {
+            q: "Apa bedanya dengan Tes Minat?",
+            a: "Minat = apa yang kamu suka (arah). Bakat = seberapa kuat kemampuan dasarmu. Keduanya digabung agar rekomendasi jurusan tidak hanya 'kamu suka', tapi juga 'kamu bisa'.",
+          },
+          {
+            q: "Bagaimana hasilnya dibaca?",
+            a: "Setiap dimensi dinilai menjadi Tinggi, Sedang, atau Perlu Pengembangan. Dua tertinggi jadi kekuatan utamamu, terendah jadi area yang bisa diasah.",
+          },
+          { q: "Apakah tesnya gratis?", a: "Ya, sepenuhnya gratis untuk individu setelah login." },
+        ]}
+      />
 
       {/* CTA */}
       <section className="mx-auto max-w-7xl bg-white px-5 py-14 text-center">

@@ -1,5 +1,6 @@
 import { ArrowRight, Building2, CheckCircle2, MessageCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 
 const WA_LINK =
   "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20jadwalkan%20demo%20Test%20Minat%20Bakat%20untuk%20sekolah%20kami";
@@ -60,6 +61,7 @@ const ABILITIES = [
 export default function AssessmentLandingPage() {
   return (
     <div className="overflow-hidden">
+      <AssessmentBreadcrumb trail={[]} current="Test Minat Bakat" />
       {/* ── HERO ── */}
       <section className="relative bg-gradient-to-b from-[#eef2ff] via-white to-white">
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -67,7 +69,7 @@ export default function AssessmentLandingPage() {
           <div className="absolute top-40 -right-24 h-96 w-96 rounded-full bg-brand-orange/10 blur-3xl" />
         </div>
 
-        <div className="mx-auto max-w-7xl px-5 pt-16 pb-12 md:pt-24 md:pb-16">
+        <div className="mx-auto max-w-7xl px-5 pt-10 pb-12 md:pt-14 md:pb-16">
           <div className="grid items-center gap-10 md:grid-cols-2">
             {/* Copy */}
             <div className="text-center md:text-left">
@@ -406,7 +408,7 @@ export default function AssessmentLandingPage() {
                   href={WA_LINK}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-orange px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-orange px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
                 >
                   <MessageCircle className="h-5 w-5" /> Jadwalkan Demo via WhatsApp
                 </a>
