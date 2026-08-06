@@ -28,6 +28,208 @@ const HOLLAND_DIMS = ["R", "I", "A", "S", "E", "C"];
 const ABILITY_DIMS = ["numerical", "verbal", "logical", "spatial", "clerical"];
 const ABILITY_LEVEL_MAP: Record<string, number> = { high: 1, medium: 0.6, low: 0.3 };
 
+// ─── Karir Impian: alias/kata kunci untuk mencocokkan teks bebas → 57 karier ──
+const CAREER_KEYWORDS: Record<string, string[]> = {
+  Dokter: ["dokter", "kedokteran", "medical", "medicine", "dokter umum", "dokter gigi", "dokter bedah"],
+  "Dokter Spesialis": ["dokter spesialis", "spesialis", "bedah", "cardiologist", "anastesi"],
+  Perawat: ["perawat", "nurse", "keperawatan"],
+  Bidan: ["bidan", "midwife", "kebidanan"],
+  Apoteker: ["apoteker", "pharmacist", "farmasi", "obat"],
+  Psikolog: ["psikolog", "psychology", "psikologi", "konselor", "terapis"],
+  "HR Specialist": ["hr", "human resource", "sdm", "rekrutmen", "hrd"],
+  Pengacara: ["pengacara", "lawyer", "advokat", "hukum"],
+  "Legal Officer": ["legal", "compliance", "legal officer"],
+  "Software Engineer": [
+    "software",
+    "engineer",
+    "programmer",
+    "coding",
+    "developer",
+    "game developer",
+    "game programmer",
+    "aplikasi",
+    "backend",
+    "frontend",
+    "fullstack",
+    "web developer",
+    "mobile developer",
+    "it developer",
+    "pembuat game",
+    "pembuat aplikasi",
+    "programming",
+    "ngoding",
+    "pemrograman",
+    "codingan",
+    "aplikasi mobile",
+    "buat game",
+    "membuat aplikasi",
+    "membuat game",
+    "mobile",
+    "web",
+    "it",
+    "teknologi informasi",
+  ],
+  "Data Scientist": ["data scientist", "machine learning", "ai", "kecerdasan buatan", "ml", "artificial intelligence"],
+  "DevOps Engineer": ["devops", "cloud", "infrastructure", "sysadmin"],
+  "Electrical Engineer": ["elektro", "electrical", "listrik", "elektronika", "robotika"],
+  "Mechanical Engineer": ["mesin", "mechanical", "teknik mesin", "mekanik"],
+  "Civil Engineer": ["sipil", "civil", "konstruksi", "bangunan", "insinyur sipil"],
+  Arsitek: ["arsitek", "arsitektur", "architect", "desain bangunan", "interior"],
+  Akuntan: ["akuntan", "akuntansi", "accountant", "keuangan", "finance"],
+  Auditor: ["auditor", "audit", "internal audit"],
+  Banker: ["bank", "banker", "perbankan", "teller", "investasi"],
+  "Konsultan Pajak": ["pajak", "tax", "perpajakan", "konsultan pajak"],
+  "Business Analyst": ["business analyst", "analis bisnis", "konsultan bisnis", "ba"],
+  Manajer: [
+    "manajer",
+    "manager",
+    "manajemen",
+    "pemimpin",
+    "ceo",
+    "wirausaha",
+    "pengusaha",
+    "entrepreneur",
+    "bisnis",
+    "usaha sendiri",
+    "startup",
+  ],
+  Ekonom: ["ekonom", "economics", "ekonomi", "analis ekonomi"],
+  "Marketing Specialist": [
+    "marketing",
+    "pemasaran",
+    "digital marketing",
+    "seo",
+    "content marketing",
+    "sales",
+    "jualan",
+    "online shop",
+    "toko online",
+    "e-commerce",
+    "affiliate",
+    "dropship",
+  ],
+  "Public Relations": [
+    "public relations",
+    "pr",
+    "humas",
+    "media relations",
+    "media sosial",
+    "sosmed",
+    "youtuber",
+    "content creator",
+    "konten kreator",
+    "influencer",
+    "selebgram",
+    "vlogger",
+    "entertainer",
+    "creator",
+  ],
+  Jurnalis: ["jurnalis", "journalist", "wartawan", "reporter", "penulis berita", "broadcast"],
+  "Graphic Designer": [
+    "graphic designer",
+    "desainer",
+    "desain grafis",
+    "designer",
+    "illustrator",
+    "video editor",
+    "editor video",
+    "game artist",
+    "animasi",
+    "multimedia",
+    "desain visual",
+    "gambar",
+    "menggambar",
+    "desain baju",
+    "fashion",
+    "desain pakaian",
+  ],
+  "UI/UX Designer": ["ui", "ux", "ui ux", "uiux", "product designer", "game designer", "desain digital", "prototype"],
+  Penulis: ["penulis", "writer", "novel", "sastra", "content writer", "menulis", "cerita", "blogger"],
+  Penerjemah: ["penerjemah", "translator", "interpreter", "bahasa asing"],
+  Guru: ["guru", "teacher", "mengajar", "pendidikan", "pengajar", "les"],
+  Dosen: ["dosen", "lecturer", "akademisi", "dosen peneliti"],
+  Aktuaris: ["aktuaris", "actuary", "aktuaria", "asuransi"],
+  "Analis Kuantitatif": ["kuantitatif", "quant", "analis kuantitatif"],
+  "Data Analyst": ["data analyst", "analis data", "data", "analytics"],
+  Statistikawan: ["statistikawan", "statistician", "statistika", "statistik"],
+  Peneliti: ["peneliti", "researcher", "riset", "sains", "fisika", "ilmuwan", "research"],
+  "R&D Scientist": ["r&d", "research and development", "scientist", "kimia", "lab"],
+  Biologist: ["biologist", "biologi", "biologiwan"],
+  Bioinformatician: ["bioinformatician", "bioinformatika", "bioteknologi"],
+  Diplomat: [
+    "diplomat",
+    "diplomasi",
+    "hubungan internasional",
+    "kedutaan",
+    "duta besar",
+    "pbb",
+    "kementerian luar negeri",
+  ],
+  "Kebijakan Publik": ["kebijakan", "policy", "politik", "pemerintah", "birokrasi", "pejabat", "aparatur"],
+  "Peneliti Sosial": ["sosiologi", "sosial", "social researcher", "peneliti sosial", "antropologi"],
+  "Administrasi Perkantoran": ["administrasi", "admin", "perkantoran", "sekretaris", "kantor"],
+  "Hotel Manager": [
+    "hotel",
+    "hospitality",
+    "pariwisata",
+    "tourism",
+    "tour guide",
+    "perhotelan",
+    "resort",
+    "pramugari",
+    "flight attendant",
+  ],
+  Chef: ["chef", "koki", "kuliner", "memasak", "culinary", "masak", "baker", "pastry"],
+  Agronom: ["agronom", "pertanian", "agriculture", "tanaman", "agribisnis", "petani"],
+  "Forestry Officer": ["kehutanan", "forestry", "hutan", "ranger"],
+  "Marine Biologist": ["perikanan", "marine", "biologi laut", "kelautan", "ikan", "laut"],
+  "Supply Chain Analyst": ["logistik", "supply chain", "rantai pasok", "ekspedisi", "pengiriman", "gudang"],
+  Geologist: ["geologi", "geology", "tambang", "mineral", "migas", "pertambangan"],
+  "Aerospace Engineer": ["dirgantara", "aerospace", "penerbangan", "roket", "pesawat", "astronot", "pilot"],
+  "Automotive Engineer": ["otomotif", "automotive", "mobil", "kendaraan", "bengkel"],
+  "Ahli Gizi": ["gizi", "nutrition", "diet", "nutrisi", "ahli gizi"],
+  Fisioterapis: ["fisioterapi", "physiotherapy", "terapi fisik", "fisioterapis"],
+  "Dokter Hewan": ["dokter hewan", "veterinary", "hewan", "kedokteran hewan", "vet"],
+  "Sports Coach": ["olahraga", "sports", "pelatih", "atlet", "coach", "fitness", "gym"],
+};
+
+function matchCareers(
+  text: string,
+  careers: { majorCategory: string; careerName: string }[],
+): { careerName: string; categoryKey: string; score: number }[] {
+  const norm = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  const tokens = norm.split(" ").filter((t) => t.length > 1);
+  const results: { careerName: string; categoryKey: string; score: number }[] = [];
+
+  for (const c of careers) {
+    let score = 0;
+    const nameNorm = c.careerName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    const nameTokens = new Set(nameNorm.split(" "));
+    for (const t of tokens) {
+      if (nameTokens.has(t)) score += 2;
+      // prefix match: "psikologis" → "psikolog"
+      for (const nt of nameTokens) if (nt.length > 4 && t.startsWith(nt)) score += 1.5;
+    }
+    for (const k of CAREER_KEYWORDS[c.careerName] ?? []) {
+      const kn = k
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+      if (kn && kn.length >= 3 && norm.includes(kn)) score += Math.min(2, kn.split(" ").length);
+    }
+    if (score > 0) results.push({ careerName: c.careerName, categoryKey: c.majorCategory, score });
+  }
+
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, 8);
+}
+
 // Cache prodi (data statis) — refresh 1 jam
 let prodiCache: { name: string; level: string | null; university: string; idSms: string; idSp: string }[] | null = null;
 let prodiCacheTs = 0;
@@ -555,6 +757,128 @@ export const tmbRouter = {
     }),
   },
 
+  // ─── Karir Impian: teks bebas → jalur kuliah (prodi & univ) ───
+  futureCareer: {
+    match: protectedProcedure
+      .input(z.object({ careerText: z.string().trim().min(2).max(140) }))
+      .handler(async ({ input, context }) => {
+        const userId = context.session.user.id;
+        const text = input.careerText;
+
+        const [careers, patterns, prodiList] = await Promise.all([
+          db.query.tmbCareerMappings.findMany(),
+          db.query.tmbMajorPatterns.findMany({ where: eq(tmbMajorPatterns.isActive, true) }),
+          getProdiList(),
+        ]);
+
+        // 1) cocokkan teks bebas → karier
+        const matched = matchCareers(text, careers);
+        const top = matched.slice(0, 3);
+        const matchedExact = matched[0] != null && matched[0].score >= 2;
+
+        // 2) kelompokkan prodi per kategori (regex pola dari major_patterns)
+        const byCategory = new Map<string, typeof prodiList>();
+        for (const p of prodiList) {
+          for (const pat of patterns) {
+            if (new RegExp(pat.pattern, "i").test(p.name)) {
+              const arr = byCategory.get(pat.categoryKey) ?? [];
+              arr.push(p);
+              byCategory.set(pat.categoryKey, arr);
+              break;
+            }
+          }
+        }
+
+        // 3) susun jalur: kategori unik + prodi contoh + karier lain di kategori sama
+        const paths: {
+          categoryKey: string;
+          categoryName: string;
+          careerName: string;
+          matchScore: number;
+          prodis: { prodi: string; level: string | null; university: string; link: string }[];
+          otherCareers: string[];
+        }[] = [];
+        const seen = new Set<string>();
+        for (const m of top) {
+          if (seen.has(m.categoryKey)) continue;
+          seen.add(m.categoryKey);
+          const pat = patterns.find((p) => p.categoryKey === m.categoryKey);
+          const prodis = (byCategory.get(m.categoryKey) ?? []).slice(0, 6);
+          paths.push({
+            categoryKey: m.categoryKey,
+            categoryName: pat?.categoryName ?? m.categoryKey,
+            careerName: m.careerName,
+            matchScore: m.score,
+            prodis: prodis.map((p) => ({
+              prodi: p.name,
+              level: p.level,
+              university: p.university,
+              link: `/explore/universities/${slugify(p.university)}-${p.idSp.substring(0, 6)}/prodi/${encodeURIComponent(p.idSms)}`,
+            })),
+            otherCareers: careers.filter((c) => c.majorCategory === m.categoryKey).map((c) => c.careerName),
+          });
+        }
+
+        // 4) fit note: bandingkan jalur dengan profil hasil test (jika sudah ada)
+        const result = await db.query.tmbAssessmentResults.findFirst({
+          where: eq(tmbAssessmentResults.userId, userId),
+          orderBy: desc(tmbAssessmentResults.createdAt),
+        });
+
+        let fit: {
+          hasResult: boolean;
+          score: number | null;
+          level: "cocok" | "cukup" | "kurang" | null;
+          suggestedMajors: string[];
+        } | null = null;
+        if (result) {
+          const hollandScores = (result.hollandScores ?? {}) as Record<string, number>;
+          const ability = (result.abilityScores ?? { levels: {} }) as { levels: Record<string, string> };
+          let best = 0;
+          for (const path of paths) {
+            const pat = patterns.find((p) => p.categoryKey === path.categoryKey);
+            if (!pat) continue;
+            const interest =
+              ((hollandScores[pat.hollandPrimary] ?? 0) + (hollandScores[pat.hollandSecondary] ?? 0)) / 2;
+            const weights = (pat.abilityWeights ?? {}) as Record<string, number>;
+            const weightSum = Object.values(weights).reduce((a: number, b: number) => a + b, 0);
+            let abilityMatch = 0.6;
+            if (weightSum > 0) {
+              let acc = 0;
+              for (const [dim, w] of Object.entries(weights)) {
+                acc += (w ?? 0) * (ABILITY_LEVEL_MAP[ability.levels[dim] ?? "medium"] ?? 0.6);
+              }
+              abilityMatch = acc / weightSum;
+            }
+            best = Math.max(best, 0.6 * interest + 0.4 * abilityMatch);
+          }
+          const score = Math.round(best * 100);
+          const recs = await db.query.tmbRecommendations.findMany({
+            where: eq(tmbRecommendations.resultId, result.id),
+            orderBy: asc(tmbRecommendations.rank),
+            limit: 6,
+          });
+          fit = {
+            hasResult: true,
+            score,
+            level: best >= 0.75 ? "cocok" : best >= 0.55 ? "cukup" : "kurang",
+            suggestedMajors: recs
+              .filter((r) => r.type === "major")
+              .slice(0, 3)
+              .map((r) => r.itemName),
+          };
+        }
+
+        return {
+          query: text,
+          matched: matchedExact,
+          paths,
+          fit,
+          suggestions: matched.slice(0, 5).map((m) => m.careerName),
+        };
+      }),
+  },
+
   aiSummary: {
     generate: protectedProcedure.handler(async ({ context }) => {
       const userId = context.session.user.id;
@@ -923,13 +1247,14 @@ export const tmbAdminRouter = {
       if (!student) notFound("Siswa tidak ditemukan");
       let result = null;
       if (student.resultId) {
+        const resultId = student.resultId;
         const [r, recommendations, summary] = await Promise.all([
-          db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, student.resultId) }),
+          db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
           db.query.tmbRecommendations.findMany({
-            where: eq(tmbRecommendations.resultId, student.resultId!),
+            where: eq(tmbRecommendations.resultId, resultId),
             orderBy: asc(tmbRecommendations.rank),
           }),
-          db.query.tmbAiSummaries.findFirst({ where: eq(tmbAiSummaries.resultId, student.resultId!) }),
+          db.query.tmbAiSummaries.findFirst({ where: eq(tmbAiSummaries.resultId, resultId) }),
         ]);
         result = { result: r, recommendations, summary: summary?.content ?? null };
       }
@@ -985,9 +1310,13 @@ export const tmbAdminRouter = {
       let sent = 0;
       const failed: string[] = [];
       for (const s of students) {
+        if (!s.email) {
+          failed.push(s.name);
+          continue;
+        }
         try {
           await mail.send({
-            to: s.email!,
+            to: s.email,
             subject: `Undangan Test Minat Bakat by MULAI+ — ${schoolName} 🧭`,
             html: inviteEmailHtml(s.name, link, schoolName),
           });
@@ -1007,10 +1336,11 @@ export const tmbAdminRouter = {
         let confidence = "";
         let topMajors: string[] = [];
         if (s.resultId) {
+          const resultId = s.resultId;
           const [r, recos] = await Promise.all([
-            db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, s.resultId) }),
+            db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
             db.query.tmbRecommendations.findMany({
-              where: eq(tmbRecommendations.resultId, s.resultId!),
+              where: eq(tmbRecommendations.resultId, resultId),
               orderBy: asc(tmbRecommendations.rank),
             }),
           ]);
@@ -1049,15 +1379,16 @@ export const tmbAdminRouter = {
 
     for (const s of students) {
       if (!s.resultId) continue;
+      const resultId = s.resultId;
       const [r, recos] = await Promise.all([
-        db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, s.resultId) }),
+        db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
         db.query.tmbRecommendations.findMany({
-          where: eq(tmbRecommendations.resultId, s.resultId!),
+          where: eq(tmbRecommendations.resultId, resultId),
           orderBy: asc(tmbRecommendations.rank),
         }),
       ]);
       if (r?.hollandCode) {
-        const primary = r.hollandCode[0]!;
+        const primary = r.hollandCode.charAt(0);
         hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
       }
       const ability = (r?.abilityScores as any)?.scores ?? {};
@@ -1112,7 +1443,7 @@ export const tmbAdminRouter = {
       let totalConfidence = 0;
       for (const r of results) {
         if (r.hollandCode) {
-          const primary = r.hollandCode[0]!;
+          const primary = r.hollandCode.charAt(0);
           hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
         }
         totalConfidence += Number(r.confidenceScore ?? 0);

@@ -27,6 +27,7 @@ const footerNavLinks = [
       { label: "Tes Minat Bakat", href: "/assessment" },
       { label: "Tes Minat (Holland)", href: "/assessment/minat" },
       { label: "Tes Bakat", href: "/assessment/bakat" },
+      { label: "Karir Impian", href: "/assessment/future-career" },
     ],
   },
   {

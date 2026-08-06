@@ -36,7 +36,7 @@ export function AssessmentPricingSection({ theme = "default" }: { theme?: Assess
   const th = THEME[theme];
 
   return (
-    <section aria-label="Registrasi" className="mx-auto max-w-7xl bg-white px-5 py-14">
+    <section aria-label="Registrasi" className="mx-auto max-w-7xl bg-white px-4 py-14 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-2xl text-center">
         <p className={cn("font-bold font-manrope text-xs uppercase tracking-widest", th.label)}>Registrasi</p>
         <h2 className="mt-2 font-bold font-bricolage text-3xl text-brand-navy md:text-4xl">
@@ -137,7 +137,7 @@ export function AssessmentFaq({
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section aria-label="FAQ" className="mx-auto max-w-7xl bg-white px-5 py-14">
+    <section aria-label="FAQ" className="mx-auto max-w-7xl bg-white px-4 py-14 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-2xl text-center">
         <p className={cn("font-bold font-manrope text-xs uppercase tracking-widest", th.label)}>FAQ</p>
         <h2 className="mt-2 font-bold font-bricolage text-3xl text-brand-navy md:text-4xl">

@@ -5,6 +5,7 @@ import {
   Compass,
   FileText,
   FlaskConical,
+  Map as MapIcon,
   MessageCircle,
   Palette,
   Quote,
@@ -314,6 +315,33 @@ export default function AssessmentLandingPage() {
             </StaggerItem>
           </StaggerGroup>
         </div>
+      </section>
+
+      {/* ── KARIR IMPIAN ── */}
+      <section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+        <Reveal>
+          <Link
+            href="/assessment/future-career"
+            className="group relative flex flex-col items-start gap-5 overflow-hidden rounded-2xl border border-brand-orange/20 bg-brand-orange/5 p-6 transition-all hover:border-brand-orange/40 hover:bg-brand-orange/10 md:flex-row md:items-center md:p-8"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-orange text-white shadow-brand-orange/20 shadow-lg">
+              <MapIcon className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold font-manrope text-orange-700 text-xs uppercase tracking-widest">Fitur Baru</p>
+              <h2 className="mt-1 font-bold font-bricolage text-brand-navy text-xl md:text-2xl">
+                Punya Karir Impian? Petakan Jalur Kuliahnya.
+              </h2>
+              <p className="mt-1 max-w-2xl font-manrope text-gray-500 text-sm">
+                Tulis profesi impianmu — kami tunjukkan jurusan, prodi, dan kampus yang mengarah ke sana, plus
+                keselarasannya dengan hasil testmu.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 font-bold font-bricolage text-brand-orange text-sm">
+              Coba Fitur <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </span>
+          </Link>
+        </Reveal>
       </section>
 
       {/* ── CARA KERJA ── */}

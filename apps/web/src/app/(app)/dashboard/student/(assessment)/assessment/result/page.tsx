@@ -2,12 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Download, Loader2, Sparkles } from "lucide-react";
+import { ArrowUpRight, Download, Loader2, Map as MapIcon, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { FutureCareerMap } from "@/components/front/future-career-map";
+import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { authClient } from "@/lib/auth-client";
+import { buildResultMindMap } from "@/lib/future-career";
 import { generateTmbReportPdf } from "@/lib/tmb-report-pdf";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -262,10 +265,8 @@ export default function TmbResultPage() {
           <h2 className="font-bold font-bricolage text-gray-900">Ringkasan AI</h2>
         </div>
         {data?.summary ? (
-          <div className="mt-3 space-y-2 font-manrope text-gray-700 text-sm leading-relaxed">
-            {data.summary.split("\n\n").map((p: string, i: number) => (
-              <p key={i}>{p.replace(/^[-*]\s+/, "").replace(/^#+\s*/, "")}</p>
-            ))}
+          <div className="mt-3 rounded-2xl bg-white/70 p-4 font-manrope text-gray-700 text-sm leading-relaxed">
+            <MarkdownRenderer>{data.summary}</MarkdownRenderer>
           </div>
         ) : summaryMutation.isPending ? (
           <div className="mt-3 flex items-center gap-2 font-manrope text-gray-500 text-sm">
@@ -311,9 +312,9 @@ export default function TmbResultPage() {
                     <Link
                       key={j}
                       href={p.link}
-                      className="flex items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2 transition-colors hover:bg-mentor-teal/5"
+                      className="flex w-full min-w-0 max-w-full items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2 transition-colors hover:bg-mentor-teal/5"
                     >
-                      <span className="truncate font-manrope text-gray-600 text-xs">
+                      <span className="min-w-0 flex-1 truncate font-manrope text-gray-600 text-xs">
                         📚 {p.prodi} <span className="text-gray-400">({p.level})</span>
                         <span className="ml-1 text-gray-400">— {p.university}</span>
                       </span>
@@ -345,6 +346,25 @@ export default function TmbResultPage() {
             </span>
           ))}
         </div>
+      </motion.div>
+
+      {/* Peta Rekomendasi (auto-generate dari hasil) */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.28 }}
+        className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 border-gray-50 border-b px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <MapIcon className="h-5 w-5 text-mentor-teal" />
+            <h2 className="font-bold font-bricolage text-gray-900">Peta Rekomendasi</h2>
+          </div>
+          <span className="rounded-full bg-gray-50 px-3 py-1 font-manrope text-[11px] text-gray-500">
+            Dari profilmu · klik node prodi untuk detail
+          </span>
+        </div>
+        <FutureCareerMap data={buildResultMindMap(hollandCode, majors as any, careers as any)} />
       </motion.div>
 
       {/* Download PDF */}
