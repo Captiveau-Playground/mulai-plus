@@ -585,7 +585,7 @@ Buat narasi ringkas (2-4 paragraf) dalam Bahasa Indonesia yang ramah untuk siswa
 4. Hubungkan dengan rekomendasi jurusan teratas (sebutkan 2-3) dan kenapa cocok
 5. Tutup dengan semangat/motivasi singkat
 
-Gunakan markdown sederhana. Jangan mengarang data — gunakan hanya profil yang diberikan."""
+Gunakan markdown yang rapi: ## untuk sub-judul singkat (Tipe Minat, Kekuatan, Jurusan), **bold** untuk poin penting, dan bullet list (dengan - ) bila perlu. Jangan gunakan emoji berlebihan (maksimal 1-2). Jangan mengarang data — gunakan hanya profil yang diberikan."""
 
 
 @chat_router.post("/tmb/summary")

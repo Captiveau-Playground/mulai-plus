@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const ASSESSMENT_NAV = [
   { href: "/dashboard/student/assessment" as const, label: "Test", icon: "🧭", exact: true },
   { href: "/dashboard/student/assessment/result" as const, label: "Hasil", icon: "📊" },
+  { href: "/dashboard/student/assessment/future-career" as const, label: "Karir Impian", icon: "💭" },
   { href: "/dashboard/student/assessment/history" as const, label: "History", icon: "🕘" },
 ];
 

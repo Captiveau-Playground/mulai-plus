@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNotNull } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne } from "@mulai-plus/db";
 import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
@@ -7,6 +7,7 @@ import {
   tmbAssessmentResults,
   tmbBatches,
   tmbBatchStudents,
+  tmbCareerMappings,
   tmbMajorPatterns,
   tmbProfiles,
   tmbQuestionBank,
@@ -27,6 +28,208 @@ import { mail } from "../lib/mail";
 const HOLLAND_DIMS = ["R", "I", "A", "S", "E", "C"];
 const ABILITY_DIMS = ["numerical", "verbal", "logical", "spatial", "clerical"];
 const ABILITY_LEVEL_MAP: Record<string, number> = { high: 1, medium: 0.6, low: 0.3 };
+
+// ─── Karir Impian: alias/kata kunci untuk mencocokkan teks bebas → 57 karier ──
+const CAREER_KEYWORDS: Record<string, string[]> = {
+  Dokter: ["dokter", "kedokteran", "medical", "medicine", "dokter umum", "dokter gigi", "dokter bedah"],
+  "Dokter Spesialis": ["dokter spesialis", "spesialis", "bedah", "cardiologist", "anastesi"],
+  Perawat: ["perawat", "nurse", "keperawatan"],
+  Bidan: ["bidan", "midwife", "kebidanan"],
+  Apoteker: ["apoteker", "pharmacist", "farmasi", "obat"],
+  Psikolog: ["psikolog", "psychology", "psikologi", "konselor", "terapis"],
+  "HR Specialist": ["hr", "human resource", "sdm", "rekrutmen", "hrd"],
+  Pengacara: ["pengacara", "lawyer", "advokat", "hukum"],
+  "Legal Officer": ["legal", "compliance", "legal officer"],
+  "Software Engineer": [
+    "software",
+    "engineer",
+    "programmer",
+    "coding",
+    "developer",
+    "game developer",
+    "game programmer",
+    "aplikasi",
+    "backend",
+    "frontend",
+    "fullstack",
+    "web developer",
+    "mobile developer",
+    "it developer",
+    "pembuat game",
+    "pembuat aplikasi",
+    "programming",
+    "ngoding",
+    "pemrograman",
+    "codingan",
+    "aplikasi mobile",
+    "buat game",
+    "membuat aplikasi",
+    "membuat game",
+    "mobile",
+    "web",
+    "it",
+    "teknologi informasi",
+  ],
+  "Data Scientist": ["data scientist", "machine learning", "ai", "kecerdasan buatan", "ml", "artificial intelligence"],
+  "DevOps Engineer": ["devops", "cloud", "infrastructure", "sysadmin"],
+  "Electrical Engineer": ["elektro", "electrical", "listrik", "elektronika", "robotika"],
+  "Mechanical Engineer": ["mesin", "mechanical", "teknik mesin", "mekanik"],
+  "Civil Engineer": ["sipil", "civil", "konstruksi", "bangunan", "insinyur sipil"],
+  Arsitek: ["arsitek", "arsitektur", "architect", "desain bangunan", "interior"],
+  Akuntan: ["akuntan", "akuntansi", "accountant", "keuangan", "finance"],
+  Auditor: ["auditor", "audit", "internal audit"],
+  Banker: ["bank", "banker", "perbankan", "teller", "investasi"],
+  "Konsultan Pajak": ["pajak", "tax", "perpajakan", "konsultan pajak"],
+  "Business Analyst": ["business analyst", "analis bisnis", "konsultan bisnis", "ba"],
+  Manajer: [
+    "manajer",
+    "manager",
+    "manajemen",
+    "pemimpin",
+    "ceo",
+    "wirausaha",
+    "pengusaha",
+    "entrepreneur",
+    "bisnis",
+    "usaha sendiri",
+    "startup",
+  ],
+  Ekonom: ["ekonom", "economics", "ekonomi", "analis ekonomi"],
+  "Marketing Specialist": [
+    "marketing",
+    "pemasaran",
+    "digital marketing",
+    "seo",
+    "content marketing",
+    "sales",
+    "jualan",
+    "online shop",
+    "toko online",
+    "e-commerce",
+    "affiliate",
+    "dropship",
+  ],
+  "Public Relations": [
+    "public relations",
+    "pr",
+    "humas",
+    "media relations",
+    "media sosial",
+    "sosmed",
+    "youtuber",
+    "content creator",
+    "konten kreator",
+    "influencer",
+    "selebgram",
+    "vlogger",
+    "entertainer",
+    "creator",
+  ],
+  Jurnalis: ["jurnalis", "journalist", "wartawan", "reporter", "penulis berita", "broadcast"],
+  "Graphic Designer": [
+    "graphic designer",
+    "desainer",
+    "desain grafis",
+    "designer",
+    "illustrator",
+    "video editor",
+    "editor video",
+    "game artist",
+    "animasi",
+    "multimedia",
+    "desain visual",
+    "gambar",
+    "menggambar",
+    "desain baju",
+    "fashion",
+    "desain pakaian",
+  ],
+  "UI/UX Designer": ["ui", "ux", "ui ux", "uiux", "product designer", "game designer", "desain digital", "prototype"],
+  Penulis: ["penulis", "writer", "novel", "sastra", "content writer", "menulis", "cerita", "blogger"],
+  Penerjemah: ["penerjemah", "translator", "interpreter", "bahasa asing"],
+  Guru: ["guru", "teacher", "mengajar", "pendidikan", "pengajar", "les"],
+  Dosen: ["dosen", "lecturer", "akademisi", "dosen peneliti"],
+  Aktuaris: ["aktuaris", "actuary", "aktuaria", "asuransi"],
+  "Analis Kuantitatif": ["kuantitatif", "quant", "analis kuantitatif"],
+  "Data Analyst": ["data analyst", "analis data", "data", "analytics"],
+  Statistikawan: ["statistikawan", "statistician", "statistika", "statistik"],
+  Peneliti: ["peneliti", "researcher", "riset", "sains", "fisika", "ilmuwan", "research"],
+  "R&D Scientist": ["r&d", "research and development", "scientist", "kimia", "lab"],
+  Biologist: ["biologist", "biologi", "biologiwan"],
+  Bioinformatician: ["bioinformatician", "bioinformatika", "bioteknologi"],
+  Diplomat: [
+    "diplomat",
+    "diplomasi",
+    "hubungan internasional",
+    "kedutaan",
+    "duta besar",
+    "pbb",
+    "kementerian luar negeri",
+  ],
+  "Kebijakan Publik": ["kebijakan", "policy", "politik", "pemerintah", "birokrasi", "pejabat", "aparatur"],
+  "Peneliti Sosial": ["sosiologi", "sosial", "social researcher", "peneliti sosial", "antropologi"],
+  "Administrasi Perkantoran": ["administrasi", "admin", "perkantoran", "sekretaris", "kantor"],
+  "Hotel Manager": [
+    "hotel",
+    "hospitality",
+    "pariwisata",
+    "tourism",
+    "tour guide",
+    "perhotelan",
+    "resort",
+    "pramugari",
+    "flight attendant",
+  ],
+  Chef: ["chef", "koki", "kuliner", "memasak", "culinary", "masak", "baker", "pastry"],
+  Agronom: ["agronom", "pertanian", "agriculture", "tanaman", "agribisnis", "petani"],
+  "Forestry Officer": ["kehutanan", "forestry", "hutan", "ranger"],
+  "Marine Biologist": ["perikanan", "marine", "biologi laut", "kelautan", "ikan", "laut"],
+  "Supply Chain Analyst": ["logistik", "supply chain", "rantai pasok", "ekspedisi", "pengiriman", "gudang"],
+  Geologist: ["geologi", "geology", "tambang", "mineral", "migas", "pertambangan"],
+  "Aerospace Engineer": ["dirgantara", "aerospace", "penerbangan", "roket", "pesawat", "astronot", "pilot"],
+  "Automotive Engineer": ["otomotif", "automotive", "mobil", "kendaraan", "bengkel"],
+  "Ahli Gizi": ["gizi", "nutrition", "diet", "nutrisi", "ahli gizi"],
+  Fisioterapis: ["fisioterapi", "physiotherapy", "terapi fisik", "fisioterapis"],
+  "Dokter Hewan": ["dokter hewan", "veterinary", "hewan", "kedokteran hewan", "vet"],
+  "Sports Coach": ["olahraga", "sports", "pelatih", "atlet", "coach", "fitness", "gym"],
+};
+
+function matchCareers(
+  text: string,
+  careers: { majorCategory: string; careerName: string }[],
+): { careerName: string; categoryKey: string; score: number }[] {
+  const norm = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  const tokens = norm.split(" ").filter((t) => t.length > 1);
+  const results: { careerName: string; categoryKey: string; score: number }[] = [];
+
+  for (const c of careers) {
+    let score = 0;
+    const nameNorm = c.careerName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    const nameTokens = new Set(nameNorm.split(" "));
+    for (const t of tokens) {
+      if (nameTokens.has(t)) score += 2;
+      // prefix match: "psikologis" → "psikolog"
+      for (const nt of nameTokens) if (nt.length > 4 && t.startsWith(nt)) score += 1.5;
+    }
+    for (const k of CAREER_KEYWORDS[c.careerName] ?? []) {
+      const kn = k
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+      if (kn && kn.length >= 3 && norm.includes(kn)) score += Math.min(2, kn.split(" ").length);
+    }
+    if (score > 0) results.push({ careerName: c.careerName, categoryKey: c.majorCategory, score });
+  }
+
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, 8);
+}
 
 // Cache prodi (data statis) — refresh 1 jam
 let prodiCache: { name: string; level: string | null; university: string; idSms: string; idSp: string }[] | null = null;
@@ -212,6 +415,24 @@ function computeRecommendations(
   return { majors, careers: careerRecos, byCategory: Object.fromEntries(byCategory) };
 }
 
+// ─── Helpers konten admin ────────────────────────────────
+
+function validatePatternRegex(pattern: string) {
+  try {
+    new RegExp(pattern, "i");
+  } catch {
+    preconditionFailed(`Regex tidak valid: ${pattern}`);
+  }
+}
+
+async function syncCatalogTotal(testCode: "interest" | "ability") {
+  const rows = await db.query.tmbQuestionBank.findMany({
+    where: eq(tmbQuestionBank.testCode, testCode),
+    columns: { id: true },
+  });
+  await db.update(tmbTestCatalog).set({ totalQuestions: rows.length }).where(eq(tmbTestCatalog.code, testCode));
+}
+
 // ─── Router ──────────────────────────────────────────────
 
 export const tmbRouter = {
@@ -276,6 +497,23 @@ export const tmbRouter = {
         stats: stats ?? { xp: 0, level: 1, streak: 0, testsCompleted: 0 },
         latestResult: results[0] ?? null,
         hasCompletedBoth: results.length > 0,
+        // progres per percobaan (ascending by tanggal) — untuk grafik naik/turun
+        progress: [...results].reverse().map((r) => {
+          const ability = (r.abilityScores ?? { scores: {} }) as {
+            scores?: Record<string, { correct: number; total: number }>;
+          };
+          const abilityPct: Record<string, number> = {};
+          for (const [dim, s] of Object.entries(ability.scores ?? {})) {
+            abilityPct[dim] = s.total ? Math.round((s.correct / s.total) * 100) : 0;
+          }
+          return {
+            createdAt: r.createdAt,
+            confidenceScore: Number(r.confidenceScore ?? 0),
+            hollandCode: r.hollandCode,
+            hollandScores: (r.hollandScores ?? {}) as Record<string, number>,
+            abilityPct,
+          };
+        }),
       };
     }),
 
@@ -555,6 +793,128 @@ export const tmbRouter = {
     }),
   },
 
+  // ─── Karir Impian: teks bebas → jalur kuliah (prodi & univ) ───
+  futureCareer: {
+    match: protectedProcedure
+      .input(z.object({ careerText: z.string().trim().min(2).max(140) }))
+      .handler(async ({ input, context }) => {
+        const userId = context.session.user.id;
+        const text = input.careerText;
+
+        const [careers, patterns, prodiList] = await Promise.all([
+          db.query.tmbCareerMappings.findMany(),
+          db.query.tmbMajorPatterns.findMany({ where: eq(tmbMajorPatterns.isActive, true) }),
+          getProdiList(),
+        ]);
+
+        // 1) cocokkan teks bebas → karier
+        const matched = matchCareers(text, careers);
+        const top = matched.slice(0, 3);
+        const matchedExact = matched[0] != null && matched[0].score >= 2;
+
+        // 2) kelompokkan prodi per kategori (regex pola dari major_patterns)
+        const byCategory = new Map<string, typeof prodiList>();
+        for (const p of prodiList) {
+          for (const pat of patterns) {
+            if (new RegExp(pat.pattern, "i").test(p.name)) {
+              const arr = byCategory.get(pat.categoryKey) ?? [];
+              arr.push(p);
+              byCategory.set(pat.categoryKey, arr);
+              break;
+            }
+          }
+        }
+
+        // 3) susun jalur: kategori unik + prodi contoh + karier lain di kategori sama
+        const paths: {
+          categoryKey: string;
+          categoryName: string;
+          careerName: string;
+          matchScore: number;
+          prodis: { prodi: string; level: string | null; university: string; link: string }[];
+          otherCareers: string[];
+        }[] = [];
+        const seen = new Set<string>();
+        for (const m of top) {
+          if (seen.has(m.categoryKey)) continue;
+          seen.add(m.categoryKey);
+          const pat = patterns.find((p) => p.categoryKey === m.categoryKey);
+          const prodis = (byCategory.get(m.categoryKey) ?? []).slice(0, 6);
+          paths.push({
+            categoryKey: m.categoryKey,
+            categoryName: pat?.categoryName ?? m.categoryKey,
+            careerName: m.careerName,
+            matchScore: m.score,
+            prodis: prodis.map((p) => ({
+              prodi: p.name,
+              level: p.level,
+              university: p.university,
+              link: `/explore/universities/${slugify(p.university)}-${p.idSp.substring(0, 6)}/prodi/${encodeURIComponent(p.idSms)}`,
+            })),
+            otherCareers: careers.filter((c) => c.majorCategory === m.categoryKey).map((c) => c.careerName),
+          });
+        }
+
+        // 4) fit note: bandingkan jalur dengan profil hasil test (jika sudah ada)
+        const result = await db.query.tmbAssessmentResults.findFirst({
+          where: eq(tmbAssessmentResults.userId, userId),
+          orderBy: desc(tmbAssessmentResults.createdAt),
+        });
+
+        let fit: {
+          hasResult: boolean;
+          score: number | null;
+          level: "cocok" | "cukup" | "kurang" | null;
+          suggestedMajors: string[];
+        } | null = null;
+        if (result) {
+          const hollandScores = (result.hollandScores ?? {}) as Record<string, number>;
+          const ability = (result.abilityScores ?? { levels: {} }) as { levels: Record<string, string> };
+          let best = 0;
+          for (const path of paths) {
+            const pat = patterns.find((p) => p.categoryKey === path.categoryKey);
+            if (!pat) continue;
+            const interest =
+              ((hollandScores[pat.hollandPrimary] ?? 0) + (hollandScores[pat.hollandSecondary] ?? 0)) / 2;
+            const weights = (pat.abilityWeights ?? {}) as Record<string, number>;
+            const weightSum = Object.values(weights).reduce((a: number, b: number) => a + b, 0);
+            let abilityMatch = 0.6;
+            if (weightSum > 0) {
+              let acc = 0;
+              for (const [dim, w] of Object.entries(weights)) {
+                acc += (w ?? 0) * (ABILITY_LEVEL_MAP[ability.levels[dim] ?? "medium"] ?? 0.6);
+              }
+              abilityMatch = acc / weightSum;
+            }
+            best = Math.max(best, 0.6 * interest + 0.4 * abilityMatch);
+          }
+          const score = Math.round(best * 100);
+          const recs = await db.query.tmbRecommendations.findMany({
+            where: eq(tmbRecommendations.resultId, result.id),
+            orderBy: asc(tmbRecommendations.rank),
+            limit: 6,
+          });
+          fit = {
+            hasResult: true,
+            score,
+            level: best >= 0.75 ? "cocok" : best >= 0.55 ? "cukup" : "kurang",
+            suggestedMajors: recs
+              .filter((r) => r.type === "major")
+              .slice(0, 3)
+              .map((r) => r.itemName),
+          };
+        }
+
+        return {
+          query: text,
+          matched: matchedExact,
+          paths,
+          fit,
+          suggestions: matched.slice(0, 5).map((m) => m.careerName),
+        };
+      }),
+  },
+
   aiSummary: {
     generate: protectedProcedure.handler(async ({ context }) => {
       const userId = context.session.user.id;
@@ -828,7 +1188,52 @@ export const tmbAdminRouter = {
         await db.update(tmbSchools).set(rest).where(eq(tmbSchools.id, id));
         return { success: true };
       }),
+
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      await db.delete(tmbSchools).where(eq(tmbSchools.id, input.id));
+      return { success: true };
+    }),
   },
+
+  overview: adminProcedure.handler(async () => {
+    const [schools, batches, students, results, qInterest, qAbility, patterns, careers, stats] = await Promise.all([
+      db.query.tmbSchools.findMany({ columns: { id: true, status: true } }),
+      db.query.tmbBatches.findMany({ columns: { id: true } }),
+      db.query.tmbBatchStudents.findMany({ columns: { id: true, status: true } }),
+      db.query.tmbAssessmentResults.findMany({ columns: { id: true } }),
+      db.query.tmbQuestionBank.findMany({
+        where: and(eq(tmbQuestionBank.testCode, "interest"), eq(tmbQuestionBank.isActive, true)),
+        columns: { id: true },
+      }),
+      db.query.tmbQuestionBank.findMany({
+        where: and(eq(tmbQuestionBank.testCode, "ability"), eq(tmbQuestionBank.isActive, true)),
+        columns: { id: true },
+      }),
+      db.query.tmbMajorPatterns.findMany({ columns: { id: true, isActive: true } }),
+      db.query.tmbCareerMappings.findMany({ columns: { id: true } }),
+      db.query.tmbUserStats.findMany({ columns: { testsCompleted: true } }),
+    ]);
+
+    return {
+      b2b: {
+        schools: schools.length,
+        activeSchools: schools.filter((s) => s.status === "aktif").length,
+        batches: batches.length,
+        students: students.length,
+        completedStudents: students.filter((s) => s.status === "completed").length,
+      },
+      b2c: {
+        results: results.length,
+        testsCompleted: stats.reduce((a: number, s) => a + (s.testsCompleted ?? 0), 0),
+      },
+      content: {
+        interestQuestions: qInterest.length,
+        abilityQuestions: qAbility.length,
+        patterns: patterns.filter((p) => p.isActive).length,
+        careers: careers.length,
+      },
+    };
+  }),
 
   batches: {
     list: adminProcedure.handler(async () => {
@@ -867,6 +1272,22 @@ export const tmbAdminRouter = {
           inviteCode: generateClaimCode(),
         });
         return { id };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          name: z.string().min(1).optional(),
+          className: z.string().optional(),
+          major: z.string().optional(),
+          graduationYear: z.number().int().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        await db.update(tmbBatches).set(rest).where(eq(tmbBatches.id, id));
+        return { success: true };
       }),
 
     regenerateCode: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
@@ -913,6 +1334,23 @@ export const tmbAdminRouter = {
         return { id };
       }),
 
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          name: z.string().min(1).optional(),
+          email: z.string().email().optional().or(z.literal("")),
+          nis: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        const patch: Record<string, unknown> = { ...rest };
+        if ("email" in patch) patch.email = (patch.email as string) || null;
+        await db.update(tmbBatchStudents).set(patch).where(eq(tmbBatchStudents.id, id));
+        return { success: true };
+      }),
+
     remove: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(tmbBatchStudents).where(eq(tmbBatchStudents.id, input.id));
       return { success: true };
@@ -923,13 +1361,14 @@ export const tmbAdminRouter = {
       if (!student) notFound("Siswa tidak ditemukan");
       let result = null;
       if (student.resultId) {
+        const resultId = student.resultId;
         const [r, recommendations, summary] = await Promise.all([
-          db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, student.resultId) }),
+          db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
           db.query.tmbRecommendations.findMany({
-            where: eq(tmbRecommendations.resultId, student.resultId!),
+            where: eq(tmbRecommendations.resultId, resultId),
             orderBy: asc(tmbRecommendations.rank),
           }),
-          db.query.tmbAiSummaries.findFirst({ where: eq(tmbAiSummaries.resultId, student.resultId!) }),
+          db.query.tmbAiSummaries.findFirst({ where: eq(tmbAiSummaries.resultId, resultId) }),
         ]);
         result = { result: r, recommendations, summary: summary?.content ?? null };
       }
@@ -985,9 +1424,13 @@ export const tmbAdminRouter = {
       let sent = 0;
       const failed: string[] = [];
       for (const s of students) {
+        if (!s.email) {
+          failed.push(s.name);
+          continue;
+        }
         try {
           await mail.send({
-            to: s.email!,
+            to: s.email,
             subject: `Undangan Test Minat Bakat by MULAI+ — ${schoolName} 🧭`,
             html: inviteEmailHtml(s.name, link, schoolName),
           });
@@ -1007,10 +1450,11 @@ export const tmbAdminRouter = {
         let confidence = "";
         let topMajors: string[] = [];
         if (s.resultId) {
+          const resultId = s.resultId;
           const [r, recos] = await Promise.all([
-            db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, s.resultId) }),
+            db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
             db.query.tmbRecommendations.findMany({
-              where: eq(tmbRecommendations.resultId, s.resultId!),
+              where: eq(tmbRecommendations.resultId, resultId),
               orderBy: asc(tmbRecommendations.rank),
             }),
           ]);
@@ -1035,6 +1479,262 @@ export const tmbAdminRouter = {
     }),
   },
 
+  // ─── Konten Test: soal, pola jurusan, mapping karier, catalog ───
+  questions: {
+    list: adminProcedure
+      .input(z.object({ testCode: z.enum(["interest", "ability"]).optional() }))
+      .handler(async ({ input }) => {
+        const where = input.testCode ? eq(tmbQuestionBank.testCode, input.testCode) : undefined;
+        const rows = await db.query.tmbQuestionBank.findMany({
+          where,
+          orderBy: asc(tmbQuestionBank.order),
+        });
+        return { items: rows, total: rows.length };
+      }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          testCode: z.enum(["interest", "ability"]),
+          dimension: z.string().min(1),
+          pairDimension: z.string().optional().nullable(),
+          text: z.string().min(3),
+          optionA: z.string().min(1),
+          optionB: z.string().min(1),
+          optionC: z.string().optional().nullable(),
+          optionD: z.string().optional().nullable(),
+          answer: z.string().optional().nullable(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        // validasi ability: jawaban wajib & harus salah satu opsi
+        if (input.testCode === "ability") {
+          const opts = [input.optionA, input.optionB, input.optionC, input.optionD].filter(Boolean);
+          if (!input.answer) preconditionFailed("Soal kemampuan harus punya kunci jawaban");
+          if (!opts.includes(input.answer)) preconditionFailed("Kunci jawaban harus salah satu opsi");
+        }
+        const maxOrder = await db
+          .select({ m: max(tmbQuestionBank.order) })
+          .from(tmbQuestionBank)
+          .where(eq(tmbQuestionBank.testCode, input.testCode));
+        const id = randomUUID();
+        await db.insert(tmbQuestionBank).values({
+          id,
+          testCode: input.testCode,
+          dimension: input.dimension,
+          pairDimension: input.pairDimension ?? null,
+          text: input.text,
+          optionA: input.optionA,
+          optionB: input.optionB,
+          optionC: input.optionC ?? null,
+          optionD: input.optionD ?? null,
+          answer: input.answer ?? null,
+          order: (maxOrder[0]?.m ?? 0) + 1,
+          isActive: true,
+        });
+        await syncCatalogTotal(input.testCode);
+        return { id };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          dimension: z.string().min(1).optional(),
+          pairDimension: z.string().optional().nullable(),
+          text: z.string().min(3).optional(),
+          optionA: z.string().min(1).optional(),
+          optionB: z.string().min(1).optional(),
+          optionC: z.string().optional().nullable(),
+          optionD: z.string().optional().nullable(),
+          answer: z.string().optional().nullable(),
+          isActive: z.boolean().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const question = await db.query.tmbQuestionBank.findFirst({ where: eq(tmbQuestionBank.id, input.id) });
+        if (!question) notFound("Soal tidak ditemukan");
+        const { id, ...rest } = input;
+        if (question.testCode === "ability" && "answer" in rest && !rest.answer) {
+          preconditionFailed("Soal kemampuan harus punya kunci jawaban");
+        }
+        await db.update(tmbQuestionBank).set(rest).where(eq(tmbQuestionBank.id, id));
+        return { success: true };
+      }),
+
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      const question = await db.query.tmbQuestionBank.findFirst({ where: eq(tmbQuestionBank.id, input.id) });
+      if (!question) notFound("Soal tidak ditemukan");
+      await db.delete(tmbQuestionBank).where(eq(tmbQuestionBank.id, input.id));
+      await syncCatalogTotal(question.testCode);
+      return { success: true };
+    }),
+
+    toggle: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      const question = await db.query.tmbQuestionBank.findFirst({ where: eq(tmbQuestionBank.id, input.id) });
+      if (!question) notFound("Soal tidak ditemukan");
+      await db.update(tmbQuestionBank).set({ isActive: !question.isActive }).where(eq(tmbQuestionBank.id, input.id));
+      return { success: true, isActive: !question.isActive };
+    }),
+
+    reorder: adminProcedure
+      .input(z.object({ testCode: z.enum(["interest", "ability"]), ids: z.array(z.string()).min(1) }))
+      .handler(async ({ input }) => {
+        for (const [i, id] of input.ids.entries()) {
+          await db
+            .update(tmbQuestionBank)
+            .set({ order: i + 1 })
+            .where(and(eq(tmbQuestionBank.id, id), eq(tmbQuestionBank.testCode, input.testCode)));
+        }
+        return { success: true };
+      }),
+  },
+
+  patterns: {
+    list: adminProcedure.handler(async () => {
+      const rows = await db.query.tmbMajorPatterns.findMany({
+        orderBy: asc(tmbMajorPatterns.categoryName),
+      });
+      const prodiList = await getProdiList();
+      return {
+        items: rows.map((p) => {
+          let count = 0;
+          try {
+            const re = new RegExp(p.pattern, "i");
+            count = prodiList.filter((x) => re.test(x.name)).length;
+          } catch {
+            count = -1;
+          }
+          return { ...p, prodiCount: count };
+        }),
+      };
+    }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          categoryKey: z.string().min(2),
+          categoryName: z.string().min(2),
+          pattern: z.string().min(2),
+          hollandPrimary: z.string().length(1),
+          hollandSecondary: z.string().length(1),
+          abilityWeights: z.record(z.string(), z.number().min(0).max(1)),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const exists = await db.query.tmbMajorPatterns.findFirst({
+          where: eq(tmbMajorPatterns.categoryKey, input.categoryKey),
+        });
+        if (exists) preconditionFailed(`Kategori "${input.categoryKey}" sudah ada`);
+        validatePatternRegex(input.pattern);
+        await db.insert(tmbMajorPatterns).values({ id: randomUUID(), isActive: true, ...input });
+        return { success: true };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          categoryKey: z.string().min(2).optional(),
+          categoryName: z.string().min(2).optional(),
+          pattern: z.string().min(2).optional(),
+          hollandPrimary: z.string().length(1).optional(),
+          hollandSecondary: z.string().length(1).optional(),
+          abilityWeights: z.record(z.string(), z.number().min(0).max(1)).optional(),
+          isActive: z.boolean().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        if (rest.pattern) validatePatternRegex(rest.pattern);
+        if (rest.categoryKey) {
+          const exists = await db.query.tmbMajorPatterns.findFirst({
+            where: and(eq(tmbMajorPatterns.categoryKey, rest.categoryKey), ne(tmbMajorPatterns.id, id)),
+          });
+          if (exists) preconditionFailed(`Kategori "${rest.categoryKey}" sudah ada`);
+        }
+        await db.update(tmbMajorPatterns).set(rest).where(eq(tmbMajorPatterns.id, id));
+        return { success: true };
+      }),
+
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      await db.delete(tmbMajorPatterns).where(eq(tmbMajorPatterns.id, input.id));
+      return { success: true };
+    }),
+
+    preview: adminProcedure
+      .input(z.object({ pattern: z.string().min(2), limit: z.number().int().min(1).max(20).optional() }))
+      .handler(async ({ input }) => {
+        validatePatternRegex(input.pattern);
+        const prodiList = await getProdiList();
+        const re = new RegExp(input.pattern, "i");
+        const matched = prodiList.filter((x) => re.test(x.name));
+        return { count: matched.length, examples: matched.slice(0, input.limit ?? 5) };
+      }),
+  },
+
+  careers: {
+    list: adminProcedure.handler(async () => {
+      const rows = await db.query.tmbCareerMappings.findMany({
+        orderBy: asc(tmbCareerMappings.careerName),
+      });
+      return { items: rows };
+    }),
+
+    create: adminProcedure
+      .input(z.object({ majorCategory: z.string().min(2), careerName: z.string().min(2) }))
+      .handler(async ({ input }) => {
+        const exists = await db.query.tmbCareerMappings.findFirst({
+          where: and(
+            eq(tmbCareerMappings.careerName, input.careerName),
+            eq(tmbCareerMappings.majorCategory, input.majorCategory),
+          ),
+        });
+        if (exists) preconditionFailed("Karier ini sudah terdaftar di kategori tersebut");
+        await db
+          .insert(tmbCareerMappings)
+          .values({ id: randomUUID(), careerName: input.careerName, majorCategory: input.majorCategory });
+        return { success: true };
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          majorCategory: z.string().min(2).optional(),
+          careerName: z.string().min(2).optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { id, ...rest } = input;
+        await db.update(tmbCareerMappings).set(rest).where(eq(tmbCareerMappings.id, id));
+        return { success: true };
+      }),
+
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+      await db.delete(tmbCareerMappings).where(eq(tmbCareerMappings.id, input.id));
+      return { success: true };
+    }),
+  },
+
+  catalog: {
+    update: adminProcedure
+      .input(
+        z.object({
+          code: z.enum(["interest", "ability"]),
+          name: z.string().min(1).optional(),
+          description: z.string().optional(),
+          xpReward: z.number().int().min(0).optional(),
+          isActive: z.boolean().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { code, ...rest } = input;
+        await db.update(tmbTestCatalog).set(rest).where(eq(tmbTestCatalog.code, code));
+        return { success: true };
+      }),
+  },
+
   analytics: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
     const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
     const total = students.length;
@@ -1049,15 +1749,16 @@ export const tmbAdminRouter = {
 
     for (const s of students) {
       if (!s.resultId) continue;
+      const resultId = s.resultId;
       const [r, recos] = await Promise.all([
-        db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, s.resultId) }),
+        db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
         db.query.tmbRecommendations.findMany({
-          where: eq(tmbRecommendations.resultId, s.resultId!),
+          where: eq(tmbRecommendations.resultId, resultId),
           orderBy: asc(tmbRecommendations.rank),
         }),
       ]);
       if (r?.hollandCode) {
-        const primary = r.hollandCode[0]!;
+        const primary = r.hollandCode.charAt(0);
         hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
       }
       const ability = (r?.abilityScores as any)?.scores ?? {};
@@ -1112,7 +1813,7 @@ export const tmbAdminRouter = {
       let totalConfidence = 0;
       for (const r of results) {
         if (r.hollandCode) {
-          const primary = r.hollandCode[0]!;
+          const primary = r.hollandCode.charAt(0);
           hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
         }
         totalConfidence += Number(r.confidenceScore ?? 0);

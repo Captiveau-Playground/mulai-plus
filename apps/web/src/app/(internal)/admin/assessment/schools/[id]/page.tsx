@@ -1,12 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Loader2, Plus, School } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, School, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,28 @@ export default function SchoolDetailPage() {
   const [major, setMajor] = useState("");
   const [year, setYear] = useState("");
 
+  const [editBatch, setEditBatch] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ name: "", className: "", major: "" });
+
+  const updateBatch = useMutation({
+    ...orpc.tmbAdmin.batches.update.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Batch diperbarui!");
+      setEditBatch(null);
+      queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.schools.get.key() });
+    },
+    onError: (e) => toast.error(e.message || "Gagal memperbarui batch"),
+  });
+
+  const deleteBatch = useMutation({
+    ...orpc.tmbAdmin.batches.delete.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Batch dihapus");
+      queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.schools.get.key() });
+    },
+    onError: (e) => toast.error(e.message || "Gagal menghapus batch"),
+  });
+
   const createBatch = useMutation({
     ...orpc.tmbAdmin.batches.create.mutationOptions(),
     onSuccess: () => {
@@ -60,7 +83,10 @@ export default function SchoolDetailPage() {
     return (
       <div className="py-20 text-center">
         <p className="font-manrope text-gray-500">Sekolah tidak ditemukan.</p>
-        <Link href="/admin/assessment" className="mt-3 inline-block font-bold font-manrope text-mentor-teal text-sm">
+        <Link
+          href="/admin/assessment/schools"
+          className="mt-3 inline-block font-bold font-manrope text-mentor-teal text-sm"
+        >
           ← Kembali
         </Link>
       </div>
@@ -75,7 +101,7 @@ export default function SchoolDetailPage() {
     <div className="space-y-5">
       <div>
         <Link
-          href="/admin/assessment"
+          href="/admin/assessment/schools"
           className="flex items-center gap-1 font-manrope font-semibold text-gray-400 text-xs hover:text-gray-600"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Sekolah Kerjasama
@@ -199,11 +225,95 @@ export default function SchoolDetailPage() {
                     .join(" · ") || "Batch"}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setEditForm({ name: b.name ?? "", className: b.className ?? "", major: b.major ?? "" });
+                  setEditBatch(b);
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Edit batch"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (window.confirm(`Hapus batch "${b.name}"? Semua siswa & undangan ikut terhapus.`)) {
+                    deleteBatch.mutate({ id: b.id });
+                  }
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                aria-label="Hapus batch"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
               <ArrowRight className="h-5 w-5 text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-mentor-teal" />
             </Link>
           ))}
         </div>
       )}
+
+      {/* Edit batch modal */}
+      <Dialog open={!!editBatch} onOpenChange={(v) => !v && setEditBatch(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-bricolage text-brand-navy">Edit Batch</DialogTitle>
+            <DialogDescription className="font-manrope text-xs">
+              Ubah nama, kelas, atau jurusan batch.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="font-manrope font-semibold text-gray-600 text-xs">Nama Batch *</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="font-manrope font-semibold text-gray-600 text-xs">Kelas</Label>
+                <Input
+                  value={editForm.className}
+                  onChange={(e) => setEditForm({ ...editForm, className: e.target.value })}
+                  placeholder="12 IPA 1"
+                  className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+                />
+              </div>
+              <div>
+                <Label className="font-manrope font-semibold text-gray-600 text-xs">Jurusan</Label>
+                <Input
+                  value={editForm.major}
+                  onChange={(e) => setEditForm({ ...editForm, major: e.target.value })}
+                  placeholder="IPA / IPS"
+                  className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+                />
+              </div>
+            </div>
+            <Button
+              onClick={() =>
+                editBatch &&
+                updateBatch.mutate({
+                  id: editBatch.id,
+                  name: editForm.name,
+                  className: editForm.className || undefined,
+                  major: editForm.major || undefined,
+                })
+              }
+              disabled={!editForm.name.trim() || updateBatch.isPending}
+              className="w-full rounded-xl bg-mentor-teal py-3 font-bold font-bricolage text-white hover:bg-teal-700 disabled:opacity-50"
+            >
+              {updateBatch.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Simpan Perubahan"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

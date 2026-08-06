@@ -250,7 +250,7 @@ export function ChatbotWidget() {
       {/* Panel */}
       <div
         className={cn(
-          "fixed z-50 flex flex-col overflow-hidden border border-gray-200/80 bg-white shadow-2xl transition-all duration-300",
+          "fixed z-[60] flex flex-col overflow-hidden border border-gray-200/80 bg-white shadow-2xl transition-all duration-300",
           "right-4 bottom-4 left-4 h-[520px] max-h-[70vh] rounded-2xl",
           "sm:right-6 sm:bottom-6 sm:left-auto sm:h-[600px] sm:w-[400px]",
           "lg:h-[640px] lg:w-[440px]",

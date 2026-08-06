@@ -57,8 +57,12 @@ const data = {
       icon: Brain,
       items: [
         {
-          title: "B2B — Sekolah",
+          title: "Dashboard",
           url: "/admin/assessment",
+        },
+        {
+          title: "Sekolah & Batch",
+          url: "/admin/assessment/schools",
         },
         {
           title: "B2C — Statistik",
@@ -67,6 +71,18 @@ const data = {
         {
           title: "B2C — History",
           url: "/admin/assessment/b2c/history",
+        },
+        {
+          title: "Konten Test",
+          url: "/admin/assessment/questions",
+        },
+        {
+          title: "Pola Jurusan",
+          url: "/admin/assessment/patterns",
+        },
+        {
+          title: "Mapping Karier",
+          url: "/admin/assessment/careers",
         },
       ],
     },

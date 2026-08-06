@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Copy, FileSpreadsheet, Loader2, Mail, QrCode, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Check, Copy, FileSpreadsheet, Loader2, Mail, Pencil, QrCode, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import QRCode from "qrcode";
@@ -12,6 +12,7 @@ import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
@@ -43,6 +44,19 @@ export default function BatchDetailPage() {
       setStudentName("");
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.batches.get.key() });
     },
+  });
+
+  const [editStudent, setEditStudent] = useState<any>(null);
+  const [editStudentForm, setEditStudentForm] = useState({ name: "", email: "", nis: "" });
+
+  const updateStudent = useMutation({
+    ...orpc.tmbAdmin.students.update.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Data siswa diperbarui!");
+      setEditStudent(null);
+      queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.batches.get.key() });
+    },
+    onError: (e) => toast.error(e.message || "Gagal memperbarui siswa"),
   });
 
   const removeStudent = useMutation({
@@ -132,7 +146,10 @@ export default function BatchDetailPage() {
     return (
       <div className="py-20 text-center">
         <p className="font-manrope text-gray-500">Batch tidak ditemukan.</p>
-        <Link href="/admin/assessment" className="mt-3 inline-block font-bold font-manrope text-mentor-teal text-sm">
+        <Link
+          href="/admin/assessment/schools"
+          className="mt-3 inline-block font-bold font-manrope text-mentor-teal text-sm"
+        >
           ← Kembali
         </Link>
       </div>
@@ -145,7 +162,7 @@ export default function BatchDetailPage() {
     <div className="space-y-5">
       <div>
         <Link
-          href="/admin/assessment"
+          href="/admin/assessment/schools"
           className="flex items-center gap-1 font-manrope font-semibold text-gray-400 text-xs hover:text-gray-600"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Kelola Sekolah
@@ -383,7 +400,20 @@ export default function BatchDetailPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => removeStudent.mutate({ id: s.id })}
+                    onClick={() => {
+                      setEditStudentForm({ name: s.name ?? "", email: s.email ?? "", nis: s.nis ?? "" });
+                      setEditStudent(s);
+                    }}
+                    className="shrink-0 rounded-lg p-1.5 text-gray-300 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Edit siswa"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Hapus siswa "${s.name}"?`)) removeStudent.mutate({ id: s.id });
+                    }}
                     className="shrink-0 rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500"
                     aria-label="Hapus siswa"
                   >
@@ -412,6 +442,58 @@ export default function BatchDetailPage() {
               </p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit siswa modal */}
+      <Dialog open={!!editStudent} onOpenChange={(v) => !v && setEditStudent(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-bricolage text-brand-navy">Edit Data Siswa</DialogTitle>
+            <DialogDescription className="font-manrope text-xs">Koreksi nama, email, atau NIS siswa.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="font-manrope font-semibold text-gray-600 text-xs">Nama *</Label>
+              <Input
+                value={editStudentForm.name}
+                onChange={(e) => setEditStudentForm({ ...editStudentForm, name: e.target.value })}
+                className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              />
+            </div>
+            <div>
+              <Label className="font-manrope font-semibold text-gray-600 text-xs">Email (untuk klaim undangan)</Label>
+              <Input
+                value={editStudentForm.email}
+                onChange={(e) => setEditStudentForm({ ...editStudentForm, email: e.target.value })}
+                placeholder="siswa@email.com"
+                className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              />
+            </div>
+            <div>
+              <Label className="font-manrope font-semibold text-gray-600 text-xs">NIS</Label>
+              <Input
+                value={editStudentForm.nis}
+                onChange={(e) => setEditStudentForm({ ...editStudentForm, nis: e.target.value })}
+                className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              />
+            </div>
+            <Button
+              onClick={() =>
+                editStudent &&
+                updateStudent.mutate({
+                  id: editStudent.id,
+                  name: editStudentForm.name,
+                  email: editStudentForm.email || "",
+                  nis: editStudentForm.nis || undefined,
+                })
+              }
+              disabled={!editStudentForm.name.trim() || updateStudent.isPending}
+              className="w-full rounded-xl bg-mentor-teal py-3 font-bold font-bricolage text-white hover:bg-teal-700 disabled:opacity-50"
+            >
+              {updateStudent.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Simpan Perubahan"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,117 +1,112 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, BrainCircuit, CheckCircle2, Compass, Database, Sparkles, Target, TrendingUp } from "lucide-react";
 import Link from "next/link";
-
-const RIASEC = [
-  { code: "R", emoji: "🔧", cls: "from-blue-500 to-blue-600" },
-  { code: "I", emoji: "🔬", cls: "from-violet-500 to-purple-600" },
-  { code: "A", emoji: "🎨", cls: "from-pink-500 to-rose-600" },
-  { code: "S", emoji: "🤝", cls: "from-teal-500 to-emerald-600" },
-  { code: "E", emoji: "🚀", cls: "from-amber-500 to-orange-600" },
-  { code: "C", emoji: "📋", cls: "from-indigo-500 to-blue-700" },
-];
 
 export function AssessmentSection() {
   return (
-    <section aria-label="Test Minat Bakat" className="relative w-full overflow-hidden bg-violet-50 py-14 lg:py-28">
-      <div
-        className="pointer-events-none absolute -top-24 right-0 h-96 w-96 rounded-full bg-violet-500/5 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute bottom-0 -left-24 h-96 w-96 rounded-full bg-teal-500/5 blur-3xl"
-        aria-hidden
-      />
+    <section aria-label="Test Minat Bakat" className="relative w-full bg-white py-14 lg:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-brand-navy to-brand-navy-light p-8 md:p-12">
+          {/* deco */}
+          <div
+            className="pointer-events-none absolute -top-24 -right-20 h-72 w-72 rounded-full bg-teal-500/10 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-brand-orange/10 blur-3xl"
+            aria-hidden
+          />
 
-      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-6">
-        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-          {/* Copy */}
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/20 bg-brand-orange/5 px-3 py-1">
-              <Sparkles className="h-3.5 w-3.5 text-brand-orange" />
-              <span className="font-manrope font-semibold text-brand-orange text-xs">Fitur Baru · Gratis</span>
-            </div>
-
-            <h2 className="mt-4 font-bold font-bricolage text-3xl text-brand-navy leading-tight md:text-4xl lg:text-5xl">
-              Tidak Yakin Mau Kuliah Apa?
-              <span className="mt-2 block bg-gradient-to-r from-mentor-teal to-teal-500 bg-clip-text text-transparent">
-                Kenali Minat &amp; Bakatmu
-              </span>
-            </h2>
-
-            <p className="mt-4 max-w-lg font-manrope text-base text-gray-500 leading-relaxed lg:text-lg">
-              Ikuti <b className="text-gray-700">Tes Minat (Holland RIASEC)</b> +{" "}
-              <b className="text-gray-700">Tes Bakat</b> — 20 soal, ±10 menit. Hasilnya rekomendasi jurusan & karier
-              yang dicocokkan dengan 18.000+ program studi di Indonesia.
-            </p>
-
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/login"
-                className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-orange px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-orange/25 shadow-lg transition-all hover:shadow-xl hover:brightness-105 active:scale-[0.98]"
-              >
-                Mulai Gratis Sekarang
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link
-                href="/assessment"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-brand-navy/15 bg-white px-7 py-4 font-bold font-bricolage text-base text-brand-navy transition-all hover:border-mentor-teal/40 hover:bg-mentor-teal/5 active:scale-[0.98]"
-              >
-                Pelajari Lebih Lanjut
-              </Link>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2">
-              {["Tanpa biaya", "Hasil instan + AI summary", "Laporan PDF"].map((t) => (
-                <span key={t} className="flex items-center gap-1.5 font-manrope font-medium text-gray-500 text-xs">
-                  <Sparkles className="h-3.5 w-3.5 text-mentor-teal" /> {t}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Visual — kartu test + hasil */}
-          <div className="mx-auto w-full max-w-md lg:max-w-none">
-            <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-xl">
-              {/* dua test */}
-              <div className="grid grid-cols-2 gap-3">
-                <Link
-                  href="/assessment/minat"
-                  className="group rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 p-4 text-white transition-transform hover:-translate-y-0.5"
-                >
-                  <span className="text-2xl">🧠</span>
-                  <p className="mt-2 font-bold font-bricolage text-sm">Tes Minat</p>
-                  <p className="font-manrope text-[10px] text-white/70">Holland RIASEC · 10 soal</p>
-                </Link>
-                <Link
-                  href="/assessment/bakat"
-                  className="group rounded-2xl bg-gradient-to-br from-mentor-teal to-teal-700 p-4 text-white transition-transform hover:-translate-y-0.5"
-                >
-                  <span className="text-2xl">💡</span>
-                  <p className="mt-2 font-bold font-bricolage text-sm">Tes Bakat</p>
-                  <p className="font-manrope text-[10px] text-white/70">5 kemampuan · 10 soal</p>
-                </Link>
+          <div className="relative grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+            {/* Copy */}
+            <div className="text-white">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1">
+                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                <span className="font-manrope font-medium text-white/80 text-xs">Fitur Baru · Gratis · ±10 Menit</span>
               </div>
 
-              {/* hasil mini */}
-              <div className="mt-4 rounded-2xl bg-brand-navy p-5 text-white">
-                <div className="flex items-center justify-between">
-                  <span className="font-manrope text-[10px] text-white/60 uppercase tracking-wide">Hasil</span>
-                  <span className="rounded-full bg-amber-400/20 px-2 py-0.5 font-bold font-manrope text-[10px] text-amber-300">
-                    Kode: IAC
+              <h2 className="mt-4 font-bold font-bricolage text-3xl leading-tight md:text-4xl">
+                Belum Yakin Mau Kuliah Apa?
+                <span className="mt-1 block bg-gradient-to-r from-teal-300 to-teal-400 bg-clip-text text-transparent">
+                  Kenali Minat &amp; Bakatmu Sekarang
+                </span>
+              </h2>
+
+              <p className="mt-4 max-w-lg font-manrope text-sm text-white/70 leading-relaxed md:text-base">
+                20 soal untuk menemukan jurusan yang benar-benar cocok — dicocokkan dengan{" "}
+                <span className="font-semibold text-white">18.000+ prodi</span> dan{" "}
+                <span className="font-semibold text-white">AI</span>, bukan tebakan.
+              </p>
+
+              <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
+                {[
+                  { icon: Compass, text: "Tes Minat — Holland RIASEC" },
+                  { icon: TrendingUp, text: "Tes Bakat — 5 kemampuan" },
+                  { icon: BrainCircuit, text: "AI + data 18k prodi" },
+                  { icon: CheckCircle2, text: "Hasil instan + laporan PDF" },
+                ].map((b) => (
+                  <li key={b.text} className="flex items-center gap-2.5 font-manrope text-sm text-white/80">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                      <b.icon className="h-3.5 w-3.5 text-teal-300" />
+                    </span>
+                    {b.text}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/assessment"
+                  className="group inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 font-bold font-bricolage text-brand-navy text-sm shadow-lg transition-all hover:bg-amber-50 active:scale-[0.98]"
+                >
+                  Coba Sekarang
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+                <Link
+                  href="/assessment/minat"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 font-bold font-bricolage text-sm text-white transition-all hover:bg-white/10 active:scale-[0.98]"
+                >
+                  Pelajari Tes Minat
+                </Link>
+              </div>
+            </div>
+
+            {/* Visual — pipeline kompak */}
+            <div className="mx-auto w-full max-w-md lg:max-w-none">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                {/* 2 test */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <Compass className="h-5 w-5 text-teal-300" />
+                    <p className="mt-2 font-bold font-bricolage text-sm text-white">Tes Minat</p>
+                    <p className="font-manrope text-[10px] text-white/50">Holland · 10 soal</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <TrendingUp className="h-5 w-5 text-teal-300" />
+                    <p className="mt-2 font-bold font-bricolage text-sm text-white">Tes Bakat</p>
+                    <p className="font-manrope text-[10px] text-white/50">5 kemampuan · 10 soal</p>
+                  </div>
+                </div>
+
+                {/* engine */}
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/20">
+                    <BrainCircuit className="h-4.5 h-[18px] w-4.5 w-[18px] text-teal-300" />
                   </span>
-                </div>
-                <div className="mt-3 flex gap-1.5">
-                  {RIASEC.map((r) => (
-                    <div
-                      key={r.code}
-                      className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br text-lg ${r.cls}`}
-                      title={r.code}
-                    >
-                      {r.emoji}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold font-manrope text-white text-xs">Mesin MULAI+</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 font-manrope font-semibold text-[9px] text-white/70">
+                        <Database className="h-2.5 w-2.5" /> 18.000+ prodi
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 font-manrope font-semibold text-[9px] text-white/70">
+                        <BrainCircuit className="h-2.5 w-2.5" /> AI summary
+                      </span>
                     </div>
-                  ))}
+                  </div>
                 </div>
-                <div className="mt-4 space-y-2">
+
+                {/* result */}
+                <div className="mt-3 space-y-2">
                   {[
                     { label: "Kedokteran", pct: 92 },
                     { label: "Teknik Informatika", pct: 85 },
@@ -119,12 +114,12 @@ export function AssessmentSection() {
                   ].map((m) => (
                     <div key={m.label}>
                       <div className="flex justify-between font-manrope text-[11px]">
-                        <span className="font-semibold">{m.label}</span>
-                        <span className="font-bold text-amber-300">{m.pct}%</span>
+                        <span className="font-semibold text-white/80">{m.label}</span>
+                        <span className="font-bold text-teal-300">{m.pct}%</span>
                       </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/15">
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-brand-orange to-amber-400"
+                          className="h-full rounded-full bg-gradient-to-r from-teal-400 to-teal-500"
                           style={{ width: `${m.pct}%` }}
                         />
                       </div>
@@ -133,22 +128,10 @@ export function AssessmentSection() {
                 </div>
               </div>
 
-              {/* sekolah */}
-              <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xl">🏫</span>
-                  <div>
-                    <p className="font-bold font-manrope text-gray-800 text-xs">Untuk Sekolah?</p>
-                    <p className="font-manrope text-[10px] text-gray-400">Batch test & rekap siswa</p>
-                  </div>
-                </div>
-                <Link
-                  href="/assessment#untuk-sekolah"
-                  className="flex items-center gap-1 font-bold font-manrope text-mentor-teal text-xs hover:underline"
-                >
-                  Cari tahu <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
+              <p className="mt-3 text-center font-manrope text-[11px] text-white/50">
+                <Target className="mr-1 inline h-3 w-3" />
+                Rekomendasi dari data nyata, bukan opini
+              </p>
             </div>
           </div>
         </div>

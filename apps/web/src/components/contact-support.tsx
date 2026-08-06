@@ -53,7 +53,7 @@ export function ContactSupport() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="fixed right-6 bottom-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed right-4 bottom-24 z-40 flex flex-col items-end gap-3 sm:right-6">
       {/* Contact Card */}
       {isOpen && (
         <div
@@ -125,13 +125,15 @@ export function ContactSupport() {
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "relative h-14 w-14 rounded-full shadow-lg transition-all duration-200",
+          "relative h-12 w-12 rounded-full shadow-lg transition-all duration-200",
           "hover:scale-105 active:scale-95",
-          isOpen ? "bg-red-500 text-white hover:bg-red-600" : "bg-brand-navy text-white hover:bg-brand-navy/90",
+          isOpen
+            ? "bg-red-500 text-white hover:bg-red-600"
+            : "border border-gray-200 bg-white text-brand-navy hover:bg-gray-50",
         )}
         aria-label={isOpen ? "Tutup kontak" : "Hubungi support"}
       >
-        {isOpen ? <X className="h-6 w-6" /> : <MessageCircleHeart className="h-6 w-6" />}
+        {isOpen ? <X className="h-5 w-5" /> : <MessageCircleHeart className="h-5 w-5" />}
       </Button>
     </div>
   );

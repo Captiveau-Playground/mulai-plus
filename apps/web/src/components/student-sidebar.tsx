@@ -36,11 +36,7 @@ import { cn } from "@/lib/utils";
 type NavItem = { title: string; url: string; icon: React.ComponentType<{ className?: string }> };
 type NavGroupDef = { title: string; icon: React.ComponentType<{ className?: string }>; items: NavItem[] };
 
-function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
-  const pathname = usePathname();
-  const isExactMatch = pathname === item.url;
-  const isSubPath = pathname.startsWith(`${item.url}/`) && item.url !== "/dashboard/student";
-  const isCurrentPage = isExactMatch || isSubPath;
+function NavLink({ item, isActive, onNavigate }: { item: NavItem; isActive: boolean; onNavigate?: () => void }) {
   const Icon = item.icon;
 
   return (
@@ -49,11 +45,11 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
       onClick={onNavigate}
       className={cn(
         "flex items-center gap-3 rounded-xl px-3 py-2 font-manrope font-medium text-sm transition-all duration-200",
-        isCurrentPage
+        isActive
           ? "bg-brand-orange text-white shadow-sm"
           : "text-white/70 hover:translate-x-0.5 hover:bg-white/15 hover:text-white",
       )}
-      aria-current={isCurrentPage ? "page" : undefined}
+      aria-current={isActive ? "page" : undefined}
     >
       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
       <span className="whitespace-nowrap">{item.title}</span>
@@ -63,7 +59,11 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
 
 function NavGroup({ group, onNavigate }: { group: NavGroupDef; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const isActive = group.items.some((i) => i.url === pathname || pathname.startsWith(`${i.url}/`));
+  // Item aktif = SATU saja: URL terpanjang yang cocok (exact dulu, lalu prefix)
+  const activeItem = group.items
+    .filter((i) => i.url === pathname || pathname.startsWith(`${i.url}/`))
+    .sort((a, b) => b.url.length - a.url.length)[0];
+  const isActive = !!activeItem;
   const [open, setOpen] = useState(isActive);
 
   // Buka otomatis kalau ada item aktif (mis. direct load halaman hasil)
@@ -97,7 +97,7 @@ function NavGroup({ group, onNavigate }: { group: NavGroupDef; onNavigate?: () =
       {open && (
         <div className="mt-0.5 mb-1 ml-[19px] space-y-0.5 border-white/10 border-l pl-2">
           {group.items.map((item) => (
-            <NavLink key={item.title} item={item} onNavigate={onNavigate} />
+            <NavLink key={item.title} item={item} isActive={activeItem?.url === item.url} onNavigate={onNavigate} />
           ))}
         </div>
       )}
@@ -138,6 +138,7 @@ export function StudentSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar> & { onNavigate?: () => void }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session } = authClient.useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -200,7 +201,7 @@ export function StudentSidebar({
 
       <SidebarContent className="px-2 sm:px-3">
         <nav className="space-y-1" aria-label="Student navigation">
-          <NavLink item={dashboardItem} onNavigate={onNavigate} />
+          <NavLink item={dashboardItem} isActive={pathname === "/dashboard/student"} onNavigate={onNavigate} />
           {navGroups.map((group) => (
             <NavGroup key={group.title} group={group} onNavigate={onNavigate} />
           ))}
@@ -221,39 +222,36 @@ export function StudentSidebar({
 
       <SidebarFooter className="border-white/10 border-t px-3 py-4">
         <DropdownMenu>
-          <DropdownMenuTrigger className="hidden w-full md:flex">
-            <button
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl bg-white/10 p-2.5 text-left transition-all hover:translate-y-[-1px] hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 active:translate-y-0 sm:p-3",
-              )}
-            >
-              {user.avatar ? (
-                <>
-                  <Image
-                    src={user.avatar}
-                    alt={user.name || ""}
-                    width={40}
-                    height={40}
-                    className="h-9 w-9 rounded-full object-cover ring-2 ring-white/20 sm:h-10 sm:w-10"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
-                    <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-orange ring-2 ring-white/20 sm:h-10 sm:w-10">
-                    <span className="font-semibold text-white">{user.name?.charAt(0) || "S"}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
-                    <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
-                  </div>
-                </>
-              )}
-            </button>
+          <DropdownMenuTrigger
+            className={cn(
+              "hidden w-full cursor-pointer rounded-xl bg-white/10 p-2.5 text-left transition-all hover:translate-y-[-1px] hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 active:translate-y-0 sm:p-3 md:flex",
+            )}
+          >
+            {user.avatar ? (
+              <>
+                <Image
+                  src={user.avatar}
+                  alt={user.name || ""}
+                  width={40}
+                  height={40}
+                  className="h-9 w-9 rounded-full object-cover ring-2 ring-white/20 sm:h-10 sm:w-10"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
+                  <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-orange ring-2 ring-white/20 sm:h-10 sm:w-10">
+                  <span className="font-semibold text-white">{user.name?.charAt(0) || "S"}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
+                  <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
+                </div>
+              </>
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-56 rounded-xl border-0 bg-white shadow-lg"
