@@ -76,7 +76,7 @@ export default function AssessmentBakatPage() {
       </section>
 
       {/* 5 kemampuan */}
-      <section className="mx-auto max-w-7xl px-5 py-12">
+      <section className="mx-auto max-w-7xl bg-white px-5 py-12">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="font-bold font-bricolage text-3xl text-brand-navy md:text-4xl">5 Kemampuan yang Diukur</h2>
           <p className="mt-3 font-manrope text-gray-500">
@@ -141,7 +141,7 @@ export default function AssessmentBakatPage() {
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-7xl px-5 py-14 text-center">
+      <section className="mx-auto max-w-7xl bg-white px-5 py-14 text-center">
         <h2 className="font-bold font-bricolage text-2xl text-brand-navy md:text-3xl">Ukur Kekuatanmu Sekarang</h2>
         <p className="mt-2 font-manrope text-gray-500">Gratis, ±5 menit, hasil langsung.</p>
         <Link

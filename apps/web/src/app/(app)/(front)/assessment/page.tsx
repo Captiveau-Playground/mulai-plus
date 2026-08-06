@@ -172,7 +172,7 @@ export default function AssessmentLandingPage() {
       </section>
 
       {/* ── DUA TEST ── */}
-      <section className="mx-auto max-w-7xl px-5 py-14">
+      <section className="mx-auto max-w-7xl bg-white px-5 py-14">
         <div className="mx-auto max-w-2xl text-center">
           <p className="font-bold font-manrope text-mentor-teal text-xs uppercase tracking-widest">
             Dua Assessment, Satu Arah
@@ -286,7 +286,7 @@ export default function AssessmentLandingPage() {
       </section>
 
       {/* ── REKOMENDASI ── */}
-      <section className="mx-auto max-w-7xl px-5 py-14">
+      <section className="mx-auto max-w-7xl bg-white px-5 py-14">
         <div className="grid items-center gap-10 rounded-[2rem] bg-gradient-to-br from-brand-navy to-brand-navy-light p-8 text-white md:grid-cols-2 md:p-12">
           <div>
             <p className="font-bold font-manrope text-amber-300 text-xs uppercase tracking-widest">
@@ -420,7 +420,7 @@ export default function AssessmentLandingPage() {
       </section>
 
       {/* ── CLOSING CTA ── */}
-      <section className="mx-auto max-w-7xl px-5 py-16">
+      <section className="mx-auto max-w-7xl bg-white px-5 py-16">
         <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-brand-orange to-amber-500 p-8 text-center shadow-xl md:p-12">
           <div className="pointer-events-none absolute inset-0 opacity-20" aria-hidden>
             <div className="absolute -top-10 left-1/4 h-40 w-40 rounded-full bg-white/40 blur-3xl" />
