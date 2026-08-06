@@ -1,146 +1,217 @@
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  Box,
+  Brain,
+  Calculator,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  Languages,
+  Puzzle,
+  SearchCheck,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import Link from "next/link";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
+import { UspStrip } from "@/components/front/assessment-usp";
 
 const ABILITIES = [
   {
-    icon: "🔢",
+    icon: Calculator,
     name: "Numerik",
     desc: "Kemampuan mengolah angka, pola, dan hitungan.",
     sample: "Lanjutkan deret: 2, 4, 8, 16, …",
   },
   {
-    icon: "💬",
+    icon: Languages,
     name: "Verbal",
     desc: "Kekuatan kosakata, sinonim, dan pemahaman bahasa.",
     sample: "Sinonim kata “cermat” adalah…",
   },
   {
-    icon: "🧩",
+    icon: Puzzle,
     name: "Logika",
     desc: "Penalaran deduktif dan kemampuan menarik kesimpulan.",
     sample: "Semua mahasiswa rajin. Budi mahasiswa, maka…",
   },
   {
-    icon: "🧊",
+    icon: Box,
     name: "Spasial",
     desc: "Visualisasi bentuk, rotasi, dan ruang.",
     sample: "Huruf “b” dicerminkan menjadi…",
   },
   {
-    icon: "🔍",
+    icon: SearchCheck,
     name: "Ketelitian",
     desc: "Kecepatan dan akurasi mengenali detail.",
     sample: "Manakah yang tidak identik dengan AB12CD?",
   },
 ];
 
+const KEY_FACTS = [
+  { icon: Brain, value: "5 dimensi", label: "kemampuan dasar" },
+  { icon: ClipboardList, value: "10 soal", label: "pilihan ganda" },
+  { icon: Clock, value: "±5 menit", label: "waktu pengerjaan" },
+  { icon: TrendingUp, value: "3 level", label: "tinggi · sedang · berkembang" },
+];
+
 export default function AssessmentBakatPage() {
   return (
-    <div className="overflow-hidden">
+    <div className="overflow-hidden bg-white">
       <AssessmentBreadcrumb trail={[{ label: "Test Minat Bakat", href: "/assessment" }]} current="Tes Bakat" />
-      {/* Hero */}
-      <section className="relative bg-gradient-to-b from-teal-50 via-white to-white">
-        <div
-          className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-teal-500/10 blur-3xl"
-          aria-hidden
-        />
-        <div className="mx-auto max-w-7xl px-5 pt-8 pb-10 md:pt-10">
-          <div className="mt-5 flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-mentor-teal to-teal-700 text-3xl shadow-xl">
-              💡
+
+      {/* HERO */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <div className="absolute -top-32 right-[-8%] h-96 w-96 rounded-full bg-teal-500/[0.07]" />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-4 pt-12 pb-14 sm:px-6 md:pt-16 md:pb-20 lg:px-8">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/5 px-3 py-1">
+                <Brain className="h-3.5 w-3.5 text-teal-600" />
+                <span className="font-manrope font-medium text-teal-700 text-xs">Tes Bakat · 5 Kemampuan Dasar</span>
+              </div>
+              <h1 className="mt-5 font-bold font-bricolage text-4xl text-brand-navy leading-[1.05] tracking-tight md:text-5xl">
+                Minat Itu Arah.{" "}
+                <span className="relative">
+                  <span className="relative z-10">Bakat Itu Kekuatan.</span>
+                  <span className="absolute inset-x-0 bottom-1 z-0 h-3 rounded-sm bg-teal-500/20" aria-hidden />
+                </span>
+              </h1>
+              <p className="mt-5 max-w-lg font-manrope text-base text-gray-500 leading-relaxed md:text-lg">
+                Tes Bakat mengukur kemampuan dasar yang menentukan seberapa nyaman kamu menyerap materi tertentu — bahan
+                penting untuk memilih jurusan yang benar-benar bisa kamu jalani.
+              </p>
+              <Link
+                href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
+                className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-brand-navy px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-navy/15 shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
+              >
+                Mulai Tes Bakat <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
-            <p className="mt-4 rounded-full bg-teal-100 px-3 py-1 font-bold font-manrope text-teal-700 text-xs">
-              10 Soal · ±5 Menit
-            </p>
-            <h1 className="mt-3 font-bold font-bricolage text-4xl text-brand-navy md:text-5xl">
-              Tes Bakat — 5 Kemampuan Dasar
-            </h1>
-            <p className="mt-3 max-w-xl font-manrope text-gray-500">
-              Minat itu arah, bakat itu kekuatan. Tes Bakat mengukur kemampuan dasar yang menentukan seberapa nyaman
-              kamu menyerap materi tertentu — bahan penting untuk memilih jurusan.
-            </p>
-            <Link
-              href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
-              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-brand-navy px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
-            >
-              Mulai Tes Bakat <ArrowRight className="h-5 w-5" />
-            </Link>
+
+            {/* key facts */}
+            <div className="grid grid-cols-2 gap-4">
+              {KEY_FACTS.map((f) => (
+                <div key={f.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+                  <f.icon className="h-5 w-5 text-teal-600" />
+                  <p className="mt-3 font-bold font-bricolage text-brand-navy text-xl">{f.value}</p>
+                  <p className="mt-0.5 font-manrope text-gray-500 text-xs">{f.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 5 kemampuan */}
-      <section className="mx-auto max-w-7xl bg-white px-5 py-12">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-bold font-bricolage text-3xl text-brand-navy md:text-4xl">5 Kemampuan yang Diukur</h2>
-          <p className="mt-3 font-manrope text-gray-500">
-            Setiap dimensi dinilai menjadi level: <b>Tinggi</b>, <b>Sedang</b>, atau <b>Perlu Pengembangan</b> — lalu
-            digabung dengan profil minatmu untuk rekomendasi yang akurat.
-          </p>
-        </div>
+      {/* USP strip */}
+      <UspStrip />
 
-        <div className="mt-10 space-y-3">
-          {ABILITIES.map((a, i) => (
-            <div
-              key={a.name}
-              className="flex flex-col gap-4 rounded-[1.5rem] border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-teal-300/50 hover:shadow-md md:flex-row md:items-center"
-            >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-xl">
-                {a.icon}
+      {/* 5 KEMAMPUAN */}
+      <section className="border-gray-100 border-t">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">
+              Blueprint Kemampuan
+            </p>
+            <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight md:text-4xl">
+              5 Kemampuan yang Diukur
+            </h2>
+            <p className="mt-4 font-manrope text-gray-500">
+              Setiap dimensi dinilai menjadi level{" "}
+              <span className="font-semibold text-gray-700">Tinggi · Sedang · Perlu Pengembangan</span> — lalu digabung
+              dengan profil minatmu untuk rekomendasi yang akurat.
+            </p>
+          </div>
+
+          <div className="mt-12 space-y-3">
+            {ABILITIES.map((a, i) => (
+              <div
+                key={a.name}
+                className="group flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-6 transition-all hover:border-teal-500/30 hover:shadow-md md:flex-row md:items-center"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 transition-colors group-hover:bg-teal-500 group-hover:text-white">
+                  <a.icon className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold font-bricolage text-gray-900 text-lg">
+                    <span className="mr-2 font-bold font-manrope text-sm text-teal-500/60">0{i + 1}</span>
+                    {a.name}
+                  </h3>
+                  <p className="mt-0.5 font-manrope text-gray-500 text-sm">{a.desc}</p>
+                </div>
+                <div className="rounded-xl bg-gray-50 px-4 py-2.5 md:max-w-xs">
+                  <p className="font-bold font-manrope text-[10px] text-gray-400 uppercase tracking-wide">
+                    Contoh soal
+                  </p>
+                  <p className="mt-0.5 font-manrope text-gray-600 text-sm">{a.sample}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-bold font-bricolage text-gray-900 text-lg">
-                  <span className="mr-2 font-bold font-manrope text-sm text-teal-500">0{i + 1}</span>
-                  {a.name}
-                </h3>
-                <p className="mt-0.5 font-manrope text-gray-500 text-sm">{a.desc}</p>
-              </div>
-              <div className="rounded-xl bg-gray-50 px-4 py-2.5 md:max-w-xs">
-                <p className="font-bold font-manrope text-[10px] text-gray-400 uppercase tracking-wide">Contoh soal</p>
-                <p className="mt-0.5 font-manrope text-gray-600 text-sm">{a.sample}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Skoring */}
-      <section className="bg-gradient-to-b from-white to-[#f7f8fb] py-12">
-        <div className="mx-auto max-w-7xl px-5">
-          <h2 className="text-center font-bold font-bricolage text-2xl text-brand-navy md:text-3xl">
-            Bagaimana Hasilnya Dibaca?
-          </h2>
-          <div className="mt-8 grid gap-5 md:grid-cols-3">
+      {/* SKORING */}
+      <section className="border-gray-100 border-y bg-gray-50/60">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">Cara Baca Hasil</p>
+            <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight">
+              Profil yang Langsung Bisa Dipakai
+            </h2>
+          </div>
+
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
             {[
-              { icon: "📊", t: "Profil Kemampuan", d: "Skor per dimensi divisualisasikan, dikategorikan ke 3 level." },
-              { icon: "💪", t: "Kekuatan", d: "2 dimensi tertinggi jadi kekuatan utama rekomendasi jurusan." },
-              { icon: "📈", t: "Area Pengembangan", d: "Dimensi terendah ditandai sebagai area yang bisa diasah." },
+              {
+                icon: BarChart3,
+                title: "Profil Kemampuan",
+                desc: "Skor per dimensi divisualisasikan dan dikategorikan ke 3 level.",
+              },
+              {
+                icon: TrendingUp,
+                title: "Kekuatan Utama",
+                desc: "2 dimensi tertinggi menjadi fondasi rekomendasi jurusan.",
+              },
+              {
+                icon: Target,
+                title: "Area Pengembangan",
+                desc: "Dimensi terendah ditandai sebagai area yang bisa diasah.",
+              },
             ].map((s) => (
-              <div key={s.t} className="rounded-[1.5rem] border border-gray-100 bg-white p-6 text-center shadow-sm">
-                <span className="text-3xl">{s.icon}</span>
-                <h3 className="mt-3 font-bold font-bricolage text-gray-900 text-lg">{s.t}</h3>
-                <p className="mt-1 font-manrope text-gray-500 text-sm">{s.d}</p>
+              <div
+                key={s.title}
+                className="rounded-2xl border border-gray-100 bg-white p-6 text-center transition-all hover:-translate-y-1 hover:shadow-lg"
+              >
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600">
+                  <s.icon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 font-bold font-bricolage text-base text-gray-900">{s.title}</h3>
+                <p className="mt-1.5 font-manrope text-gray-500 text-sm">{s.desc}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 flex items-start gap-3 rounded-2xl border border-teal-100 bg-teal-50 p-5">
+          <div className="mx-auto mt-8 flex max-w-3xl items-start gap-3 rounded-2xl border border-teal-100 bg-teal-50/60 p-5">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-teal-600" />
             <p className="font-manrope text-sm text-teal-900 leading-relaxed">
-              <b>Kombinasi minat + bakat:</b> jurusan direkomendasikan berdasarkan kecocokan minat (Holland) <i>dan</i>{" "}
-              kemampuan yang dibutuhkannya — jadi rekomendasi bukan cuma “kamu suka”, tapi juga “kamu bisa”.
+              <span className="font-bold">Kombinasi minat + bakat:</span> jurusan direkomendasikan berdasarkan kecocokan
+              minat (Holland) <span className="font-medium italic">dan</span> kemampuan yang dibutuhkannya — jadi
+              rekomendasi bukan cuma "kamu suka", tapi juga "kamu bisa".
             </p>
           </div>
         </div>
       </section>
 
-      {/* Registrasi */}
-      <AssessmentPricingSection />
-
-      {/* FAQ */}
+      {/* Registrasi + FAQ */}
+      <AssessmentPricingSection theme="teal" />
       <AssessmentFaq
+        theme="teal"
         items={[
           {
             q: "Apa yang diukur Tes Bakat?",
@@ -163,15 +234,17 @@ export default function AssessmentBakatPage() {
       />
 
       {/* CTA */}
-      <section className="mx-auto max-w-7xl bg-white px-5 py-14 text-center">
-        <h2 className="font-bold font-bricolage text-2xl text-brand-navy md:text-3xl">Ukur Kekuatanmu Sekarang</h2>
-        <p className="mt-2 font-manrope text-gray-500">Gratis, ±5 menit, hasil langsung.</p>
-        <Link
-          href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
-          className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-brand-orange px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
-        >
-          Mulai Tes Bakat <ArrowRight className="h-5 w-5" />
-        </Link>
+      <section className="border-gray-100 border-t">
+        <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-20 lg:px-8">
+          <h2 className="font-bold font-bricolage text-3xl text-brand-navy tracking-tight">Ukur Kekuatanmu Sekarang</h2>
+          <p className="mt-3 font-manrope text-gray-500">Gratis, ±5 menit, hasil langsung.</p>
+          <Link
+            href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-brand-orange px-8 py-4 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+          >
+            Mulai Tes Bakat <ArrowRight className="h-5 w-5" />
+          </Link>
+        </div>
       </section>
     </div>
   );

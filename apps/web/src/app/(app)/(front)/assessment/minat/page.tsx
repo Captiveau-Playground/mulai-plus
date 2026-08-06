@@ -1,186 +1,237 @@
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  Compass,
+  FlaskConical,
+  Palette,
+  Target,
+  TrendingUp,
+  Users,
+  Wrench,
+} from "lucide-react";
 import Link from "next/link";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
+import { UspStrip } from "@/components/front/assessment-usp";
 
 const RIASEC = [
   {
     code: "R",
     name: "Realistic",
-    emoji: "🔧",
-    desc: "Suka bekerja praktis dengan mesin, alat, atau di lapangan.",
-    careers: "Teknik Mesin, Pertanian, Arsitektur",
-    cls: "from-blue-500 to-blue-600",
+    icon: Wrench,
+    desc: "Nyaman dengan kerja praktis, alat, dan aktivitas lapangan.",
+    careers: "Teknik Mesin · Pertanian · Arsitektur",
   },
   {
     code: "I",
     name: "Investigative",
-    emoji: "🔬",
+    icon: FlaskConical,
     desc: "Analitis, suka riset, dan memecahkan masalah.",
-    careers: "Kedokteran, Matematika, Farmasi",
-    cls: "from-violet-500 to-purple-600",
+    careers: "Kedokteran · Matematika · Farmasi",
   },
   {
     code: "A",
     name: "Artistic",
-    emoji: "🎨",
+    icon: Palette,
     desc: "Kreatif, ekspresif, dan bebas berimajinasi.",
-    careers: "DKV, Sastra, Arsitektur",
-    cls: "from-pink-500 to-rose-600",
+    careers: "DKV · Sastra · Arsitektur",
   },
   {
     code: "S",
     name: "Social",
-    emoji: "🤝",
+    icon: Users,
     desc: "Senang membantu, mengajar, dan berinteraksi.",
-    careers: "Psikologi, Keperawatan, Keguruan",
-    cls: "from-teal-500 to-emerald-600",
+    careers: "Psikologi · Keperawatan · Keguruan",
   },
   {
     code: "E",
     name: "Enterprising",
-    emoji: "🚀",
+    icon: TrendingUp,
     desc: "Pemimpin, persuasif, dan berjiwa bisnis.",
-    careers: "Manajemen, Marketing, Hukum",
-    cls: "from-amber-500 to-orange-600",
+    careers: "Manajemen · Marketing · Hukum",
   },
   {
     code: "C",
     name: "Conventional",
-    emoji: "📋",
+    icon: ClipboardList,
     desc: "Teratur, teliti, dan nyaman dengan data.",
-    careers: "Akuntansi, Statistik, Administrasi",
-    cls: "from-indigo-500 to-blue-700",
+    careers: "Akuntansi · Statistik · Administrasi",
   },
+];
+
+const KEY_FACTS = [
+  { icon: Compass, value: "6 tipe", label: "kepribadian karier (Holland)" },
+  { icon: FlaskConical, value: "10 soal", label: "pilihan aktivitas" },
+  { icon: Clock, value: "±7 menit", label: "waktu pengerjaan" },
+  { icon: Target, value: "Kode 3 huruf", label: "gambaran minat utamamu" },
 ];
 
 export default function AssessmentMinatPage() {
   return (
-    <div className="overflow-hidden">
+    <div className="overflow-hidden bg-white">
       <AssessmentBreadcrumb
         trail={[{ label: "Test Minat Bakat", href: "/assessment" }]}
         current="Tes Minat (Holland)"
       />
-      {/* Hero */}
-      <section className="relative bg-gradient-to-b from-violet-50 via-white to-white">
-        <div
-          className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl"
-          aria-hidden
-        />
-        <div className="mx-auto max-w-7xl px-5 pt-8 pb-10 md:pt-10">
-          <div className="mt-5 flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 to-purple-600 text-3xl shadow-xl">
-              🧠
-            </div>
-            <p className="mt-4 rounded-full bg-violet-100 px-3 py-1 font-bold font-manrope text-violet-700 text-xs">
-              10 Soal · ±7 Menit
-            </p>
-            <h1 className="mt-3 font-bold font-bricolage text-4xl text-brand-navy md:text-5xl">
-              Tes Minat — Model Holland RIASEC
-            </h1>
-            <p className="mt-3 max-w-xl font-manrope text-gray-500">
-              Di mana kamu paling nyaman bekerja? Tes minat memetakan kecenderunganmu ke 6 tipe kepribadian karier (John
-              Holland) — dari situ kami temukan jurusan yang paling selaras denganmu.
-            </p>
-            <Link
-              href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
-              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-brand-navy px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
-            >
-              Mulai Tes Minat <ArrowRight className="h-5 w-5" />
-            </Link>
-          </div>
-        </div>
-      </section>
 
-      {/* 6 dimensi */}
-      <section className="mx-auto max-w-7xl bg-white px-5 py-12">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-bold font-bricolage text-3xl text-brand-navy md:text-4xl">6 Tipe Minat</h2>
-          <p className="mt-3 font-manrope text-gray-500">
-            Setiap orang punya kombinasi unik — hasilnya berupa <b>kode 3 huruf</b> (misal IAC) yang merepresentasikan
-            dominasi minatmu.
-          </p>
+      {/* HERO */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <div className="absolute -top-32 right-[-8%] h-96 w-96 rounded-full bg-violet-500/[0.07]" />
         </div>
-
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {RIASEC.map((r, _i) => (
-            <div
-              key={r.code}
-              className="group rounded-[1.5rem] border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
-            >
-              <div className="flex items-center justify-between">
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br text-xl shadow-md ${r.cls}`}
-                >
-                  {r.emoji}
-                </div>
-                <span className="font-bold font-bricolage text-3xl text-gray-100">{r.code}</span>
+        <div className="relative mx-auto max-w-7xl px-4 pt-12 pb-14 sm:px-6 md:pt-16 md:pb-20 lg:px-8">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/5 px-3 py-1">
+                <Compass className="h-3.5 w-3.5 text-violet-600" />
+                <span className="font-manrope font-medium text-violet-700 text-xs">Tes Minat · Holland RIASEC</span>
               </div>
-              <h3 className="mt-3 font-bold font-bricolage text-gray-900 text-lg">{r.name}</h3>
-              <p className="mt-1 font-manrope text-gray-500 text-sm">{r.desc}</p>
-              <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 font-manrope text-gray-600 text-xs">
-                <span className="font-semibold text-gray-700">Contoh jurusan:</span> {r.careers}
+              <h1 className="mt-5 font-bold font-bricolage text-4xl text-brand-navy leading-[1.05] tracking-tight md:text-5xl">
+                Di Mana Kamu Paling{" "}
+                <span className="relative">
+                  <span className="relative z-10">Nyaman Bekerja?</span>
+                  <span className="absolute inset-x-0 bottom-1 z-0 h-3 rounded-sm bg-violet-500/20" aria-hidden />
+                </span>
+              </h1>
+              <p className="mt-5 max-w-lg font-manrope text-base text-gray-500 leading-relaxed md:text-lg">
+                Tes Minat memetakan kecenderunganmu ke 6 tipe kepribadian karier (John Holland) — dari sana kami temukan
+                jurusan yang paling selaras dengan cara kamu bekerja dan berpikir.
               </p>
+              <Link
+                href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
+                className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-brand-navy px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-navy/15 shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
+              >
+                Mulai Tes Minat <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* Cara kerja / contoh soal */}
-      <section className="bg-gradient-to-b from-white to-[#f7f8fb] py-12">
-        <div className="mx-auto grid max-w-7xl gap-8 px-5 md:grid-cols-2">
-          <div>
-            <h2 className="font-bold font-bricolage text-2xl text-brand-navy md:text-3xl">Seperti Apa Soalnya?</h2>
-            <p className="mt-3 font-manrope text-gray-500">
-              Kamu memilih satu dari dua aktivitas yang lebih kamu sukai — cepat, intuitif, tanpa jawaban benar atau
-              salah.
-            </p>
-            <div className="mt-5 space-y-3">
-              {[
-                "Pilih aktivitas yang paling menarik bagimu",
-                "Tidak ada jawaban benar/salah — jawab sesuai dirimu",
-                "Tanpa timer, bisa diubah sebelum lanjut",
-              ].map((t) => (
-                <div key={t} className="flex items-start gap-2.5 rounded-2xl bg-white p-4 shadow-sm">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
-                  <span className="font-manrope text-gray-600 text-sm">{t}</span>
+            {/* key facts */}
+            <div className="grid grid-cols-2 gap-4">
+              {KEY_FACTS.map((f) => (
+                <div key={f.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+                  <f.icon className="h-5 w-5 text-violet-600" />
+                  <p className="mt-3 font-bold font-bricolage text-brand-navy text-xl">{f.value}</p>
+                  <p className="mt-0.5 font-manrope text-gray-500 text-xs">{f.label}</p>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="rounded-[1.5rem] border border-gray-100 bg-white p-6 shadow-sm">
-            <p className="font-manrope font-semibold text-violet-500 text-xs uppercase tracking-wide">Contoh Soal</p>
-            <p className="mt-2 font-bold font-bricolage text-gray-900 text-lg">Kamu lebih suka…</p>
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center gap-3 rounded-2xl border-2 border-gray-200 bg-white p-4 transition-colors hover:border-violet-400">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-xl">🔬</span>
-                <span className="font-manrope font-medium text-gray-700 text-sm">
-                  Meneliti dan menganalisis data eksperimen
-                </span>
+      {/* USP strip */}
+      <UspStrip />
+
+      {/* 6 TIPE */}
+      <section className="border-gray-100 border-t">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="font-bold font-manrope text-violet-600 text-xs uppercase tracking-widest">Model Holland</p>
+            <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight md:text-4xl">
+              6 Tipe Minat
+            </h2>
+            <p className="mt-4 font-manrope text-gray-500">
+              Setiap orang punya kombinasi unik — hasilnya berupa{" "}
+              <span className="font-semibold text-gray-700">kode 3 huruf</span> (misal IAC) yang merepresentasikan
+              dominasi minatmu.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {RIASEC.map((r) => (
+              <div
+                key={r.code}
+                className="group rounded-2xl border border-gray-100 bg-white p-6 transition-all hover:-translate-y-1 hover:border-violet-500/30 hover:shadow-lg"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 transition-colors group-hover:bg-violet-500 group-hover:text-white">
+                    <r.icon className="h-5 w-5" />
+                  </div>
+                  <span className="font-bold font-bricolage text-2xl text-gray-200 transition-colors group-hover:text-violet-500/40">
+                    {r.code}
+                  </span>
+                </div>
+                <h3 className="mt-4 font-bold font-bricolage text-gray-900 text-lg">{r.name}</h3>
+                <p className="mt-1 font-manrope text-gray-500 text-sm leading-relaxed">{r.desc}</p>
+                <p className="mt-4 border-gray-50 border-t pt-3 font-manrope text-gray-400 text-xs">
+                  <span className="font-semibold text-gray-500">Contoh jurusan:</span> {r.careers}
+                </p>
               </div>
-              <div className="flex items-center gap-3 rounded-2xl border-2 border-gray-200 bg-white p-4 transition-colors hover:border-violet-400">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-xl">🎨</span>
-                <span className="font-manrope font-medium text-gray-700 text-sm">
-                  Membuat karya seni, desain, atau tulisan kreatif
-                </span>
-              </div>
-            </div>
-            <div className="mt-4 rounded-2xl bg-violet-50 p-4">
-              <p className="font-manrope text-violet-700 text-xs">
-                <b>Dipilih A (Investigative)</b> → skor I naik. Setelah 10 soal, tiga skor tertinggi membentuk kode
-                minatmu.
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CONTOH SOAL */}
+      <section className="border-gray-100 border-y bg-gray-50/60">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <p className="font-bold font-manrope text-violet-600 text-xs uppercase tracking-widest">
+                Seperti Apa Soalnya?
               </p>
+              <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight">
+                Pilih yang Lebih Menarik Bagimu
+              </h2>
+              <p className="mt-4 font-manrope text-gray-500">
+                Cepat, intuitif, dan tanpa jawaban benar atau salah. Cukup pilih aktivitas yang paling kamu sukai.
+              </p>
+              <ul className="mt-6 space-y-3">
+                {[
+                  "Tidak ada jawaban benar/salah — jawab sesuai dirimu",
+                  "Tanpa timer, bisa diubah sebelum lanjut",
+                  "10 soal, selesai ±7 menit",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2.5 font-manrope text-gray-600 text-sm">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" /> {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mx-auto w-full max-w-md">
+              <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-brand-navy/5 shadow-xl">
+                <p className="font-manrope font-semibold text-violet-600 text-xs uppercase tracking-wide">
+                  Contoh Soal
+                </p>
+                <p className="mt-2 font-bold font-bricolage text-gray-900 text-lg">Kamu lebih suka…</p>
+                <div className="mt-4 space-y-2.5">
+                  <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-3.5 transition-colors hover:border-violet-500/50">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+                      <FlaskConical className="h-4 w-4" />
+                    </span>
+                    <span className="font-manrope text-gray-700 text-sm">
+                      Meneliti dan menganalisis data eksperimen
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-xl border-2 border-violet-500 bg-violet-500/5 p-3.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500 text-white">
+                      <Palette className="h-4 w-4" />
+                    </span>
+                    <span className="font-manrope font-medium text-gray-800 text-sm">
+                      Membuat karya seni, desain, atau tulisan kreatif
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-xl bg-violet-500/5 p-4">
+                  <p className="font-manrope text-violet-700 text-xs leading-relaxed">
+                    <span className="font-bold">Memilih "data dan eksperimen"</span> → skor{" "}
+                    <span className="font-bold">Investigative (I)</span> naik. Setelah 10 soal, tiga skor tertinggi
+                    membentuk kode minatmu.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Registrasi */}
-      <AssessmentPricingSection />
-
-      {/* FAQ */}
+      {/* Registrasi + FAQ */}
+      <AssessmentPricingSection theme="violet" />
       <AssessmentFaq
+        theme="violet"
         items={[
           {
             q: "Apa itu Tes Minat Holland RIASEC?",
@@ -206,15 +257,19 @@ export default function AssessmentMinatPage() {
       />
 
       {/* CTA */}
-      <section className="mx-auto max-w-7xl bg-white px-5 py-14 text-center">
-        <h2 className="font-bold font-bricolage text-2xl text-brand-navy md:text-3xl">Siap Menemukan Tipe Minatmu?</h2>
-        <p className="mt-2 font-manrope text-gray-500">Gratis, ±7 menit, hasil langsung.</p>
-        <Link
-          href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
-          className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-brand-orange px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
-        >
-          Mulai Tes Minat <ArrowRight className="h-5 w-5" />
-        </Link>
+      <section className="border-gray-100 border-t">
+        <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-20 lg:px-8">
+          <h2 className="font-bold font-bricolage text-3xl text-brand-navy tracking-tight">
+            Siap Menemukan Tipe Minatmu?
+          </h2>
+          <p className="mt-3 font-manrope text-gray-500">Gratis, ±7 menit, hasil langsung.</p>
+          <Link
+            href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-brand-orange px-8 py-4 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+          >
+            Mulai Tes Minat <ArrowRight className="h-5 w-5" />
+          </Link>
+        </div>
       </section>
     </div>
   );
