@@ -91,7 +91,7 @@ export default function AssessmentLandingPage() {
 
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center md:justify-start">
                 <Link
-                  href="/login"
+                  href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
                   className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-orange px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-orange/25 shadow-lg transition-all hover:shadow-xl hover:brightness-105 active:scale-[0.98]"
                 >
                   Mulai Gratis
@@ -300,7 +300,7 @@ export default function AssessmentLandingPage() {
               untuk menelusuri lebih lanjut.
             </p>
             <Link
-              href="/login"
+              href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
               className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3.5 font-bold font-bricolage text-brand-navy text-sm shadow-lg transition-all hover:bg-amber-50 active:scale-[0.98]"
             >
               Coba Sekarang <ArrowRight className="h-4 w-4" />
@@ -363,7 +363,7 @@ export default function AssessmentLandingPage() {
               </ul>
               <div className="flex-1" />
               <Link
-                href="/login"
+                href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
                 className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-md transition-all hover:bg-brand-navy-light active:scale-[0.98]"
               >
                 Daftar & Mulai Gratis <ArrowRight className="h-4 w-4" />
@@ -434,7 +434,7 @@ export default function AssessmentLandingPage() {
               20 soal · ±10 menit · gratis. Hasil yang bisa mengubah keputusan kuliahmu.
             </p>
             <Link
-              href="/login"
+              href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
               className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-brand-navy px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
             >
               Mulai Test Sekarang <ArrowRight className="h-5 w-5" />

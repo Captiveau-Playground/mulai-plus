@@ -84,7 +84,7 @@ export default function AssessmentMinatPage() {
               Holland) — dari situ kami temukan jurusan yang paling selaras denganmu.
             </p>
             <Link
-              href="/login"
+              href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
               className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-brand-navy px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
             >
               Mulai Tes Minat <ArrowRight className="h-5 w-5" />
@@ -182,7 +182,7 @@ export default function AssessmentMinatPage() {
         <h2 className="font-bold font-bricolage text-2xl text-brand-navy md:text-3xl">Siap Menemukan Tipe Minatmu?</h2>
         <p className="mt-2 font-manrope text-gray-500">Gratis, ±7 menit, hasil langsung.</p>
         <Link
-          href="/login"
+          href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
           className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-brand-orange px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
         >
           Mulai Tes Minat <ArrowRight className="h-5 w-5" />

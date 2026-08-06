@@ -46,7 +46,7 @@ export function AssessmentSection() {
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/login"
+                href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
                 className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-orange px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-orange/25 shadow-lg transition-all hover:shadow-xl hover:brightness-105 active:scale-[0.98]"
               >
                 Mulai Gratis Sekarang
