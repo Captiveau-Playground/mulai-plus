@@ -88,3 +88,11 @@ class ChatStatsResponse(BaseModel):
     total_cost: float = 0
     total_prompt_tokens: int = 0
     total_completion_tokens: int = 0
+
+
+class TmbSummaryRequest(BaseModel):
+    profile: dict = Field(..., description="Profil hasil test: holland, ability, rekomendasi")
+
+
+class TmbSummaryResponse(BaseModel):
+    summary: str

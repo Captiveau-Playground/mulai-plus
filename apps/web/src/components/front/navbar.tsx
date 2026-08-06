@@ -4,10 +4,14 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import {
   BarChart3,
   BookOpen,
+  Brain,
   ChevronDown,
+  Compass,
   GraduationCap,
   HeartHandshake,
+  Lightbulb,
   Loader2,
+  Map as MapIcon,
   Menu,
   Search,
   User,
@@ -88,6 +92,35 @@ const NAV_ITEMS = [
         href: "/programs",
         desc: "Program seleksi",
         icon: HeartHandshake,
+      },
+    ],
+  },
+  {
+    label: "Assessment",
+    children: [
+      {
+        label: "Tes Minat Bakat",
+        href: "/assessment",
+        desc: "20 soal · gratis · ±10 menit",
+        icon: Compass,
+      },
+      {
+        label: "Tes Minat (Holland)",
+        href: "/assessment/minat",
+        desc: "6 tipe minat RIASEC",
+        icon: Brain,
+      },
+      {
+        label: "Tes Bakat",
+        href: "/assessment/bakat",
+        desc: "5 kemampuan dasar",
+        icon: Lightbulb,
+      },
+      {
+        label: "Karir Impian",
+        href: "/assessment/future-career",
+        desc: "Petakan jalur kuliah dari profesi impian",
+        icon: MapIcon,
       },
     ],
   },
@@ -360,12 +393,14 @@ export function Navbar() {
       {/* Mobile: Hamburger */}
       <div className="flex md:hidden">
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetTrigger>
-            <Button variant="ghost" size="icon" className={isExploreLight ? "text-white" : "text-text-main"}>
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Menu</span>
-            </Button>
-          </SheetTrigger>
+          <SheetTrigger
+            render={
+              <Button variant="ghost" size="icon" className={isExploreLight ? "text-white" : "text-text-main"}>
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Menu</span>
+              </Button>
+            }
+          />
           <SheetContent side="right" showCloseButton={false} className="w-full border-none bg-white p-0 sm:w-72">
             <div className="flex h-full flex-col p-5">
               {/* Sheet header */}

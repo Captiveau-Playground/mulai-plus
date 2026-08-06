@@ -469,7 +469,7 @@ function SidebarPrograms() {
 
 function SidebarLatestArticles({ currentSlug, type }: { currentSlug: string; type: string }) {
   const { data } = useQuery({
-    ...orpc.cms.articles.public.list.queryOptions({ type: type as any, limit: 5, offset: 0 }),
+    ...orpc.cms.articles.public.list.queryOptions({ input: { type: type as any, limit: 5, offset: 0 } }),
   });
   const latest = ((data?.data ?? []) as any[])
     .filter((a: any) => a.slug !== currentSlug && a.type === type)

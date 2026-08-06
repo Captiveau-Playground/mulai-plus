@@ -10,3 +10,4 @@ export * from "./pddikti";
 export * from "./programs";
 export * from "./settings";
 export * from "./testimonials";
+export * from "./tmb";

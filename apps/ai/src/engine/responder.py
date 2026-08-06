@@ -7,11 +7,13 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 from typing import Optional
 
 from openai import AsyncOpenAI
 
 from src.config import settings
+from src.linkify import linkify
 from src.tools import TOOL_DEFINITIONS, handle_tool_call
 
 logger = logging.getLogger("responder")
@@ -72,6 +74,10 @@ FALLBACK_REPLIES = [
 
 LLM_TIMEOUT = 30
 
+# Blok reasoning yg dikeluarkan model (mis. minimax-m3): <think>...</think>
+# Harus dibuang sebelum ditampilkan ke user.
+_THINK_RE = re.compile(r"\s*<think>.*?</think>\s*", re.DOTALL)
+
 _client: Optional[AsyncOpenAI] = None
 
 
@@ -87,10 +93,45 @@ def _get_client() -> AsyncOpenAI:
     return _client
 
 
+async def _chat(client: AsyncOpenAI, messages: list[dict], *, with_tools: bool = False, temperature: float = 0.7) -> object:
+    """Call LLM dengan retry. Jika pakai tools dan provider menolak payload tools
+    (error 400 intermittent spt "Mismatch type custom.OaiMessage"), retry sekali
+    TANPA tools supaya user tetap dapat jawaban (graceful degradation)."""
+    kwargs: dict = {"temperature": temperature}
+    if with_tools:
+        kwargs["tools"] = TOOL_DEFINITIONS
+        kwargs["tool_choice"] = "auto"
+
+    for attempt in range(2):
+        try:
+            return await client.chat.completions.create(
+                model=settings.openai_model,
+                messages=messages,
+                **kwargs,
+            )
+        except Exception as e:
+            if attempt == 1:
+                raise
+            logger.warning("LLM call gagal (%s). Retry...", str(e)[:200])
+            if with_tools:
+                # Degradasi: retry tanpa tools
+                logger.warning("Retry tanpa tools (provider menolak payload tools).")
+                with_tools = False
+                kwargs.pop("tools", None)
+                kwargs.pop("tool_choice", None)
+
+    raise RuntimeError("unreachable")  # pragma: no cover
+
+
 def _calc_cost(prompt: int, completion: int, model: str = "") -> float:
     COST_PER_1M_INPUT = 0.14
     COST_PER_1M_OUTPUT = 0.28
     return (prompt / 1_000_000 * COST_PER_1M_INPUT) + (completion / 1_000_000 * COST_PER_1M_OUTPUT)
+
+
+def _strip_think(content: str) -> str:
+    """Buang blok reasoning <think>...</think> dari output model."""
+    return _THINK_RE.sub("", content).strip()
 
 
 def _extract_topics(text: str) -> list[str]:
@@ -116,19 +157,32 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
     model_used = settings.openai_model
 
     try:
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        # Sanitize history: hanya role + content (string), buang key ekstra
+        # seperti id/created_at yang bisa ditolak gateway yang strict.
+        # Defensif: skip item yang bukan dict (mis. list/int dari tuple error).
+        clean_history: list[dict] = []
         if history:
-            messages.extend(history[-6:])
+            for h in history[-6:]:
+                if not isinstance(h, dict):
+                    continue
+                role = h.get("role")
+                content = h.get("content")
+                if role in ("user", "assistant", "system") and isinstance(content, str):
+                    clean_history.append({"role": role, "content": content})
+
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.extend(clean_history)
         messages.append({"role": "user", "content": message})
 
         client = _get_client()
 
-        resp = await client.chat.completions.create(
-            model=settings.openai_model,
-            messages=messages,
-            tools=TOOL_DEFINITIONS,
-            tool_choice="auto",
-            temperature=0.7,
+        # Call dengan tools; jika provider menolak payload tools (400 intermittent
+        # seperti "Mismatch type custom.OaiMessage"), retry tanpa tools agar
+        # user tetap dapat jawaban (graceful degradation).
+        resp = await _chat(
+            client,
+            messages,
+            with_tools=True,
         )
 
         if resp.usage:
@@ -159,9 +213,7 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
 
                 messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
 
-            resp = await client.chat.completions.create(
-                model=settings.openai_model, messages=messages, temperature=0.7,
-            )
+            resp = await _chat(client, messages)
             if resp.usage:
                 total_prompt += resp.usage.prompt_tokens or 0
                 total_completion += resp.usage.completion_tokens or 0
@@ -171,15 +223,23 @@ async def get_response(message: str, history: Optional[list[dict]] = None) -> tu
             content = msg.content
 
         if not content:
-            resp = await client.chat.completions.create(
-                model=settings.openai_model, messages=messages, temperature=0.7,
-            )
+            resp = await _chat(client, messages)
             if resp.usage:
                 total_prompt += resp.usage.prompt_tokens or 0
                 total_completion += resp.usage.completion_tokens or 0
             content = resp.choices[0].message.content
 
         content = content or "Maaf, aku tidak bisa menjawab saat ini."
+
+        # Buang blok <think>...</think> supaya reasoning model tidak tampil ke user
+        content = _strip_think(content)
+
+        # Jika setelah dibuang kosong (model cuma 'berpikir', tidak menjawab)
+        if not content.strip():
+            content = "Maaf, aku belum bisa menjawab pertanyaan itu dengan data yang ada. Coba tanya dengan kata kunci lain ya! 🙏"
+
+        # Linkify nama universitas / prodi ke halaman explore
+        content = await linkify(content)
 
         # Follow-up dari response terakhir (gak perlu LLM call lagi)
         follow_ups = _extract_topics(content)

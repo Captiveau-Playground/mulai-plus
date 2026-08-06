@@ -3,6 +3,7 @@
 import {
   BookOpen,
   Bot,
+  Brain,
   Building2,
   Computer,
   ExternalLink,
@@ -47,6 +48,43 @@ const data = {
       title: "Dashboard",
       url: "/admin",
       icon: LayoutDashboard,
+    },
+  ],
+  navAssessment: [
+    {
+      title: "Assessment",
+      url: "/admin/assessment",
+      icon: Brain,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/admin/assessment",
+        },
+        {
+          title: "Sekolah & Batch",
+          url: "/admin/assessment/schools",
+        },
+        {
+          title: "B2C — Statistik",
+          url: "/admin/assessment/b2c",
+        },
+        {
+          title: "B2C — History",
+          url: "/admin/assessment/b2c/history",
+        },
+        {
+          title: "Konten Test",
+          url: "/admin/assessment/questions",
+        },
+        {
+          title: "Pola Jurusan",
+          url: "/admin/assessment/patterns",
+        },
+        {
+          title: "Mapping Karier",
+          url: "/admin/assessment/careers",
+        },
+      ],
     },
   ],
   navAuth: [
@@ -314,6 +352,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navGeneral} />
+        <NavMain label="Assessment" items={data.navAssessment} />
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
         <NavMain label="Content" items={data.navCms} />

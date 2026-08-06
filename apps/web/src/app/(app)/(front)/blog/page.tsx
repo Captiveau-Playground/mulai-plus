@@ -142,10 +142,10 @@ function BlogCard({ article }: { article: ArticleItem }) {
 // ─── Page ──
 export default function BlogPage() {
   const { data: dataArticles, isLoading: loadingArticles } = useQuery({
-    ...orpc.cms.articles.public.list.queryOptions({ type: "article", limit: 6 }),
+    ...orpc.cms.articles.public.list.queryOptions({ input: { type: "article", limit: 6 } }),
   });
   const { data: dataNews, isLoading: loadingNews } = useQuery({
-    ...orpc.cms.articles.public.list.queryOptions({ type: "news", limit: 4 }),
+    ...orpc.cms.articles.public.list.queryOptions({ input: { type: "news", limit: 4 } }),
   });
   const { isLoading: loadingCats } = useQuery(orpc.cms.categories.public.list.queryOptions());
 

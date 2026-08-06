@@ -280,10 +280,7 @@ export default function ArticlesPage() {
   const { data: categories } = useQuery(orpc.cms.categories.public.list.queryOptions());
   const { data, isLoading, isError, refetch } = useQuery({
     ...orpc.cms.articles.public.list.queryOptions({
-      type: "article",
-      categorySlug,
-      limit: PAGE_SIZE,
-      offset: page * PAGE_SIZE,
+      input: { type: "article", categorySlug, limit: PAGE_SIZE, offset: page * PAGE_SIZE },
     }),
   });
 

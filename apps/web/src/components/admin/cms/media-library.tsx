@@ -76,10 +76,12 @@ export function MediaLibrary() {
 
   const { data: libraryData, isLoading: libraryLoading } = useQuery({
     ...orpc.cms.media.admin.list.queryOptions({
-      mimeType: filters.mimeType,
-      prefix: selectedFolder || undefined,
-      limit: pageSize,
-      offset: page * pageSize,
+      input: {
+        mimeType: filters.mimeType,
+        prefix: selectedFolder || undefined,
+        limit: pageSize,
+        offset: page * pageSize,
+      },
     }),
     staleTime: 1000 * 60 * 2,
     enabled: activeTab === "library",
@@ -92,9 +94,11 @@ export function MediaLibrary() {
 
   const { data: bucketData, isLoading: bucketLoading } = useQuery({
     ...orpc.cms.media.admin.listBucket.queryOptions({
-      prefix: undefined,
-      limit: pageSize,
-      offset: bucketPage * pageSize,
+      input: {
+        prefix: undefined,
+        limit: pageSize,
+        offset: bucketPage * pageSize,
+      },
     }),
     staleTime: 1000 * 60 * 2,
     enabled: activeTab === "bucket",
