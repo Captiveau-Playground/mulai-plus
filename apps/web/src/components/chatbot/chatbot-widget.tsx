@@ -1,8 +1,9 @@
 "use client";
 
 import { env } from "@mulai-plus/env/web";
-import { MessageSquare, RefreshCw, Sparkles, X } from "lucide-react";
+import { Lock, MessageCircle, MessageSquare, RefreshCw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Chat } from "@/components/ui/chat";
 import type { Message } from "@/components/ui/chat-message";
 import { cn } from "@/lib/utils";
@@ -108,10 +109,16 @@ export function ChatbotWidget() {
       if (quotaRes.ok) {
         anyOk = true;
         const d = await quotaRes.json();
-        if (typeof d.remaining === "number") setRemaining(d.remaining);
-        if (typeof d.remaining === "number" && d.remaining <= 0) {
-          setRequiresAuth(true);
-          setRedirectUrl(d.redirect_url ?? "");
+        if (typeof d.remaining === "number") {
+          setRemaining(d.remaining);
+          if (d.remaining <= 0) {
+            setRequiresAuth(true);
+            setRedirectUrl(d.redirect_url ?? "");
+          } else {
+            // quota pulih (misal baru login / request disetujui) — buka gate
+            setRequiresAuth(false);
+            setRedirectUrl("");
+          }
         }
       }
       if (mountedRef.current) setConn(anyOk ? "ok" : "error");
@@ -164,9 +171,14 @@ export function ChatbotWidget() {
       const trimmed = text.trim();
       if (!trimmed) return;
 
-      // Auth gate: jangan append user message kalau quota habis
+      // Auth gate: jangan append user message kalau quota habis — kasih feedback
       if (requiresAuth) {
         setConn("ok");
+        toast.info(
+          redirectUrl?.includes("wa.me")
+            ? "Limit chat habis — klik tombol request via WhatsApp di atas."
+            : "Chat gratis habis — login untuk lanjut.",
+        );
         return;
       }
 
@@ -303,7 +315,7 @@ export function ChatbotWidget() {
         abortRef.current = null;
       }
     },
-    [loading, requiresAuth],
+    [loading, requiresAuth, redirectUrl?.includes],
   );
 
   const handleSubmit = useCallback(
@@ -400,13 +412,19 @@ export function ChatbotWidget() {
           </div>
         )}
 
-        {/* Auth gate banner */}
+        {/* Auth gate banner — dua gate: guest→login, auth→WA */}
         {requiresAuth && (
-          <div className="shrink-0 border-gray-100 border-b bg-amber-50 px-4 py-3 sm:px-5 sm:py-2.5">
-            <p className="mb-2 font-manrope text-amber-800 text-sm leading-relaxed sm:text-xs">
+          <div className="shrink-0 border-amber-100 border-b bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 sm:px-5">
+            <div className="flex items-center gap-2">
+              <Lock className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+              <p className="font-bold font-bricolage text-amber-900 text-sm">
+                {redirectUrl?.includes("wa.me") ? "Limit Chat Habis" : "Chat Gratis Habis"}
+              </p>
+            </div>
+            <p className="mt-1 font-manrope text-amber-800 text-xs leading-relaxed">
               {redirectUrl?.includes("wa.me")
-                ? "Limit chat habis! Klik tombol di bawah untuk request tambahan."
-                : "Chat gratis habis! Daftar untuk lanjut konsultasi."}
+                ? "Minta tambahan kuota via WhatsApp — tim kami siap bantu."
+                : "Login untuk lanjut konsultasi — chat & fitur jadi lebih banyak."}
             </p>
             <button
               type="button"
@@ -425,9 +443,15 @@ export function ChatbotWidget() {
                   window.location.href = `/login?callbackUrl=${encodeURIComponent(page)}&utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit`;
                 }
               }}
-              className="w-full cursor-pointer rounded-lg bg-brand-navy px-4 py-2.5 font-manrope text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90 active:scale-[0.98] sm:py-2"
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-navy px-4 py-2.5 font-bold font-manrope text-sm text-white shadow-sm transition-all hover:bg-brand-navy/90 active:scale-[0.98] sm:py-2"
             >
-              {redirectUrl?.includes("wa.me") ? "Request via WhatsApp" : "Login / Daftar Gratis"}
+              {redirectUrl?.includes("wa.me") ? (
+                <>
+                  <MessageCircle className="h-4 w-4" /> Request via WhatsApp
+                </>
+              ) : (
+                "Login / Daftar Gratis"
+              )}
             </button>
           </div>
         )}
@@ -442,7 +466,8 @@ export function ChatbotWidget() {
             isGenerating={loading}
             stop={stop}
             append={append}
-            suggestions={suggestions}
+            suggestions={requiresAuth ? [] : suggestions}
+            disabled={requiresAuth}
             onRateResponse={onRateResponse}
             suggestionsLabel="Halo! 👋 Aku asisten MULAI+. Tanya seputar universitas, jurusan, passing grade, atau program mentoring:"
           />
