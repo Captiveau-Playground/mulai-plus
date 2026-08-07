@@ -318,30 +318,75 @@ export default function AssessmentLandingPage() {
       </section>
 
       {/* ── KARIR IMPIAN ── */}
-      <section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-        <Reveal>
-          <Link
-            href="/assessment/future-career"
-            className="group relative flex flex-col items-start gap-5 overflow-hidden rounded-2xl border border-brand-orange/20 bg-brand-orange/5 p-6 transition-all hover:border-brand-orange/40 hover:bg-brand-orange/10 md:flex-row md:items-center md:p-8"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-orange text-white shadow-brand-orange/20 shadow-lg">
-              <MapIcon className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold font-manrope text-orange-700 text-xs uppercase tracking-widest">Fitur Baru</p>
-              <h2 className="mt-1 font-bold font-bricolage text-brand-navy text-xl md:text-2xl">
-                Punya Karir Impian? Petakan Jalur Kuliahnya.
-              </h2>
-              <p className="mt-1 max-w-2xl font-manrope text-gray-500 text-sm">
-                Tulis profesi impianmu — kami tunjukkan jurusan, prodi, dan kampus yang mengarah ke sana, plus
-                keselarasannya dengan hasil testmu.
+      <section className="border-gray-100 border-y bg-gray-50/60">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <Reveal>
+              <p className="font-bold font-manrope text-brand-orange text-xs uppercase tracking-widest">
+                Fitur Karir Impian
               </p>
-            </div>
-            <span className="inline-flex items-center gap-1.5 font-bold font-bricolage text-brand-orange text-sm">
-              Coba Fitur <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </span>
-          </Link>
-        </Reveal>
+              <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight md:text-4xl">
+                Punya Karir Impian?{" "}
+                <span className="relative">
+                  <span className="relative z-10">Petakan Jalur Kuliahnya.</span>
+                  <span className="absolute inset-x-0 bottom-1 z-0 h-3 rounded-sm bg-brand-orange/20" aria-hidden />
+                </span>
+              </h2>
+              <p className="mt-4 font-manrope text-gray-500">
+                Tulis profesi impianmu — misal "aku mau jadi game developer" — kami tunjukkan jurusan, prodi, dan kampus
+                yang mengarah ke sana, lengkap dengan keselarasannya dengan hasil testmu.
+              </p>
+              <ul className="mt-5 space-y-2">
+                {[
+                  "Dicocokkan dengan 18.000+ prodi & 400+ universitas",
+                  "Peta visual interaktif karir → jurusan → prodi",
+                  "Cek keselarasan dengan minat-bakatmu",
+                ].map((t) => (
+                  <li key={t} className="flex items-center gap-2.5 font-manrope text-gray-600 text-sm">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-mentor-teal" /> {t}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/assessment/future-career"
+                  className="group inline-flex items-center justify-center gap-2 rounded-xl bg-brand-orange px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+                >
+                  Coba Fitur Karir Impian
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+                <Link
+                  href="/assessment/future-career#cara-kerja"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-7 py-4 font-bold font-bricolage text-base text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98]"
+                >
+                  Lihat Cara Kerja
+                </Link>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.15} className="mx-auto w-full max-w-lg lg:max-w-none">
+              <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-brand-navy/5 shadow-xl">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-orange text-white">
+                    <MapIcon className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold font-bricolage text-gray-900 text-sm">Peta Jalur Kuliah</p>
+                    <p className="font-manrope text-[11px] text-gray-400">dari karir impian: Game Developer</p>
+                  </div>
+                  <span className="rounded-full bg-teal-500/10 px-2.5 py-1 font-bold font-manrope text-[10px] text-teal-700">
+                    84% SELARAS
+                  </span>
+                </div>
+                <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/60 px-3.5 py-2.5">
+                  <p className="font-manrope text-[11px] text-gray-400">Permintaan</p>
+                  <p className="font-manrope font-semibold text-gray-800 text-sm">"aku mau jadi game developer"</p>
+                </div>
+                <MiniMindMap />
+              </div>
+            </Reveal>
+          </div>
+        </div>
       </section>
 
       {/* ── CARA KERJA ── */}
@@ -503,6 +548,59 @@ export default function AssessmentLandingPage() {
           </Reveal>
         </div>
       </section>
+    </div>
+  );
+}
+function MiniMindMap() {
+  const branch = (x: number, y: number, color: string, label: string, sub: string) => (
+    <g>
+      <path
+        d={`M 36 62 C ${x - 60} 62, ${x - 24} ${y + 20}, ${x} ${y + 20}`}
+        stroke={color}
+        strokeWidth="2"
+        fill="none"
+        strokeOpacity="0.45"
+      />
+      <rect x={x} y={y} width={126} height={40} rx="8" fill="white" stroke={color} strokeWidth="1.4" />
+      <text x={x + 10} y={y + 17} fontSize="11" fontWeight="700" fill="#1a1f6d" fontFamily="Manrope, sans-serif">
+        {label}
+      </text>
+      <text x={x + 10} y={y + 32} fontSize="9" fill="#6b7280" fontFamily="Manrope, sans-serif">
+        {sub}
+      </text>
+    </g>
+  );
+
+  return (
+    <div className="mt-3 rounded-xl border border-gray-100 p-2">
+      <svg viewBox="0 0 330 150" className="h-auto w-full" aria-label="Contoh peta jalur karir">
+        <rect x="0" y="38" width="72" height="48" rx="10" fill="#1a1f6d" />
+        <text
+          x="36"
+          y="58"
+          textAnchor="middle"
+          fontSize="10"
+          fontWeight="700"
+          fill="#fff"
+          fontFamily="Manrope, sans-serif"
+        >
+          Game
+        </text>
+        <text
+          x="36"
+          y="72"
+          textAnchor="middle"
+          fontSize="9"
+          fontWeight="600"
+          fill="#fe9114"
+          fontFamily="Manrope, sans-serif"
+        >
+          Developer
+        </text>
+        {branch(104, 14, "#1a1f6d", "Teknik Informatika", "3 prodi · 5 kampus")}
+        {branch(104, 96, "#0d9488", "Desain & DKV", "4 prodi · 6 kampus")}
+        {branch(196, 55, "#7c3aed", "Ilmu Komunikasi", "2 prodi · 4 kampus")}
+      </svg>
     </div>
   );
 }
