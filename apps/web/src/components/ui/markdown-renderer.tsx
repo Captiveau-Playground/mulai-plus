@@ -53,7 +53,7 @@ function remarkLinkifyUrls() {
 
 export function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
-    <div className="space-y-3 font-manrope">
+    <div className="min-w-0 space-y-3 font-manrope [overflow-wrap:anywhere]">
       <Markdown remarkPlugins={[remarkGfm, remarkLinkifyUrls]} components={COMPONENTS}>
         {children}
       </Markdown>
@@ -170,7 +170,7 @@ const COMPONENTS: Components = {
   h4: withClass("h4", "font-semibold text-base"),
   h5: withClass("h5", "font-medium"),
   strong: withClass("strong", "font-semibold"),
-  a: withClass("a", "text-mentor-teal underline underline-offset-2 hover:text-mentor-teal-dark"),
+  a: withClass("a", "text-mentor-teal break-words underline underline-offset-2 hover:text-mentor-teal-dark"),
   blockquote: withClass("blockquote", "border-l-2 border-primary pl-4"),
   code: ({ children, className, node, ...rest }: any) => {
     const match = /language-(\w+)/.exec(className || "");
@@ -190,20 +190,27 @@ const COMPONENTS: Components = {
     );
   },
   pre: ({ children }: any) => children,
-  ol: withClass("ol", "list-decimal space-y-2 pl-6"),
-  ul: withClass("ul", "list-disc space-y-2 pl-6"),
-  li: withClass("li", "my-1.5"),
-  table: withClass("table", "w-full border-collapse overflow-y-auto rounded-md border border-foreground/20"),
+  ol: withClass("ol", "list-decimal space-y-1.5 pl-5"),
+  ul: withClass("ul", "list-disc space-y-1.5 pl-5"),
+  li: withClass("li", "my-1 leading-relaxed"),
+  table: ({ children, ...props }: any) => (
+    // Tabel: wrap dalam kontainer scroll horizontal supaya tidak menciut di panel sempit
+    <div className="my-1 max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-foreground/15">
+      <table className="w-full min-w-[380px] border-collapse text-[13px]" {...props}>
+        {children}
+      </table>
+    </div>
+  ),
   th: withClass(
     "th",
-    "border border-foreground/20 px-4 py-2 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right",
+    "whitespace-nowrap border border-foreground/15 bg-muted/60 px-2.5 py-1.5 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right",
   ),
   td: withClass(
     "td",
-    "border border-foreground/20 px-4 py-2 text-left [&[align=center]]:text-center [&[align=right]]:text-right",
+    "border border-foreground/15 px-2.5 py-1.5 text-left align-top [&[align=center]]:text-center [&[align=right]]:text-right",
   ),
-  tr: withClass("tr", "m-0 border-t p-0 even:bg-muted"),
-  p: withClass("p", "whitespace-pre-wrap"),
+  tr: withClass("tr", "m-0 border-t border-foreground/15 p-0"),
+  p: withClass("p", "whitespace-pre-wrap break-words"),
   hr: withClass("hr", "border-foreground/20"),
 };
 

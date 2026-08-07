@@ -11,7 +11,7 @@ import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
 import { cn } from "@/lib/utils";
 
 const chatBubbleVariants = cva(
-  "group/message relative break-words rounded-2xl p-3 font-manrope text-sm leading-relaxed sm:max-w-[80%]",
+  "group/message relative min-w-0 max-w-[85%] break-words rounded-2xl p-3 font-manrope text-sm leading-relaxed sm:max-w-[80%]",
   {
     variants: {
       isUser: {
