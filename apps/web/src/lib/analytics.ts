@@ -18,20 +18,21 @@ type EventParams = Record<string, string | number | boolean | undefined>;
 const isProd = typeof window !== "undefined" && process.env.NODE_ENV === "production";
 
 /**
- * Track a GA4 event imperatively from anywhere.
- * Safe to call — no-ops if GA is not loaded or measurement ID not set.
+ * Track event ke GA4 (jika tersedia) DAN Amplitude (jika production) — independen.
+ * Safe to call — no-ops jika layanan terkait tidak tersedia.
  */
 export function trackEvent(action: string, params?: EventParams) {
   if (typeof window === "undefined") return;
-  if (!env.NEXT_PUBLIC_GA_MEASUREMENT_ID) return;
-  if (typeof window.gtag !== "function") return;
 
-  window.gtag("event", action, {
-    ...params,
-    send_to: env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
-  });
+  // GA4 — independen dari Amplitude
+  if (env.NEXT_PUBLIC_GA_MEASUREMENT_ID && typeof window.gtag === "function") {
+    window.gtag("event", action, {
+      ...params,
+      send_to: env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+    });
+  }
 
-  // Also fire to Amplitude
+  // Amplitude — independen dari GA (tetap jalan meski GA tidak dikonfigurasi)
   if (isProd) {
     try {
       amplitude.track(action, params);
