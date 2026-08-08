@@ -68,7 +68,8 @@ export function HeroSection() {
             animate="show"
             className="max-w-3xl font-bold font-bricolage text-3xl text-brand-navy leading-[1.08] tracking-tight md:text-5xl lg:text-[72px] lg:leading-[1.05]"
           >
-            <span className="text-brand-red">Kenali Dirimu,</span> Temukan Jurusan &amp; PTN Impianmu
+            <span className="text-brand-red">Kenali Dirimu,</span>
+            {" Temukan Jurusan &amp; PTN Impianmu"}
           </motion.h1>
 
           {/* ── Description ── */}

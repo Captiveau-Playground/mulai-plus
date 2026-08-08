@@ -72,7 +72,40 @@ FALLBACK_REPLIES = [
      ["PTN dengan akreditasi unggul", "Jurusan dengan passing grade rendah", "Info program mentoring"]),
 ]
 
+import asyncio
+
 LLM_TIMEOUT = 30
+
+# ── Circuit breaker LLM: setelah 2 kegagalan beruntun, skip LLM sementara ──
+_LLM_FAIL_COUNT = 0
+_LLM_FAIL_AT = 0.0
+_LLM_COOLDOWN_S = 60
+
+# Batasi panggilan LLM bersamaan (proteksi provider gratis dari overload).
+# Sisanya antri — hasilnya: tidak ada cascade timeout, latensi lebih stabil.
+_LLM_SEMAPHORE = asyncio.Semaphore(4)
+
+
+def llm_failure_short_circuit() -> bool:
+    """True jika LLM baru gagal beruntun → layani pesan sibuk instan (tanpa nunggu 30s)."""
+    global _LLM_FAIL_COUNT, _LLM_FAIL_AT
+    import time as _time
+
+    if _time.time() - _LLM_FAIL_AT > _LLM_COOLDOWN_S:
+        _LLM_FAIL_COUNT = 0
+    return _LLM_FAIL_COUNT >= 2
+
+
+def llm_record_outcome(ok: bool) -> None:
+    """Catat hasil panggilan LLM. Reset saat sukses, naikkan saat gagal."""
+    global _LLM_FAIL_COUNT, _LLM_FAIL_AT
+    import time as _time
+
+    if ok:
+        _LLM_FAIL_COUNT = 0
+    else:
+        _LLM_FAIL_COUNT += 1
+        _LLM_FAIL_AT = _time.time()
 
 # Blok reasoning yg dikeluarkan model (mis. minimax-m3): <think>...</think>
 # Harus dibuang sebelum ditampilkan ke user.
@@ -102,23 +135,24 @@ async def _chat(client: AsyncOpenAI, messages: list[dict], *, with_tools: bool =
         kwargs["tools"] = TOOL_DEFINITIONS
         kwargs["tool_choice"] = "auto"
 
-    for attempt in range(2):
-        try:
-            return await client.chat.completions.create(
-                model=settings.openai_model,
-                messages=messages,
-                **kwargs,
-            )
-        except Exception as e:
-            if attempt == 1:
-                raise
-            logger.warning("LLM call gagal (%s). Retry...", str(e)[:200])
-            if with_tools:
-                # Degradasi: retry tanpa tools
-                logger.warning("Retry tanpa tools (provider menolak payload tools).")
-                with_tools = False
-                kwargs.pop("tools", None)
-                kwargs.pop("tool_choice", None)
+    async with _LLM_SEMAPHORE:
+        for attempt in range(2):
+            try:
+                return await client.chat.completions.create(
+                    model=settings.openai_model,
+                    messages=messages,
+                    **kwargs,
+                )
+            except Exception as e:
+                if attempt == 1:
+                    raise
+                logger.warning("LLM call gagal (%s). Retry...", str(e)[:200])
+                if with_tools:
+                    # Degradasi: retry tanpa tools
+                    logger.warning("Retry tanpa tools (provider menolak payload tools).")
+                    with_tools = False
+                    kwargs.pop("tools", None)
+                    kwargs.pop("tool_choice", None)
 
     raise RuntimeError("unreachable")  # pragma: no cover
 

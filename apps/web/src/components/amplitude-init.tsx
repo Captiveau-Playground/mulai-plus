@@ -1,28 +1,84 @@
 "use client";
 
 import * as amplitude from "@amplitude/unified";
+import { env } from "@mulai-plus/env/web";
 import { useEffect } from "react";
+import { useConsent } from "@/components/cookie-consent";
+import { authClient } from "@/lib/auth-client";
 
-const AMPLITUDE_API_KEY = "4b58c01dd72032ca4a3e30482f149d27";
+// Fallback key — sebaiknya diatur lewat NEXT_PUBLIC_AMPLITUDE_API_KEY di env
+const FALLBACK_API_KEY = "4b58c01dd72032ca4a3e30482f149d27";
 
 let initialized = false;
 
+/**
+ * Inisialisasi Amplitude (analytics + session replay).
+ * - Hanya jalan di production
+ * - Hanya setelah user MENERIMA consent (sama seperti GA & Clarity)
+ * - User teridentifikasi via auth session (setUserId)
+ */
 export function AmplitudeInit() {
+  const { consent } = useConsent();
+  // Session watcher: identitas user untuk analitik (login/logout/restore)
+  const { data: session } = authClient.useSession();
+
   useEffect(() => {
-    // Hanya jalan di production
+    if (process.env.NODE_ENV !== "production") return;
+    if (consent !== "accepted") return;
+    const userId = session?.user?.id;
+    if (userId) identifyAmplitudeUser(userId);
+    else resetAmplitudeUser();
+  }, [consent, session?.user?.id]);
+
+  useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
     if (initialized) return;
+    if (consent !== "accepted") return;
+
+    const apiKey = env.NEXT_PUBLIC_AMPLITUDE_API_KEY || FALLBACK_API_KEY;
     initialized = true;
 
-    amplitude.initAll(AMPLITUDE_API_KEY, {
-      analytics: {
-        autocapture: true,
-      },
-      sessionReplay: {
-        sampleRate: 1,
-      },
-    });
-  }, []);
+    amplitude
+      .initAll(apiKey, {
+        analytics: {
+          autocapture: {
+            pageViews: true,
+            sessions: true,
+            attribution: true,
+            // klik/form di-track manual via trackEvent — hindari noise
+            elementInteractions: false,
+            formInteractions: false,
+            fileDownloads: false,
+          },
+        },
+        sessionReplay: {
+          sampleRate: 0.5,
+        },
+      })
+      .catch((e) => {
+        // jangan sampai gagal init merusak app
+        console.error("Amplitude init failed", e);
+        initialized = false;
+      });
+  }, [consent]);
 
   return null;
+}
+
+/** Set identitas user setelah login/session tersedia */
+export function identifyAmplitudeUser(userId: string) {
+  try {
+    amplitude.setUserId(userId);
+  } catch {
+    // noop
+  }
+}
+
+/** Hapus identitas user saat logout */
+export function resetAmplitudeUser() {
+  try {
+    amplitude.reset();
+  } catch {
+    // noop
+  }
 }

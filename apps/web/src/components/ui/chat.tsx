@@ -23,6 +23,8 @@ interface ChatPropsBase {
   setMessages?: (messages: any[]) => void;
   transcribeAudio?: (blob: Blob) => Promise<string>;
   suggestionsLabel?: string;
+  /** Nonaktifkan input (misal: quota chat habis) */
+  disabled?: boolean;
 }
 
 interface ChatPropsWithoutSuggestions extends ChatPropsBase {
@@ -42,6 +44,7 @@ export function Chat({
   handleSubmit,
   input,
   handleInputChange,
+  disabled,
   stop,
   isGenerating,
   append,
@@ -199,6 +202,7 @@ export function Chat({
           stop={handleStop}
           isGenerating={isGenerating}
           transcribeAudio={transcribeAudio}
+          disabled={disabled}
         />
       </ChatForm>
     </ChatContainer>
@@ -216,7 +220,7 @@ export function ChatMessages({
 
   return (
     <div
-      className="grid grid-cols-1 overflow-y-auto pb-4"
+      className="grid grid-cols-1 overflow-y-auto overscroll-contain pb-4"
       ref={containerRef}
       onScroll={handleScroll}
       onTouchStart={handleTouchStart}

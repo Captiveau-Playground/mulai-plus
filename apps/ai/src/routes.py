@@ -18,14 +18,14 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 logger = logging.getLogger("routes")
 
 from src import cache as cch
 from src import chatbot_db as cdb
 from src.config import settings
-from src.engine.responder import get_response
+from src.engine.responder import get_response, llm_failure_short_circuit, llm_record_outcome
 
 from src.schemas import (
     ChatRequest,
@@ -198,6 +198,28 @@ async def health():
     return {"status": "ok", "service": "mulai-plus-ai", "version": "0.4.0"}
 
 
+@chat_router.get("/health/ready")
+async def health_ready():
+    """Readiness: DB bisa dipakai + konfigurasi LLM ada. Dipakai orchestrator/uptime."""
+    from src.db import get_pool
+
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("SELECT 1")
+    except Exception as e:
+        logger.error("Readiness DB check gagal: %s", e)
+        return JSONResponse({"status": "not_ready", "reason": "db"}, status_code=503)
+    return {
+        "status": "ready",
+        "service": "mulai-plus-ai",
+        "version": "0.4.0",
+        "llm_provider": settings.openai_base_url,
+        "model": settings.openai_model,
+        "llm_circuit_open": llm_failure_short_circuit(),
+    }
+
+
 # ─── Helper: get effective limit and check ban ───────────────
 
 async def _check_session_allowed(session_key: str, is_auth: bool) -> tuple[int, Optional[str]]:
@@ -237,6 +259,8 @@ async def chat(req: ChatRequest, request: Request):
     if intent:
         reply = intent["reply"]
         follow_ups = intent.get("follow_ups", [])
+        # Simpan pesan user juga supaya history konsisten (sama seperti path cache)
+        await cdb.save_message(session_key, "user", req.message)
         msg_result = await cdb.save_message(session_key, "assistant", reply)
         remaining = max(0, (GUEST_LIMIT if not is_auth else AUTH_LIMIT) - session["message_count"])
         async def gen_intent():
@@ -304,7 +328,23 @@ async def chat(req: ChatRequest, request: Request):
                 "redirect_url": wa_link if is_auth else "/login?utm_source=chatbot&utm_medium=widget&utm_campaign=chat_limit"}
 
     history, _ = await cdb.get_history(session_key)
-    reply, follow_ups, token_usage = await get_response(req.message, history)
+    if llm_failure_short_circuit():
+        # Provider lagi down → jawab instan, jangan buat semua user nunggu 30s
+        reply = "Waduh, asistennya lagi penuh banget. Coba lagi dalam beberapa menit ya 🙏"
+        follow_ups = None
+        token_usage = {"cacheable": False, "cost": 0, "prompt": 0, "completion": 0, "model": settings.openai_model}
+    else:
+        try:
+            reply, follow_ups, token_usage = await get_response(req.message, history)
+            llm_record_outcome(True)
+        except Exception as e:
+            logger.error("LLM error (stream): %s", e, exc_info=True)
+            llm_record_outcome(False)
+            # Jangan 500 — balas graceful supaya slot quota & UX konsisten
+            reply = "Waduh, asistennya lagi sibuk banget 🙏 Coba ulangi pertanyaanmu sebentar lagi ya."
+            follow_ups = None
+            token_usage = {"cacheable": False, "cost": 0, "prompt": 0, "completion": 0, "model": settings.openai_model}
+
     if token_usage.get("cacheable"):
         await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
 
@@ -371,7 +411,21 @@ async def chat_sync(req: ChatRequest, request: Request):
         return ChatResponse(reply=reply, session_id=session_key, requires_auth=True, redirect_url=auth_url)
 
     history, _ = await cdb.get_history(session_key)
-    reply, follow_ups, token_usage = await get_response(req.message, history)
+    if llm_failure_short_circuit():
+        reply = "Waduh, asistennya lagi penuh banget. Coba lagi dalam beberapa menit ya 🙏"
+        follow_ups = None
+        token_usage = {"cacheable": False, "cost": 0, "prompt": 0, "completion": 0, "model": settings.openai_model}
+    else:
+        try:
+            reply, follow_ups, token_usage = await get_response(req.message, history)
+            llm_record_outcome(True)
+        except Exception as e:
+            logger.error("LLM error (sync): %s", e, exc_info=True)
+            llm_record_outcome(False)
+            reply = "Waduh, asistennya lagi sibuk banget 🙏 Coba ulangi pertanyaanmu sebentar lagi ya."
+            follow_ups = None
+            token_usage = {"cacheable": False, "cost": 0, "prompt": 0, "completion": 0, "model": settings.openai_model}
+
     if token_usage.get("cacheable"):
         await cch.set_cached_answer(req.message, reply, follow_ups, token_usage)
 

@@ -129,6 +129,12 @@ if (env.AI_SERVICE_URL) {
     await next();
   };
 
+  const fetchWithTimeout = (target: string, init: RequestInit, ms: number) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    return fetch(target, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(t));
+  };
+
   // Admin-only routes: analytics, stats, admin endpoints
   app.all("/ai/admin/*", requireAdmin, async (c) => {
     const qs = new URLSearchParams(c.req.query() as Record<string, string>).toString();
@@ -147,16 +153,20 @@ if (env.AI_SERVICE_URL) {
     }
 
     if (c.req.method === "GET") {
-      const resp = await fetch(target, { headers });
+      const resp = await fetchWithTimeout(target, { headers }, 30_000);
       return c.newResponse(resp.body, resp);
     }
 
     const body = await c.req.json();
-    const resp = await fetch(target, {
-      method: c.req.method,
-      headers,
-      body: JSON.stringify(body),
-    });
+    const resp = await fetchWithTimeout(
+      target,
+      {
+        method: c.req.method,
+        headers,
+        body: JSON.stringify(body),
+      },
+      60_000,
+    );
     return c.newResponse(resp.body, resp);
   });
 
@@ -188,16 +198,20 @@ if (env.AI_SERVICE_URL) {
     }
 
     if (c.req.method === "GET") {
-      const resp = await fetch(target, { headers });
+      const resp = await fetchWithTimeout(target, { headers }, 30_000);
       return c.newResponse(resp.body, resp);
     }
 
     const body = await c.req.json();
-    const resp = await fetch(target, {
-      method: c.req.method,
-      headers,
-      body: JSON.stringify(body),
-    });
+    const resp = await fetchWithTimeout(
+      target,
+      {
+        method: c.req.method,
+        headers,
+        body: JSON.stringify(body),
+      },
+      60_000,
+    );
 
     // Handle SSE streaming responses
     const contentType = resp.headers.get("content-type") || "";
