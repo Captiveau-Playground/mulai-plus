@@ -105,6 +105,8 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
     orpc.user.myPermissions.queryOptions({
       enabled: !!session?.user,
       retry: false,
+      // Cache 5 menit — reload halaman tidak refetch permission setiap kali (perbaikan loading)
+      staleTime: 5 * 60 * 1000,
     }),
   );
 
@@ -118,10 +120,8 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
       return;
     }
 
-    // Wait for permissions to load
-    if (isPermsLoading && !userPermissions) return;
-
-    // Use fetched permissions if available, fallback to session permissions, then empty
+    // Authorize IMMEDIATELY dengan session permissions (tanpa nunggu round-trip DB).
+    // userPermissions (fresh dari DB) datang di background lalu re-evaluasi di bawah.
     const permsToCheck =
       userPermissions || ((session.user as { permissions?: string[] }).permissions as string[]) || [];
 
@@ -153,11 +153,15 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
     }
 
     setIsAuthorized(allAuthorized);
-  }, [session, isSessionPending, userPermissions, isPermsLoading, router, permission]);
+  }, [session, isSessionPending, userPermissions, router, permission]);
 
   return {
     isAuthorized,
-    isLoading: isSessionPending || (!!session?.user && isPermsLoading) || isAuthorized === null,
+    // Rendering cepat: tidak menunggu permission DB. Loading hanya jika:
+    // - session masih pending, ATAU
+    // - status belum ditentukan, ATAU
+    // - ditolak oleh session tapi perms DB belum turun (hindari flash "Unauthorized")
+    isLoading: isSessionPending || isAuthorized === null || (isAuthorized === false && isPermsLoading),
     user: session?.user,
   };
 };

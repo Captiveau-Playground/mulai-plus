@@ -12,7 +12,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   });
 
   return (
-    <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
+    <PageState fillViewport isLoading={isLoading} isAuthorized={isAuthorized}>
       <SidebarProvider
         style={
           {
@@ -21,9 +21,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
       >
         <AdminSidebar variant="inset" />
-        <SidebarInset className="flex h-full flex-col bg-bg-light!">
+        <SidebarInset className="flex h-svh flex-col bg-bg-light!">
           <SiteHeader />
-          <div className="flex-1 overflow-y-auto p-4">{children}</div>
+          <div className="h-0 min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </PageState>

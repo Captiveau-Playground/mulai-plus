@@ -20,7 +20,7 @@ function MentorDashboardContent({ children }: { children: React.ReactNode }) {
       <MentorSidebar onNavigate={handleNavigate} />
       <SidebarInset className="mentor-page-bg flex h-screen flex-col">
         <DashboardHeader />
-        <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>
+        <div className="h-0 min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
         <DashboardFooter />
       </SidebarInset>
     </>
@@ -33,7 +33,7 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
   });
 
   return (
-    <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
+    <PageState fillViewport isLoading={isLoading} isAuthorized={isAuthorized}>
       <SidebarProvider
         style={
           {

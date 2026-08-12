@@ -1,6 +1,5 @@
 "use client";
 
-import * as amplitude from "@amplitude/unified";
 import { env } from "@mulai-plus/env/web";
 import { useEffect } from "react";
 import { useConsent } from "@/components/cookie-consent";
@@ -10,6 +9,18 @@ import { authClient } from "@/lib/auth-client";
 const FALLBACK_API_KEY = "4b58c01dd72032ca4a3e30482f149d27";
 
 let initialized = false;
+let amplitudeModule: typeof import("@amplitude/unified") | null = null;
+
+/**
+ * Muat SDK Amplitude hanya sekali & on-demand (setelah consent diterima).
+ * → Menghapus ~429KB SDK dari jalur kritikal SEMUA halaman (hanya dimuat saat dibutuhkan).
+ */
+async function loadAmplitude() {
+  if (!amplitudeModule) {
+    amplitudeModule = await import("@amplitude/unified");
+  }
+  return amplitudeModule;
+}
 
 /**
  * Inisialisasi Amplitude (analytics + session replay).
@@ -41,23 +52,25 @@ export function AmplitudeInit() {
         : FALLBACK_API_KEY;
     initialized = true;
 
-    amplitude
-      .initAll(apiKey, {
-        analytics: {
-          autocapture: {
-            pageViews: true,
-            sessions: true,
-            attribution: true,
-            // klik/form di-track manual via trackEvent — hindari noise
-            elementInteractions: false,
-            formInteractions: false,
-            fileDownloads: false,
+    loadAmplitude()
+      .then((amp) =>
+        amp.initAll(apiKey, {
+          analytics: {
+            autocapture: {
+              pageViews: true,
+              sessions: true,
+              attribution: true,
+              // klik/form di-track manual via trackEvent — hindari noise
+              elementInteractions: false,
+              formInteractions: false,
+              fileDownloads: false,
+            },
           },
-        },
-        sessionReplay: {
-          sampleRate: 0.5,
-        },
-      })
+          sessionReplay: {
+            sampleRate: 0.5,
+          },
+        }),
+      )
       .catch((e) => {
         // jangan sampai gagal init merusak app
         console.error("Amplitude init failed", e);
@@ -69,18 +82,20 @@ export function AmplitudeInit() {
 }
 
 /** Set identitas user setelah login/session tersedia */
-export function identifyAmplitudeUser(userId: string) {
+export async function identifyAmplitudeUser(userId: string) {
   try {
-    amplitude.setUserId(userId);
+    const amp = await loadAmplitude();
+    amp.setUserId(userId);
   } catch {
     // noop
   }
 }
 
 /** Hapus identitas user saat logout */
-export function resetAmplitudeUser() {
+export async function resetAmplitudeUser() {
   try {
-    amplitude.reset();
+    const amp = await loadAmplitude();
+    amp.reset();
   } catch {
     // noop
   }
