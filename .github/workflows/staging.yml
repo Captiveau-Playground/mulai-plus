@@ -147,13 +147,8 @@ jobs:
 
       - name: Create .env.staging for Web
         run: |
-          if [ -f apps/web/.env.example ]; then
-            cp apps/web/.env.example apps/web/.env.staging
-          else
-            touch apps/web/.env.staging
-          fi
-          # Inject secrets if available (example pattern)
-          # echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.STAGING_SERVER_URL }}" >> apps/web/.env.staging
+          # File kosong — semua NEXT_PUBLIC_* di-inject via build-args (hindari placeholder dari .env.example)
+          touch apps/web/.env.staging
 
       - name: Build and push Web
         uses: docker/build-push-action@v5
@@ -170,6 +165,7 @@ jobs:
             NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
             NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
             NEXT_PUBLIC_CLARITY_ID=${{ secrets.NEXT_PUBLIC_CLARITY_ID }}
+            NEXT_PUBLIC_AMPLITUDE_API_KEY=${{ secrets.NEXT_PUBLIC_AMPLITUDE_API_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=min
 

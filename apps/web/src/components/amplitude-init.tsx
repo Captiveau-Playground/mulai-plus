@@ -35,7 +35,10 @@ export function AmplitudeInit() {
     if (initialized) return;
     if (consent !== "accepted") return;
 
-    const apiKey = env.NEXT_PUBLIC_AMPLITUDE_API_KEY || FALLBACK_API_KEY;
+    const apiKey =
+      env.NEXT_PUBLIC_AMPLITUDE_API_KEY && !env.NEXT_PUBLIC_AMPLITUDE_API_KEY.includes("<")
+        ? env.NEXT_PUBLIC_AMPLITUDE_API_KEY
+        : FALLBACK_API_KEY;
     initialized = true;
 
     amplitude
