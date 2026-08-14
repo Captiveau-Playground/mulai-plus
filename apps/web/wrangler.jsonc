@@ -1,0 +1,35 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "mulai-plus-web",
+	"compatibility_date": "2026-08-14",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"routes": [
+		{
+			// DUAL-DOMAIN: web Workers live here; VPS web stays at staging.mulaiplus.id
+			"pattern": "staging-web-workers.mulaiplus.id",
+			"zone_name": "mulaiplus.id"
+		}
+	],
+	"services": [
+		{
+			// Self-reference service binding, the service name must match the worker name
+			// see https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "mulai-plus-web"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "NEXT_INC_CACHE_R2_BUCKET",
+			"bucket_name": "mulai-plus-web-opennext-cache"
+		}
+	],
+	"observability": {
+		"enabled": true
+	}
+}
