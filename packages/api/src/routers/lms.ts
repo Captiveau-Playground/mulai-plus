@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, isNull, sum } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, isNull, sum } from "@mulai-plus/db/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   category,

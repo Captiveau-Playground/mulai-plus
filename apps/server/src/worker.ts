@@ -1,5 +1,5 @@
 import { createWorkerAuth } from "@mulai-plus/auth/worker";
-import { createWorkerDb, type WorkerDb } from "@mulai-plus/db/worker";
+import { initWorkerDb, type WorkerDb } from "@mulai-plus/db/worker";
 import { createApp } from "./app";
 import { runAutoPublish } from "./cron-core";
 
@@ -11,6 +11,7 @@ import { runAutoPublish } from "./cron-core";
  *
  * The Hyperdrive binding is only available inside handlers, so the
  * db + auth + app are built lazily and cached per isolate.
+ * `initWorkerDb` also registers the db with the global provider used by routers.
  *
  * No `/api/system/restart` here (no process to restart on Workers) — that
  * endpoint simply 404s, which is the correct behavior.
@@ -20,14 +21,14 @@ export interface Env {
   HYPERDRIVE: { connectionString: string };
 }
 
-let cached: { db: WorkerDb; app: ReturnType<typeof createApp> } | null = null;
+let cached: { app: ReturnType<typeof createApp> } | null = null;
 
 async function getRuntime(env: Env) {
   if (!cached) {
-    const db = createWorkerDb(env.HYPERDRIVE);
+    const db: WorkerDb = initWorkerDb(env.HYPERDRIVE);
     const workerAuth = await createWorkerAuth(db);
     const app = createApp({ authInstance: workerAuth });
-    cached = { db, app };
+    cached = { app };
   }
   return cached;
 }
@@ -38,7 +39,7 @@ export default {
     return app.fetch(request, env);
   },
   async scheduled(_controller: unknown, env: Env) {
-    const { db } = await getRuntime(env);
-    await runAutoPublish(db as unknown as Parameters<typeof runAutoPublish>[0]);
+    await getRuntime(env); // ensures provider + auth are initialized
+    await runAutoPublish(); // uses the provider-registered worker db
   },
 };

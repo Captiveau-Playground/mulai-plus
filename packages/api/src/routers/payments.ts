@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, db, desc, eq } from "@mulai-plus/db";
+import { and, db, desc, eq } from "@mulai-plus/db/db";
 import { course, enrollment, paymentOrder } from "@mulai-plus/db/schema/lms";
 import { env } from "@mulai-plus/env/server";
 import { z } from "zod";

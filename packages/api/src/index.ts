@@ -1,4 +1,4 @@
-import { db, schema } from "@mulai-plus/db";
+import { db, schema } from "@mulai-plus/db/db";
 import { env } from "@mulai-plus/env/server";
 import { ORPCError, os } from "@orpc/server";
 

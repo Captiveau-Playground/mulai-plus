@@ -1,4 +1,4 @@
-import { and, db, desc, eq } from "@mulai-plus/db";
+import { and, db, desc, eq } from "@mulai-plus/db/db";
 import { notification } from "@mulai-plus/db/schema/notification";
 import { z } from "zod";
 import { protectedProcedure } from "../index";

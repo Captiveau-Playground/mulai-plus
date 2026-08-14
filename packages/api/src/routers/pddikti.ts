@@ -1,4 +1,4 @@
-import { and, asc, count, db, desc, eq, ilike, inArray, or, sql } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, ilike, inArray, or, sql } from "@mulai-plus/db/db";
 import {
   graduationRates,
   lecturerCounts,

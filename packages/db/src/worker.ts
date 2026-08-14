@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-
+import { setDb } from "./provider";
 import * as schema from "./schema";
 
 /**
@@ -11,8 +11,8 @@ import * as schema from "./schema";
  * Hyperdrive handles connection pooling + caching to Supabase Postgres.
  *
  * Usage (in the worker entry):
- *   import { createWorkerDb } from "@mulai-plus/db/worker";
- *   const db = createWorkerDb(env.HYPERDRIVE);
+ *   import { initWorkerDb } from "@mulai-plus/db/worker";
+ *   const db = initWorkerDb(env.HYPERDRIVE);
  */
 export function createWorkerDb(hyperdrive: { connectionString: string }) {
   const sql = postgres(hyperdrive.connectionString, {
@@ -23,4 +23,15 @@ export function createWorkerDb(hyperdrive: { connectionString: string }) {
 }
 
 export type WorkerDb = ReturnType<typeof createWorkerDb>;
+
+/**
+ * Create the worker db AND register it with the global provider
+ * (used by routers through `@mulai-plus/db/db`).
+ */
+export function initWorkerDb(hyperdrive: { connectionString: string }): WorkerDb {
+  const db = createWorkerDb(hyperdrive);
+  setDb(db);
+  return db;
+}
+
 export { schema };

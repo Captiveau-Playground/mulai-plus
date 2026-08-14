@@ -1,9 +1,8 @@
 import { newsletter } from "@mulai-plus/api/lib/newsletter";
-import type { db } from "@mulai-plus/db";
+import { and, db, eq, gte, lte } from "@mulai-plus/db/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { cmsArticle } from "@mulai-plus/db/schema/cms";
 import { env } from "@mulai-plus/env/server";
-import { and, eq, gte, lte } from "drizzle-orm";
 
 /**
  * Auto-publish scheduled articles + send newsletter broadcast (every 5 minutes).
@@ -15,7 +14,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
  * The db client is injected explicitly so the Workers variant can use the
  * Hyperdrive-backed client (`@mulai-plus/db/worker`) — pg-free core.
  */
-export async function runAutoPublish(client: typeof db): Promise<void> {
+export async function runAutoPublish(client: typeof db = db): Promise<void> {
   try {
     const now = new Date();
     const scheduled = await client
