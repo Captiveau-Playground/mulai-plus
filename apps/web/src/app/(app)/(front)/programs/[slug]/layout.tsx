@@ -1,7 +1,7 @@
-import { env } from "@mulai-plus/env/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { client } from "@/lib/client";
+import { isStaging } from "@/lib/web-env";
 
 // ISR: revalidate every hour — content changes infrequently
 export const revalidate = 3600;
@@ -22,8 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description,
-    robots:
-      env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id" ? { index: false, follow: false } : undefined,
+    robots: isStaging ? { index: false, follow: false } : undefined,
     alternates: { canonical: `/programs/${slug}` },
     openGraph: {
       title,

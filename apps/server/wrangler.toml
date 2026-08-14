@@ -19,11 +19,13 @@ compatibility_flags = ["nodejs_compat"]
 crons = ["*/5 * * * *"]
 
 # ──────────────────────────── STAGING ────────────────────────────
+# DUAL-DOMAIN: Workers live on api-staging-workers.mulaiplus.id while the
+# VPS keeps serving api-staging.mulaiplus.id (unchanged). No route flapping.
 [env.staging]
 workers_dev = false
 
 [[env.staging.routes]]
-pattern = "api-staging.mulaiplus.id"
+pattern = "api-staging-workers.mulaiplus.id"
 zone_name = "mulaiplus.id"
 
 # Non-secret vars (must satisfy @mulai-plus/env/server validation)
@@ -31,7 +33,7 @@ zone_name = "mulaiplus.id"
 NODE_ENV = "production"            # zod enum requires dev|production|test
 PORT = "3000"
 APP_URL = "https://staging.mulaiplus.id"
-BETTER_AUTH_URL = "https://api-staging.mulaiplus.id"
+BETTER_AUTH_URL = "https://api-staging-workers.mulaiplus.id"
 CORS_ORIGIN = "https://staging.mulaiplus.id"
 AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"  # CF Access service-token protected
 COOKIE_DOMAIN = ".mulaiplus.id"
@@ -46,18 +48,20 @@ binding = "HYPERDRIVE"
 id = "PASTE_STAGING_HYPERDRIVE_ID"
 
 # ──────────────────────────── PRODUCTION ────────────────────────────
+# DUAL-DOMAIN: Workers on api-prod-workers.mulaiplus.id; VPS keeps
+# api-prod.mulaiplus.id.
 [env.production]
 workers_dev = false
 
 [[env.production.routes]]
-pattern = "api-prod.mulaiplus.id"
+pattern = "api-prod-workers.mulaiplus.id"
 zone_name = "mulaiplus.id"
 
 [env.production.vars]
 NODE_ENV = "production"
 PORT = "3000"
 APP_URL = "https://mulaiplus.id"
-BETTER_AUTH_URL = "https://api-prod.mulaiplus.id"
+BETTER_AUTH_URL = "https://api-prod-workers.mulaiplus.id"
 CORS_ORIGIN = "https://mulaiplus.id"
 AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"
 COOKIE_DOMAIN = ".mulaiplus.id"

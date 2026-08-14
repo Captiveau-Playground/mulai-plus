@@ -4,13 +4,13 @@ import { Bricolage_Grotesque, Geist, Geist_Mono, Manrope } from "next/font/googl
 
 import "../style/globals-app.css";
 import "../style/globals-internal.css";
-import { env } from "@mulai-plus/env/web";
 import { AmplitudeInit } from "@/components/amplitude-init";
 import { ChatbotProvider } from "@/components/chatbot/chatbot-provider";
 import { RedirectHandler } from "@/components/chatbot/redirect-handler";
 import Providers from "@/components/providers";
 import { FeaturesProvider } from "@/lib/features-context";
 import { SITE } from "@/lib/site-config";
+import { isStaging } from "@/lib/web-env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,20 +40,19 @@ export const metadata: Metadata = {
     template: `%s | ${SITE.name}`,
   },
   description: SITE.description,
-  robots:
-    env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id"
-      ? { index: false, follow: false }
-      : {
+  robots: isStaging
+    ? { index: false, follow: false }
+    : {
+        index: true,
+        follow: true,
+        googleBot: {
           index: true,
           follow: true,
-          googleBot: {
-            index: true,
-            follow: true,
-            "max-video-preview": -1,
-            "max-image-preview": "large",
-            "max-snippet": -1,
-          },
+          "max-video-preview": -1,
+          "max-image-preview": "large",
+          "max-snippet": -1,
         },
+      },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

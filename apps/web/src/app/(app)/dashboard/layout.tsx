@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono, Manrope } from "next/font/google";
 
 import "../../../style/globals-app.css";
-import { env } from "@mulai-plus/env/web";
 import Providers from "@/components/providers";
+import { isStaging } from "@/lib/web-env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,8 +36,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Mulai Plus",
   description: "Mulai Plus Apps",
-  robots:
-    env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id" ? { index: false, follow: false } : undefined,
+  robots: isStaging ? { index: false, follow: false } : undefined,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

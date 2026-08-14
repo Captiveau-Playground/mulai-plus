@@ -327,13 +327,13 @@ jobs:
         working-directory: apps/server
         run: ./node_modules/.bin/wrangler deploy --env staging
 
-      - name: Smoke test — root / harus OK
+      - name: Smoke test — root / harus OK (domain Workers)
         run: |
-          body=$(curl -s https://api-staging.mulaiplus.id/)
+          body=$(curl -s https://api-staging-workers.mulaiplus.id/)
           echo "$body" | grep -q "OK"
-          code=$(curl -s -o /dev/null -w "%{http_code}" https://api-staging.mulaiplus.id/)
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://api-staging-workers.mulaiplus.id/)
           test "$code" = "200"
-          echo "✅ api-staging worker sehat"
+          echo "✅ api-staging-workers (Workers) sehat"
 
   deploy:
     needs: [build-web, build-ai, build-server, migrate]
