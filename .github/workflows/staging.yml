@@ -268,6 +268,73 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+  deploy-worker-staging:
+    needs: build-server
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Set Worker secrets (staging)
+        working-directory: apps/server
+        env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          PAYMENT_API_URL: ${{ secrets.PAYMENT_API_URL }}
+          PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          UNOSEND_API_KEY: ${{ secrets.UNOSEND_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
+        run: |
+          set -euo pipefail
+          set_secret() {
+            local name="$1"
+            local value="${!name}"
+            if [ -n "$value" ]; then
+              echo "$value" | ./node_modules/.bin/wrangler secret put "$name" --env staging
+            else
+              echo "Skip $name (kosong)"
+            fi
+          }
+          set_secret BETTER_AUTH_SECRET
+          set_secret GOOGLE_CLIENT_ID
+          set_secret GOOGLE_CLIENT_SECRET
+          set_secret PAYMENT_API_URL
+          set_secret PAYMENT_API_KEY
+          set_secret R2_ACCOUNT_ID
+          set_secret R2_ACCESS_KEY_ID
+          set_secret R2_SECRET_ACCESS_KEY
+          set_secret AI_API_KEY
+          set_secret UNOSEND_API_KEY
+          set_secret RESEND_API_KEY
+          set_secret HERMES_API_KEY
+
+      - name: Deploy Worker (staging)
+        working-directory: apps/server
+        run: ./node_modules/.bin/wrangler deploy --env staging
+
+      - name: Smoke test — root / harus OK
+        run: |
+          body=$(curl -s https://api-staging.mulaiplus.id/)
+          echo "$body" | grep -q "OK"
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://api-staging.mulaiplus.id/)
+          test "$code" = "200"
+          echo "✅ api-staging worker sehat"
+
   deploy:
     needs: [build-web, build-ai, build-server, migrate]
     runs-on: ubuntu-latest
