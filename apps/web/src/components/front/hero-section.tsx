@@ -56,7 +56,7 @@ export function HeroSection() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-orange opacity-60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-orange" />
               </span>
-              Tes Minat Bakat · Bimbingan Universitas &amp; Beasiswa
+              Tes Minat Bakat · Bimbingan Universitas & Beasiswa
             </span>
           </motion.div>
 
