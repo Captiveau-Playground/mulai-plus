@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   },
   description: SITE.description,
   robots:
-    env.NEXT_PUBLIC_SERVER_URL === "https://api.staging.mulaiplus.id"
+    env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id"
       ? { index: false, follow: false }
       : {
           index: true,

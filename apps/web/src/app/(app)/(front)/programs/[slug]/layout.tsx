@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title,
     description,
     robots:
-      env.NEXT_PUBLIC_SERVER_URL === "https://api.staging.mulaiplus.id" ? { index: false, follow: false } : undefined,
+      env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id" ? { index: false, follow: false } : undefined,
     alternates: { canonical: `/programs/${slug}` },
     openGraph: {
       title,

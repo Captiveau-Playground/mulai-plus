@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   title: "Mulai Plus",
   description: "Mulai Plus Apps",
   robots:
-    env.NEXT_PUBLIC_SERVER_URL === "https://api.staging.mulaiplus.id" ? { index: false, follow: false } : undefined,
+    env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id" ? { index: false, follow: false } : undefined,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
