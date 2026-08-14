@@ -327,13 +327,52 @@ jobs:
         working-directory: apps/server
         run: ./node_modules/.bin/wrangler deploy --env staging
 
-      - name: Smoke test — root / harus OK (domain Workers)
+      - name: Smoke test — root / harus OK (workers.dev)
         run: |
-          body=$(curl -s https://api-staging-workers.mulaiplus.id/)
+          body=$(curl -s https://mulai-plus-api-staging.mulaiplus.workers.dev/)
           echo "$body" | grep -q "OK"
-          code=$(curl -s -o /dev/null -w "%{http_code}" https://api-staging-workers.mulaiplus.id/)
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://mulai-plus-api-staging.mulaiplus.workers.dev/)
           test "$code" = "200"
-          echo "✅ api-staging-workers (Workers) sehat"
+          echo "✅ mulai-plus-api-staging (Workers) sehat"
+
+  deploy-worker-web-staging:
+    needs: build-web
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build OpenNext (staging)
+        working-directory: apps/web
+        run: ./node_modules/.bin/opennextjs-cloudflare build
+        env:
+          NEXT_PUBLIC_SERVER_URL: https://mulai-plus-api-staging.mulaiplus.workers.dev
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+          NEXT_PUBLIC_APP_URL: https://staging.mulaiplus.id
+
+      - name: Deploy Worker Web (staging)
+        working-directory: apps/web
+        # OPEN_NEXT_DEPLOY=true — PENTING: tanpa ini wrangler memanggil
+        # `opennextjs-cloudflare deploy` yang bisa MENYALIN custom domain
+        # dari worker lain (insiden karir.mulaiplus.id). Jangan dihapus.
+        run: OPEN_NEXT_DEPLOY=true ./node_modules/.bin/wrangler deploy
+
+      - name: Smoke test FE (workers.dev)
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://mulai-plus-web.mulaiplus.workers.dev/)
+          test "$code" = "200"
+          curl -s https://mulai-plus-web.mulaiplus.workers.dev/ | grep -q "MULAI+"
+          echo "✅ mulai-plus-web (Workers) sehat"
 
   deploy:
     needs: [build-web, build-ai, build-server, migrate]

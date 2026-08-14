@@ -21,7 +21,7 @@ crons = ["*/5 * * * *"]
 # DUAL-DOMAIN: Workers live on api-staging-workers.mulaiplus.id while the
 # VPS keeps serving api-staging.mulaiplus.id (unchanged). No route flapping.
 [env.staging]
-workers_dev = false
+workers_dev = true  # TEMP: biar bisa diakses tanpa DNS — matikan lagi setelah DNS record dibuat
 
 [[env.staging.routes]]
 pattern = "api-staging-workers.mulaiplus.id"
@@ -32,10 +32,10 @@ zone_name = "mulaiplus.id"
 NODE_ENV = "production"            # zod enum requires dev|production|test
 PORT = "3000"
 APP_URL = "https://staging.mulaiplus.id"
-BETTER_AUTH_URL = "https://api-staging-workers.mulaiplus.id"
-CORS_ORIGIN = "https://staging.mulaiplus.id"
+BETTER_AUTH_URL = "https://mulai-plus-api-staging.mulaiplus.workers.dev"
+CORS_ORIGIN = "https://mulai-plus-web.mulaiplus.workers.dev"
 AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"  # CF Access service-token protected
-COOKIE_DOMAIN = ".mulaiplus.id"
+COOKIE_DOMAIN = ".mulaiplus.workers.dev"
 # NOTE: DATABASE_URL is required by the env schema but UNUSED on Workers —
 # the real connection comes from the HYPERDRIVE binding below.
 DATABASE_URL = "hyperdrive://staging-placeholder-not-used"

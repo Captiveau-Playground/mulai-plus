@@ -2,6 +2,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": ".open-next/worker.js",
 	"name": "mulai-plus-web",
+	"workers_dev": true,
 	"compatibility_date": "2026-08-14",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"assets": {
