@@ -1,7 +1,11 @@
-import { db, schema } from "@mulai-plus/db";
+import type { db } from "@mulai-plus/db";
+import { auditLog } from "@mulai-plus/db/schema/audit";
 import type { BetterAuthPlugin } from "better-auth";
 
-export const auditPlugin = (): BetterAuthPlugin => {
+/**
+ * Audit log plugin — db is injected (pg-free core so it can bundle for Workers).
+ */
+export const auditPlugin = (database: typeof db): BetterAuthPlugin => {
   return {
     id: "audit-plugin",
     hooks: {
@@ -38,7 +42,7 @@ export const auditPlugin = (): BetterAuthPlugin => {
               const ipAddress = request?.headers?.get("x-forwarded-for") || null;
 
               if (userId) {
-                await db.insert(schema.auditLog).values({
+                await database.insert(auditLog).values({
                   action: path.split("/").pop() || path,
                   resource: "auth",
                   userId: userId,

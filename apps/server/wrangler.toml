@@ -1,0 +1,87 @@
+# Cloudflare Workers config — MULAI+ API (server)
+#
+# Mirrors the Docker prod/staging split:
+#   branch staging   → wrangler deploy --env staging    (api-staging.mulaiplus.id)
+#   branch production→ wrangler deploy --env production (api-prod.mulaiplus.id)
+#
+# ROLLBACK MECHANISM: DNS record (proxied → VPS) stays untouched. The Worker
+# only takes over via its route. Removing the route = traffic falls back to the
+# VPS container instantly. Never `docker compose down` the VPS stack during the
+# migration window.
+
+name = "mulai-plus-api"
+main = "src/worker.ts"
+compatibility_date = "2026-08-14"
+compatibility_flags = ["nodejs_compat"]
+
+# Auto-publish scheduled articles (same 5-minute cadence as the Bun setInterval)
+[triggers]
+crons = ["*/5 * * * *"]
+
+# ──────────────────────────── STAGING ────────────────────────────
+[env.staging]
+workers_dev = false
+
+[[env.staging.routes]]
+pattern = "api-staging.mulaiplus.id"
+zone_name = "mulaiplus.id"
+
+# Non-secret vars (must satisfy @mulai-plus/env/server validation)
+[env.staging.vars]
+NODE_ENV = "production"            # zod enum requires dev|production|test
+PORT = "3000"
+APP_URL = "https://staging.mulaiplus.id"
+BETTER_AUTH_URL = "https://api-staging.mulaiplus.id"
+CORS_ORIGIN = "https://staging.mulaiplus.id"
+AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"  # CF Access service-token protected
+COOKIE_DOMAIN = ".mulaiplus.id"
+# NOTE: DATABASE_URL is required by the env schema but UNUSED on Workers —
+# the real connection comes from the HYPERDRIVE binding below.
+DATABASE_URL = "hyperdrive://staging-placeholder-not-used"
+
+# Hyperdrive → Supabase Postgres (staging DB). Create in dashboard:
+# Workers & Pages → Hyperdrive → Create → point to the staging Supabase pooler.
+[[env.staging.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "PASTE_STAGING_HYPERDRIVE_ID"
+
+# ──────────────────────────── PRODUCTION ────────────────────────────
+[env.production]
+workers_dev = false
+
+[[env.production.routes]]
+pattern = "api-prod.mulaiplus.id"
+zone_name = "mulaiplus.id"
+
+[env.production.vars]
+NODE_ENV = "production"
+PORT = "3000"
+APP_URL = "https://mulaiplus.id"
+BETTER_AUTH_URL = "https://api-prod.mulaiplus.id"
+CORS_ORIGIN = "https://mulaiplus.id"
+AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"
+COOKIE_DOMAIN = ".mulaiplus.id"
+DATABASE_URL = "hyperdrive://production-placeholder-not-used"
+
+[[env.production.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "PASTE_PRODUCTION_HYPERDRIVE_ID"
+
+# ──────────────────────────── SECRETS ────────────────────────────
+# Set via CLI (never commit):
+#   wrangler secret put BETTER_AUTH_SECRET --env staging
+#   wrangler secret put GOOGLE_CLIENT_ID --env staging
+#   wrangler secret put GOOGLE_CLIENT_SECRET --env staging
+#   wrangler secret put PAYMENT_API_URL --env staging
+#   wrangler secret put PAYMENT_API_KEY --env staging
+#   wrangler secret put AI_API_KEY --env staging
+#   wrangler secret put R2_ACCOUNT_ID --env staging
+#   wrangler secret put R2_ACCESS_KEY_ID --env staging
+#   wrangler secret put R2_SECRET_ACCESS_KEY --env staging
+#   wrangler secret put UNOSEND_API_KEY --env staging   (optional)
+#   wrangler secret put RESEND_API_KEY --env staging    (optional)
+#   wrangler secret put HERMES_API_KEY --env staging    (optional)
+# ...same list without `--env` (or with --env production) for prod.
+#
+# R2 uses the AWS SDK on Workers (nodejs_compat) — credentials via env,
+# the same as on the VPS. A native R2 binding can replace it later.
