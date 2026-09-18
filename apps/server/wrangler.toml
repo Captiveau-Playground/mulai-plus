@@ -35,7 +35,7 @@ NODE_ENV = "production"            # zod enum requires dev|production|test
 PORT = "3000"
 APP_URL = "https://staging.mulaiplus.id"
 BETTER_AUTH_URL = "https://mulai-plus-api-staging.mulaiplus.workers.dev"
-CORS_ORIGIN = "https://mulai-plus-web.mulaiplus.workers.dev"
+CORS_ORIGIN = "https://mulai-plus-web-staging.mulaiplus.workers.dev"
 AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"  # CF Access service-token protected
 COOKIE_DOMAIN = ".mulaiplus.workers.dev"
 # NOTE: DATABASE_URL is required by the env schema but UNUSED on Workers —

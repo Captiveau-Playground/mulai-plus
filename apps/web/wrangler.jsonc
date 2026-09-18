@@ -30,5 +30,18 @@
 	],
 	"observability": {
 		"enabled": true
+	},
+	// Env-scoped config: `wrangler deploy --env staging` → worker
+	// mulai-plus-web-staging (identik dengan api-staging naming convention).
+	"env": {
+		"staging": {
+			"workers_dev": true,
+			"services": [
+				{
+					"binding": "WORKER_SELF_REFERENCE",
+					"service": "mulai-plus-web-staging"
+				}
+			]
+		}
 	}
 }
