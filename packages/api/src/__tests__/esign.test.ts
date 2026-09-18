@@ -19,24 +19,6 @@ vi.mock("@orpc/server", () => {
   return { ORPCError: E, os: { $context: () => p() } };
 });
 
-vi.mock("@mulai-plus/db", () => {
-  const ff = vi.fn();
-  const fm = vi.fn();
-  return {
-    db: {
-      query: { esignSignature: { findFirst: ff, findMany: fm } },
-      insert: vi.fn(),
-      update: vi.fn(),
-      select: vi.fn(),
-    },
-    and: () => [],
-    eq: () => ({}),
-    desc: () => ({}),
-    count: () => 0,
-    sql: () => "",
-  };
-});
-
 vi.mock("@mulai-plus/db/schema/esign", () => ({ esignSignature: {} }));
 vi.mock("@mulai-plus/db/schema/audit", () => ({}));
 vi.mock("@mulai-plus/db/schema/auth", () => ({}));
@@ -45,23 +27,37 @@ vi.mock("@mulai-plus/db/schema/programs", () => ({}));
 // ESIGN_SECRET is set via CI/CD env or .env file
 // For local dev, ensure ESIGN_SECRET is set in your env
 
+// Routers read `db` through the runtime-swappable provider proxy
+// (@mulai-plus/db/db), so tests must register a fake instance via setDb()
+// — exactly what Bun's index.ts and the Worker's initWorkerDb() do in prod.
+import { setDb } from "@mulai-plus/db/provider";
 import { esignRouter } from "../routers/esign";
 
+const fakeDb = {
+  query: {
+    esignSignature: { findFirst: vi.fn(), findMany: vi.fn() },
+  },
+  insert: vi.fn(),
+  update: vi.fn(),
+  select: vi.fn(),
+};
+
 describe("esignRouter", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setDb(fakeDb);
+  });
 
   describe("signDocument", () => {
     it("generates HMAC token", async () => {
-      const { db } = await import("@mulai-plus/db");
-      (db.query.esignSignature.findFirst as any).mockResolvedValue(null);
+      fakeDb.query.esignSignature.findFirst.mockResolvedValue(null);
       const r = await (esignRouter.signDocument as any).handler({
         input: { signerName: "Salma", signerRole: "program_manager", documentId: "doc1", documentDate: "test" },
       });
       expect(r.token).toContain(".");
     });
     it("works for founder role", async () => {
-      const { db } = await import("@mulai-plus/db");
-      (db.query.esignSignature.findFirst as any).mockResolvedValue(null);
+      fakeDb.query.esignSignature.findFirst.mockResolvedValue(null);
       const r = await (esignRouter.signDocument as any).handler({
         input: { signerName: "Febby", signerRole: "founder", documentId: "doc2", documentDate: "test" },
       });
@@ -75,8 +71,7 @@ describe("esignRouter", () => {
       expect(r.valid).toBe(false);
     });
     it("rejects tampered", async () => {
-      const { db } = await import("@mulai-plus/db");
-      (db.query.esignSignature.findFirst as any).mockResolvedValue(null);
+      fakeDb.query.esignSignature.findFirst.mockResolvedValue(null);
       const signed = await (esignRouter.signDocument as any).handler({
         input: { signerName: "X", signerRole: "program_manager", documentId: "d1", documentDate: "t1" },
       });
@@ -85,12 +80,11 @@ describe("esignRouter", () => {
       expect(r.valid).toBe(false);
     });
     it("returns valid for genuine", async () => {
-      const { db } = await import("@mulai-plus/db");
-      (db.query.esignSignature.findFirst as any).mockResolvedValue(null);
+      fakeDb.query.esignSignature.findFirst.mockResolvedValue(null);
       const signed = await (esignRouter.signDocument as any).handler({
         input: { signerName: "Febby", signerRole: "founder", documentId: "doc2", documentDate: "test" },
       });
-      (db.query.esignSignature.findFirst as any).mockResolvedValue({ verifiedCount: 0 });
+      fakeDb.query.esignSignature.findFirst.mockResolvedValue({ verifiedCount: 0 });
       const r = await (esignRouter.verifySignature as any).handler({ input: { token: signed.token } });
       expect(r.valid).toBe(true);
       expect(r.signerName).toBe("Febby");
@@ -99,16 +93,14 @@ describe("esignRouter", () => {
 
   describe("getSignaturesByDocument", () => {
     it("returns list", async () => {
-      const { db } = await import("@mulai-plus/db");
-      (db.query.esignSignature.findMany as any).mockResolvedValue([
+      fakeDb.query.esignSignature.findMany.mockResolvedValue([
         { token: "t1", signerName: "Salma", signerRole: "program_manager" },
       ]);
       const r = await (esignRouter.getSignaturesByDocument as any).handler({ input: { documentId: "doc1" } });
       expect(r).toHaveLength(1);
     });
     it("returns empty", async () => {
-      const { db } = await import("@mulai-plus/db");
-      (db.query.esignSignature.findMany as any).mockResolvedValue([]);
+      fakeDb.query.esignSignature.findMany.mockResolvedValue([]);
       const r = await (esignRouter.getSignaturesByDocument as any).handler({ input: { documentId: "none" } });
       expect(r).toEqual([]);
     });
