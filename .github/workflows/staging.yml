@@ -150,22 +150,12 @@ jobs:
           - name: web
             dockerfile: apps/web/Dockerfile
             image: web
-            build_args: |
-              NEXT_PUBLIC_APP_URL=https://staging.mulaiplus.id
-              NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
-              NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
-              NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
-              NEXT_PUBLIC_CLARITY_ID=${{ secrets.NEXT_PUBLIC_CLARITY_ID }}
-              NEXT_PUBLIC_AMPLITUDE_API_KEY=${{ secrets.NEXT_PUBLIC_AMPLITUDE_API_KEY }}
           - name: ai
             dockerfile: apps/ai/Dockerfile
             image: ai
-            build_args: ""
           - name: server
             dockerfile: apps/server/Dockerfile
             image: server
-            build_args: ""
     steps:
       - uses: actions/checkout@v4
 
@@ -195,6 +185,25 @@ jobs:
         if: matrix.name == 'web'
         run: touch apps/web/.env.staging
 
+      # Secrets TIDAK bisa dipakai di strategy.matrix — jadi build-args web
+      # disiapkan di step ini (step boleh akses secrets), output ke GITHUB_OUTPUT.
+      - name: Prepare web build args (secrets)
+        if: matrix.name == 'web'
+        id: args
+        run: |
+          {
+            echo "NEXT_PUBLIC_APP_URL=https://staging.mulaiplus.id"
+            echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}"
+            echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}"
+            echo "NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}"
+            echo "NEXT_PUBLIC_CLARITY_ID=${{ secrets.NEXT_PUBLIC_CLARITY_ID }}"
+            echo "NEXT_PUBLIC_AMPLITUDE_API_KEY=${{ secrets.NEXT_PUBLIC_AMPLITUDE_API_KEY }}"
+          } > args.txt
+          echo "args<<EOF" >> "$GITHUB_OUTPUT"
+          cat args.txt >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
       # Build only — image di-load ke docker daemon lokal (tidak di-push dulu).
       - name: Build ${{ matrix.name }} image
         uses: docker/build-push-action@v5
@@ -205,7 +214,7 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ matrix.build_args }}
+          build-args: ${{ matrix.name == 'web' && steps.args.outputs.args || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=min
 
