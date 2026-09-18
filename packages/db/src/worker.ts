@@ -18,6 +18,12 @@ export function createWorkerDb(hyperdrive: { connectionString: string }) {
   const sql = postgres(hyperdrive.connectionString, {
     max: 1,
     prepare: false,
+    // ⚠️ Do NOT call `end()` on these clients (connection churn kills
+    // Hyperdrive sockets mid-query under concurrency). Instead rely on
+    // idle_timeout to auto-close each request's connection ~10s later —
+    // bounded leak, no pool exhaustion, no churn.
+    connect_timeout: 10, // fail fast if Hyperdrive/Supabase unreachable
+    idle_timeout: 10, // auto-close the per-request connection after 10s idle
   });
   return drizzle(sql, { schema });
 }
