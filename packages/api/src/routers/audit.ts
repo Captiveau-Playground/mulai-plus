@@ -1,4 +1,4 @@
-import { and, asc, count, db, desc, eq, gt, gte, ilike, lte, max, or, sql } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, gt, gte, ilike, lte, max, or, sql } from "@mulai-plus/db/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { user } from "@mulai-plus/db/schema/auth";
 import { z } from "zod";

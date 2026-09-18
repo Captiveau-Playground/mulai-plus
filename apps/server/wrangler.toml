@@ -1,0 +1,98 @@
+# Cloudflare Workers config — MULAI+ API (server)
+#
+# DUAL-DOMAIN (mirror Docker prod/staging):
+#   branch staging   → wrangler deploy --env staging    → api-staging-workers.mulaiplus.id (Workers)
+#   branch production→ wrangler deploy --env production → api-prod-workers.mulaiplus.id (Workers)
+#   VPS keeps serving api-staging.mulaiplus.id / api-prod.mulaiplus.id (unchanged).
+#
+# ROLLBACK: flip NEXT_PUBLIC_SERVER_URL on the web (both runtimes stay alive).
+# Never `docker compose down` the VPS stack during the migration window.
+
+name = "mulai-plus-api"
+main = "src/worker.ts"
+compatibility_date = "2026-08-14"
+compatibility_flags = ["nodejs_compat"]
+
+# Auto-publish scheduled articles (same 5-minute cadence as the Bun setInterval)
+[triggers]
+crons = ["*/5 * * * *"]
+
+# ──────────────────────────── STAGING ────────────────────────────
+# DUAL-DOMAIN: Workers live on api-staging-workers.mulaiplus.id while the
+# VPS keeps serving api-staging.mulaiplus.id (unchanged). No route flapping.
+[env.staging]
+workers_dev = true  # TEMP: biar bisa diakses tanpa DNS — matikan lagi setelah DNS record dibuat
+
+[[env.staging.routes]]
+pattern = "api-staging-workers.mulaiplus.id"
+zone_name = "mulaiplus.id"
+
+# Non-secret vars (must satisfy @mulai-plus/env/server validation)
+[env.staging.vars]
+NODE_ENV = "production"            # zod enum requires dev|production|test
+PORT = "3000"
+APP_URL = "https://staging.mulaiplus.id"
+BETTER_AUTH_URL = "https://mulai-plus-api-staging.mulaiplus.workers.dev"
+CORS_ORIGIN = "https://mulai-plus-web.mulaiplus.workers.dev"
+AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"  # CF Access service-token protected
+COOKIE_DOMAIN = ".mulaiplus.workers.dev"
+# NOTE: DATABASE_URL is required by the env schema but UNUSED on Workers —
+# the real connection comes from the HYPERDRIVE binding below.
+DATABASE_URL = "hyperdrive://staging-placeholder-not-used"
+# R2 (staging dev bucket) — bucket name & public URL are not secrets
+R2_BUCKET_NAME = "mulai-plus-media-dev"
+R2_PUBLIC_URL = "https://cdn-dev.mulaiplus.id"
+
+# Hyperdrive → Supabase Postgres (staging DB).
+# ⚠️ IMPORTANT: use the DIRECT connection (port 5432), NOT the Supabase pooler
+# (port 6543 / PgBouncer) — the pooler hangs with Hyperdrive. Hyperdrive does
+# its own pooling, so direct :5432 is the supported setup.
+[[env.staging.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "5d214aea95a842069ee2a0bba93222c4"  # mulai-plus-staging-db-direct
+
+# ──────────────────────────── PRODUCTION ────────────────────────────
+# DUAL-DOMAIN: Workers on api-prod-workers.mulaiplus.id; VPS keeps
+# api-prod.mulaiplus.id.
+[env.production]
+workers_dev = false
+
+[[env.production.routes]]
+pattern = "api-prod-workers.mulaiplus.id"
+zone_name = "mulaiplus.id"
+
+[env.production.vars]
+NODE_ENV = "production"
+PORT = "3000"
+APP_URL = "https://mulaiplus.id"
+BETTER_AUTH_URL = "https://api-prod-workers.mulaiplus.id"
+CORS_ORIGIN = "https://mulaiplus.id"
+AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"
+COOKIE_DOMAIN = ".mulaiplus.id"
+DATABASE_URL = "hyperdrive://production-placeholder-not-used"
+# R2 (production bucket)
+R2_BUCKET_NAME = "mulai-plus-media"
+R2_PUBLIC_URL = "https://cdn.mulaiplus.id"
+
+[[env.production.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "PASTE_PRODUCTION_HYPERDRIVE_ID"
+
+# ──────────────────────────── SECRETS ────────────────────────────
+# Set via CLI (never commit):
+#   wrangler secret put BETTER_AUTH_SECRET --env staging
+#   wrangler secret put GOOGLE_CLIENT_ID --env staging
+#   wrangler secret put GOOGLE_CLIENT_SECRET --env staging
+#   wrangler secret put PAYMENT_API_URL --env staging
+#   wrangler secret put PAYMENT_API_KEY --env staging
+#   wrangler secret put AI_API_KEY --env staging
+#   wrangler secret put R2_ACCOUNT_ID --env staging
+#   wrangler secret put R2_ACCESS_KEY_ID --env staging
+#   wrangler secret put R2_SECRET_ACCESS_KEY --env staging
+#   wrangler secret put UNOSEND_API_KEY --env staging   (optional)
+#   wrangler secret put RESEND_API_KEY --env staging    (optional)
+#   wrangler secret put HERMES_API_KEY --env staging    (optional)
+# ...same list without `--env` (or with --env production) for prod.
+#
+# R2 uses the AWS SDK on Workers (nodejs_compat) — credentials via env,
+# the same as on the VPS. A native R2 binding can replace it later.

@@ -1,6 +1,5 @@
 "use client";
 
-import * as amplitude from "@amplitude/unified";
 import { env } from "@mulai-plus/env/web";
 import { useEffect } from "react";
 
@@ -33,12 +32,19 @@ export function trackEvent(action: string, params?: EventParams) {
   }
 
   // Amplitude — independen dari GA (tetap jalan meski GA tidak dikonfigurasi)
+  // Dynamic import: SDK hanya dimuat saat event pertama (hemat ~429KB di jalur awal)
   if (isProd) {
-    try {
-      amplitude.track(action, params);
-    } catch {
-      // noop
-    }
+    import("@amplitude/unified")
+      .then((amp) => {
+        try {
+          amp.track(action, params);
+        } catch {
+          // noop
+        }
+      })
+      .catch(() => {
+        // noop
+      });
   }
 }
 

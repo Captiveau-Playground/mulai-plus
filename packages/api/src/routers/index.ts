@@ -1,4 +1,4 @@
-import { count, db, desc, eq, sql } from "@mulai-plus/db";
+import { count, db, desc, eq, sql } from "@mulai-plus/db/db";
 import { permission, role, session, user } from "@mulai-plus/db/schema/auth";
 import { program, programApplication } from "@mulai-plus/db/schema/programs";
 

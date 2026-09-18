@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { db, eq } from "@mulai-plus/db";
+import { db, eq } from "@mulai-plus/db/db";
 import { role, studentDetail, user } from "@mulai-plus/db/schema/auth";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
