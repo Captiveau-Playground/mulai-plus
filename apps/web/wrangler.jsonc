@@ -9,13 +9,11 @@
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
-	"routes": [
-		{
-			// DUAL-DOMAIN: web Workers live here; VPS web stays at staging.mulaiplus.id
-			"pattern": "staging-web-workers.mulaiplus.id",
-			"zone_name": "mulaiplus.id"
-		}
-	],
+	// NOTE 2026-09-18: custom-domain route disabled for now —
+	// CI token belum punya Zone:Workers Routes permission, dan DNS record
+	// staging-web-workers.mulaiplus.id belum dibuat. Deploy via workers.dev
+	// (NEXT_PUBLIC_SERVER_URL / CORS_ORIGIN sudah pakai URL workers.dev).
+	// Aktifkan kembali setelah token diberi Zone perms + DNS record dibuat.
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name

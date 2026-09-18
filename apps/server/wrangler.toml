@@ -20,12 +20,14 @@ crons = ["*/5 * * * *"]
 # ──────────────────────────── STAGING ────────────────────────────
 # DUAL-DOMAIN: Workers live on api-staging-workers.mulaiplus.id while the
 # VPS keeps serving api-staging.mulaiplus.id (unchanged). No route flapping.
+#
+# NOTE 2026-09-18: custom-domain route disabled for now —
+#   1) CI token belum punya Zone:Workers Routes permission,
+#   2) DNS record api-staging-workers.mulaiplus.id belum dibuat.
+# Deploy via workers.dev (NEXT_PUBLIC_SERVER_URL sudah mengarah ke sana).
+# Aktifkan kembali route ini setelah: token diberi Zone perms + DNS record dibuat.
 [env.staging]
 workers_dev = true  # TEMP: biar bisa diakses tanpa DNS — matikan lagi setelah DNS record dibuat
-
-[[env.staging.routes]]
-pattern = "api-staging-workers.mulaiplus.id"
-zone_name = "mulaiplus.id"
 
 # Non-secret vars (must satisfy @mulai-plus/env/server validation)
 [env.staging.vars]
