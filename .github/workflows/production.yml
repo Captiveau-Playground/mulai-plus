@@ -40,7 +40,7 @@ jobs:
 
       - name: Push schema to test DB
         working-directory: packages/db
-        run: bun run db:push
+        run: bun run db:push -- --force
         env:
           DATABASE_URL: postgresql://test:test@localhost:5433/mulai_plus_test
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
@@ -271,7 +271,7 @@ jobs:
 
       - name: Push database schema
         working-directory: packages/db
-        run: bun run db:push
+        run: bun run db:push -- --force
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
