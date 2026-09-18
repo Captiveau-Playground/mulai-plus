@@ -1,4 +1,5 @@
 import type { db } from "@mulai-plus/db";
+import { eq } from "@mulai-plus/db/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import * as schema from "@mulai-plus/db/schema/auth";
 import { env } from "@mulai-plus/env/server";
@@ -6,7 +7,6 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin, username } from "better-auth/plugins";
-import { eq } from "drizzle-orm";
 import { auditPlugin } from "./audit-plugin";
 import { ac, getAdminUserIds, getRoles } from "./permissions-core";
 

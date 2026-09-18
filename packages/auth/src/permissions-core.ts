@@ -1,7 +1,7 @@
 import type { db } from "@mulai-plus/db";
+import { eq } from "@mulai-plus/db/db";
 import * as schema from "@mulai-plus/db/schema/auth";
 import { createAccessControl } from "better-auth/plugins/access";
-import { eq } from "drizzle-orm";
 
 /**
  * Core permissions — DB-free so it can be bundled for Cloudflare Workers.
