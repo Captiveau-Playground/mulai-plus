@@ -5,7 +5,7 @@ WORKDIR /build
 
 RUN apk add --no-cache gcc musl-dev python3-dev
 
-COPY apps/ai/pyproject.toml .
+COPY apps/ai-python/pyproject.toml .
 RUN pip install --no-cache-dir --prefix=/install --no-compile \
     fastapi uvicorn pydantic pydantic-settings httpx openai asyncpg
 
@@ -18,7 +18,7 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 
 # Copy source
-COPY apps/ai/src/ src/
+COPY apps/ai-python/src/ src/
 
 # Cleanup: remove .pyc, __pycache__, and pip cache
 RUN find /usr/local -name "*.pyc" -delete && \

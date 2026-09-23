@@ -306,9 +306,9 @@ AI_API_KEY=test-key .venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000
 | `AI_HOST` | `0.0.0.0` | Bind address |
 | `AI_PORT` | `8000` | Port |
 | `DATABASE_URL` | – | PostgreSQL connection string |
-| `OPENAI_API_KEY` | – | API key LLM provider |
-| `OPENAI_BASE_URL` | `https://opencode.ai/zen/go/v1` | LLM endpoint |
-| `OPENAI_MODEL` | `deepseek-v4-flash` | Model name |
+| `OPENAI_API_KEY` | – | Cloudflare API token (scope **Workers AI: Run**) |
+| `OPENAI_BASE_URL` | `https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/v1` | Workers AI OpenAI-compatible endpoint |
+| `OPENAI_MODEL` | `@cf/qwen/qwen3-30b-a3b-fp8` | Model (Qwen3-30B — paling murah di WA + tool calling; premium: gpt-oss-120b) |
 | `CORS_ORIGIN` | `http://localhost:3001` | Frontend URL untuk CORS |
 
 ### Docker
