@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, db, desc, eq, gte, inArray, lte, or } from "@mulai-plus/db";
+import { and, asc, db, desc, eq, gte, inArray, lte, or } from "@mulai-plus/db/db";
 import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import {
   feedbackCampaign,

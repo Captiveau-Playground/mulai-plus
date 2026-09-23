@@ -38,7 +38,7 @@ export default function StudentDashboardLayout({ children }: { children: React.R
   });
 
   return (
-    <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
+    <PageState fillViewport isLoading={isLoading} isAuthorized={isAuthorized}>
       <SidebarProvider
         style={
           {

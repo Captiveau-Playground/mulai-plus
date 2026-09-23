@@ -10,6 +10,7 @@ permissions:
   packages: write
 
 jobs:
+  # ──────────────────────────── TEST ────────────────────────────
   test:
     runs-on: ubuntu-latest
     services:
@@ -34,7 +35,7 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Push schema to test DB
         working-directory: packages/db
-        run: bun run db:push
+        run: bun run db:push -- --force
         env:
           DATABASE_URL: postgresql://test:test@localhost:5433/mulai_plus_test
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
@@ -79,22 +80,23 @@ jobs:
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
           CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
-          GOOGLE_CLIENT_ID: test
-          GOOGLE_CLIENT_SECRET: test
-          R2_ACCOUNT_ID: test
-          R2_ACCESS_KEY_ID: test
-          R2_SECRET_ACCESS_KEY: test
-          R2_BUCKET_NAME: test
-          R2_PUBLIC_URL: http://test.com
-          PAYMENT_API_URL: http://test.com
-          PAYMENT_API_KEY: test
-          UNOSEND_API_KEY: test
-          UNOSEND_FROM_EMAIL: test@test.com
-          APP_URL: http://localhost:3000
-          ESIGN_SECRET: test-secret-key-for-unit-testing
-          RESEND_API_KEY: re_test
-          RESEND_FROM_EMAIL: test@test.com
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          PAYMENT_API_URL: ${{ secrets.PAYMENT_API_URL }}
+          PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
+          UNOSEND_API_KEY: ${{ secrets.UNOSEND_API_KEY }}
+          UNOSEND_FROM_EMAIL: ${{ secrets.UNOSEND_FROM_EMAIL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+          APP_URL: ${{ secrets.APP_URL }}
+          ESIGN_SECRET: ${{ secrets.ESIGN_SECRET }}
 
+  # ──────────────────────────── TAG ────────────────────────────
   tag:
     needs: test
     runs-on: ubuntu-latest
@@ -116,143 +118,7 @@ jobs:
           tag_prefix: v
           append_to_pre_release_tag: staging
 
-  build-web:
-    needs: tag
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/web
-          tags: |
-            type=raw,value=staging
-            type=raw,value=${{ needs.tag.outputs.new_tag }}
-            type=sha
-          labels: |
-            project=mulai-plus
-
-      - name: Create .env.staging for Web
-        run: |
-          if [ -f apps/web/.env.example ]; then
-            cp apps/web/.env.example apps/web/.env.staging
-          else
-            touch apps/web/.env.staging
-          fi
-          # Inject secrets if available (example pattern)
-          # echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.STAGING_SERVER_URL }}" >> apps/web/.env.staging
-
-      - name: Build and push Web
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            NEXT_PUBLIC_APP_URL=https://staging.mulaiplus.id
-            NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
-            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
-            NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
-            NEXT_PUBLIC_CLARITY_ID=${{ secrets.NEXT_PUBLIC_CLARITY_ID }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-
-  build-ai:
-    needs: tag
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/ai
-          tags: |
-            type=raw,value=staging
-            type=raw,value=${{ needs.tag.outputs.new_tag }}
-            type=sha
-          labels: |
-            project=mulai-plus
-
-      - name: Build and push AI
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/ai/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-
-  build-server:
-    needs: tag
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/server
-          tags: |
-            type=raw,value=staging
-            type=raw,value=${{ needs.tag.outputs.new_tag }}
-            type=sha
-          labels: |
-            project=mulai-plus
-
-      - name: Build and push Server
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/server/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-
+  # ──────────────────────────── MIGRATE (DB) ────────────────────────────
   migrate:
     needs: tag
     runs-on: ubuntu-latest
@@ -268,12 +134,196 @@ jobs:
 
       - name: Push database schema
         working-directory: packages/db
-        run: bun run db:push
+        run: bun run db:push -- --force
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-  deploy:
-    needs: [build-web, build-ai, build-server, migrate]
+  # ──────────────────────────── BUILD + PUSH GHCR (VPS images) ────────────────────────────
+  build-images:
+    needs: tag
+    runs-on: ubuntu-latest
+    environment: staging
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            dockerfile: apps/web/Dockerfile
+            image: web
+          - name: ai
+            dockerfile: apps/ai/Dockerfile
+            image: ai
+          - name: server
+            dockerfile: apps/server/Dockerfile
+            image: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=staging
+            type=raw,value=${{ needs.tag.outputs.new_tag }}
+            type=sha
+          labels: |
+            project=mulai-plus
+
+      - name: Create .env.staging for Web
+        if: matrix.name == 'web'
+        run: touch apps/web/.env.staging
+
+      # Secrets TIDAK bisa dipakai di strategy.matrix — jadi build-args web
+      # disiapkan di step ini (step boleh akses secrets), output ke GITHUB_OUTPUT.
+      - name: Prepare web build args (secrets)
+        if: matrix.name == 'web'
+        id: args
+        run: |
+          {
+            echo "NEXT_PUBLIC_APP_URL=https://staging.mulaiplus.id"
+            echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}"
+            echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}"
+            echo "NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}"
+            echo "NEXT_PUBLIC_CLARITY_ID=${{ secrets.NEXT_PUBLIC_CLARITY_ID }}"
+            echo "NEXT_PUBLIC_AMPLITUDE_API_KEY=${{ secrets.NEXT_PUBLIC_AMPLITUDE_API_KEY }}"
+          } > args.txt
+          echo "args<<EOF" >> "$GITHUB_OUTPUT"
+          cat args.txt >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      # Build only — image di-load ke docker daemon lokal (tidak di-push dulu).
+      - name: Build ${{ matrix.name }} image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.name == 'web' && steps.args.outputs.args || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+
+      # Push only — pakai image yang sudah di-build di step sebelumnya (tanpa rebuild).
+      - name: Push ${{ matrix.name }} image to GHCR
+        run: |
+          set -euo pipefail
+          for tag in $(echo "${{ steps.meta.outputs.tags }}"); do
+            echo "→ docker push $tag"
+            docker push "$tag"
+          done
+
+  # ──────────────────────────── DEPLOY CLOUDFLARE (API + WEB workers) ────────────────────────────
+  deploy-cf:
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # ---------- API Worker ----------
+      - name: Set API Worker secrets (staging)
+        working-directory: apps/server
+        env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          PAYMENT_API_URL: ${{ secrets.PAYMENT_API_URL }}
+          PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          UNOSEND_API_KEY: ${{ secrets.UNOSEND_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
+        run: |
+          set -euo pipefail
+          set_secret() {
+            local name="$1"
+            local value="${!name}"
+            if [ -n "$value" ]; then
+              echo "$value" | ./node_modules/.bin/wrangler secret put "$name" --env staging
+            else
+              echo "Skip $name (kosong)"
+            fi
+          }
+          set_secret BETTER_AUTH_SECRET
+          set_secret GOOGLE_CLIENT_ID
+          set_secret GOOGLE_CLIENT_SECRET
+          set_secret PAYMENT_API_URL
+          set_secret PAYMENT_API_KEY
+          set_secret R2_ACCOUNT_ID
+          set_secret R2_ACCESS_KEY_ID
+          set_secret R2_SECRET_ACCESS_KEY
+          set_secret AI_API_KEY
+          set_secret UNOSEND_API_KEY
+          set_secret RESEND_API_KEY
+          set_secret HERMES_API_KEY
+
+      - name: Deploy API Worker (staging)
+        working-directory: apps/server
+        run: ./node_modules/.bin/wrangler deploy --env staging
+
+      - name: Smoke test API — root / harus OK (workers.dev)
+        run: |
+          body=$(curl -s https://mulai-plus-api-staging.mulaiplus.workers.dev/)
+          echo "$body" | grep -q "OK"
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://mulai-plus-api-staging.mulaiplus.workers.dev/)
+          test "$code" = "200"
+          echo "✅ mulai-plus-api-staging (Workers) sehat"
+
+      # ---------- Web Worker ----------
+      - name: Build OpenNext (staging)
+        working-directory: apps/web
+        run: ./node_modules/.bin/opennextjs-cloudflare build
+        env:
+          NEXT_PUBLIC_SERVER_URL: https://mulai-plus-api-staging.mulaiplus.workers.dev
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
+          NEXT_PUBLIC_APP_URL: https://staging.mulaiplus.id
+
+      - name: Deploy Web Worker (staging)
+        working-directory: apps/web
+        # OPEN_NEXT_DEPLOY=true — PENTING: tanpa ini wrangler memanggil
+        # `opennextjs-cloudflare deploy` yang bisa MENYALIN custom domain
+        # dari worker lain (insiden karir.mulaiplus.id). Jangan dihapus.
+        # --env staging → worker mulai-plus-web-staging (sama dengan api-staging).
+        run: OPEN_NEXT_DEPLOY=true ./node_modules/.bin/wrangler deploy --env staging
+
+      - name: Smoke test FE (workers.dev)
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://mulai-plus-web-staging.mulaiplus.workers.dev/)
+          test "$code" = "200"
+          curl -s https://mulai-plus-web-staging.mulaiplus.workers.dev/ | grep -q "MULAI+"
+          echo "✅ mulai-plus-web-staging (Workers) sehat"
+
+  # ──────────────────────────── DEPLOY VPS (rollback runtime) ────────────────────────────
+  deploy-vps:
+    needs: [build-images, migrate]
     runs-on: ubuntu-latest
     environment: staging
     steps:

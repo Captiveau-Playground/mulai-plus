@@ -16,7 +16,8 @@ const API_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:3000";
 async function getLinks(): Promise<Record<string, ShortLink>> {
   try {
     const res = await fetch(`${API_URL}/rpc/shortLinks.getAll`, {
-      next: { revalidate: 60 },
+      // NOTE: no `next: { revalidate }` here — that is Node middleware-only API;
+      // OpenNext (Cloudflare Workers) requires Edge middleware.
     });
     if (!res.ok) return DEFAULT_SHORT_LINKS;
     return await res.json();
@@ -34,7 +35,7 @@ function buildRedirectUrl(link: ShortLink): string {
   return `${link.to}?${qs}`;
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
 
   // ─── Bukan go subdomain → skip ─────────────────────────

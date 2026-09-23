@@ -12,7 +12,7 @@ export default function ProgramManagerLayout({ children }: { children: React.Rea
   });
 
   return (
-    <PageState isLoading={isLoading} isAuthorized={isAuthorized}>
+    <PageState fillViewport isLoading={isLoading} isAuthorized={isAuthorized}>
       <SidebarProvider
         style={
           {
@@ -23,7 +23,7 @@ export default function ProgramManagerLayout({ children }: { children: React.Rea
         <ProgramManagerSidebar variant="inset" />
         <SidebarInset className="!bg-bg-light flex h-screen flex-col">
           <SiteHeader />
-          <div className="flex-1 overflow-y-auto p-4">{children}</div>
+          <div className="h-0 min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </PageState>

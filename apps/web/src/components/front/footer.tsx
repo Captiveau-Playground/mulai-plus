@@ -1,5 +1,4 @@
 "use client";
-import { env } from "@mulai-plus/env/web";
 import { motion } from "framer-motion";
 import { ArrowRight, Facebook, Instagram, Linkedin, Loader2, Mail, MapPin, Phone } from "lucide-react";
 import Image from "next/image";
@@ -9,6 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { client } from "@/lib/client";
 import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
+import { getWebEnv } from "@/lib/web-env";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -262,9 +262,9 @@ export function Footer() {
             {/* Left: Badge + Copyright */}
             <div className="flex flex-col items-center gap-3 lg:flex-row lg:items-center">
               <Badge className="border-white/10 bg-white/5 font-manrope text-[10px] text-text-lighter-blue/80 uppercase tracking-wider hover:bg-white/10">
-                {env.NEXT_PUBLIC_SERVER_URL === "http://localhost:3000"
+                {getWebEnv() === "development"
                   ? "⚡ development"
-                  : env.NEXT_PUBLIC_SERVER_URL === "https://api-staging.mulaiplus.id"
+                  : getWebEnv() === "staging"
                     ? "🔄 staging"
                     : "🚀 production"}
               </Badge>
