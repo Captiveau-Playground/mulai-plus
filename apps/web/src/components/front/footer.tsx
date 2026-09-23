@@ -8,7 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { client } from "@/lib/client";
 import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
-import { getWebEnv } from "@/lib/web-env";
+import { getWebEnv, RELEASE_TAG } from "@/lib/web-env";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -268,6 +268,16 @@ export function Footer() {
                     ? "🔄 staging"
                     : "🚀 production"}
               </Badge>
+
+              {/* Release version badge */}
+              {RELEASE_TAG && (
+                <span
+                  title={`Release: ${RELEASE_TAG}`}
+                  className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-medium font-mono text-[10px] text-text-lighter-blue/70 tracking-wide transition-colors hover:bg-white/10 hover:text-text-lighter-blue"
+                >
+                  {RELEASE_TAG}
+                </span>
+              )}
 
               <span className="hidden text-white/20 lg:inline">|</span>
 

@@ -19,3 +19,9 @@ export function getWebEnv(): WebEnv {
 
 /** True when the web build is pointed at a staging API (VPS or Workers). */
 export const isStaging = getWebEnv() === "staging";
+
+/**
+ * Release tag/version that was baked at build time (e.g. "v1.2.3-staging.1").
+ * Diisi CI dari job `tag` (NEXT_PUBLIC_RELEASE_TAG). Kosong saat build lokal/manual.
+ */
+export const RELEASE_TAG = (env.NEXT_PUBLIC_RELEASE_TAG ?? "").trim();

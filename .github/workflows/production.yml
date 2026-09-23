@@ -232,6 +232,7 @@ jobs:
         run: |
           {
             echo "NEXT_PUBLIC_APP_URL=https://mulaiplus.id"
+            echo "NEXT_PUBLIC_RELEASE_TAG=${{ needs.tag.outputs.new_tag }}"
             echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}"
             echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
             echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}"
@@ -290,7 +291,7 @@ jobs:
   # Mirip staging: deploy API + Web worker ke workers.dev (sampai DNS + Zone
   # perms siap untuk custom domain api-prod-workers.mulaiplus.id).
   deploy-cf:
-    needs: [resolve-target, migrate]
+    needs: [resolve-target, tag, migrate]
     if: needs.resolve-target.outputs.target != 'vps'
     runs-on: ubuntu-latest
     environment: production
@@ -377,6 +378,7 @@ jobs:
         run: ./node_modules/.bin/opennextjs-cloudflare build
         env:
           NEXT_PUBLIC_SERVER_URL: https://mulai-plus-api-production.mulaiplus.workers.dev
+          NEXT_PUBLIC_RELEASE_TAG: ${{ needs.tag.outputs.new_tag }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
           NEXT_PUBLIC_APP_URL: https://mulaiplus.id

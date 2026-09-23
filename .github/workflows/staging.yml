@@ -248,6 +248,7 @@ jobs:
         run: |
           {
             echo "NEXT_PUBLIC_APP_URL=https://staging.mulaiplus.id"
+            echo "NEXT_PUBLIC_RELEASE_TAG=${{ needs.tag.outputs.new_tag }}"
             echo "NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}"
             echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
             echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}"
@@ -284,7 +285,7 @@ jobs:
 
   # ──────────────────────────── DEPLOY CLOUDFLARE (API + WEB workers) ────────────────────────────
   deploy-cf:
-    needs: [resolve-target, migrate]
+    needs: [resolve-target, tag, migrate]
     if: needs.resolve-target.outputs.target != 'vps'
     runs-on: ubuntu-latest
     environment: staging
@@ -371,6 +372,7 @@ jobs:
         run: ./node_modules/.bin/opennextjs-cloudflare build
         env:
           NEXT_PUBLIC_SERVER_URL: https://mulai-plus-api-staging.mulaiplus.workers.dev
+          NEXT_PUBLIC_RELEASE_TAG: ${{ needs.tag.outputs.new_tag }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
           NEXT_PUBLIC_APP_URL: https://staging.mulaiplus.id

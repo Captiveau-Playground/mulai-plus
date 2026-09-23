@@ -14,6 +14,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CLARITY_ID: z.string().optional(),
     NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().optional(),
     NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+    NEXT_PUBLIC_RELEASE_TAG: z.string().optional(),
   },
   runtimeEnv: {
     NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
@@ -24,6 +25,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CLARITY_ID: process.env.NEXT_PUBLIC_CLARITY_ID,
     NEXT_PUBLIC_AMPLITUDE_API_KEY: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_RELEASE_TAG: process.env.NEXT_PUBLIC_RELEASE_TAG,
   },
   emptyStringAsUndefined: true,
 });
