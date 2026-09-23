@@ -461,9 +461,9 @@ jobs:
                   - AI_PORT=8000
                   - AI_API_KEY=${AI_API_KEY}
                   - DATABASE_URL=${DATABASE_URL}
-                  - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://43.157.247.204:20128/v1}
+                  - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/ai/v1}
                   - OPENAI_API_KEY=${OPENAI_API_KEY}
-                  - OPENAI_MODEL=${OPENAI_MODEL:-free-stack}
+                  - OPENAI_MODEL=${OPENAI_MODEL:-@cf/meta/llama-4-maverick-17b-128e-instruct}
                   - CORS_ORIGIN=https://staging.mulaiplus.id
                   - API_SERVER_URL=http://server:3000
                 restart: always
@@ -516,9 +516,9 @@ jobs:
             PORT_WEB=3001
             PORT_SERVER=3000
             AI_API_KEY=${{ secrets.AI_API_KEY }}
-            OPENAI_BASE_URL=http://43.157.247.204:20128/v1
+            OPENAI_BASE_URL=https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/ai/v1
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            OPENAI_MODEL=free-stack
+            OPENAI_MODEL=@cf/meta/llama-4-maverick-17b-128e-instruct
             NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}

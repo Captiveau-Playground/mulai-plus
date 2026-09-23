@@ -9,10 +9,15 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://user:password@localhost:5432/mulai_plus"
 
-    # LLM
+    # LLM — Cloudflare Workers AI (OpenAI-compatible endpoint).
+    # OPENAI_API_KEY = Cloudflare API token dengan permission "Workers AI: Run"
+    # (bukan key OpenAI). Model dipilih yang murah tapi kualitas terbaik di WA.
     openai_api_key: str = ""
-    openai_base_url: str = "https://opencode.ai/zen/go/v1"
-    openai_model: str = "deepseek-v4-flash"
+    openai_base_url: str = (
+        "https://api.cloudflare.com/client/v4/accounts/"
+        "7b23b1f8e20fd9cb2a7ab0fa6df7021d/ai/v1"
+    )
+    openai_model: str = "@cf/meta/llama-4-maverick-17b-128e-instruct"
 
     # Security
     ai_api_key: str = ""  # shared secret with Hono server; if set, all requests must include Bearer token
