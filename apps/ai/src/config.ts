@@ -18,6 +18,10 @@ export type Env = {
   AI_API_KEY?: string;
   CORS_ORIGIN?: string;
   CF_ACCOUNT_ID?: string;
+  /** Hyperdrive binding (Worker) — koneksi Postgres aman & ter-pool. */
+  HYPERDRIVE?: { connectionString: string };
+  /** Fallback koneksi untuk dev lokal (tanpa Hyperdrive). */
+  DATABASE_URL?: string;
 };
 
 export type AppContext = Context<{ Bindings: Env }>;

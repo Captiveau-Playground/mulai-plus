@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "hono": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "postgres": "^3.4.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250601.0",

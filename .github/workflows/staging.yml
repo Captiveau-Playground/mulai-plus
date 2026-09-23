@@ -406,6 +406,40 @@ jobs:
             exit 1
           fi
 
+      # ---------- AI Worker (TS) ----------
+      - name: Set AI Worker secrets (staging)
+        working-directory: apps/ai
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          echo "$AI_API_KEY" | ./node_modules/.bin/wrangler secret put AI_API_KEY --env staging
+          echo "$OPENAI_API_KEY" | ./node_modules/.bin/wrangler secret put OPENAI_API_KEY --env staging
+
+      - name: Deploy AI Worker (staging)
+        working-directory: apps/ai
+        run: ./node_modules/.bin/wrangler deploy --env staging
+
+      - name: Smoke test AI — /health + chat /api/chat (workers.dev)
+        run: |
+          set -euo pipefail
+          URL="https://mulai-plus-ai-staging.mulaiplus.workers.dev"
+          ok=0
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/health" || true)
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            echo "[attempt $i/3] HTTP=$code — retry..."
+            sleep 5
+          done
+          [ "$ok" = "1" ] || { echo "❌ AI /health gagal"; exit 1; }
+          reply=$(curl -s -X POST "$URL/api/chat" -H "Authorization: Bearer ${{ secrets.AI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "x-session-id: ci-smoke-$(date +%s)" \
+            -d '{"message":"halo"}' --max-time 60 || true)
+          echo "$reply" | grep -q "full_reply"
+          echo "✅ mulai-plus-ai-staging (Workers) sehat"
+
   # ──────────────────────────── DEPLOY VPS (rollback runtime) ────────────────────────────
   # Opsional. Default cf → job ini di-skip; VPS dibiarkan jalan di server.
   deploy-vps:

@@ -87,11 +87,13 @@ export async function llmChat(
 /** Non-streaming helper → parse JSON (dipakai tool loop / final answer). */
 export async function llmChatJson(c: AppContext, messages: LlmMessage[], opts: { tools?: ToolDef[] } = {}) {
   const { body, status } = await llmChat(c, messages, opts);
-  const text = await body
-    ?.getReader()
-    .read()
-    .then((r) => new TextDecoder().decode(r.value));
-  const data = text ? JSON.parse(text) : {};
+  const text = body ? await new Response(body).text() : "";
+  let data: Record<string, any> = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {};
+  }
   return { status, data };
 }
 

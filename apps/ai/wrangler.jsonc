@@ -13,10 +13,28 @@
   },
   "env": {
     "staging": {
-      "workers_dev": true
+      "workers_dev": true,
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "5d214aea95a842069ee2a0bba93222c4"
+        }
+      ],
+      "vars": {
+        "CORS_ORIGIN": "https://staging.mulaiplus.id"
+      }
     },
     "production": {
-      "workers_dev": true
+      "workers_dev": true,
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "42a918a410c84017afa795d9a58f6eb3"
+        }
+      ],
+      "vars": {
+        "CORS_ORIGIN": "https://mulaiplus.id"
+      }
     }
   }
 }

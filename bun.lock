@@ -27,6 +27,7 @@
       "name": "ai",
       "dependencies": {
         "hono": "catalog:",
+        "postgres": "^3.4.5",
         "zod": "catalog:",
       },
       "devDependencies": {
