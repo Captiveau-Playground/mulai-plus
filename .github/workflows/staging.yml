@@ -424,7 +424,7 @@ jobs:
       - name: Smoke test AI — /health + chat /api/chat (workers.dev)
         run: |
           set -euo pipefail
-          URL="https://mulai-plus-ai-staging.mulaiplus.workers.dev"
+          URL="https://ai.staging.mulaiplus.id"
           ok=0
           for i in 1 2 3; do
             code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/health" || true)

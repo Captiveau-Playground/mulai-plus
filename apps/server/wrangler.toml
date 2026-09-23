@@ -43,7 +43,7 @@ PORT = "3000"
 APP_URL = "https://staging.mulaiplus.id"
 BETTER_AUTH_URL = "https://api.staging.mulaiplus.id"
 CORS_ORIGIN = "https://staging.mulaiplus.id"
-AI_SERVICE_URL = "https://mulai-plus-ai-staging.mulaiplus.workers.dev"  # TS AI worker (migrasi dari python); rollback: kembali ke ai-internal.mulaiplus.id
+AI_SERVICE_URL = "https://ai.staging.mulaiplus.id"  # TS AI worker (custom domain, worker→worker aman); rollback: ai-internal.mulaiplus.id
 COOKIE_DOMAIN = ".staging.mulaiplus.id"
 # NOTE: DATABASE_URL is required by the env schema but UNUSED on Workers —
 # the real connection comes from the HYPERDRIVE binding below.

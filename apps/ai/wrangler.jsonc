@@ -20,8 +20,16 @@
           "id": "5d214aea95a842069ee2a0bba93222c4"
         }
       ],
+      "routes": [
+        {
+          "pattern": "ai.staging.mulaiplus.id",
+          "zone_name": "mulaiplus.id",
+          "custom_domain": true
+        }
+      ],
       "vars": {
-        "CORS_ORIGIN": "https://staging.mulaiplus.id"
+        "CORS_ORIGIN": "https://staging.mulaiplus.id",
+        "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
       }
     },
     "production": {
@@ -32,8 +40,16 @@
           "id": "42a918a410c84017afa795d9a58f6eb3"
         }
       ],
+      "routes": [
+        {
+          "pattern": "ai.mulaiplus.id",
+          "zone_name": "mulaiplus.id",
+          "custom_domain": true
+        }
+      ],
       "vars": {
-        "CORS_ORIGIN": "https://mulaiplus.id"
+        "CORS_ORIGIN": "https://mulaiplus.id",
+        "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
       }
     }
   }
