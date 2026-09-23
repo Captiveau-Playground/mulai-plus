@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mulai-plus-ai",
+  "main": "src/index.ts",
+  "workers_dev": true,
+  "compatibility_date": "2026-08-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
+  },
+  "env": {
+    "staging": {
+      "workers_dev": true
+    },
+    "production": {
+      "workers_dev": true
+    }
+  }
+}
