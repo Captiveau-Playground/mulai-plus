@@ -1,0 +1,25 @@
+{
+  "name": "ai",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "dev": "wrangler dev --env staging",
+    "test": "bun test",
+    "worker:deploy:staging": "wrangler deploy --env staging",
+    "worker:deploy:production": "wrangler deploy --env production",
+    "worker:tail": "wrangler tail"
+  },
+  "dependencies": {
+    "hono": "catalog:",
+    "zod": "catalog:",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250601.0",
+    "@types/bun": "catalog:",
+    "@mulai-plus/config": "workspace:*",
+    "typescript": "catalog:",
+    "wrangler": "^4.0.0"
+  }
+}
