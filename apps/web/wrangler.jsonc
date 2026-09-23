@@ -9,11 +9,11 @@
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
-	// NOTE 2026-09-18: custom-domain route disabled for now —
-	// CI token belum punya Zone:Workers Routes permission, dan DNS record
-	// staging-web-workers.mulaiplus.id belum dibuat. Deploy via workers.dev
-	// (NEXT_PUBLIC_SERVER_URL / CORS_ORIGIN sudah pakai URL workers.dev).
-	// Aktifkan kembali setelah token diberi Zone perms + DNS record dibuat.
+	// NOTE 2026-09-23: custom domain aktif via env block di bawah —
+	//   staging → staging.mulaiplus.id | production → mulaiplus.id
+	// Custom domain (custom_domain:true) → DNS record dibuat otomatis CF saat deploy.
+	// Prasyarat: CI token punya Zone:Workers Custom Domains permission.
+	// (env default / top-level di atas tetap dipakai worker tanpa --env).
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
@@ -41,14 +41,28 @@
 					"binding": "WORKER_SELF_REFERENCE",
 					"service": "mulai-plus-web-staging"
 				}
+			],
+			"routes": [
+				{
+					"pattern": "staging.mulaiplus.id",
+					"zone_name": "mulaiplus.id",
+					"custom_domain": true
+				}
 			]
 		},
 		"production": {
-			"workers_dev": true,
+			"workers_dev": false,
 			"services": [
 				{
 					"binding": "WORKER_SELF_REFERENCE",
 					"service": "mulai-plus-web-production"
+				}
+			],
+			"routes": [
+				{
+					"pattern": "mulaiplus.id",
+					"zone_name": "mulaiplus.id",
+					"custom_domain": true
 				}
 			]
 		}

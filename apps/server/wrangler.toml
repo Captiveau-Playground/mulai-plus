@@ -1,12 +1,13 @@
 # Cloudflare Workers config — MULAI+ API (server)
 #
 # DUAL-DOMAIN (mirror Docker prod/staging):
-#   branch staging   → wrangler deploy --env staging    → api-staging-workers.mulaiplus.id (Workers)
-#   branch production→ wrangler deploy --env production → api-prod-workers.mulaiplus.id (Workers)
-#   VPS keeps serving api-staging.mulaiplus.id / api-prod.mulaiplus.id (unchanged).
+#   Workers: staging → api.staging.mulaiplus.id | production → api.mulaiplus.id (custom domain)
+#   VPS keeps serving api-staging.mulaiplus.id / api-prod.mulaiplus.id (rollback runtime).
 #
 # ROLLBACK: flip NEXT_PUBLIC_SERVER_URL on the web (both runtimes stay alive).
 # Never `docker compose down` the VPS stack during the migration window.
+#
+# Custom domain di-bind via wrangler (custom_domain = true) → DNS record dibuat otomatis oleh CF.
 
 name = "mulai-plus-api"
 main = "src/worker.ts"
@@ -27,17 +28,23 @@ crons = ["*/5 * * * *"]
 # Deploy via workers.dev (NEXT_PUBLIC_SERVER_URL sudah mengarah ke sana).
 # Aktifkan kembali route ini setelah: token diberi Zone perms + DNS record dibuat.
 [env.staging]
-workers_dev = true  # TEMP: biar bisa diakses tanpa DNS — matikan lagi setelah DNS record dibuat
+workers_dev = true  # preview tetap aktif sementara — custom domain utama: api.staging.mulaiplus.id
+
+# Custom domain staging API → DNS record dibuat otomatis oleh CF
+[[env.staging.routes]]
+pattern = "api.staging.mulaiplus.id"
+zone_name = "mulaiplus.id"
+custom_domain = true
 
 # Non-secret vars (must satisfy @mulai-plus/env/server validation)
 [env.staging.vars]
 NODE_ENV = "production"            # zod enum requires dev|production|test
 PORT = "3000"
 APP_URL = "https://staging.mulaiplus.id"
-BETTER_AUTH_URL = "https://mulai-plus-api-staging.mulaiplus.workers.dev"
-CORS_ORIGIN = "https://mulai-plus-web-staging.mulaiplus.workers.dev"
+BETTER_AUTH_URL = "https://api.staging.mulaiplus.id"
+CORS_ORIGIN = "https://staging.mulaiplus.id"
 AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"  # CF Access service-token protected
-COOKIE_DOMAIN = ".mulaiplus.workers.dev"
+COOKIE_DOMAIN = ".staging.mulaiplus.id"
 # NOTE: DATABASE_URL is required by the env schema but UNUSED on Workers —
 # the real connection comes from the HYPERDRIVE binding below.
 DATABASE_URL = "hyperdrive://staging-placeholder-not-used"
@@ -54,29 +61,24 @@ binding = "HYPERDRIVE"
 id = "5d214aea95a842069ee2a0bba93222c4"  # mulai-plus-staging-db-direct
 
 # ──────────────────────────── PRODUCTION ────────────────────────────
-# DUAL-DOMAIN: VPS tetap melayani api-prod.mulaiplus.id (tidak disentuh),
-# CF Workers mirror jalan duluan di workers.dev (sama spt staging) sampai
-# DNS record + token Zone perms siap untuk custom domain.
+# VPS tetap melayani api-prod.mulaiplus.id sebagai rollback runtime;
+# trafik utama (api.mulaiplus.id) di-layani Workers via custom domain.
 [env.production]
-workers_dev = true  # TEMP: mirror via workers.dev — ganti ke custom domain saat flip
+workers_dev = false  # production hanya via custom domain api.mulaiplus.id
 
-# NOTE 2026-09-23: custom-domain route OFF untuk sekarang —
-#   1) DNS record api-prod-workers.mulaiplus.id belum dibuat,
-#   2) CI token belum punya Zone:Workers Routes permission.
-# Saat flip: aktifkan route ini + ubah BETTER_AUTH_URL/CORS_ORIGIN/COOKIE_DOMAIN
-# ke custom domain, lalu matikan workers_dev.
-# [[env.production.routes]]
-# pattern = "api-prod-workers.mulaiplus.id"
-# zone_name = "mulaiplus.id"
+[[env.production.routes]]
+pattern = "api.mulaiplus.id"
+zone_name = "mulaiplus.id"
+custom_domain = true
 
 [env.production.vars]
 NODE_ENV = "production"
 PORT = "3000"
 APP_URL = "https://mulaiplus.id"
-BETTER_AUTH_URL = "https://mulai-plus-api-production.mulaiplus.workers.dev"
-CORS_ORIGIN = "https://mulai-plus-web-production.mulaiplus.workers.dev"
+BETTER_AUTH_URL = "https://api.mulaiplus.id"
+CORS_ORIGIN = "https://mulaiplus.id"
 AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"
-COOKIE_DOMAIN = ".mulaiplus.workers.dev"
+COOKIE_DOMAIN = ".mulaiplus.id"
 DATABASE_URL = "hyperdrive://production-placeholder-not-used"
 # R2 (production bucket)
 R2_BUCKET_NAME = "mulai-plus-media"
