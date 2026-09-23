@@ -354,7 +354,7 @@ jobs:
       - name: Smoke test API — root / harus OK (workers.dev)
         run: |
           set -euo pipefail
-          URL="https://mulai-plus-api-production.mulaiplus.workers.dev/"
+          URL="https://api.mulaiplus.id/"
           ok=0
           for i in 1 2 3; do
             code=$(curl -s -o /tmp/api.html -w "%{http_code}" --max-time 20 "$URL" || true)
@@ -377,7 +377,7 @@ jobs:
         working-directory: apps/web
         run: ./node_modules/.bin/opennextjs-cloudflare build
         env:
-          NEXT_PUBLIC_SERVER_URL: https://mulai-plus-api-production.mulaiplus.workers.dev
+          NEXT_PUBLIC_SERVER_URL: https://api.mulaiplus.id
           NEXT_PUBLIC_RELEASE_TAG: ${{ needs.tag.outputs.new_tag }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}
@@ -393,7 +393,7 @@ jobs:
       - name: Smoke test FE (workers.dev)
         run: |
           set -euo pipefail
-          URL="https://mulai-plus-web-production.mulaiplus.workers.dev/"
+          URL="https://mulaiplus.id/"
           ok=0
           for i in 1 2 3 4 5; do
             code=$(curl -s -o /tmp/fe.html -w "%{http_code}" --max-time 30 "$URL" || true)
