@@ -1,15 +1,68 @@
 name: Staging Preview
 
+# ── STRATEGI DEPLOY (CF-first) ──────────────────────────────────────
+# Default: deploy ke Cloudflare Workers SAJA (test → migrate → CF api+web + smoke).
+# VPS (build-images GHCR + deploy-vps SSH) TIDAK otomatis dijalankan —
+# server dibiarkan apa adanya, cuma dipakai sebagai rollback runtime.
+#
+# Cara override target deploy:
+#   1. environment variable `DEPLOY_TARGET` (environment: staging)
+#      → "cf" | "vps" | "both"   (kosong = default "cf")
+#   2. jalankan manual via workflow_dispatch → input deploy_target
+#
+#   cf   = CF workers only (default)
+#   vps  = VPS only
+#   both = CF + VPS
+# ────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches:
       - staging
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Target deploy (auto = pakai env var DEPLOY_TARGET): cf | vps | both'
+        type: choice
+        default: auto
+        options:
+          - auto
+          - cf
+          - vps
+          - both
 
 permissions:
   contents: write
   packages: write
 
 jobs:
+  # ──────────────────────────── RESOLVE TARGET ────────────────────────────
+  # Baca preferensi deploy dalam satu tempat supaya gate di job lain konsisten.
+  resolve-target:
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      target: ${{ steps.set.outputs.target }}
+    steps:
+      - name: Resolve deploy target
+        id: set
+        run: |
+          INPUT="${{ github.event.inputs.deploy_target }}"
+          VAR="${{ vars.DEPLOY_TARGET }}"
+          if [ -n "$INPUT" ] && [ "$INPUT" != "auto" ]; then
+            TARGET="$INPUT"
+          elif [ -n "$VAR" ]; then
+            TARGET="$VAR"
+          else
+            TARGET="cf"
+          fi
+          case "$TARGET" in
+            both|vps|cf) ;;
+            *) TARGET="cf" ;;
+          esac
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "→ Deploy target: $TARGET"
+
   # ──────────────────────────── TEST ────────────────────────────
   test:
     runs-on: ubuntu-latest
@@ -139,8 +192,10 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
   # ──────────────────────────── BUILD + PUSH GHCR (VPS images) ────────────────────────────
+  # Hanya jalan kalau target-nya vps/both (opsional — refresh image rollback VPS).
   build-images:
-    needs: tag
+    needs: [resolve-target, tag]
+    if: needs.resolve-target.outputs.target != 'cf'
     runs-on: ubuntu-latest
     environment: staging
     strategy:
@@ -229,7 +284,8 @@ jobs:
 
   # ──────────────────────────── DEPLOY CLOUDFLARE (API + WEB workers) ────────────────────────────
   deploy-cf:
-    needs: migrate
+    needs: [resolve-target, migrate]
+    if: needs.resolve-target.outputs.target != 'vps'
     runs-on: ubuntu-latest
     environment: staging
     env:
@@ -290,11 +346,24 @@ jobs:
 
       - name: Smoke test API — root / harus OK (workers.dev)
         run: |
-          body=$(curl -s https://mulai-plus-api-staging.mulaiplus.workers.dev/)
-          echo "$body" | grep -q "OK"
-          code=$(curl -s -o /dev/null -w "%{http_code}" https://mulai-plus-api-staging.mulaiplus.workers.dev/)
-          test "$code" = "200"
-          echo "✅ mulai-plus-api-staging (Workers) sehat"
+          set -euo pipefail
+          URL="https://mulai-plus-api-staging.mulaiplus.workers.dev/"
+          ok=0
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/api.html -w "%{http_code}" --max-time 20 "$URL" || true)
+            if [ "$code" = "200" ] && grep -qF "OK" /tmp/api.html; then
+              echo "✅ mulai-plus-api-staging (Workers) sehat (attempt $i/3)"
+              ok=1
+              break
+            fi
+            echo "[attempt $i/3] HTTP=$code — retry (propagasi deploy)..."
+            sleep 5
+          done
+          if [ "$ok" != "1" ]; then
+            echo "❌ API smoke gagal. Response terakhir:"
+            head -c 200 /tmp/api.html 2>/dev/null || true
+            exit 1
+          fi
 
       # ---------- Web Worker ----------
       - name: Build OpenNext (staging)
@@ -316,14 +385,30 @@ jobs:
 
       - name: Smoke test FE (workers.dev)
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" https://mulai-plus-web-staging.mulaiplus.workers.dev/)
-          test "$code" = "200"
-          curl -s https://mulai-plus-web-staging.mulaiplus.workers.dev/ | grep -q "MULAI+"
-          echo "✅ mulai-plus-web-staging (Workers) sehat"
+          set -euo pipefail
+          URL="https://mulai-plus-web-staging.mulaiplus.workers.dev/"
+          ok=0
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /tmp/fe.html -w "%{http_code}" --max-time 30 "$URL" || true)
+            if [ "$code" = "200" ] && grep -qF "MULAI+" /tmp/fe.html; then
+              echo "✅ mulai-plus-web-staging (Workers) sehat (attempt $i/5)"
+              ok=1
+              break
+            fi
+            echo "[attempt $i/5] HTTP=$code — retry (propagasi/cold-start)..."
+            sleep 8
+          done
+          if [ "$ok" != "1" ]; then
+            echo "❌ FE smoke gagal. Response terakhir:"
+            head -c 300 /tmp/fe.html 2>/dev/null || true
+            exit 1
+          fi
 
   # ──────────────────────────── DEPLOY VPS (rollback runtime) ────────────────────────────
+  # Opsional. Default cf → job ini di-skip; VPS dibiarkan jalan di server.
   deploy-vps:
-    needs: [build-images, migrate]
+    needs: [resolve-target, build-images, migrate]
+    if: needs.resolve-target.outputs.target != 'cf'
     runs-on: ubuntu-latest
     environment: staging
     steps:

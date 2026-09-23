@@ -54,23 +54,29 @@ binding = "HYPERDRIVE"
 id = "5d214aea95a842069ee2a0bba93222c4"  # mulai-plus-staging-db-direct
 
 # ──────────────────────────── PRODUCTION ────────────────────────────
-# DUAL-DOMAIN: Workers on api-prod-workers.mulaiplus.id; VPS keeps
-# api-prod.mulaiplus.id.
+# DUAL-DOMAIN: VPS tetap melayani api-prod.mulaiplus.id (tidak disentuh),
+# CF Workers mirror jalan duluan di workers.dev (sama spt staging) sampai
+# DNS record + token Zone perms siap untuk custom domain.
 [env.production]
-workers_dev = false
+workers_dev = true  # TEMP: mirror via workers.dev — ganti ke custom domain saat flip
 
-[[env.production.routes]]
-pattern = "api-prod-workers.mulaiplus.id"
-zone_name = "mulaiplus.id"
+# NOTE 2026-09-23: custom-domain route OFF untuk sekarang —
+#   1) DNS record api-prod-workers.mulaiplus.id belum dibuat,
+#   2) CI token belum punya Zone:Workers Routes permission.
+# Saat flip: aktifkan route ini + ubah BETTER_AUTH_URL/CORS_ORIGIN/COOKIE_DOMAIN
+# ke custom domain, lalu matikan workers_dev.
+# [[env.production.routes]]
+# pattern = "api-prod-workers.mulaiplus.id"
+# zone_name = "mulaiplus.id"
 
 [env.production.vars]
 NODE_ENV = "production"
 PORT = "3000"
 APP_URL = "https://mulaiplus.id"
-BETTER_AUTH_URL = "https://api-prod-workers.mulaiplus.id"
-CORS_ORIGIN = "https://mulaiplus.id"
+BETTER_AUTH_URL = "https://mulai-plus-api-production.mulaiplus.workers.dev"
+CORS_ORIGIN = "https://mulai-plus-web-production.mulaiplus.workers.dev"
 AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"
-COOKIE_DOMAIN = ".mulaiplus.id"
+COOKIE_DOMAIN = ".mulaiplus.workers.dev"
 DATABASE_URL = "hyperdrive://production-placeholder-not-used"
 # R2 (production bucket)
 R2_BUCKET_NAME = "mulai-plus-media"
@@ -78,7 +84,7 @@ R2_PUBLIC_URL = "https://cdn.mulaiplus.id"
 
 [[env.production.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "PASTE_PRODUCTION_HYPERDRIVE_ID"
+id = "42a918a410c84017afa795d9a58f6eb3"  # mulai-plus-production-db-direct
 
 # ──────────────────────────── SECRETS ────────────────────────────
 # Set via CLI (never commit):
