@@ -191,6 +191,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      - name: DB index optimization (pg_trgm/GIN — hemat Disk I/O)
+        working-directory: packages/db
+        run: bun run optimize:io
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
   # ──────────────────────────── BUILD + PUSH GHCR (VPS images) ────────────────────────────
   # Hanya jalan kalau target-nya vps/both (opsional — refresh image rollback VPS).
   build-images:

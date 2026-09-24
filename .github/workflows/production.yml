@@ -287,6 +287,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      - name: DB index optimization (pg_trgm/GIN — hemat Disk I/O)
+        working-directory: packages/db
+        run: bun run optimize:io
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
   # ──────────────────────────── DEPLOY CLOUDFLARE (API + WEB workers) ────────────────────────────
   # Mirip staging: deploy API + Web worker ke workers.dev (sampai DNS + Zone
   # perms siap untuk custom domain api-prod-workers.mulaiplus.id).
