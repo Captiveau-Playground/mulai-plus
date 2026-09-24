@@ -21,6 +21,14 @@ import {
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 
+/**
+ * db.execute() mengembalikan bentuk BEDA tergantung driver:
+ *  - pg (Bun/VPS)        → { rows: [...] }
+ *  - postgres-js (Workers) → array polos
+ * Helper ini menyamakan keduanya.
+ */
+const rowsOf = (res: unknown): any[] => (Array.isArray(res) ? (res as any[]) : ((res as any)?.rows ?? []));
+
 const paginationSchema = z.object({
   page: z.number().default(1),
   pageSize: z.number().min(1).max(100).default(10),
@@ -610,9 +618,10 @@ export const pddiktiRouter = {
         ) sub
       `;
 
-      const [dataRows, countResult] = await Promise.all([db.execute(sqlQuery), db.execute(countQuery)]);
+      const [dataRowsResult, countResult] = await Promise.all([db.execute(sqlQuery), db.execute(countQuery)]);
+      const dataRows = rowsOf(dataRowsResult);
 
-      const data = (dataRows.rows ?? []).map((r: any) => ({
+      const data = dataRows.map((r: any) => ({
         name: r.name,
         uniCount: Number(r.uniCount),
         levels: r.levels ?? [],
@@ -623,7 +632,7 @@ export const pddiktiRouter = {
           .replace(/-+/g, "-")
           .replace(/^-|-$/g, "")}-${r.name.length}`,
       }));
-      const total = Number((countResult.rows?.[0] as any)?.cnt ?? 0);
+      const total = Number(rowsOf(countResult)[0]?.cnt ?? 0);
 
       return { data, total, page: input.page, pageSize: input.pageSize };
     }),
@@ -924,9 +933,10 @@ export const pddiktiRouter = {
         ) sub
       `;
 
-      const [rows, countResult] = await Promise.all([db.execute(query), db.execute(countSql)]);
+      const [rowsResult, countResult] = await Promise.all([db.execute(query), db.execute(countSql)]);
+      const rows = rowsOf(rowsResult);
 
-      const data = (rows.rows ?? []).map((r: any) => ({
+      const data = rows.map((r: any) => ({
         name: r.name,
         level: r.level,
         uniCount: Number(r.uni_count),
@@ -941,7 +951,7 @@ export const pddiktiRouter = {
           .replace(/^-|-$/g, "")}-${(r.name as string).length}`,
       }));
 
-      const total = Number((countResult.rows?.[0] as any)?.cnt ?? 0);
+      const total = Number(rowsOf(countResult)[0]?.cnt ?? 0);
       return { data, total, page: input.page, pageSize: input.pageSize };
     }),
 
