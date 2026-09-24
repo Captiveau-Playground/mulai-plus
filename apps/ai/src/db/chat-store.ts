@@ -108,3 +108,17 @@ export async function countMessages(c: AppContext, sessionId: string): Promise<n
   ]);
   return Number(r?.n ?? 0);
 }
+
+export async function setFeedback(c: AppContext, messageId: number, feedback: string | null): Promise<void> {
+  await unsafe(c, "UPDATE chatbot_messages SET feedback = $1 WHERE id = $2", [feedback, messageId]);
+}
+
+/** Session terbaru milik user + apakah banned (untuk ban-by-user). */
+export async function isUserBanned(c: AppContext, userId: string): Promise<boolean> {
+  const r = await queryOne<{ banned: boolean }>(
+    c,
+    "SELECT banned FROM chatbot_sessions WHERE user_id = $1 ORDER BY last_active DESC LIMIT 1",
+    [userId],
+  );
+  return r?.banned ?? false;
+}

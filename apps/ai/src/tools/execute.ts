@@ -103,7 +103,7 @@ function push2(conditions: string[], params: unknown[], cond: string, ...vals: u
   params.push(...vals);
 }
 
-function findPrograms(programName: string, universityName: string | undefined): BuiltQuery {
+export function findPrograms(programName: string, universityName: string | undefined): BuiltQuery {
   const conditions: string[] = [];
   const params: unknown[] = [];
   let n = 1;
@@ -124,7 +124,7 @@ function findPrograms(programName: string, universityName: string | undefined): 
   };
 }
 
-function passingGradeSql(): string {
+export function passingGradeSql(): string {
   return `
     SELECT 'SNBP' as jalur, year, capacity, applicants, accepted,
            ROUND(accepted::numeric / NULLIF(applicants, 0) * 100, 2) as passing_grade
