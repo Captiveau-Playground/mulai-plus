@@ -20,6 +20,12 @@ CREATE INDEX IF NOT EXISTS idx_universities_short_name_trgm
 CREATE INDEX IF NOT EXISTS idx_study_programs_name_trgm
   ON study_programs USING gin (name gin_trgm_ops) WHERE status = 'Aktif';
 
+-- Listing/explore (ORDER BY name LIMIT tanpa ILIKE) — hilangkan seq scan+sort
+CREATE INDEX IF NOT EXISTS idx_study_programs_name_btree
+  ON study_programs (name) WHERE status = 'Aktif';
+CREATE INDEX IF NOT EXISTS idx_universities_name_btree
+  ON universities (name) WHERE status = 'Aktif';
+
 -- Pencarian passing grade via pemetaan PDDikti (program name)
 CREATE INDEX IF NOT EXISTS idx_program_mappings_pddikti_trgm
   ON program_mappings USING gin (pddikti_program_name gin_trgm_ops);
@@ -35,6 +41,14 @@ CREATE INDEX IF NOT EXISTS idx_universities_province_trgm
 -- Chat: history & quota per session (id DESC dalam satu session)
 CREATE INDEX IF NOT EXISTS idx_chatbot_messages_session_created
   ON chatbot_messages (session_id, id DESC);
+
+-- audit_log (60MB, tanpa index → 955 seq scan baca 13jt baris)
+CREATE INDEX IF NOT EXISTS idx_audit_log_user
+  ON audit_log (user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_resource
+  ON audit_log (resource, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created
+  ON audit_log (created_at DESC);
 
 -- Refresh statistik planner
 ANALYZE;

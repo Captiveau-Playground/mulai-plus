@@ -55,7 +55,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "bun run scripts/seed-roles.ts",
     "db:seed:tmb": "bun run scripts/seed-tmb.ts",
-    "optimize:io": "bun run src/optimize-io.ts"
+    "optimize:io": "bun run src/optimize-io.ts",
+    "prune:io": "bun run src/prune-io.ts"
   },
   "devDependencies": {
     "@mulai-plus/config": "workspace:*",
