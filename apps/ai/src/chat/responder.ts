@@ -1,18 +1,17 @@
 /**
- * Responder — port apps/ai-python/src/engine/responder.py (dengan tool loop).
+ * Responder — agent pipeline (modular).
  *
  * Alur:
  *   1. messages = system + history + user
- *   2. call LLM dengan tools (search_universities, search_programs, get_passing_grade)
- *   3. jika model minta tool_calls → eksekusi → append hasil → call lagi (tanpa tools)
- *   4. bersihkan blok reasoning → reply + follow-up topics + token usage
- *
- * Striem: provider gagal → retry sekali TANPA tools (graceful), lalu fallback reply.
+ *   2. LLM melihat TOOL dari registry (agent/sources) — SQL sekarang, RAG nanti
+ *   3. tool_calls → dispatchTool (registry) → hasil → call lagi (jawaban akhir)
+ *   4. bersihkan reasoning, ambil topics, hitung token
+ *   5. provider gagal → retry tanpa tools → fallback reply (guardrail)
  */
+
+import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
 import type { AppContext } from "../config";
 import { type LlmMessage, llmChatJson, llmFailureShortCircuit, llmRecordOutcome } from "../llm/client";
-import { TOOL_DEFINITIONS } from "../tools/definitions";
-import { handleToolCall } from "../tools/execute";
 import { extractTopics, FALLBACK_REPLIES, SYSTEM_PROMPT } from "./prompt";
 
 const THINK_RE = /\s*thinking[\s\S]*?response\s*/;
@@ -27,6 +26,8 @@ export interface ChatResult {
   promptTokens: number;
   completionTokens: number;
   cost: number;
+  toolsUsed: string[];
+  chatDebug?: string;
 }
 
 const COST_INPUT_PER_1M = 0.14;
@@ -38,21 +39,20 @@ type HistoryItem = { role: string; content: string };
 
 export async function generateChatReply(
   c: AppContext,
-  message: string,
-  history: HistoryItem[] = [],
+  opts: { message: string; history?: HistoryItem[]; sessionId: string; userId: string | null },
 ): Promise<ChatResult> {
+  const { message, history, sessionId, userId } = opts;
   const pickFallback = (): [string, string[]] =>
     FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)] ?? FALLBACK;
 
-  // Short-circuit provider (fallback instan, tanpa nunggu timeout).
-  if (llmFailureShortCircuit()) {
+  const debug = c.env.OPENAI_DEBUG === "1";
+  if (!debug && llmFailureShortCircuit()) {
     const [reply, suggested] = pickFallback();
-    return { reply, suggested, promptTokens: 0, completionTokens: 0, cost: 0 };
+    return { reply, suggested, promptTokens: 0, completionTokens: 0, cost: 0, toolsUsed: [] };
   }
 
-  // Sanitasi history: hanya {role, content} string.
   const cleanHistory: LlmMessage[] = (history ?? [])
-    .filter((h) => h && (h.role === "user" || h.role === "assistant") && typeof h.content === "string")
+    .filter((h) => (h.role === "user" || h.role === "assistant") && typeof h.content === "string")
     .slice(-6)
     .map((h) => ({ role: h.role as LlmMessage["role"], content: h.content }));
 
@@ -62,14 +62,13 @@ export async function generateChatReply(
     { role: "user", content: message },
   ];
 
+  const ctx: AgentContext = { c, sessionId, userId };
+  const toolsUsed: string[] = [];
   let promptTokens = 0;
   let completionTokens = 0;
 
   try {
-    // Call #1 dengan tools
-    let resp = await llmChatJson(c, messages, {
-      tools: TOOL_DEFINITIONS as never,
-    });
+    let resp = await llmChatJson(c, messages, { tools: toolDefinitions() });
     if (resp.status !== 200) {
       llmRecordOutcome(false);
       throw new Error(`LLM HTTP ${resp.status}`);
@@ -81,7 +80,6 @@ export async function generateChatReply(
     const msg = resp.data?.choices?.[0]?.message;
     let content = msg?.content ?? "";
 
-    // Tool loop
     if (msg?.tool_calls?.length) {
       messages.push({
         role: "assistant",
@@ -100,13 +98,11 @@ export async function generateChatReply(
         } catch {
           /* args kosong */
         }
-        console.log(`[tools] ${tc.function.name}(${JSON.stringify(args)})`);
-        const result = await handleToolCall(c, tc.function.name, args);
-        console.log(`[tools] result: ${result.slice(0, 120)}...`);
+        toolsUsed.push(tc.function.name);
+        const result = await dispatchTool(ctx, tc.function.name, args);
         messages.push({ role: "tool", tool_call_id: tc.id, content: result });
       }
 
-      // Call #2 tanpa tools (jawaban akhir setelah hasil tool)
       resp = await llmChatJson(c, messages);
       if (resp.status !== 200) throw new Error(`LLM HTTP ${resp.status}`);
       promptTokens += resp.data?.usage?.prompt_tokens ?? 0;
@@ -120,16 +116,13 @@ export async function generateChatReply(
       suggested: extractTopics(reply),
       promptTokens,
       completionTokens,
-      cost: calcCost(promptTokens, completionTokens),
+      cost: (promptTokens / 1_000_000) * COST_INPUT_PER_1M + (completionTokens / 1_000_000) * COST_OUTPUT_PER_1M,
+      toolsUsed,
     };
   } catch (err) {
     llmRecordOutcome(false);
     console.error("[chat] LLM error:", (err as Error).message);
     const [reply, suggested] = pickFallback();
-    return { reply, suggested, promptTokens, completionTokens, cost: calcCost(promptTokens, completionTokens) };
+    return { reply, suggested, promptTokens, completionTokens, cost: 0, toolsUsed, chatDebug: (err as Error).message };
   }
-}
-
-export function calcCost(prompt: number, completion: number): number {
-  return (prompt / 1_000_000) * COST_INPUT_PER_1M + (completion / 1_000_000) * COST_OUTPUT_PER_1M;
 }

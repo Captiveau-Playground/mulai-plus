@@ -18,6 +18,7 @@ export type Env = {
   AI_API_KEY?: string;
   CORS_ORIGIN?: string;
   CF_ACCOUNT_ID?: string;
+  OPENAI_DEBUG?: string;
   /** Hyperdrive binding (Worker) — koneksi Postgres aman & ter-pool. */
   HYPERDRIVE?: { connectionString: string };
   /** Fallback koneksi untuk dev lokal (tanpa Hyperdrive). */

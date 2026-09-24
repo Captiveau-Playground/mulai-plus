@@ -15,8 +15,15 @@
  *  - [ ] (fase lanjut) RAG Vectorize, Durable Object "student agent"
  */
 import { Hono } from "hono";
+import { adminRoute } from "./admin/routes";
+import { initRag } from "./agent/sources/rag";
+import { registerSqlSources } from "./agent/sources/sql-tools";
 import { chatRoute } from "./chat/route";
 import { aiApiKey, type Env } from "./config";
+
+// Daftarkan source agent sekali per isolate (SQL sekarang, RAG menyusul).
+registerSqlSources();
+initRag(undefined);
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -36,5 +43,6 @@ app.use("/api/*", async (c, next) => {
 });
 
 app.route("/api", chatRoute);
+app.route("/api/admin", adminRoute);
 
 export default app;
