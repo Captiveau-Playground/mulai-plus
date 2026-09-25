@@ -7,6 +7,13 @@ import type { GooeyToastOptions } from "goey-toast";
  */
 import { gooeyToast } from "goey-toast";
 
+const BRAND_COLORS = {
+  success: { fillColor: "#0D9488", borderColor: "#0F766E" },
+  error: { fillColor: "#F93447", borderColor: "#E11D48" },
+  warning: { fillColor: "#FE9114", borderColor: "#EA580C" },
+  info: { fillColor: "#1A1F6D", borderColor: "#312E81" },
+} as const;
+
 export type NotifyOpts = Partial<
   Pick<
     GooeyToastOptions,
@@ -29,16 +36,16 @@ export type NotifyOpts = Partial<
 
 export const notify = {
   success(title: string, opts?: NotifyOpts) {
-    gooeyToast.success(`🎉 ${title}`, opts);
+    gooeyToast.success(`🎉 ${title}`, { ...BRAND_COLORS.success, ...opts });
   },
   error(title: string, opts?: NotifyOpts) {
-    gooeyToast.error(`🙈 ${title}`, opts);
+    gooeyToast.error(`🙈 ${title}`, { ...BRAND_COLORS.error, ...opts });
   },
   info(title: string, opts?: NotifyOpts) {
-    gooeyToast.info(`🤖 ${title}`, opts);
+    gooeyToast.info(`🤖 ${title}`, { ...BRAND_COLORS.info, ...opts });
   },
   warn(title: string, opts?: NotifyOpts) {
-    gooeyToast.warning(`⚠️ ${title}`, opts);
+    gooeyToast.warning(`⚠️ ${title}`, { ...BRAND_COLORS.warning, ...opts });
   },
   toast(title: string, opts?: NotifyOpts) {
     gooeyToast(title, opts);
