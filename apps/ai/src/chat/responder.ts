@@ -11,6 +11,7 @@
 
 import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
 import type { AppContext } from "../config";
+import { kvMark, kvShortCircuit } from "../llm/circuit-kv";
 import { type LlmMessage, llmChatJson, llmFailureShortCircuit, llmRecordOutcome } from "../llm/client";
 import { extractTopics, FALLBACK_REPLIES, SYSTEM_PROMPT } from "./prompt";
 
@@ -46,7 +47,7 @@ export async function generateChatReply(
     FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)] ?? FALLBACK;
 
   const debug = c.env.OPENAI_DEBUG === "1";
-  if (!debug && llmFailureShortCircuit()) {
+  if (!debug && ((await kvShortCircuit(c)) ?? llmFailureShortCircuit())) {
     const [reply, suggested] = pickFallback();
     return { reply, suggested, promptTokens: 0, completionTokens: 0, cost: 0, toolsUsed: [] };
   }
@@ -71,9 +72,11 @@ export async function generateChatReply(
     let resp = await llmChatJson(c, messages, { tools: toolDefinitions() });
     if (resp.status !== 200) {
       llmRecordOutcome(false);
+      await kvMark(c, false);
       throw new Error(`LLM HTTP ${resp.status}`);
     }
     llmRecordOutcome(true);
+    await kvMark(c, true);
     promptTokens += resp.data?.usage?.prompt_tokens ?? 0;
     completionTokens += resp.data?.usage?.completion_tokens ?? 0;
 
@@ -121,6 +124,7 @@ export async function generateChatReply(
     };
   } catch (err) {
     llmRecordOutcome(false);
+    void kvMark(c, false);
     console.error("[chat] LLM error:", (err as Error).message);
     const [reply, suggested] = pickFallback();
     return { reply, suggested, promptTokens, completionTokens, cost: 0, toolsUsed, chatDebug: (err as Error).message };
