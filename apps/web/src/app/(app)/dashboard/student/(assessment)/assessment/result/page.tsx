@@ -5,10 +5,11 @@ import { motion } from "framer-motion";
 import { ArrowUpRight, Download, Loader2, Map as MapIcon, RotateCcw, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FutureCareerMap } from "@/components/front/future-career-map";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
+import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { buildResultMindMap } from "@/lib/future-career";
 import { generateTmbReportPdf } from "@/lib/tmb-report-pdf";
@@ -39,6 +40,10 @@ const LEVEL_COLOR: Record<string, string> = {
 };
 
 export default function TmbResultPage() {
+  useEffect(() => {
+    trackEvent("assessment_result_viewed");
+  }, []);
+
   const queryClient = useQueryClient();
   const [downloading, setDownloading] = useState(false);
   const { data: session } = authClient.useSession();

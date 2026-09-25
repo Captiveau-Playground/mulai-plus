@@ -20,6 +20,7 @@ import { initRag } from "./agent/sources/rag";
 import { registerSqlSources } from "./agent/sources/sql-tools";
 import { chatRoute } from "./chat/route";
 import { aiApiKey, type Env } from "./config";
+import { RateLimitDO } from "./do/rate-limit";
 
 // Daftarkan source agent sekali per isolate (SQL sekarang, RAG menyusul).
 registerSqlSources();
@@ -45,4 +46,5 @@ app.use("/api/*", async (c, next) => {
 app.route("/api", chatRoute);
 app.route("/api/admin", adminRoute);
 
+export { RateLimitDO };
 export default app;

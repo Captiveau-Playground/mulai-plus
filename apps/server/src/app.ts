@@ -13,6 +13,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { rateLimiter } from "hono-rate-limiter";
+import { kvRpcCache } from "./kv-cache";
 
 export type CreateAppOptions = {
   /**
@@ -227,6 +228,8 @@ export function createApp(options: CreateAppOptions) {
       return c.json(data, resp.status as Parameters<typeof c.json>[1]);
     });
   }
+
+  app.use("/rpc/*", (c, next) => kvRpcCache(c as any, next));
 
   app.use("/*", async (c, next) => {
     const context = await createContext({ context: c, auth: authInstance });

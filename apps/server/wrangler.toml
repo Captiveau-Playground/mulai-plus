@@ -36,6 +36,10 @@ pattern = "api.staging.mulaiplus.id"
 zone_name = "mulaiplus.id"
 custom_domain = true
 
+[[env.staging.kv_namespaces]]
+binding = "KV_CACHE"
+id = "48ee59ca404b46cebd7c8aa47eda6e1b"
+
 # Non-secret vars (must satisfy @mulai-plus/env/server validation)
 [env.staging.vars]
 NODE_ENV = "production"            # zod enum requires dev|production|test
@@ -71,13 +75,17 @@ pattern = "api.mulaiplus.id"
 zone_name = "mulaiplus.id"
 custom_domain = true
 
+[[env.production.kv_namespaces]]
+binding = "KV_CACHE"
+id = "48ee59ca404b46cebd7c8aa47eda6e1b"
+
 [env.production.vars]
 NODE_ENV = "production"
 PORT = "3000"
 APP_URL = "https://mulaiplus.id"
 BETTER_AUTH_URL = "https://api.mulaiplus.id"
 CORS_ORIGIN = "https://mulaiplus.id"
-AI_SERVICE_URL = "https://ai-internal.mulaiplus.id"
+AI_SERVICE_URL = "https://ai.mulaiplus.id"  # TS AI worker (custom domain); rollback: ai-internal.mulaiplus.id
 COOKIE_DOMAIN = ".mulaiplus.id"
 DATABASE_URL = "hyperdrive://production-placeholder-not-used"
 # R2 (production bucket)

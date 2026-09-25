@@ -13,6 +13,28 @@ declare global {
 
 type EventParams = Record<string, string | number | boolean | undefined>;
 
+const CONSENT_KEY = "mulaiplus_ga_consent";
+
+/** Consent aktif? (client-only). Amplitude/event ketat ga boleh jalan tanpa ini. */
+export function isConsented(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(CONSENT_KEY) === "accepted";
+  } catch {
+    return true; // storage privat → jangan blok UX, tapi GA sudah atur consent mode
+  }
+}
+
+/** Reset izin (UI "Kelola Izin") → banner muncul lagi. */
+export function resetConsent(): void {
+  try {
+    window.localStorage.removeItem(CONSENT_KEY);
+    window.dispatchEvent(new Event("mulaiplus-consent-reset"));
+  } catch {
+    /* noop */
+  }
+}
+
 // ── Amplitude (production only) ──
 const isProd = typeof window !== "undefined" && process.env.NODE_ENV === "production";
 
@@ -31,9 +53,9 @@ export function trackEvent(action: string, params?: EventParams) {
     });
   }
 
-  // Amplitude — independen dari GA (tetap jalan meski GA tidak dikonfigurasi)
-  // Dynamic import: SDK hanya dimuat saat event pertama (hemat ~429KB di jalur awal)
-  if (isProd) {
+  // Amplitude — KETAT consent (tidak ada consent-mode di Amplitude):
+  // hanya jalan setelah user "Terima". Dynamic import: SDK baru dimuat saat itu.
+  if (isProd && isConsented()) {
     import("@amplitude/unified")
       .then((amp) => {
         try {

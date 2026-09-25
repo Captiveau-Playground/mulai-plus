@@ -11,9 +11,23 @@
   "vars": {
     "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
   },
+  "kv_namespaces": [
+    { "binding": "AI_KV", "id": "434d1a4233b84809b26e7ccc31ceb1c3" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "RATE_LIMIT_DO", "class_name": "RateLimitDO" }]
+  },
+  "migrations": [{ "tag": "kvdo-v1", "new_sqlite_classes": ["RateLimitDO"] }],
   "env": {
     "staging": {
       "workers_dev": true,
+      "kv_namespaces": [
+        { "binding": "AI_KV", "id": "434d1a4233b84809b26e7ccc31ceb1c3" }
+      ],
+      "durable_objects": {
+        "bindings": [{ "name": "RATE_LIMIT_DO", "class_name": "RateLimitDO" }]
+      },
+      "migrations": [{ "tag": "kvdo-v1", "new_sqlite_classes": ["RateLimitDO"] }],
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
@@ -34,6 +48,13 @@
     },
     "production": {
       "workers_dev": true,
+      "kv_namespaces": [
+        { "binding": "AI_KV", "id": "434d1a4233b84809b26e7ccc31ceb1c3" }
+      ],
+      "durable_objects": {
+        "bindings": [{ "name": "RATE_LIMIT_DO", "class_name": "RateLimitDO" }]
+      },
+      "migrations": [{ "tag": "kvdo-v1", "new_sqlite_classes": ["RateLimitDO"] }],
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",

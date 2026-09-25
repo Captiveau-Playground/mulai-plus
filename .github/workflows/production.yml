@@ -353,6 +353,40 @@ jobs:
           set_secret RESEND_API_KEY
           set_secret HERMES_API_KEY
 
+      # ---------- AI Worker (TS) — deploy SEBELUM api (URL AI_SERVICE_URL sudah di-flip) ----------
+      - name: Set AI Worker secrets (production)
+        working-directory: apps/ai
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          echo "$AI_API_KEY" | ./node_modules/.bin/wrangler secret put AI_API_KEY --env production
+          echo "$OPENAI_API_KEY" | ./node_modules/.bin/wrangler secret put OPENAI_API_KEY --env production
+
+      - name: Deploy AI Worker (production)
+        working-directory: apps/ai
+        run: ./node_modules/.bin/wrangler deploy --env production
+
+      - name: Smoke test AI — /health + chat (custom domain)
+        run: |
+          set -euo pipefail
+          URL="https://ai.mulaiplus.id"
+          ok=0
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/health" || true)
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            echo "[attempt $i/3] HTTP=$code — retry (DNS custom domain)..."
+            sleep 8
+          done
+          [ "$ok" = "1" ] || { echo "❌ AI /health gagal"; exit 1; }
+          reply=$(curl -s -X POST "$URL/api/chat" -H "Authorization: Bearer ${{ secrets.AI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "x-session-id: ci-prod-smoke-$(date +%s)" \
+            -d '{"message":"halo"}' --max-time 60 || true)
+          echo "$reply" | grep -q "full_reply"
+          echo "✅ mulai-plus-ai-production (Workers) sehat"
+
       - name: Deploy API Worker (production)
         working-directory: apps/server
         run: ./node_modules/.bin/wrangler deploy --env production

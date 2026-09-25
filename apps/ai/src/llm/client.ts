@@ -94,6 +94,10 @@ export async function llmChatJson(c: AppContext, messages: LlmMessage[], opts: {
   } catch {
     data = {};
   }
+  if (status !== 200) {
+    const hint = JSON.stringify(data).slice(0, 300);
+    throw new Error(`LLM HTTP ${status} — ${hint}`);
+  }
   return { status, data };
 }
 

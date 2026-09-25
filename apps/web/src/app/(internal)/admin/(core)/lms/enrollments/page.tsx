@@ -45,12 +45,18 @@ export default function EnrollmentsPage() {
   const { data: users } = useQuery({
     queryKey: ["admin-users-list"],
     queryFn: async () => {
-      const res = await authClient.admin.listUsers({
-        query: {
-          limit: 100,
-        },
-      });
-      return res.data?.users || [];
+      // better-auth caps limit per panggilan (100) — loop offset supaya SEMUA user kebawa.
+      const out: any[] = [];
+      let offset = 0;
+      for (;;) {
+        const res = await authClient.admin.listUsers({ query: { limit: 100, offset } });
+        const list = res.data?.users || [];
+        out.push(...list);
+        const total = res.data?.total ?? 0;
+        if (list.length < 100 || (total && out.length >= total)) break;
+        offset += 100;
+      }
+      return out;
     },
   });
 
