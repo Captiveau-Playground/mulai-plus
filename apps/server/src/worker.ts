@@ -3,7 +3,7 @@ import { db } from "@mulai-plus/db/db";
 import { dbStorage } from "@mulai-plus/db/provider";
 import { createWorkerDb, type WorkerDb } from "@mulai-plus/db/worker";
 import { createApp } from "./app";
-import { runAutoPublish } from "./cron-core";
+import { runAiHealthCheck, runAutoPublish } from "./cron-core";
 
 /**
  * Cloudflare Workers runtime entry.
@@ -29,8 +29,9 @@ import { runAutoPublish } from "./cron-core";
 
 export interface Env {
   HYPERDRIVE: { connectionString: string };
-  /** Binding KV cache (Project 1) — opsional; VPS tidak punya. */
   KV_CACHE?: unknown;
+  AI_SERVICE?: { fetch(input: string | URL, init?: RequestInit): Promise<Response> };
+  AI_SERVICE_URL?: string;
 }
 
 let cached: { app: ReturnType<typeof createApp> } | null = null;
@@ -59,9 +60,15 @@ export default {
     });
   },
   async scheduled(_controller: unknown, env: Env) {
+    // Kesehatan AI TIDAK butuh DB — jalankan duluan & independen (jangan ikut gagal kalau DB bermasalah).
+    await runAiHealthCheck(env as Parameters<typeof runAiHealthCheck>[0]).catch(() => {});
+    // Auto-publish artikel tiap 5 menit (butuh DB).
     return withFreshDb(env, async () => {
-      await getRuntime(); // ensures auth is initialized (uses the fresh db)
-      await runAutoPublish();
+      await getRuntime();
+      const minute = new Date().getUTCMinutes();
+      if (minute % 5 === 0) {
+        await runAutoPublish().catch((e: unknown) => console.error("[cron] autoPublish:", (e as Error).message));
+      }
     });
   },
 };

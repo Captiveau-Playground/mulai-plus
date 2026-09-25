@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
 
 const RAW_BASE = env.NEXT_PUBLIC_SERVER_URL;
 const AI_BASE = typeof RAW_BASE === "string" && RAW_BASE ? RAW_BASE.replace(/\/$/, "") : "";
-const API_CHAT = `${AI_BASE}/ai/chat`;
+const _API_CHAT = `${AI_BASE}/ai/chat`;
+const API_CHAT_STREAM = `${AI_BASE}/ai/chat/stream`;
 const SESSION_KEY = "chatbot_session_id";
 const HISTORY_LIMIT = 20;
 const META_TIMEOUT = 8_000; // history/quota timeout
@@ -194,7 +195,7 @@ export function ChatbotWidget() {
 
       try {
         const res = await fetchWithTimeout(
-          API_CHAT,
+          API_CHAT_STREAM,
           {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-session-id": getSessionId() },
@@ -205,8 +206,18 @@ export function ChatbotWidget() {
           SEND_TIMEOUT,
         );
         if (!res.ok) {
-          console.error("[chatbot] gagal:", res.status, API_CHAT);
-          throw new Error(`API error ${res.status} · ${API_CHAT}`);
+          console.error("[chatbot] gagal:", res.status, API_CHAT_STREAM);
+          const b = await res.json().catch(() => null);
+          if ((res.status === 403 || res.status === 429 || res.status === 503) && b?.reply) {
+            toast.error(b.reply);
+            if (b.requires_auth) {
+              setRequiresAuth(true);
+              setRedirectUrl(b.redirect_url ?? "");
+            }
+            if (typeof b.remaining === "number") setRemaining(b.remaining);
+            return;
+          }
+          throw new Error(`API error ${res.status} · ${API_CHAT_STREAM}`);
         }
 
         const ct = res.headers.get("content-type") ?? "";
@@ -250,6 +261,7 @@ export function ChatbotWidget() {
               if (!line.startsWith("data: ")) continue;
               try {
                 const d: any = JSON.parse(line.slice(6));
+                if (d.type === "text-delta") reply += d.delta ?? "";
                 if (d.full_reply) reply = d.full_reply;
                 if (d.message_id) dbId = String(d.message_id);
                 if (Array.isArray(d.suggested_questions) && d.suggested_questions.length > 0) {

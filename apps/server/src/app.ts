@@ -136,6 +136,18 @@ export function createApp(options: CreateAppOptions) {
       return fetchWithTimeout(target, init, ms);
     };
 
+    // /ai/status → status terakhir dari uptime-checker (KV_CACHE), untuk monitor/alert
+    app.get("/ai/status", async (c: any) => {
+      const kv = (c.env as { KV_CACHE?: { get(key: string, t: string): Promise<unknown> } }).KV_CACHE;
+      if (!kv) return c.json({ enabled: false });
+      try {
+        const last = (await kv.get("ai:status:last", "json")) ?? null;
+        return c.json({ enabled: true, last });
+      } catch {
+        return c.json({ enabled: true, last: null });
+      }
+    });
+
     // /ai/health → status AI worker via binding (aman, tanpa LLM)
     app.get("/ai/health", async (c: any) => {
       // Absolute URL — konsisten dgn /ai/chat (binding mengikutsertakan target internal)

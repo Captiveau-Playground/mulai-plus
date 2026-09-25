@@ -16,7 +16,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # Auto-publish scheduled articles (same 5-minute cadence as the Bun setInterval)
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/1 * * * *"]
 
 # ──────────────────────────── STAGING ────────────────────────────
 # DUAL-DOMAIN: Workers live on api-staging-workers.mulaiplus.id while the
