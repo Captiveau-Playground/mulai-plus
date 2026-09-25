@@ -14,7 +14,7 @@ import {
   X,
   ZapIcon,
 } from "lucide-react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import {
@@ -46,6 +46,7 @@ import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { Task, TaskContent, TaskTrigger } from "@/components/ai-elements/task";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "@/components/ui/loader-circle";
+import { authClient } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
 import type { UserContext } from "./types";
 
@@ -91,10 +92,12 @@ function fmtTime(iso: string | null): string {
 /** Peta satu sesi percakapan (remount per sesi → riwayat termuat + bisa lanjut). */
 function ChatRuntime({
   sessionId,
+  userId,
   initialMessages,
   onChanged,
 }: {
   sessionId: string;
+  userId: string | null;
   initialMessages: any[];
   onChanged: () => void;
 }) {
@@ -106,6 +109,8 @@ function ChatRuntime({
   modelRef.current = model;
   const sessionRef = useRef(sessionId);
   sessionRef.current = sessionId;
+  const uidRef = useRef(userId);
+  uidRef.current = userId;
   const chatRef = useRef<any>(null);
   const changedRef = useRef(onChanged);
   changedRef.current = onChanged;
@@ -113,7 +118,11 @@ function ChatRuntime({
   const chat = useChat({
     transport: new DefaultChatTransport({
       api: `${AI_BASE}/ai/chat/stream`,
-      headers: () => ({ [SESSION_HEADER]: sessionRef.current }),
+      headers: () => {
+        const h: Record<string, string> = { [SESSION_HEADER]: sessionRef.current };
+        if (uidRef.current) h["x-user-id"] = uidRef.current;
+        return h;
+      },
     }),
     messages: initialMessages,
     onError: (err: unknown) => {
@@ -127,11 +136,13 @@ function ChatRuntime({
   const busy = status === "submitted" || status === "streaming";
 
   useEffect(() => {
-    void fetch(`${AI_BASE}/ai/context`, { headers: { [SESSION_HEADER]: sessionId } })
+    void fetch(`${AI_BASE}/ai/context`, {
+      headers: { [SESSION_HEADER]: sessionId, ...(userId ? { "x-user-id": userId } : {}) },
+    })
       .then((r) => r.json())
       .then((d) => setCtx((d as any).profile ?? null))
       .catch(() => setCtx(null));
-  }, [sessionId]);
+  }, [sessionId, userId]);
 
   // Saat selesai streaming → refresh list (judul/update_at dari pesan pertama).
   const lastStatus = useRef(status);
@@ -164,7 +175,11 @@ function ChatRuntime({
     try {
       await fetch(`${AI_BASE}/ai/sessions/truncate`, {
         method: "POST",
-        headers: { [SESSION_HEADER]: sessionId, "Content-Type": "application/json" },
+        headers: {
+          [SESSION_HEADER]: sessionId,
+          "Content-Type": "application/json",
+          ...(uidRef.current ? { "x-user-id": uidRef.current } : {}),
+        },
         body: JSON.stringify({ session_id: sessionId, keep: keepIndex }),
       });
     } catch {
@@ -217,7 +232,7 @@ function ChatRuntime({
                 </Checkpoint>
               )}
               <Message from={m.role === "user" ? "user" : "assistant"}>
-                <MessageContent className={m.role === "user" ? "!bg-brand-navy !text-white" : "!max-w-none w-full"}>
+                <MessageContent className={m.role === "user" ? "bg-brand-navy! text-white!" : "w-full max-w-none!"}>
                   {m.role === "user" ? (
                     <span>
                       {(m as any).content ??
@@ -362,6 +377,8 @@ function ChatRuntime({
 }
 
 export default function AssistantPage() {
+  const { data: authSession } = authClient.useSession();
+  const userId = (authSession?.user?.id as string | undefined) ?? null;
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [activeId, setActiveId] = useState<string>(() => `s-${crypto.randomUUID().slice(0, 12)}`);
   const [history, setHistory] = useState<any[]>([]);
@@ -369,16 +386,19 @@ export default function AssistantPage() {
   const [showSidebar, setShowSidebar] = useState(true);
   const _loaded = useRef<string | null>(null);
 
-  const refreshSessions = async () => {
+  const refreshSessions = useCallback(async () => {
     try {
-      const r = await fetch(`${AI_BASE}/ai/sessions`, { cache: "no-store" });
+      const r = await fetch(`${AI_BASE}/ai/sessions`, {
+        cache: "no-store",
+        headers: userId ? { "x-user-id": userId } : {},
+      });
       if (!r.ok) return;
       const d = (await r.json()) as { sessions: SessionItem[] };
       setSessions(d.sessions ?? []);
     } catch {
       /* nonblokir */
     }
-  };
+  }, [userId]);
 
   /** Muat riwayat sesi lalu swap ke ChatRuntime baru (resume). */
   const openSession = async (id: string) => {
@@ -427,6 +447,10 @@ export default function AssistantPage() {
     setReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (userId) void refreshSessions();
+  }, [userId, refreshSessions]);
 
   const active = sessions.find((s) => s.id === activeId);
 
@@ -489,7 +513,10 @@ export default function AssistantPage() {
                       e.stopPropagation();
                       if (!window.confirm(`Hapus percakapan "${s.title}"?`)) return;
                       try {
-                        await fetch(`${AI_BASE}/ai/sessions/${encodeURIComponent(s.id)}`, { method: "DELETE" });
+                        await fetch(`${AI_BASE}/ai/sessions/${encodeURIComponent(s.id)}`, {
+                          method: "DELETE",
+                          headers: userId ? { "x-user-id": userId } : {},
+                        });
                       } catch {
                         /* noop */
                       }
@@ -543,6 +570,7 @@ export default function AssistantPage() {
             <ChatRuntime
               key={activeId}
               sessionId={activeId}
+              userId={userId}
               initialMessages={history}
               onChanged={() => void refreshSessions()}
             />
