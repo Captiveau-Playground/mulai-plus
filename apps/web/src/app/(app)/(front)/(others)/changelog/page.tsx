@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react";
 import type { Metadata } from "next";
+import { ReleaseNotes } from "@/components/changelog/release-notes";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
@@ -127,8 +128,8 @@ export default async function ChangelogPage() {
                     </span>
                   </div>
 
-                  <div className="mt-4 whitespace-pre-wrap font-manrope text-sm text-text-main/90 leading-relaxed">
-                    {r.body || "—"}
+                  <div className="mt-4">
+                    <ReleaseNotes body={r.body || ""} />
                   </div>
 
                   <a
