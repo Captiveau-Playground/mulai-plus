@@ -66,9 +66,9 @@ streamRoute.post("/chat/stream", async (c) => {
   // Cache hit → text part tunggal (cepat)
   const cached = await exactCacheGet(c, message).catch(() => null);
   if (cached?.answer) {
-    record(c, { sessionId: key, userId, event: "cache_hit" });
-    store.saveMessage(c, key, "user", message).catch(() => {});
-    store.saveMessage(c, key, "assistant", cached.answer).catch(() => {});
+    await record(c, { sessionId: key, userId, event: "cache_hit" });
+    await store.saveMessage(c, key, "user", message).catch(() => {});
+    await store.saveMessage(c, key, "assistant", cached.answer).catch(() => {});
     const id = `msg-${Date.now()}`;
     const enc = new TextEncoder();
     return new Response(
@@ -90,7 +90,7 @@ streamRoute.post("/chat/stream", async (c) => {
   if (!isAuth) {
     const reserved = await store.reserveMessageSlot(c, key, quotaPolicy(false).max).catch(() => 1);
     if (reserved === null) {
-      record(c, { sessionId: key, userId, event: "quota_exhausted" });
+      await record(c, { sessionId: key, userId, event: "quota_exhausted" });
       return c.json({ reply: quotaPolicy(false).exhaustedMessage, remaining: 0, requires_auth: true }, 403);
     }
     void reserved;
@@ -146,10 +146,10 @@ streamRoute.post("/chat/stream", async (c) => {
           result: { text: result },
         });
         messages.push({ role: "tool", tool_call_id: toolCallId, content: result });
-        record(c, { sessionId: key, userId, event: "tool_called", data: { tool: tc.function.name } });
+        await record(c, { sessionId: key, userId, event: "tool_called", data: { tool: tc.function.name } });
       }
       toolParts = buf;
-      record(c, { sessionId: key, userId, event: "reply_ok" });
+      await record(c, { sessionId: key, userId, event: "reply_ok" });
     }
   } catch (err) {
     llmError = "Maaf, layanan sedang sibuk. Coba tanya lagi nanti ya! 🙏";
@@ -205,9 +205,9 @@ streamRoute.post("/chat/stream", async (c) => {
           ct.close();
 
           // persist + cache (after stream)
-          store.saveMessage(c, key, "user", message).catch(() => {});
+          await store.saveMessage(c, key, "user", message).catch(() => {});
           await store.saveMessage(c, key, "assistant", finalText || "…").catch(() => null);
-          if (finalText) exactCachePut(c, message, finalText, extractTopics(finalText), {}).catch(() => {});
+          if (finalText) await exactCachePut(c, message, finalText, extractTopics(finalText), {}).catch(() => {});
         } catch (err) {
           console.error("[chat/stream] stream err:", (err as Error).message);
           ct.enqueue(enc.encode(part({ type: "error", id, error: "stream error" })));
