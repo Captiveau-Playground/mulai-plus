@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 import type { University } from "./universities-table";
 
@@ -63,19 +63,19 @@ export function CreateUniversityDialog({
   const mutation = useMutation({
     mutationFn: (input: any) => api.pddikti.createUniversity(input),
     onSuccess: () => {
-      toast.success("University created");
+      notify.success("University created");
       queryClient.invalidateQueries({ queryKey: ["pddikti"] });
       onSuccess?.();
       onOpenChange(false);
     },
     onError: (err: Error) => {
-      toast.error(`Failed: ${err.message}`);
+      notify.error(`Failed: ${err.message}`);
     },
   });
 
   const handleSubmit = () => {
     if (!form.idSp || !form.name) {
-      toast.error("ID and Name required");
+      notify.error("ID and Name required");
       return;
     }
     mutation.mutate({
@@ -245,13 +245,13 @@ export function EditUniversityDialog({
   const mutation = useMutation({
     mutationFn: (input: any) => api.pddikti.updateUniversity(input),
     onSuccess: () => {
-      toast.success("University updated");
+      notify.success("University updated");
       queryClient.invalidateQueries({ queryKey: ["pddikti"] });
       onSuccess?.();
       onOpenChange(false);
     },
     onError: (err: Error) => {
-      toast.error(`Failed: ${err.message}`);
+      notify.error(`Failed: ${err.message}`);
     },
   });
 

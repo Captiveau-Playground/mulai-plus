@@ -3,18 +3,19 @@
 import { env } from "@mulai-plus/env/web";
 import { Lock, MessageCircle, MessageSquare, RefreshCw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Chat } from "@/components/ui/chat";
 import type { Message } from "@/components/ui/chat-message";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 const RAW_BASE = env.NEXT_PUBLIC_SERVER_URL;
 const AI_BASE = typeof RAW_BASE === "string" && RAW_BASE ? RAW_BASE.replace(/\/$/, "") : "";
-const API_CHAT = `${AI_BASE}/ai/chat`;
+const _API_CHAT = `${AI_BASE}/ai/chat`;
+const API_CHAT_STREAM = `${AI_BASE}/ai/chat/stream`;
 const SESSION_KEY = "chatbot_session_id";
 const HISTORY_LIMIT = 20;
 const META_TIMEOUT = 8_000; // history/quota timeout
-const SEND_TIMEOUT = 45_000; // batas total stream (LLM bisa 30s+)
+const SEND_TIMEOUT = 120_000; // LLM staging kadang lambat (3s–120s) — jangan potong di 45s // batas total stream (LLM bisa 30s+)
 
 const INITIAL_SUGGESTIONS = [
   "Cari universitas negeri di Jawa Timur",
@@ -174,7 +175,7 @@ export function ChatbotWidget() {
       // Auth gate: jangan append user message kalau quota habis — kasih feedback
       if (requiresAuth) {
         setConn("ok");
-        toast.info(
+        notify.info(
           redirectUrl?.includes("wa.me")
             ? "Limit chat habis — klik tombol request via WhatsApp di atas."
             : "Chat gratis habis — login untuk lanjut.",
@@ -194,7 +195,7 @@ export function ChatbotWidget() {
 
       try {
         const res = await fetchWithTimeout(
-          API_CHAT,
+          API_CHAT_STREAM,
           {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-session-id": getSessionId() },
@@ -204,7 +205,20 @@ export function ChatbotWidget() {
           },
           SEND_TIMEOUT,
         );
-        if (!res.ok) throw new Error(`API error ${res.status}`);
+        if (!res.ok) {
+          console.error("[chatbot] gagal:", res.status, API_CHAT_STREAM);
+          const b = await res.json().catch(() => null);
+          if ((res.status === 403 || res.status === 429 || res.status === 503) && b?.reply) {
+            notify.error(b.reply);
+            if (b.requires_auth) {
+              setRequiresAuth(true);
+              setRedirectUrl(b.redirect_url ?? "");
+            }
+            if (typeof b.remaining === "number") setRemaining(b.remaining);
+            return;
+          }
+          throw new Error(`API error ${res.status} · ${API_CHAT_STREAM}`);
+        }
 
         const ct = res.headers.get("content-type") ?? "";
 
@@ -247,6 +261,7 @@ export function ChatbotWidget() {
               if (!line.startsWith("data: ")) continue;
               try {
                 const d: any = JSON.parse(line.slice(6));
+                if (d.type === "text-delta") reply += d.delta ?? "";
                 if (d.full_reply) reply = d.full_reply;
                 if (d.message_id) dbId = String(d.message_id);
                 if (Array.isArray(d.suggested_questions) && d.suggested_questions.length > 0) {

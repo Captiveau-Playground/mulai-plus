@@ -6,7 +6,6 @@ import { BookOpen, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-r
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import {
   AlertDialog,
@@ -42,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { authClient, isAdmin } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const programSchema = z.object({
@@ -74,14 +74,14 @@ export function ProgramList() {
   const createMutation = useMutation(
     orpc.programs.admin.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Program created");
+        notify.success("Program created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -89,14 +89,14 @@ export function ProgramList() {
   const updateMutation = useMutation(
     orpc.programs.admin.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Program updated");
+        notify.success("Program updated");
         setEditingProgram(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -104,13 +104,13 @@ export function ProgramList() {
   const deleteMutation = useMutation(
     orpc.programs.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Program deleted");
+        notify.success("Program deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

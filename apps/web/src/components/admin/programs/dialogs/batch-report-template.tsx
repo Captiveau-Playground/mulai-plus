@@ -3,11 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Save, Trash } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 type TemplateItem = {
@@ -64,7 +64,7 @@ export function BatchReportTemplateDialog({
   const updateMutation = useMutation({
     ...orpc.programs.admin.batchReportTemplate.update.mutationOptions(),
     onSuccess: () => {
-      toast.success("Report template saved!");
+      notify.success("Report template saved!");
       queryClient.invalidateQueries({
         queryKey: orpc.programs.admin.batchReportTemplate.list.key({
           input: { batchId: batch?.id ?? "" },
@@ -72,7 +72,7 @@ export function BatchReportTemplateDialog({
       });
       if (!embedded) handleOpenChange(false);
     },
-    onError: (error) => toast.error(error.message || "Failed to save template"),
+    onError: (error) => notify.error(error.message || "Failed to save template"),
   });
 
   const handleChange = (index: number, value: string) => {
@@ -98,7 +98,7 @@ export function BatchReportTemplateDialog({
     if (!batch) return;
     const validItems = items.filter((i) => i.title.trim());
     if (validItems.length === 0) {
-      toast.error("At least one item with a title is required");
+      notify.error("At least one item with a title is required");
       return;
     }
     updateMutation.mutate({

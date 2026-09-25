@@ -17,7 +17,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,6 +24,8 @@ import { Label } from "@/components/ui/label";
 import { PageState } from "@/components/ui/page-state";
 import { Switch } from "@/components/ui/switch";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 export default function AdminSettingsPage() {
@@ -48,10 +49,10 @@ export default function AdminSettingsPage() {
         queryClient.invalidateQueries({
           queryKey: orpc.settings.get.key({ input: { key: "email_config" } }),
         });
-        toast.success("Settings updated");
+        notify.success("Settings updated");
       },
       onError: (err) => {
-        toast.error(`Failed to update settings: ${err.message}`);
+        notify.error(`Failed to update settings: ${err.message}`);
       },
     }),
   );
@@ -59,10 +60,10 @@ export default function AdminSettingsPage() {
   const sendTestEmail = useMutation(
     orpc.settings.email.sendTest.mutationOptions({
       onSuccess: () => {
-        toast.success("Test email sent");
+        notify.success("Test email sent");
       },
       onError: (err) => {
-        toast.error(`Failed to send email: ${err.message}`);
+        notify.error(`Failed to send email: ${err.message}`);
       },
     }),
   );
@@ -83,19 +84,19 @@ export default function AdminSettingsPage() {
       });
 
       if (response.ok) {
-        toast.success("Server restart initiated. Please wait a moment for changes to take effect.");
+        notify.success("Server restart initiated. Please wait a moment for changes to take effect.");
         // Optional: Refresh page after delay
         setTimeout(() => {
           window.location.reload();
         }, 3000);
       } else {
         const data = await response.json();
-        toast.error(data.message || "Failed to restart server");
+        notify.error(data.message || "Failed to restart server");
         setIsRestarting(false);
       }
     } catch (error) {
       console.error("Restart failed:", error);
-      toast.error("Failed to connect to server");
+      notify.error("Failed to connect to server");
       setIsRestarting(false);
     }
   };
@@ -181,7 +182,7 @@ export default function AdminSettingsPage() {
             </div>
             <Button
               onClick={() => {
-                if (!testEmail) return toast.error("Please enter an email");
+                if (!testEmail) return notify.error("Please enter an email");
                 sendTestEmail.mutate({
                   to: testEmail,
                   subject: testSubject,
@@ -223,7 +224,7 @@ export default function AdminSettingsPage() {
             {/* Success */}
             <Button
               className="!border-emerald-200 !bg-emerald-50 !text-emerald-700 hover:!bg-emerald-100"
-              onClick={() => toast.success("Data saved successfully!")}
+              onClick={() => notify.success("Data saved successfully!")}
             >
               <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
               Success
@@ -232,7 +233,7 @@ export default function AdminSettingsPage() {
             {/* Error */}
             <Button
               className="!border-red-200 !bg-red-50 !text-red-700 hover:!bg-red-100"
-              onClick={() => toast.error("Something went wrong. Please try again.")}
+              onClick={() => notify.error("Something went wrong. Please try again.")}
             >
               <CircleX className="mr-1.5 h-3.5 w-3.5" />
               Error
@@ -241,7 +242,7 @@ export default function AdminSettingsPage() {
             {/* Warning */}
             <Button
               className="!border-orange-200 !bg-orange-50 !text-orange-700 hover:!bg-orange-100"
-              onClick={() => toast.warning("Your session will expire soon.")}
+              onClick={() => notify.warn("Your session will expire soon.")}
             >
               <CircleAlert className="mr-1.5 h-3.5 w-3.5" />
               Warning
@@ -250,7 +251,7 @@ export default function AdminSettingsPage() {
             {/* Info */}
             <Button
               className="!border-indigo-200 !bg-indigo-50 !text-indigo-700 hover:!bg-indigo-100"
-              onClick={() => toast.info("New update available.")}
+              onClick={() => notify.info("New update available.")}
             >
               <Info className="mr-1.5 h-3.5 w-3.5" />
               Info
@@ -272,7 +273,7 @@ export default function AdminSettingsPage() {
             <Button
               variant="ghost"
               onClick={() =>
-                toast.success("Profile updated", {
+                notify.success("Profile updated", {
                   description: "Your changes have been saved successfully.",
                 })
               }

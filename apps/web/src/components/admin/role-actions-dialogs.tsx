@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
 import { PermissionAssigner } from "@/components/admin/permission-assigner";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 interface CreateRoleDialogProps {
@@ -45,7 +45,7 @@ export function CreateRoleDialog({
   const { mutate: createRole, isPending } = useMutation(
     orpc.role.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Role created successfully");
+        notify.success("Role created successfully");
         queryClient.invalidateQueries({ queryKey: orpc.role.list.key() });
         onOpenChange(false);
         setId("");
@@ -54,7 +54,7 @@ export function CreateRoleDialog({
         setPermissions([]);
       },
       onError: (error) => {
-        toast.error(`Failed to create role: ${error.message}`);
+        notify.error(`Failed to create role: ${error.message}`);
       },
     }),
   );
@@ -154,12 +154,12 @@ export function EditRoleDialog({
   const { mutate: updateRole, isPending } = useMutation(
     orpc.role.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Role updated successfully");
+        notify.success("Role updated successfully");
         queryClient.invalidateQueries({ queryKey: orpc.role.list.key() });
         onOpenChange(false);
       },
       onError: (error) => {
-        toast.error(`Failed to update role: ${error.message}`);
+        notify.error(`Failed to update role: ${error.message}`);
       },
     }),
   );
@@ -167,11 +167,11 @@ export function EditRoleDialog({
   const { mutate: autoSaveRole } = useMutation(
     orpc.role.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Permissions saved");
+        notify.success("Permissions saved");
         queryClient.invalidateQueries({ queryKey: orpc.role.list.key() });
       },
       onError: (error) => {
-        toast.error(`Failed to save permissions: ${error.message}`);
+        notify.error(`Failed to save permissions: ${error.message}`);
       },
     }),
   );
@@ -259,12 +259,12 @@ export function DeleteRoleDialog({ role, open, onOpenChange }: DeleteRoleDialogP
   const { mutate: deleteRole, isPending } = useMutation(
     orpc.role.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Role deleted successfully");
+        notify.success("Role deleted successfully");
         queryClient.invalidateQueries({ queryKey: orpc.role.list.key() });
         onOpenChange(false);
       },
       onError: (error) => {
-        toast.error(`Failed to delete role: ${error.message}`);
+        notify.error(`Failed to delete role: ${error.message}`);
       },
     }),
   );

@@ -18,7 +18,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardTitle } from "@/components/ui/card";
@@ -29,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -123,14 +123,16 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
     orpc.programs.apply.mutationOptions({
       onSuccess: () => {
         trackEvent("registration_success", { program_id: programId, batch_name: batch.name });
-        toast.success("Pendaftaran berhasil submitted!");
+        notify.success("Pendaftaran berhasil 🎉", {
+          description: "Kami akan verifikasi & kirim konfirmasi via email.",
+        });
         setIsOpen(false);
         setCurrentStep(1);
         router.push("/dashboard/student/programs");
       },
       onError: (error) => {
         trackEvent("registration_error", { program_id: programId, error_code: error.message });
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

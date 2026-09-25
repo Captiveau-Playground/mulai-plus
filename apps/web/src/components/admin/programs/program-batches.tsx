@@ -7,7 +7,6 @@ import { ArrowRight, Layers, Loader2, MoreHorizontal, Pencil, Plus, Trash, Trian
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import {
   AlertDialog,
@@ -45,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { authClient, isAdmin } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 import { BatchAttachmentsDialog } from "./batch-attachments";
@@ -173,7 +173,7 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
   const createMutation = useMutation(
     orpc.programs.admin.batches.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Batch created");
+        notify.success("Batch created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.batches.list.key({
@@ -182,7 +182,7 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -190,7 +190,7 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
   const updateMutation = useMutation(
     orpc.programs.admin.batches.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Batch updated");
+        notify.success("Batch updated");
         setEditingBatch(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.batches.list.key({
@@ -199,7 +199,7 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -207,7 +207,7 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
   const deleteMutation = useMutation(
     orpc.programs.admin.batches.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Batch deleted");
+        notify.success("Batch deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.batches.list.key({
             input: { programId },
@@ -215,7 +215,7 @@ function ProgramBatchesInner({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

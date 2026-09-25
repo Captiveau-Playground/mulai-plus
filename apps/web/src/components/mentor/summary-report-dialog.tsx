@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Loader2, Save, Send } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -114,23 +114,23 @@ export function SummaryReportDialog({
   const createMutation = useMutation({
     ...orpc.programs.mentorSummaryReports.create.mutationOptions(),
     onSuccess: () => {
-      toast.success("Report saved as draft!");
+      notify.success("Report saved as draft!");
       queryClient.invalidateQueries({ queryKey: ["summaryReport"] });
       refetchReports();
     },
-    onError: (error) => toast.error(error.message || "Failed to save report"),
+    onError: (error) => notify.error(error.message || "Failed to save report"),
   });
 
   const submitMutation = useMutation({
     ...orpc.programs.mentorSummaryReports.submit.mutationOptions(),
     onSuccess: () => {
-      toast.success("Report submitted for review!");
+      notify.success("Report submitted for review!");
       queryClient.invalidateQueries({ queryKey: ["summaryReport"] });
       onOpenChange(false);
     },
     onError: (error) => {
       setSubmitError(error.message || "Failed to submit report");
-      toast.error(error.message || "Failed to submit report");
+      notify.error(error.message || "Failed to submit report");
     },
   });
 
@@ -153,7 +153,7 @@ export function SummaryReportDialog({
     if (!mentee) return;
     const error = validate();
     if (error) {
-      toast.error(error);
+      notify.error(error);
       return;
     }
     createMutation.mutate({
@@ -167,14 +167,14 @@ export function SummaryReportDialog({
     if (!mentee) return;
     const error = validate();
     if (error) {
-      toast.error(error);
+      notify.error(error);
       return;
     }
     if (!attendanceComplete) {
       setSubmitError(
         `Attendance incomplete: ${menteePresentWeeks}/${totalWeeks} weeks completed. All ${totalWeeks} sessions must be attended.`,
       );
-      toast.error("Cannot submit: attendance not complete");
+      notify.error("Cannot submit: attendance not complete");
       return;
     }
     setSubmitError(null);

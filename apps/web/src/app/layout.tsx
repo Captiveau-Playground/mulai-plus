@@ -7,6 +7,7 @@ import "../style/globals-internal.css";
 import { AmplitudeInit } from "@/components/amplitude-init";
 import { ChatbotProvider } from "@/components/chatbot/chatbot-provider";
 import { RedirectHandler } from "@/components/chatbot/redirect-handler";
+import "goey-toast/styles.css";
 import Providers from "@/components/providers";
 import { FeaturesProvider } from "@/lib/features-context";
 import { SITE } from "@/lib/site-config";

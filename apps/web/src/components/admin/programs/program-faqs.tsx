@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HelpCircle, Loader2, MoreHorizontal, Pencil, Plus, Trash, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import {
   AlertDialog,
@@ -39,6 +38,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const faqSchema = z.object({
@@ -69,14 +69,14 @@ export function ProgramFaqs({ programId }: { programId: string }) {
   const createMutation = useMutation(
     orpc.programs.admin.faqs.create.mutationOptions({
       onSuccess: () => {
-        toast.success("FAQ created");
+        notify.success("FAQ created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.faqs.list.key({ input: { programId } }),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -84,14 +84,14 @@ export function ProgramFaqs({ programId }: { programId: string }) {
   const updateMutation = useMutation(
     orpc.programs.admin.faqs.update.mutationOptions({
       onSuccess: () => {
-        toast.success("FAQ updated");
+        notify.success("FAQ updated");
         setEditingFaq(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.faqs.list.key({ input: { programId } }),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -99,13 +99,13 @@ export function ProgramFaqs({ programId }: { programId: string }) {
   const deleteMutation = useMutation(
     orpc.programs.admin.faqs.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("FAQ deleted");
+        notify.success("FAQ deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.faqs.list.key({ input: { programId } }),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

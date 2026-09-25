@@ -3,12 +3,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookText, ChevronDown, Loader2, Plus, Trash } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -37,13 +37,13 @@ export function ProgramSyllabus({
   const updateMutation = useMutation(
     orpc.programs.admin.syllabus.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Syllabus saved");
+        notify.success("Syllabus saved");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.get.key({ input: { id: programId } }),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

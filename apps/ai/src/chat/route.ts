@@ -45,7 +45,7 @@ chatRoute.post("/chat", async (c) => {
   // 1. Guardrail input
   const g = validateMessageInput(message);
   if (!g.ok) {
-    record(c, { sessionId: key, userId, event: "guardrail_blocked", data: { reason: g.reason } });
+    await record(c, { sessionId: key, userId, event: "guardrail_blocked", data: { reason: g.reason } });
     return c.json({ error: `Input ditolak (${g.reason})` }, 400);
   }
 
@@ -53,7 +53,7 @@ chatRoute.post("/chat", async (c) => {
   const session = await store.getOrCreateSession(c, key, userId).catch(() => null);
   const banned = session?.banned || (userId ? await store.isUserBanned(c, userId).catch(() => false) : false);
   if (banned) {
-    record(c, { sessionId: key, userId, event: "guardrail_blocked", data: { reason: "banned" } });
+    await record(c, { sessionId: key, userId, event: "guardrail_blocked", data: { reason: "banned" } });
     return c.json(
       { reply: "Akun ini telah dibatasi. Hubungi admin untuk info lebih lanjut.", remaining: 0, requires_auth: false },
       403,
@@ -67,15 +67,15 @@ chatRoute.post("/chat", async (c) => {
     isAuth ? AUTH_RATE_LIMIT_PER_MIN : GUEST_RATE_LIMIT_PER_MIN,
   );
   if (!rlOk) {
-    record(c, { sessionId: key, userId, event: "rate_limited", data: { is_auth: isAuth } });
+    await record(c, { sessionId: key, userId, event: "rate_limited", data: { is_auth: isAuth } });
     return c.json({ error: "Terlalu banyak permintaan. Coba lagi dalam 1 menit.", rate_limited: true }, 429);
   }
 
   // 4. Cache exact (skip quota, hemat token)
   const cached = await exactCacheGet(c, message).catch(() => null);
   if (cached?.answer) {
-    record(c, { sessionId: key, userId, event: "cache_hit" });
-    store.saveMessage(c, key, "user", message).catch(() => {});
+    await record(c, { sessionId: key, userId, event: "cache_hit" });
+    await store.saveMessage(c, key, "user", message).catch(() => {});
     const m = await store.saveMessage(c, key, "assistant", cached.answer).catch(() => null);
     const used = await store.countMessages(c, key).catch(() => 0);
     return sse({
@@ -93,7 +93,7 @@ chatRoute.post("/chat", async (c) => {
   if (!isAuth) {
     const reserved = await store.reserveMessageSlot(c, key, quotaPolicy(false).max).catch(() => 1);
     if (reserved === null) {
-      record(c, { sessionId: key, userId, event: "quota_exhausted" });
+      await record(c, { sessionId: key, userId, event: "quota_exhausted" });
       return c.json(
         {
           reply: quotaPolicy(false).exhaustedMessage,
@@ -119,7 +119,7 @@ chatRoute.post("/chat", async (c) => {
   });
 
   // 7. Persist + cache + analytics
-  store.saveMessage(c, key, "user", message).catch(() => {});
+  await store.saveMessage(c, key, "user", message).catch(() => {});
   const assistant = await store
     .saveMessage(c, key, "assistant", result.reply, {
       prompt: result.promptTokens,
@@ -135,10 +135,10 @@ chatRoute.post("/chat", async (c) => {
     data: { tools: result.toolsUsed },
   });
   for (const tool of result.toolsUsed) {
-    record(c, { sessionId: key, userId, event: "tool_called", data: { tool } });
+    await record(c, { sessionId: key, userId, event: "tool_called", data: { tool } });
   }
   if (result.reply)
-    exactCachePut(c, message, result.reply, result.suggested, {
+    await exactCachePut(c, message, result.reply, result.suggested, {
       prompt: result.promptTokens,
       completion: result.completionTokens,
     }).catch(() => {});

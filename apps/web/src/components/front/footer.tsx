@@ -5,10 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import { resetConsent } from "@/lib/analytics";
 import { client } from "@/lib/client";
 import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
+import { notify } from "@/lib/toast";
 import { getWebEnv, RELEASE_TAG } from "@/lib/web-env";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -40,6 +40,7 @@ const footerNavLinks = [
     links: [
       { label: "About Us", href: "/#about" },
       { label: "Mentors", href: "/#mentors" },
+      { label: "Pembaruan / Changelog", href: "/changelog" },
       { label: "FAQ", href: "/#faq" },
     ],
   },
@@ -91,10 +92,10 @@ export function Footer() {
       await client.cms.newsletter.subscribe({ email, source: "footer-form" });
       setSubscribed(true);
       setEmail("");
-      toast.success("Berhasil berlangganan newsletter!");
+      notify.create("Berlangganan berhasil", { description: "Ikuti update program & tips universitas." });
       setTimeout(() => setSubscribed(false), 3000);
     } catch (_error) {
-      toast.error("Gagal berlangganan. Coba lagi.");
+      notify.error("Gagal berlangganan 🙈", { description: "Coba lagi sebentar ya." });
     } finally {
       setSubscribing(false);
     }
@@ -272,12 +273,13 @@ export function Footer() {
 
               {/* Release version badge */}
               {RELEASE_TAG && (
-                <span
-                  title={`Release: ${RELEASE_TAG}`}
+                <Link
+                  href={"/changelog" as any}
+                  title={`Release: ${RELEASE_TAG} — lihat changelog`}
                   className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-medium font-mono text-[10px] text-text-lighter-blue/70 tracking-wide transition-colors hover:bg-white/10 hover:text-text-lighter-blue"
                 >
                   {RELEASE_TAG}
-                </span>
+                </Link>
               )}
 
               <span className="hidden text-white/20 lg:inline">|</span>

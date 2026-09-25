@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import { Check, File, Link as LinkIcon, Loader2, Pencil, Plus, Trash, TriangleAlert, Video, X } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import {
   AlertDialog,
@@ -32,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const attachmentSchema = z.object({
@@ -89,7 +89,7 @@ export function BatchAttachmentsDialog({
   const approveMutation = useMutation(
     orpc.programs.admin.attachmentRequests.approve.mutationOptions({
       onSuccess: () => {
-        toast.success("Request approved");
+        notify.success("Request approved");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.attachmentRequests.list.key({
             input: { batchId: batch.id },
@@ -101,28 +101,28 @@ export function BatchAttachmentsDialog({
           }),
         });
       },
-      onError: (err: Error) => toast.error(err.message),
+      onError: (err: Error) => notify.error(err.message),
     }),
   );
 
   const rejectMutation = useMutation(
     orpc.programs.admin.attachmentRequests.reject.mutationOptions({
       onSuccess: () => {
-        toast.success("Request rejected");
+        notify.success("Request rejected");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.attachmentRequests.list.key({
             input: { batchId: batch.id },
           }),
         });
       },
-      onError: (err: Error) => toast.error(err.message),
+      onError: (err: Error) => notify.error(err.message),
     }),
   );
 
   const createMutation = useMutation(
     orpc.programActivities.attachment.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment creation request submitted for approval");
+        notify.success("Attachment creation request submitted for approval");
         setIsFormOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.attachment.list.key({
@@ -130,14 +130,14 @@ export function BatchAttachmentsDialog({
           }),
         });
       },
-      onError: (err: Error) => toast.error(err.message),
+      onError: (err: Error) => notify.error(err.message),
     }),
   );
 
   const updateMutation = useMutation(
     orpc.programActivities.attachment.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment update request submitted for approval");
+        notify.success("Attachment update request submitted for approval");
         setIsFormOpen(false);
         setEditingAttachment(null);
         queryClient.invalidateQueries({
@@ -146,21 +146,21 @@ export function BatchAttachmentsDialog({
           }),
         });
       },
-      onError: (err: Error) => toast.error(err.message),
+      onError: (err: Error) => notify.error(err.message),
     }),
   );
 
   const deleteMutation = useMutation(
     orpc.programActivities.attachment.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment deletion request submitted for approval");
+        notify.success("Attachment deletion request submitted for approval");
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.attachment.list.key({
             input: { batchId: batch.id },
           }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

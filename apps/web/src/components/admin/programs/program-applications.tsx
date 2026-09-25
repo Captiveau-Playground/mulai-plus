@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ClipboardList, Loader2, User, X } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +18,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trackEvent } from "@/lib/analytics";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 import { ProgramApplicationAnswers } from "./program-application-answers";
 
@@ -35,7 +35,7 @@ export function ProgramApplications({ programId }: { programId: string }) {
   const updateStatusMutation = useMutation(
     orpc.programs.admin.applications.updateStatus.mutationOptions({
       onSuccess: () => {
-        toast.success("Status updated");
+        notify.success("Status updated");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.applications.list.key({
             input: { programId },
@@ -43,7 +43,7 @@ export function ProgramApplications({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -51,7 +51,7 @@ export function ProgramApplications({ programId }: { programId: string }) {
   const bulkUpdateMutation = useMutation(
     orpc.programs.admin.applications.bulkUpdateStatus.mutationOptions({
       onSuccess: () => {
-        toast.success("Applications updated");
+        notify.success("Applications updated");
         setSelectedIds([]);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.applications.list.key({
@@ -60,7 +60,7 @@ export function ProgramApplications({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

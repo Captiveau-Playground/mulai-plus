@@ -5,7 +5,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Globe, Loader2, MapPin, Phone, School, User } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { PageState } from "@/components/ui/page-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const profileFormSchema = z.object({
@@ -78,10 +78,12 @@ export default function StudentSettingsPage() {
   async function onSubmit(data: ProfileFormValues) {
     try {
       await updateProfile.mutateAsync(data);
-      toast.success("Profile updated successfully");
+      notify.updateDone("Profil diperbarui", { description: "Perubahan langsung aktif." });
       refetch();
     } catch (error) {
-      toast.error("Failed to update profile");
+      notify.error("Gagal simpan profil", {
+        description: "Periksa koneksi lalu coba lagi.",
+      });
       console.error(error);
     }
   }

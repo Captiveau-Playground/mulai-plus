@@ -6,7 +6,6 @@ import { ArrowLeft, Eye, Loader2, Maximize2, RotateCcw, Save } from "lucide-reac
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/ui/file-upload";
@@ -17,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormDraft } from "@/hooks/use-form-draft";
+import { notify } from "@/lib/toast";
 import { client, orpc } from "@/utils/orpc";
 import { RichTextEditor } from "./rich-text-editor";
 
@@ -98,12 +98,12 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   const createMutation = useMutation(
     orpc.cms.articles.admin.create.mutationOptions({
       onSuccess: ({ id }) => {
-        toast.success("Article created");
+        notify.success("Article created");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
         router.push(`/admin/cms/articles/${id}`);
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -112,11 +112,11 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
   const updateMutation = useMutation(
     orpc.cms.articles.admin.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Article saved");
+        notify.success("Article saved");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -179,7 +179,7 @@ export function ArticleEditor({ articleId, defaultType = "article" }: ArticleEdi
         if (draft.values.tagIds) {
           setSelectedTagIds(draft.values.tagIds as string[]);
         }
-        toast.info("Draft restored", { description: `Last saved ${new Date(draft.savedAt).toLocaleTimeString()}` });
+        notify.info("Draft restored", { description: `Last saved ${new Date(draft.savedAt).toLocaleTimeString()}` });
       }
     }
     // Only run on mount for new articles

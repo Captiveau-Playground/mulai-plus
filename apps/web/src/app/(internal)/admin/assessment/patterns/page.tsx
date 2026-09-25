@@ -5,11 +5,11 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, Pencil, Plus, ScanSearch, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -63,36 +63,36 @@ export default function AdminPatternsPage() {
   const createP = useMutation({
     ...orpc.tmbAdmin.patterns.create.mutationOptions(),
     onSuccess: () => {
-      toast.success("Pola jurusan ditambahkan!");
+      notify.success("Pola jurusan ditambahkan!");
       setShowForm(false);
       setForm(EMPTY);
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal menambah pola"),
+    onError: (e) => notify.error(e.message || "Gagal menambah pola"),
   });
   const updateP = useMutation({
     ...orpc.tmbAdmin.patterns.update.mutationOptions(),
     onSuccess: () => {
-      toast.success("Pola diperbarui!");
+      notify.success("Pola diperbarui!");
       setShowForm(false);
       setEditing(null);
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal memperbarui pola"),
+    onError: (e) => notify.error(e.message || "Gagal memperbarui pola"),
   });
   const deleteP = useMutation({
     ...orpc.tmbAdmin.patterns.delete.mutationOptions(),
     onSuccess: () => {
-      toast.success("Pola dihapus");
+      notify.success("Pola dihapus");
       setConfirmDelete(null);
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal menghapus pola"),
+    onError: (e) => notify.error(e.message || "Gagal menghapus pola"),
   });
   const previewP = useMutation({
     ...orpc.tmbAdmin.patterns.preview.mutationOptions(),
     onSuccess: (d) => setPreview(d as { count: number; examples: { name: string; university: string }[] }),
-    onError: (e) => toast.error(e.message || "Regex tidak valid"),
+    onError: (e) => notify.error(e.message || "Regex tidak valid"),
   });
 
   const openEdit = (p: PatternRow) => {
@@ -110,7 +110,7 @@ export default function AdminPatternsPage() {
 
   const submit = () => {
     if (!form.categoryKey.trim() || !form.categoryName.trim() || !form.pattern.trim()) {
-      toast.error("Lengkapi kategori, nama, dan pola regex");
+      notify.error("Lengkapi kategori, nama, dan pola regex");
       return;
     }
     const payload = {
