@@ -18,9 +18,11 @@ import { z } from "zod";
 import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
 import { record } from "../analytics/events";
 import type { Env } from "../config";
+import { DEFAULT_FAST_MODEL, DEFAULT_MODEL } from "../config";
 import * as store from "../db/chat-store";
 import { ensureAiTables } from "../db/schema-init";
 import { allowRequest } from "../do/access";
+import { dailyStub } from "../do/access-daily";
 import { type LlmMessage, llmChatJson, llmChatStream } from "../llm/client";
 import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
@@ -29,7 +31,23 @@ import { exactCacheGet, exactCachePut } from "./cache";
 import { extractTopics, SYSTEM_PROMPT } from "./prompt";
 
 const streamRoute = new Hono<{ Bindings: Env }>();
-const Body = z.object({ message: z.string().min(1).max(4000), session_id: z.string().optional() });
+const Body = z.object({
+  message: z.string().min(1).max(4000),
+  session_id: z.string().optional(),
+  // Tier model tersamar (dari UI): cepat | seimbang | maksimal
+  model: z.enum(["simple", "smart", "premium"]).optional(),
+});
+const TIER_MODELS: Record<string, string> = {
+  simple: DEFAULT_FAST_MODEL, // glm-4.7-flash
+  smart: DEFAULT_MODEL, // qwen3-30b
+  premium: "@cf/openai/gpt-oss-120b", // gpt-oss-120b
+};
+// Kuota harian per tier (per user): -1 = unlimited. Preview env overridable.
+const TIER_QUOTA: Record<string, number> = {
+  simple: Number(process.env.QUOTA_SIMPLE ?? -1),
+  smart: Number(process.env.QUOTA_SMART ?? -1),
+  premium: Number(process.env.QUOTA_PREMIUM ?? 5),
+};
 const part = (o: Record<string, unknown>) => `data: ${JSON.stringify(o)}\n\n`;
 
 streamRoute.post("/chat/stream", async (c) => {
@@ -40,7 +58,11 @@ streamRoute.post("/chat/stream", async (c) => {
   const userId = c.req.header("x-user-id") ?? null;
   const isAuth = userId !== null;
   const key = c.req.header("x-session-id") || parsed.data.session_id || `anon-${crypto.randomUUID().slice(0, 12)}`;
+  // UI kirim tier via query ?model= (aman lewat transport)
+  const tier = parsed.data.model ?? c.req.query("model") ?? "smart";
   await ensureAiTables(c).catch(() => {});
+
+  const modelOverride = TIER_MODELS[tier] ?? DEFAULT_MODEL;
 
   const g = validateMessageInput(message);
   if (!g.ok) return c.json({ error: `Input ditolak (${g.reason})` }, 400);
@@ -86,6 +108,33 @@ streamRoute.post("/chat/stream", async (c) => {
   }
   record(c, { sessionId: key, userId, event: "cache_miss" });
 
+  // Quota harian per tier model (auth; kala DO tersedia)
+  if (isAuth && userId) {
+    const limit = TIER_QUOTA[tier] ?? -1;
+    if (limit > 0) {
+      const stub = dailyStub(c, `u:${userId}`);
+      let allowed = true;
+      if (stub) {
+        try {
+          allowed = await stub.checkDaily(tier, limit);
+        } catch {
+          allowed = true;
+        }
+      }
+      if (!allowed) {
+        return c.json(
+          {
+            error: `Kuota model "${tier}" hari ini habis (${limit} pesan). Ganti ke model lain ya.`,
+            quota_exhausted: true,
+            model: tier,
+            reply: `Kuota model "${tier}" hari ini habis (${limit} pesan). Ganti ke model lain ya.`,
+          },
+          429,
+        );
+      }
+    }
+  }
+
   // Quota guest
   if (!isAuth) {
     const reserved = await store.reserveMessageSlot(c, key, quotaPolicy(false).max).catch(() => 1);
@@ -113,7 +162,7 @@ streamRoute.post("/chat/stream", async (c) => {
   let toolParts = "";
   let llmError = "";
   try {
-    const resp1 = await llmChatJson(c, messages, { tools: toolDefinitions() });
+    const resp1 = await llmChatJson(c, messages, { tools: toolDefinitions(), model: modelOverride });
     if (resp1.status !== 200) throw new Error(`LLM HTTP ${resp1.status}`);
     const msg = resp1.data?.choices?.[0]?.message;
     if (msg?.tool_calls?.length) {
@@ -167,7 +216,7 @@ streamRoute.post("/chat/stream", async (c) => {
           let finalText = llmError;
           if (!finalText) {
             ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));
-            const body = await llmChatStream(c, messages);
+            const body = await llmChatStream(c, messages, { model: modelOverride });
             const reader = body?.getReader();
             const decoder = new TextDecoder();
             let buf = "";

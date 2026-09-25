@@ -90,7 +90,11 @@ export async function llmChat(
 
 /** Non-streaming helper → parse JSON (dipakai tool loop / final answer). */
 /** Non-streaming helper → parse JSON, dengan FALLBACK CHAIN (primary → fast). */
-export async function llmChatJson(c: AppContext, messages: LlmMessage[], opts: { tools?: ToolDef[] } = {}) {
+export async function llmChatJson(
+  c: AppContext,
+  messages: LlmMessage[],
+  opts: { tools?: ToolDef[]; model?: string } = {},
+) {
   const mode = await fallbackMode(c);
   const requestedModel = mode === "fast" ? fastModel(c) : model(c);
 
@@ -130,7 +134,7 @@ export function usageOf(data: unknown): Usage {
 export async function llmChatStream(
   c: AppContext,
   messages: LlmMessage[],
-  opts: { tools?: ToolDef[] } = {},
+  opts: { tools?: ToolDef[]; model?: string } = {},
 ): Promise<ReadableStream<Uint8Array> | null> {
   const { body } = await llmChat(c, messages, { ...opts, stream: true });
   return body;

@@ -214,15 +214,24 @@ export function createApp(options: CreateAppOptions) {
         headers.Authorization = `Bearer ${env.AI_API_KEY}`;
       }
 
-      // Forward user info for rate limiting
-      try {
-        const session = await authInstance.api.getSession({
-          headers: c.req.raw.headers,
-        });
-        if (session?.user?.id) {
-          headers["x-user-id"] = session.user.id;
-        }
-      } catch {}
+      // Forward user info for rate limiting — prioritas:
+      // 1. server-to-server (Authorization = AI_API_KEY) → percaya x-user-id client
+      // 2. session cookie autentikasi → user.id
+      const saHeader = c.req.header("authorization") || "";
+      const s2s = !!env.AI_API_KEY && saHeader === `Bearer ${env.AI_API_KEY}`;
+      if (s2s) {
+        const clientUid = c.req.header("x-user-id");
+        if (clientUid) headers["x-user-id"] = clientUid;
+      } else {
+        try {
+          const session = await authInstance.api.getSession({
+            headers: c.req.raw.headers,
+          });
+          if (session?.user?.id) {
+            headers["x-user-id"] = session.user.id;
+          }
+        } catch {}
+      }
 
       const sessionId = c.req.header("x-session-id");
       if (sessionId) {
@@ -260,7 +269,7 @@ export function createApp(options: CreateAppOptions) {
           }
         }
         return c.newResponse(resp.body, {
-          status: resp.status,
+          status: resp.status as any,
           headers: {
             ...corsHeaders,
             "Content-Type": "text/event-stream",

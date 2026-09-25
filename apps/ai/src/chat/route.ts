@@ -11,8 +11,12 @@ import type { Env } from "../config";
 import * as store from "../db/chat-store";
 import { unsafe } from "../db/db";
 import { ensureAiTables } from "../db/schema-init";
+import { dailyStub } from "../do/access-daily";
 import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
+
+const TIER_PREMIUM_LIMIT = Number(process.env.QUOTA_PREMIUM ?? 5);
+
 import { AUTH_RATE_LIMIT_PER_MIN, acquireRateLimitSlot, GUEST_RATE_LIMIT_PER_MIN } from "../policies/rate-limit";
 import { exactCacheGet, exactCachePut } from "./cache";
 import { generateChatReply } from "./responder";
@@ -163,16 +167,31 @@ chatRoute.get("/context", async (c) => {
 });
 
 chatRoute.get("/quota", async (c) => {
-  const isAuth = !!c.req.header("x-user-id");
+  const userId = c.req.header("x-user-id") ?? null;
+  const isAuth = userId !== null;
   const key = c.req.header("x-session-id") ?? c.req.query("session_id") ?? "";
   if (!key) return c.json({ error: "missing session" }, 400);
   const used = await store.countMessages(c, key).catch(() => 0);
-  if (isAuth) return c.json({ remaining: null, limit: "unlimited", requires_auth: false });
-  return c.json({
+  const guest = {
     remaining: Math.max(0, quotaPolicy(false).max - used),
     limit: quotaPolicy(false).max,
     requires_auth: !isAuth,
-  });
+  };
+  if (!isAuth) return c.json({ ...guest });
+  // Tier model (auth): simple unlimited; smart unlimited; premium berkuota.
+  const tiers: Record<string, { remaining: number | null; limit: number }> = {
+    simple: { remaining: null, limit: -1 },
+    smart: { remaining: null, limit: -1 },
+    premium: { remaining: null, limit: TIER_PREMIUM_LIMIT },
+  };
+  if (TIER_PREMIUM_LIMIT > 0 && userId) {
+    const stub = dailyStub(c, `u:${userId}`);
+    if (stub) {
+      const usedToday = await stub.peekDaily("premium").catch(() => 0);
+      tiers.premium = { remaining: Math.max(0, TIER_PREMIUM_LIMIT - usedToday), limit: TIER_PREMIUM_LIMIT };
+    }
+  }
+  return c.json({ remaining: null, limit: "unlimited", requires_auth: false, tiers });
 });
 
 chatRoute.get("/history", async (c) => {

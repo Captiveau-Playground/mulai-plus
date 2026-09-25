@@ -193,15 +193,37 @@ export default function AssistantPage() {
           }}
           className="flex items-center gap-2 border-gray-100 border-t p-3"
         >
-          <input
+          <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Tanya asisten…"
-            className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-sm outline-none focus:border-brand-orange/50"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            rows={1}
+            placeholder="Tanyakan apa saja… (Enter kirim, Shift+Enter baris baru)"
+            className="max-h-40 min-h-[46px] flex-1 resize-none rounded-xl border border-gray-200 px-4 py-3 font-manrope text-sm outline-none focus:border-brand-orange/50"
           />
-          <Button type="submit" disabled={busy} className="rounded-xl px-5 font-manrope font-semibold">
-            {busy ? "…" : "Kirim"}
-          </Button>
+          {busy ? (
+            <Button
+              type="button"
+              onClick={() => chat.stop?.()}
+              variant="outline"
+              className="h-[46px] rounded-xl px-4 font-manrope text-sm"
+            >
+              Stop
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={busy || !input.trim()}
+              className="h-[46px] rounded-xl px-6 font-manrope font-semibold"
+            >
+              Kirim ↑
+            </Button>
+          )}
         </form>
       </section>
     </div>
