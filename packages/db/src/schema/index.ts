@@ -8,6 +8,7 @@ export * from "./newsletter";
 export * from "./notification";
 export * from "./pddikti";
 export * from "./programs";
+export * from "./reco";
 export * from "./settings";
 export * from "./testimonials";
 export * from "./tmb";

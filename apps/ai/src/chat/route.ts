@@ -5,6 +5,7 @@
  */
 import { Hono } from "hono";
 import { z } from "zod";
+import { buildUserContext } from "../agent/user-context";
 import { record } from "../analytics/events";
 import type { Env } from "../config";
 import * as store from "../db/chat-store";
@@ -155,6 +156,12 @@ chatRoute.post("/chat", async (c) => {
 });
 
 // ── quota / history / feedback / track ────────────────────────────
+chatRoute.get("/context", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  const ctx = await buildUserContext(c, userId).catch(() => null);
+  return c.json({ profile: ctx, enrolled: !!userId });
+});
+
 chatRoute.get("/quota", async (c) => {
   const isAuth = !!c.req.header("x-user-id");
   const key = c.req.header("x-session-id") ?? c.req.query("session_id") ?? "";

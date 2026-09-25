@@ -391,7 +391,7 @@ jobs:
             echo "[attempt $i/3] HTTP=$code — retry (DNS custom domain)..."
             sleep 8
           done
-          [ "$ok" = "1" ] || { echo "❌ AI /health gagal"; exit 1; }
+          [ "$ok" = "1" ] || { echo "❌ AI /health gagal — pastikan master sudah punya deploy-cf (merge infra) & api-production ter-deploy dengan kode terbaru."; exit 1; }
           reply=$(curl -s -X POST "$URL/ai/chat" -H "Content-Type: application/json" \
             -H "Origin: https://mulaiplus.id" \
             -H "User-Agent: Mozilla/5.0 (CI smoke; like browser)" \
