@@ -1,47 +1,68 @@
 "use client";
 
+import type { GooeyToastOptions } from "goey-toast";
 /**
- * Helper toast "MULAI+" — lucu & keren, ikut desain system.
- * Semua API dari sonner, ditambah emoji & deskripsi opsional + action.
+ * Helper toast "MULAI+" — gooey morphing + emoji + seluruh opsi goy-toast
+ * (description, action, promise, showProgress, preset, callbacks, …).
  */
 import { gooeyToast } from "goey-toast";
 
-const toast = gooeyToast;
-
-type NotifyOpts = {
-  description?: string;
-  actionLabel?: string;
-  onAction?: () => void;
-};
-
-function withOpts(opts: NotifyOpts = {}): Record<string, unknown> {
-  const base: Record<string, unknown> = {};
-  if (opts.description) base.description = opts.description;
-  if (opts.actionLabel && opts.onAction) {
-    base.action = { label: opts.actionLabel, onClick: opts.onAction };
-  }
-  return base;
-}
+export type NotifyOpts = Partial<
+  Pick<
+    GooeyToastOptions,
+    | "description"
+    | "action"
+    | "duration"
+    | "id"
+    | "preset"
+    | "showProgress"
+    | "showTimestamp"
+    | "onDismiss"
+    | "onAutoClose"
+    | "spring"
+    | "bounce"
+    | "fillColor"
+    | "borderColor"
+    | "borderWidth"
+  >
+>;
 
 export const notify = {
   success(title: string, opts?: NotifyOpts) {
-    toast.success(`🎉 ${title}`, withOpts(opts));
+    gooeyToast.success(`🎉 ${title}`, opts);
   },
   error(title: string, opts?: NotifyOpts) {
-    toast.error(`🙈 ${title}`, withOpts(opts));
+    gooeyToast.error(`🙈 ${title}`, opts);
   },
   info(title: string, opts?: NotifyOpts) {
-    toast.info(`🤖 ${title}`, withOpts(opts));
+    gooeyToast.info(`🤖 ${title}`, opts);
   },
   warn(title: string, opts?: NotifyOpts) {
-    toast.warning(`⚠️ ${title}`, withOpts(opts));
+    gooeyToast.warning(`⚠️ ${title}`, opts);
   },
-  /** Promise wrapper — loading dengan ✨ → sukses 🎉 / gagal 🙈 */
-  promise<T>(p: Promise<T>, msgs: { loading: string; success: string; error: string }) {
-    return toast.promise(p, {
+  toast(title: string, opts?: NotifyOpts) {
+    gooeyToast(title, opts);
+  },
+  /** Promise wrapper — loading ✨ → sukses 🎉 / gagal 🙈 + morph */
+  promise<T>(
+    p: Promise<T>,
+    msgs: { loading: string; success: string; error: string },
+    opts?: Pick<NotifyOpts, "description" | "duration">,
+  ) {
+    return gooeyToast.promise(p, {
       loading: `✨ ${msgs.loading}`,
       success: `🎉 ${msgs.success}`,
       error: `🙈 ${msgs.error}`,
+      ...(opts ?? {}),
     });
   },
+  update(id: string | number, opts: Parameters<typeof gooeyToast.update>[1]) {
+    gooeyToast.update(id, opts);
+  },
+  dismiss(idOrFilter?: Parameters<typeof gooeyToast.dismiss>[0]) {
+    gooeyToast.dismiss(idOrFilter);
+  },
 };
+
+/** Kompatibilitas API sonner (67 file lama) — tetap melalui gooeyToast. */
+export { gooeyToast };
