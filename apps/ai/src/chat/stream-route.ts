@@ -2,9 +2,11 @@
  * Trial Phase 1 — streaming dengan protokol AI SDK 5 (parts).
  * Endpoint: POST /api/chat/stream (dipakai useChat di halaman trial /trial/chat)
  *
- * Wire format (SSE, satu object JSON per baris `data:`):
- *   {"type":"tool-call-start","id":...,"toolCallId":...,"toolName":...,"args":{...}}   (jika ada)
- *   {"type":"tool-call-end",   "id":...,"toolCallId":...,"toolName":...,"args":{...},"result":...}
+ * Wire format (SSE, satu object JSON per baris `data:`; protokol UIMessage v4 @ai-sdk/react):
+ *   {"type":"tool-input-start",     "toolCallId":...,"toolName":...}                    (jika ada)
+ *   {"type":"tool-input-delta",     "toolCallId":...,"inputTextDelta":"{...}"}
+ *   {"type":"tool-input-available", "toolCallId":...,"toolName":...,"input":{...}}
+ *   {"type":"tool-output-available","toolCallId":...,"output":...}
  *   {"type":"text-start","id":...}
  *   {"type":"text-delta","id":...,"delta":"..."}
  *   {"type":"text-end","id":...}
@@ -221,16 +223,11 @@ streamRoute.post("/chat/stream", async (c) => {
           /* noop */
         }
         const toolCallId = tc.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
-        buf += part({ type: "tool-call-start", id, toolCallId, toolName: tc.function.name, args });
+        buf += part({ type: "tool-input-start", toolCallId, toolName: tc.function.name });
+        buf += part({ type: "tool-input-delta", toolCallId, inputTextDelta: tc.function.arguments ?? "{}" });
+        buf += part({ type: "tool-input-available", toolCallId, toolName: tc.function.name, input: args });
         const result = await dispatchTool(ctx, tc.function.name, args);
-        buf += part({
-          type: "tool-call-end",
-          id,
-          toolCallId,
-          toolName: tc.function.name,
-          args,
-          result: { text: result },
-        });
+        buf += part({ type: "tool-output-available", toolCallId, output: { text: result } });
         messages.push({ role: "tool", tool_call_id: toolCallId, content: result });
         await record(c, { sessionId: key, userId, event: "tool_called", data: { tool: tc.function.name } });
       }
@@ -270,7 +267,9 @@ streamRoute.post("/chat/stream", async (c) => {
                 if (raw === "[DONE]") continue;
                 try {
                   const j = JSON.parse(raw);
-                  const piece = j?.choices?.[0]?.delta?.content ?? "";
+                  // Workers AI kadang kirim delta.content sebagai ANGKA (protokol quirk)
+                  const rawC = j?.choices?.[0]?.delta?.content;
+                  const piece = rawC == null ? "" : typeof rawC === "string" ? rawC : String(rawC);
                   if (piece) {
                     finalText += piece;
                     ct.enqueue(enc.encode(part({ type: "text-delta", id, delta: piece })));

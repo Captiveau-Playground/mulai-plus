@@ -175,9 +175,10 @@ export default function AssistantPage() {
                     }
                     if (kind === "tool-invocation" || kind === "tool") {
                       const ti = p.toolInvocation ?? p;
-                      const done = (ti.state ?? "call") === "result";
+                      const st = ti.state ?? "call";
+                      const done = st === "result" || st === "output-available";
                       const name = ti.toolName ?? ti.name ?? "tool";
-                      const result = done ? ti.result : undefined;
+                      const result = done ? (ti.output ?? ti.result) : undefined;
                       return (
                         <Task key={i} defaultOpen={false} className="rounded-xl border border-gray-200 bg-white">
                           <TaskTrigger title={`${done ? "✓" : "…"} ${name}`} />
