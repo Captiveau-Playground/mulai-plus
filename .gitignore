@@ -58,5 +58,6 @@ docs/*
 .agents/
 
 scripts
+!apps/ai/scripts/
 .dev.vars
 
