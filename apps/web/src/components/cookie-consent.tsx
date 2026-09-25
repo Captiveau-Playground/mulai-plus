@@ -26,6 +26,9 @@ export function useConsent() {
 
   useEffect(() => {
     setConsent(getStoredConsent());
+    const onReset = () => setConsent("undecided");
+    window.addEventListener("mulaiplus-consent-reset", onReset);
+    return () => window.removeEventListener("mulaiplus-consent-reset", onReset);
   }, []);
 
   const accept = () => {

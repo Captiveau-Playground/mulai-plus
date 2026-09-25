@@ -84,6 +84,31 @@ const sections = [
       "Syarat & Ketentuan ini diatur oleh dan ditafsirkan sesuai dengan hukum Republik Indonesia. Setiap sengketa yang timbul dari ketentuan ini akan diselesaikan melalui musyawarah terlebih dahulu, dan jika tidak tercapai kesepakatan, melalui pengadilan yang berwenang di Indonesia.",
     ],
   },
+
+  {
+    id: "layanan-chatbot-ai",
+    title: "Layanan Chatbot & Rekomendasi AI",
+    content: [
+      "Asisten obrolan (chatbot) dan Hasil Tes Minat/Bakat MULAI+ menggunakan kecerdasan buatan untuk membantu menjawab pertanyaan dan memberikan rekomendasi jurusan, kampus, beasiswa, serta passing grade.",
+      "Rekomendasi bersifat informasional dan tidak menjamin hasil (misal kelulusan SNBP/SNBT). Anda tetap bertanggung jawab memverifikasi informasi resmi (PDDikti/SNPMB/lembaga terkait) sebelum mengambil keputusan.",
+      "Dilarang menyalahgunakan chatbot untuk ujaran kebencian, data pribadi orang lain, konten ilegal, atau mencoba mengeksploitasi sistem.",
+    ],
+  },
+  {
+    id: "privasi-data",
+    title: "Privasi & Data Pribadi",
+    content: [
+      "Penggunaan data pribadi Anda diatur dalam Kebijakan Privasi MULAI+. Dengan menyetujui Ketentuan ini, Anda juga mengakui telah membaca Kebijakan Privasi.",
+    ],
+  },
+  {
+    id: "penggunaan-wajar",
+    title: "Penggunaan Wajar & Kuota",
+    content: [
+      "Pengguna non-registrasi mendapat kuota obrolan gratis yang terbatas; pengguna terdaftar mendapat kuota sesuai ketentuan layanan (termasuk batas kewajaran per menit) untuk menjaga kualitas bagi semua pengguna.",
+      "MULAI+ berhak membatasi akses bila ditemukan penggunaan otomatis/berlebihan yang merugikan layanan.",
+    ],
+  },
   {
     id: "kontak",
     title: "Kontak",
@@ -115,7 +140,7 @@ export default function TermsPage() {
       label="Terms"
       title="Syarat & Ketentuan"
       description="Hak, kewajiban, dan aturan yang mengatur penggunaan platform MULAI+."
-      updatedDate="9 Juni 2026"
+      updatedDate="24 September 2026"
       intro="Selamat datang di MULAI+. Dengan mengakses dan menggunakan platform MULAI+, Anda menyetujui Syarat & Ketentuan ini. Harap baca dengan saksama sebelum menggunakan layanan kami. Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi tim kami."
     />
   );
