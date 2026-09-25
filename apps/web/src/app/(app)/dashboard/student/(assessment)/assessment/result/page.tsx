@@ -6,13 +6,13 @@ import { ArrowUpRight, Download, Loader2, Map as MapIcon, RotateCcw, Sparkles } 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { FutureCareerMap } from "@/components/front/future-career-map";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { buildResultMindMap } from "@/lib/future-career";
 import { generateTmbReportPdf } from "@/lib/tmb-report-pdf";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -133,9 +133,9 @@ export default function TmbResultPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success("Laporan PDF diunduh!");
+      notify.success("Laporan PDF diunduh 🎉", { description: "Cek folder unduhan kamu." });
     } catch (_e) {
-      toast.error("Gagal membuat PDF");
+      notify.error("Gagal membuat PDF 🙈", { description: "Coba sekali lagi ya." });
     } finally {
       setDownloading(false);
     }

@@ -20,6 +20,7 @@ import {
 import { PageState } from "@/components/ui/page-state";
 import { trackEvent } from "@/lib/analytics";
 import { generateSummaryReportPdf } from "@/lib/summary-report-pdf";
+import { notify } from "@/lib/toast";
 import { client, orpc } from "@/utils/orpc";
 
 interface ReportItem {
@@ -116,10 +117,10 @@ function DownloadButton({ report }: { report: Report }) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success("PDF downloaded!");
+      notify.success("PDF berhasil diunduh 🎉");
       trackEvent("summary_report_downloaded", { report_id: report.id });
     } catch (error) {
-      toast.error("Failed to generate PDF");
+      notify.error("Gagal membuat PDF 🙈", { description: "Coba lagi dalam beberapa detik." });
       console.error(error);
     } finally {
       setLoading(false);

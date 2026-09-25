@@ -22,6 +22,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { FutureCareerMap } from "@/components/front/future-career-map";
 import { buildCareerMindMap, type FutureCareerResult } from "@/lib/future-career";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -71,7 +72,7 @@ export default function FutureCareerPage() {
     onSuccess: (data) => {
       setResult(data as FutureCareerResult);
     },
-    onError: () => toast.error("Gagal memproses. Coba lagi sebentar ya."),
+    onError: () => notify.error("Gagal memproses 🙈", { description: "Coba lagi sebentar ya." }),
   });
 
   const submit = (text: string) => {
