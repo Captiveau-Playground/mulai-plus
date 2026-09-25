@@ -289,10 +289,18 @@ streamRoute.post("/chat/stream", async (c) => {
           ct.enqueue(enc.encode(part({ type: "finish", id, finishReason: "stop" })));
           ct.close();
 
-          // persist + cache (after stream)
-          await store.saveMessage(c, key, "user", message).catch(() => {});
-          await store.saveMessage(c, key, "assistant", finalText || "…").catch(() => null);
-          if (finalText) await exactCachePut(c, message, finalText, extractTopics(finalText), {}).catch(() => {});
+          // persist + cache — via waitUntil supaya TETAP jalan setelah response streaming selesai
+          // (tanpa ini, workerd mematikan konteks request begitu body close → pesan tidak tersimpan).
+          const execCtx2 = (c as unknown as { executionCtx?: { waitUntil: (p: Promise<unknown>) => void } })
+            .executionCtx;
+          const finalTextSnap = finalText || "…";
+          const persist = async () => {
+            await store.saveMessage(c, key, "user", message).catch(() => null);
+            await store.saveMessage(c, key, "assistant", finalTextSnap).catch(() => null);
+            if (finalText) await exactCachePut(c, message, finalText, extractTopics(finalText), {}).catch(() => {});
+          };
+          if (execCtx2) execCtx2.waitUntil(persist());
+          else void persist();
         } catch (err) {
           console.error("[chat/stream] stream err:", (err as Error).message);
           ct.enqueue(enc.encode(part({ type: "error", id, error: "stream error" })));

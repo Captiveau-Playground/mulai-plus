@@ -79,6 +79,69 @@ export async function saveMessage(
 }
 
 /** Riwayat percakapan (terbaru dulu di DB, dibalik biar kronologis). */
+// ── Session management (sidebar ChatGPT-like + checkpoint restore) ──
+export interface SessionListItem {
+  id: string;
+  title: string;
+  messageCount: number;
+  lastActive: string | null;
+  createdAt: string | null;
+}
+
+/** Daftar sesi milik user (title = pesan user pertama). */
+export async function listSessions(c: AppContext, userId: string): Promise<SessionListItem[]> {
+  const rows = await query(
+    c,
+    `SELECT s.id, s.created_at, s.last_active,
+            (SELECT COUNT(*) FROM chatbot_messages m WHERE m.session_id = s.id) AS message_count,
+            (SELECT m.content FROM chatbot_messages m
+              WHERE m.session_id = s.id AND m.role = 'user'
+              ORDER BY m.id ASC LIMIT 1) AS first_user
+     FROM chatbot_sessions s
+     WHERE s.user_id = $1
+       AND EXISTS (SELECT 1 FROM chatbot_messages m WHERE m.session_id = s.id)
+     ORDER BY s.last_active DESC
+     LIMIT 50`,
+    [userId],
+  );
+  return (rows as Record<string, any>[]).map((r) => ({
+    id: r.id,
+    title: (r.first_user ?? "").slice(0, 60) || "Percakapan baru",
+    messageCount: Number(r.message_count ?? 0),
+    lastActive: r.last_active ? String(r.last_active) : null,
+    createdAt: r.created_at ? String(r.created_at) : null,
+  }));
+}
+
+/** Hapus sesi milik user. */
+export async function deleteSession(c: AppContext, userId: string, sessionId: string): Promise<boolean> {
+  const rows = await unsafe(c, "DELETE FROM chatbot_sessions WHERE id = $1 AND user_id = $2 RETURNING id", [
+    sessionId,
+    userId,
+  ]);
+  return (rows as Record<string, any>[]).length > 0;
+}
+
+/** Truncate sesi: sisakan `keep` pesan pertama (checkpoint restore). */
+export async function truncateSessionMessages(c: AppContext, sessionId: string, keep: number): Promise<number> {
+  if (keep <= 0) return 0;
+  const rows = await unsafe(
+    c,
+    `DELETE FROM chatbot_messages
+     WHERE session_id = $1 AND id > (
+       SELECT id FROM chatbot_messages
+       WHERE session_id = $1 ORDER BY id ASC LIMIT 1 OFFSET $2 - 1
+     ) RETURNING id`,
+    [sessionId, keep],
+  );
+  await unsafe(
+    c,
+    "UPDATE chatbot_sessions SET message_count = GREATEST(message_count - $2, $3), last_active = NOW() WHERE id = $1",
+    [sessionId, (rows as Record<string, any>[]).length, 0],
+  );
+  return (rows as Record<string, any>[]).length;
+}
+
 export async function getHistory(c: AppContext, sessionId: string, limit = 6): Promise<ChatMessageRow[]> {
   const rows = await query(
     c,

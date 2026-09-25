@@ -166,6 +166,40 @@ chatRoute.get("/context", async (c) => {
   return c.json({ profile: ctx, enrolled: !!userId });
 });
 
+// ── Session management (sidebar ChatGPT-like + checkpoint restore) ──
+chatRoute.get("/sessions", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required", sessions: [] }, 401);
+  const sessions = await store.listSessions(c, userId).catch(() => []);
+  return c.json({ sessions });
+});
+
+chatRoute.post("/sessions", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required", id: null }, 401);
+  const body = (await c.req.json().catch(() => ({}))) as { id?: string };
+  const id = body.id && body.id.length <= 64 ? body.id : `s-${crypto.randomUUID().slice(0, 12)}`;
+  await store.getOrCreateSession(c, id, userId).catch(() => null);
+  return c.json({ id });
+});
+
+chatRoute.post("/sessions/truncate", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const body = (await c.req.json().catch(() => ({}))) as { session_id?: string; keep?: number };
+  if (!body.session_id) return c.json({ error: "missing session_id" }, 400);
+  const keep = Math.max(1, Math.min(200, Number(body.keep) || 1));
+  const removed = await store.truncateSessionMessages(c, body.session_id, keep).catch(() => 0);
+  return c.json({ removed });
+});
+
+chatRoute.delete("/sessions/:sessionId", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const ok = await store.deleteSession(c, userId, c.req.param("sessionId")).catch(() => false);
+  return c.json({ ok });
+});
+
 chatRoute.get("/quota", async (c) => {
   const userId = c.req.header("x-user-id") ?? null;
   const isAuth = userId !== null;
@@ -197,7 +231,7 @@ chatRoute.get("/quota", async (c) => {
 chatRoute.get("/history", async (c) => {
   const key = c.req.header("x-session-id") ?? c.req.query("session_id") ?? "";
   if (!key) return c.json({ error: "missing session" }, 400);
-  const messages = await store.getHistory(c, key, 20).catch(() => []);
+  const messages = await store.getHistory(c, key, 50).catch(() => []);
   return c.json({ messages, total: messages.length });
 });
 
