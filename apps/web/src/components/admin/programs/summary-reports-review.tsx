@@ -17,7 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -207,12 +207,12 @@ export function SummaryReportsReview({
   const reviewMutation = useMutation({
     ...orpc.programs.admin.summaryReports.review.mutationOptions(),
     onSuccess: () => {
-      toast.success("Review submitted!");
+      notify.success("Review submitted!");
       queryClient.invalidateQueries({ queryKey: ["summaryReport"] });
       setReviewingId(null);
       setReviewNotes("");
     },
-    onError: (error) => toast.error(error.message || "Failed to submit review"),
+    onError: (error) => notify.error(error.message || "Failed to submit review"),
   });
 
   const listContent = isLoading ? (

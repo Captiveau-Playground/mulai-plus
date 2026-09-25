@@ -29,7 +29,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -65,12 +65,12 @@ export function CourseList() {
   const createMutation = useMutation(
     orpc.lms.course.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Course created");
+        notify.success("Course created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({ queryKey: orpc.lms.course.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -78,12 +78,12 @@ export function CourseList() {
   const updateMutation = useMutation(
     orpc.lms.course.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Course updated");
+        notify.success("Course updated");
         setEditingCourse(null);
         queryClient.invalidateQueries({ queryKey: orpc.lms.course.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -91,11 +91,11 @@ export function CourseList() {
   const deleteMutation = useMutation(
     orpc.lms.course.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Course deleted");
+        notify.success("Course deleted");
         queryClient.invalidateQueries({ queryKey: orpc.lms.course.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

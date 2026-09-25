@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ export function MediaLibrary() {
   const createMediaMutation = useMutation(
     orpc.cms.media.admin.create.mutationOptions({
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -127,14 +127,14 @@ export function MediaLibrary() {
   const deleteMutation = useMutation(
     orpc.cms.media.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Media deleted");
+        notify.success("Media deleted");
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.list.key() });
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.listFolders.key() });
         setSelectedMedia(null);
         setIsPreviewOpen(false);
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -142,13 +142,13 @@ export function MediaLibrary() {
   const syncFromR2Mutation = useMutation(
     orpc.cms.media.admin.syncFromR2.mutationOptions({
       onSuccess: (data) => {
-        toast.success(data.message);
+        notify.success(data.message);
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.list.key() });
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.listFolders.key() });
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.bucketStats.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -156,13 +156,13 @@ export function MediaLibrary() {
   const deleteFromBucketMutation = useMutation(
     orpc.cms.media.admin.deleteFromBucket.mutationOptions({
       onSuccess: () => {
-        toast.success("File deleted from R2");
+        notify.success("File deleted from R2");
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.listBucket.key() });
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.list.key() });
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.bucketStats.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -170,13 +170,13 @@ export function MediaLibrary() {
   const bulkDeleteMutation = useMutation(
     orpc.cms.media.admin.bulkDelete.mutationOptions({
       onSuccess: () => {
-        toast.success("Selected items deleted");
+        notify.success("Selected items deleted");
         setSelectedIds(new Set());
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.list.key() });
         queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.listFolders.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -190,7 +190,7 @@ export function MediaLibrary() {
 
   const copyUrl = (url: string) => {
     navigator.clipboard.writeText(url);
-    toast.success("URL copied to clipboard");
+    notify.success("URL copied to clipboard");
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,14 +236,14 @@ export function MediaLibrary() {
         });
       }
 
-      toast.success("File(s) uploaded successfully");
+      notify.success("File(s) uploaded successfully");
       queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.list.key() });
       queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.listFolders.key() });
       queryClient.invalidateQueries({ queryKey: orpc.cms.media.admin.bucketStats.key() });
     } catch (err: unknown) {
       console.error("Upload error:", err);
       const message = err instanceof Error ? err.message : "Failed to upload file";
-      toast.error(message);
+      notify.error(message);
     } finally {
       setIsUploading(false);
       e.target.value = "";

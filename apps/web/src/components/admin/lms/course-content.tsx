@@ -62,7 +62,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -297,21 +297,21 @@ export function CourseContent({ courseId }: { courseId: string }) {
   const createSectionMutation = useMutation(
     orpc.lms.section.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Section created");
+        notify.success("Section created");
         setIsSectionDialogOpen(false);
         sectionForm.reset();
         queryClient.invalidateQueries({
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const updateSectionMutation = useMutation(
     orpc.lms.section.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Section updated");
+        notify.success("Section updated");
         setIsSectionDialogOpen(false);
         setEditingSection(null);
         sectionForm.reset();
@@ -319,19 +319,19 @@ export function CourseContent({ courseId }: { courseId: string }) {
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const deleteSectionMutation = useMutation(
     orpc.lms.section.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Section deleted");
+        notify.success("Section deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
@@ -342,28 +342,28 @@ export function CourseContent({ courseId }: { courseId: string }) {
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const createLessonMutation = useMutation(
     orpc.lms.lesson.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Lesson created");
+        notify.success("Lesson created");
         setIsLessonDialogOpen(false);
         lessonForm.reset();
         queryClient.invalidateQueries({
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const updateLessonMutation = useMutation(
     orpc.lms.lesson.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Lesson updated");
+        notify.success("Lesson updated");
         setIsLessonDialogOpen(false);
         setEditingLesson(null);
         lessonForm.reset();
@@ -371,19 +371,19 @@ export function CourseContent({ courseId }: { courseId: string }) {
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const deleteLessonMutation = useMutation(
     orpc.lms.lesson.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Lesson deleted");
+        notify.success("Lesson deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
@@ -394,7 +394,7 @@ export function CourseContent({ courseId }: { courseId: string }) {
           queryKey: orpc.lms.course.get.key({ input: { id: courseId } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

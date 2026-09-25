@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const attachmentSchema = z.object({
@@ -62,7 +62,7 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
   const createMutation = useMutation(
     orpc.programActivities.attachment.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment creation request submitted for approval");
+        notify.success("Attachment creation request submitted for approval");
         setIsFormOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.attachment.myRequests.key({
@@ -70,14 +70,14 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
           }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const updateMutation = useMutation(
     orpc.programActivities.attachment.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment update request submitted for approval");
+        notify.success("Attachment update request submitted for approval");
         setIsFormOpen(false);
         setEditingAttachment(null);
         queryClient.invalidateQueries({
@@ -86,21 +86,21 @@ export function MentorBatchAttachments({ batch }: { batch: { id: string; name: s
           }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const deleteMutation = useMutation(
     orpc.programActivities.attachment.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Attachment deletion request submitted for approval");
+        notify.success("Attachment deletion request submitted for approval");
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.attachment.myRequests.key({
             input: { batchId: batch.id },
           }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

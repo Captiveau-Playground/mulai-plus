@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -74,40 +74,40 @@ export default function AdminQuestionsPage() {
   const createQ = useMutation({
     ...orpc.tmbAdmin.questions.create.mutationOptions(),
     onSuccess: () => {
-      toast.success("Soal ditambahkan!");
+      notify.success("Soal ditambahkan!");
       setShowForm(false);
       setForm(EMPTY_FORM);
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal menambah soal"),
+    onError: (e) => notify.error(e.message || "Gagal menambah soal"),
   });
   const updateQ = useMutation({
     ...orpc.tmbAdmin.questions.update.mutationOptions(),
     onSuccess: () => {
-      toast.success("Soal diperbarui!");
+      notify.success("Soal diperbarui!");
       setEditing(null);
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal memperbarui soal"),
+    onError: (e) => notify.error(e.message || "Gagal memperbarui soal"),
   });
   const deleteQ = useMutation({
     ...orpc.tmbAdmin.questions.delete.mutationOptions(),
     onSuccess: () => {
-      toast.success("Soal dihapus");
+      notify.success("Soal dihapus");
       setConfirmDelete(null);
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal menghapus soal"),
+    onError: (e) => notify.error(e.message || "Gagal menghapus soal"),
   });
   const toggleQ = useMutation({
     ...orpc.tmbAdmin.questions.toggle.mutationOptions(),
     onSuccess: () => invalidate(),
-    onError: (e) => toast.error(e.message || "Gagal mengubah status"),
+    onError: (e) => notify.error(e.message || "Gagal mengubah status"),
   });
   const reorderQ = useMutation({
     ...orpc.tmbAdmin.questions.reorder.mutationOptions(),
     onSuccess: () => invalidate(),
-    onError: (e) => toast.error(e.message || "Gagal mengubah urutan"),
+    onError: (e) => notify.error(e.message || "Gagal mengubah urutan"),
   });
 
   const move = (index: number, dir: -1 | 1) => {
@@ -150,11 +150,11 @@ export default function AdminQuestionsPage() {
       answer: form.answer || undefined,
     };
     if (!form.dimension || !form.text.trim() || !form.optionA.trim() || !form.optionB.trim()) {
-      toast.error("Lengkapi dimensi, teks soal, dan minimal 2 opsi");
+      notify.error("Lengkapi dimensi, teks soal, dan minimal 2 opsi");
       return;
     }
     if (testCode === "ability" && !form.answer) {
-      toast.error("Soal kemampuan wajib punya kunci jawaban");
+      notify.error("Soal kemampuan wajib punya kunci jawaban");
       return;
     }
     if (editing) updateQ.mutate({ id: editing.id, ...payload });

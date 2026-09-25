@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import z from "zod";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 
 import Loader from "./loader";
 
@@ -46,11 +46,11 @@ export default function SignInForm({
             } else {
               router.push("/dashboard/student");
             }
-            toast.success("Sign in successful");
+            notify.success("Sign in successful");
           },
           onError: (error) => {
             trackEvent("login_error", { method: "email", error_code: error.error.message });
-            toast.error(error.error.message || error.error.statusText);
+            notify.error(error.error.message || error.error.statusText);
           },
         },
       );
@@ -72,11 +72,11 @@ export default function SignInForm({
       },
       {
         onSuccess: () => {
-          toast.success("Sign in successful");
+          notify.success("Sign in successful");
         },
         onError: (error) => {
           trackEvent("login_error", { method: "google", error_code: error.error.message });
-          toast.error(error.error.message || error.error.statusText);
+          notify.error(error.error.message || error.error.statusText);
         },
       },
     );

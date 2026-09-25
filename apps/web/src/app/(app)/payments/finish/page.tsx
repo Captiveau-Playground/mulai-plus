@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 function FinishPaymentContent() {
@@ -24,7 +24,7 @@ function FinishPaymentContent() {
       onSuccess: (res) => {
         if (res.mapped_status === "success") {
           setStatus("success");
-          toast.success("Pembayaran berhasil!");
+          notify.success("Pembayaran berhasil!");
           setTimeout(() => {
             if (slug) {
               router.push(`/courses/${slug}` as any);
@@ -34,7 +34,7 @@ function FinishPaymentContent() {
           }, 3000);
         } else if (res.mapped_status === "pending") {
           setStatus("pending");
-          toast.info("Pembayaran sedang diproses.");
+          notify.info("Pembayaran sedang diproses.");
           setTimeout(() => {
             if (slug) {
               router.push(`/courses/${slug}` as any);
@@ -44,12 +44,12 @@ function FinishPaymentContent() {
           }, 3000);
         } else {
           setStatus("failed");
-          toast.error("Pembayaran gagal atau dibatalkan.");
+          notify.error("Pembayaran gagal atau dibatalkan.");
         }
       },
       onError: (err) => {
         setStatus("failed");
-        toast.error(`Gagal memverifikasi pembayaran: ${err.message}`);
+        notify.error(`Gagal memverifikasi pembayaran: ${err.message}`);
       },
     }),
   );

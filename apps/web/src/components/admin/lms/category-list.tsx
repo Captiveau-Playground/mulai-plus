@@ -26,7 +26,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -56,14 +56,14 @@ export function CategoryList() {
   const createMutation = useMutation(
     orpc.lms.category.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Category created");
+        notify.success("Category created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.lms.category.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -71,14 +71,14 @@ export function CategoryList() {
   const updateMutation = useMutation(
     orpc.lms.category.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Category updated");
+        notify.success("Category updated");
         setEditingCategory(null);
         queryClient.invalidateQueries({
           queryKey: orpc.lms.category.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -86,13 +86,13 @@ export function CategoryList() {
   const deleteMutation = useMutation(
     orpc.lms.category.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Category deleted");
+        notify.success("Category deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.lms.category.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

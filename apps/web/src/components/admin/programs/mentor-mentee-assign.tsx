@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 type Batch = { id: string; name: string };
@@ -67,12 +67,12 @@ export function MentorMenteeAssignDialog({
   const assignMutation = useMutation({
     ...orpc.programs.admin.mentorMentee.assign.mutationOptions(),
     onSuccess: () => {
-      toast.success("Mentor assignments saved!");
+      notify.success("Mentor assignments saved!");
       queryClient.invalidateQueries({ queryKey: ["mentorMentee"] });
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to save assignments");
+      notify.error(error.message || "Failed to save assignments");
     },
   });
 

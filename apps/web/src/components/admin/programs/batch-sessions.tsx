@@ -51,7 +51,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 import { BatchSessionsCalendar, type CalendarSession } from "./batch-sessions-calendar";
 
@@ -155,26 +155,26 @@ export function BatchSessionsDialog({
   const upsertMutation = useMutation(
     orpc.programActivities.session.upsert.mutationOptions({
       onSuccess: () => {
-        toast.success(editingSession ? "Session updated" : "Session created");
+        notify.success(editingSession ? "Session updated" : "Session created");
         setIsFormOpen(false);
         setEditingSession(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.session.list.key({ input: { batchId: batch.id } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const deleteMutation = useMutation(
     orpc.programActivities.session.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Session deleted");
+        notify.success("Session deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.session.list.key({ input: { batchId: batch.id } }),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

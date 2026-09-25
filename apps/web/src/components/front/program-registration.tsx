@@ -29,7 +29,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
-import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -133,7 +132,7 @@ export function ProgramRegistration({ programId, batch, nextBatch }: ProgramRegi
       },
       onError: (error) => {
         trackEvent("registration_error", { program_id: programId, error_code: error.message });
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

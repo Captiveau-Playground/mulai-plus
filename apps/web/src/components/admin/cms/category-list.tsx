@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const categorySchema = z.object({
@@ -129,12 +129,12 @@ export function CategoryList() {
   const createMutation = useMutation(
     orpc.cms.categories.admin.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Category created");
+        notify.success("Category created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({ queryKey: orpc.cms.categories.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -142,12 +142,12 @@ export function CategoryList() {
   const updateMutation = useMutation(
     orpc.cms.categories.admin.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Category updated");
+        notify.success("Category updated");
         setEditingCategory(null);
         queryClient.invalidateQueries({ queryKey: orpc.cms.categories.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -155,11 +155,11 @@ export function CategoryList() {
   const deleteMutation = useMutation(
     orpc.cms.categories.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Category deleted");
+        notify.success("Category deleted");
         queryClient.invalidateQueries({ queryKey: orpc.cms.categories.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

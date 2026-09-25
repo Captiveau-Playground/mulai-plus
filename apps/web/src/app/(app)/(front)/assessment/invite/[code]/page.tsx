@@ -7,7 +7,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 export default function TestInvitePage() {
@@ -23,7 +23,7 @@ export default function TestInvitePage() {
     ...orpc.tmb.invite.claim.mutationOptions(),
     onSuccess: (d) => {
       setClaimed(true);
-      toast.success(`Selamat datang, ${d.studentName}! 🎉`);
+      notify.success(`Selamat datang, ${d.studentName}! 🎉`);
       setTimeout(() => router.push("/dashboard/student/assessment"), 1200);
     },
     onError: (e) => {

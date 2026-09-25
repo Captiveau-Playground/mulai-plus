@@ -22,7 +22,6 @@ import { useState } from "react";
 import { FutureCareerMap } from "@/components/front/future-career-map";
 import { buildCareerMindMap, type FutureCareerResult } from "@/lib/future-career";
 import { notify } from "@/lib/toast";
-import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -78,7 +77,7 @@ export default function FutureCareerPage() {
   const submit = (text: string) => {
     const t = text.trim();
     if (t.length < 2) {
-      toast.error("Tulis dulu karir impianmu, misal: 'aku mau jadi dokter'");
+      notify.error("Tulis dulu karir impianmu, misal: 'aku mau jadi dokter'");
       return;
     }
     matchMutation.mutate({ careerText: t });

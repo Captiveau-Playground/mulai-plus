@@ -41,7 +41,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { formatWIB } from "@/lib/date-wib";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -132,14 +132,14 @@ function MentorSessionsContent() {
   const deleteMutation = useMutation(
     orpc.programActivities.mentor.deleteOneOnOne.mutationOptions({
       onSuccess: () => {
-        toast.success("Session deleted");
+        notify.success("Session deleted");
         setDeleteSessionId(null);
         setViewingSession(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.session.mySessions.key(),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

@@ -15,7 +15,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 interface EditUserRoleDialogProps {
@@ -60,7 +60,7 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
 
       if (error) throw new Error(error.message || error.statusText);
 
-      toast.success(`User ${name} created successfully`);
+      notify.success(`User ${name} created successfully`);
       setName("");
       setEmail("");
       setPassword("");
@@ -196,14 +196,14 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSuccess }: Edit
       });
 
       if (error) {
-        toast.error(`Failed to update role: ${error.message}`);
+        notify.error(`Failed to update role: ${error.message}`);
       } else {
-        toast.success("Role updated successfully");
+        notify.success("Role updated successfully");
         onSuccess?.();
         onOpenChange(false);
       }
     } catch (_e) {
-      toast.error("An unexpected error occurred");
+      notify.error("An unexpected error occurred");
     } finally {
       setIsPending(false);
     }
@@ -286,11 +286,11 @@ export function UserSessionsDialog({ userId, open, onOpenChange }: UserSessionsD
         );
       } else if (error) {
         console.error("Fetch sessions error:", error);
-        toast.error(`Failed to fetch sessions: ${error.message}`);
+        notify.error(`Failed to fetch sessions: ${error.message}`);
       }
     } catch (e) {
       console.error("Fetch sessions exception:", e);
-      toast.error("An unexpected error occurred");
+      notify.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -324,14 +324,14 @@ export function UserSessionsDialog({ userId, open, onOpenChange }: UserSessionsD
 
       if (error) {
         console.error("Revoke session error:", error);
-        toast.error(error.message || "Failed to revoke session");
+        notify.error(error.message || "Failed to revoke session");
       } else {
-        toast.success("Session revoked successfully");
+        notify.success("Session revoked successfully");
         fetchSessions();
       }
     } catch (e) {
       console.error("Revoke session exception:", e);
-      toast.error("Failed to revoke session");
+      notify.error("Failed to revoke session");
     } finally {
       setIsRevoking(null);
     }
@@ -350,14 +350,14 @@ export function UserSessionsDialog({ userId, open, onOpenChange }: UserSessionsD
 
       if (error) {
         console.error("Revoke all sessions error:", error);
-        toast.error(`Failed to revoke all sessions: ${error.message}`);
+        notify.error(`Failed to revoke all sessions: ${error.message}`);
       } else {
-        toast.success("All sessions revoked successfully");
+        notify.success("All sessions revoked successfully");
         fetchSessions();
       }
     } catch (e) {
       console.error("Revoke all sessions exception:", e);
-      toast.error("Failed to revoke all sessions");
+      notify.error("Failed to revoke all sessions");
     } finally {
       setIsRevokingAll(false);
     }
@@ -461,14 +461,14 @@ export function DeleteUserDialog({ userId, open, onOpenChange, onSuccess }: Dele
       });
 
       if (error) {
-        toast.error(`Failed to delete user: ${error.message}`);
+        notify.error(`Failed to delete user: ${error.message}`);
       } else {
-        toast.success("User deleted successfully");
+        notify.success("User deleted successfully");
         onSuccess();
         onOpenChange(false);
       }
     } catch {
-      toast.error("Failed to delete user");
+      notify.error("Failed to delete user");
     } finally {
       setIsDeleting(false);
     }

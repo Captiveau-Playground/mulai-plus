@@ -20,7 +20,6 @@ import { PageState } from "@/components/ui/page-state";
 import { trackEvent } from "@/lib/analytics";
 import { generateSummaryReportPdf } from "@/lib/summary-report-pdf";
 import { notify } from "@/lib/toast";
-import { toast } from "@/lib/toast-client";
 import { client, orpc } from "@/utils/orpc";
 
 interface ReportItem {
@@ -59,7 +58,7 @@ function DownloadButton({ report }: { report: Report }) {
       await doDownload();
     } catch (error) {
       console.error("Gagal cek feedback:", error);
-      toast.error("Gagal memverifikasi feedback. Coba lagi.");
+      notify.error("Gagal memverifikasi feedback. Coba lagi.");
     } finally {
       setChecking(false);
     }

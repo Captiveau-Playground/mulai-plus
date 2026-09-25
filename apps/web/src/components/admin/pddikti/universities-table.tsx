@@ -44,7 +44,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 import { CreateUniversityDialog, DeleteUniversityDialog, EditUniversityDialog } from "./dialogs";
 
@@ -133,12 +133,12 @@ export function UniversitiesTable() {
   const deleteMutation = useMutation({
     mutationFn: (input: { id: string }) => api.pddikti.deleteUniversity({ input }),
     onSuccess: () => {
-      toast.success("University deleted");
+      notify.success("University deleted");
       queryClient.invalidateQueries({ queryKey: ["pddikti"] });
       setDeleteUniversity(null);
     },
     onError: (err: Error) => {
-      toast.error(`Failed to delete: ${err.message}`);
+      notify.error(`Failed to delete: ${err.message}`);
     },
   });
 

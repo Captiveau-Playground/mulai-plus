@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -35,7 +35,7 @@ export default function AdminSchoolsPage() {
   const createSchool = useMutation({
     ...orpc.tmbAdmin.schools.create.mutationOptions(),
     onSuccess: () => {
-      toast.success("Sekolah terdaftar!");
+      notify.success("Sekolah terdaftar!");
       setShowForm(false);
       setName("");
       setCity("");
@@ -44,16 +44,16 @@ export default function AdminSchoolsPage() {
       setStatus("prospek");
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.schools.list.key() });
     },
-    onError: (e) => toast.error(e.message || "Gagal mendaftarkan sekolah"),
+    onError: (e) => notify.error(e.message || "Gagal mendaftarkan sekolah"),
   });
 
   const deleteSchool = useMutation({
     ...orpc.tmbAdmin.schools.delete.mutationOptions(),
     onSuccess: () => {
-      toast.success("Sekolah dihapus");
+      notify.success("Sekolah dihapus");
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.schools.list.key() });
     },
-    onError: (e) => toast.error(e.message || "Gagal menghapus sekolah"),
+    onError: (e) => notify.error(e.message || "Gagal menghapus sekolah"),
   });
 
   const schools = data ?? [];

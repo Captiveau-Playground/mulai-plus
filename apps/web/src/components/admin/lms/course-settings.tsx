@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -52,11 +52,11 @@ export function CourseSettings({ courseId }: CourseSettingsProps) {
   const createTagMutation = useMutation(
     orpc.lms.tag.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Tag created");
+        notify.success("Tag created");
         queryClient.invalidateQueries({ queryKey: orpc.lms.tag.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -103,11 +103,11 @@ export function CourseSettings({ courseId }: CourseSettingsProps) {
   const updateMutation = useMutation(
     orpc.lms.course.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Course settings updated");
+        notify.success("Course settings updated");
         queryClient.invalidateQueries({ queryKey: orpc.lms.course.get.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

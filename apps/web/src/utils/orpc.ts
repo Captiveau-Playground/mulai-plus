@@ -3,14 +3,14 @@ import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/client";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 
 export { client };
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
-      toast.error(`Error: ${error.message}`, {
+      notify.error(`Error: ${error.message}`, {
         action: {
           label: "retry",
           onClick: query.invalidate,

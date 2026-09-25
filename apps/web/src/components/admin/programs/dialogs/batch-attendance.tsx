@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 export function BatchAttendanceDialog({
@@ -39,13 +39,13 @@ export function BatchAttendanceDialog({
   const mutation = useMutation(
     orpc.programs.admin.batches.attendance.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Attendance updated");
+        notify.success("Attendance updated");
         const path = orpc.programs.admin.batches.attendance.list.key()[0];
         attendanceQueryClient.invalidateQueries({ queryKey: [path], refetchType: "all" });
         onOpenChange(false);
         setUpdates({});
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

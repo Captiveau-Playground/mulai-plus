@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/analytics";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 
@@ -379,7 +379,7 @@ export default function ArticleDetailPage() {
                         platform: "copy",
                       });
                       navigator.clipboard.writeText(typeof window !== "undefined" ? window.location.href : "");
-                      toast.success("Link copied!");
+                      notify.success("Link copied!");
                     }}
                     className="flex h-8 w-8 items-center justify-center rounded-full border transition-all hover:bg-gray-100"
                   >

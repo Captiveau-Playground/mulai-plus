@@ -44,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { toast } from "@/lib/toast-client";
 
 export type User = {
@@ -111,10 +112,10 @@ export function UserTable() {
           })),
         );
       } else if (error) {
-        toast.error(`Failed to fetch users: ${error.message}`);
+        notify.error(`Failed to fetch users: ${error.message}`);
       }
     } catch (_e) {
-      toast.error("An unexpected error occurred");
+      notify.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }

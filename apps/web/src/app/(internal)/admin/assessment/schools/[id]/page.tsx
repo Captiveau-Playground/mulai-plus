@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -41,26 +41,26 @@ export default function SchoolDetailPage() {
   const updateBatch = useMutation({
     ...orpc.tmbAdmin.batches.update.mutationOptions(),
     onSuccess: () => {
-      toast.success("Batch diperbarui!");
+      notify.success("Batch diperbarui!");
       setEditBatch(null);
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.schools.get.key() });
     },
-    onError: (e) => toast.error(e.message || "Gagal memperbarui batch"),
+    onError: (e) => notify.error(e.message || "Gagal memperbarui batch"),
   });
 
   const deleteBatch = useMutation({
     ...orpc.tmbAdmin.batches.delete.mutationOptions(),
     onSuccess: () => {
-      toast.success("Batch dihapus");
+      notify.success("Batch dihapus");
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.schools.get.key() });
     },
-    onError: (e) => toast.error(e.message || "Gagal menghapus batch"),
+    onError: (e) => notify.error(e.message || "Gagal menghapus batch"),
   });
 
   const createBatch = useMutation({
     ...orpc.tmbAdmin.batches.create.mutationOptions(),
     onSuccess: () => {
-      toast.success("Batch dibuat!");
+      notify.success("Batch dibuat!");
       setShowBatchForm(false);
       setBatchName("");
       setClassName("");
@@ -68,7 +68,7 @@ export default function SchoolDetailPage() {
       setYear("");
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.schools.get.key() });
     },
-    onError: (e) => toast.error(e.message || "Gagal membuat batch"),
+    onError: (e) => notify.error(e.message || "Gagal membuat batch"),
   });
 
   if (isLoading) {

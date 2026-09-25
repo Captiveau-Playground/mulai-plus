@@ -25,7 +25,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const tagSchema = z.object({
@@ -57,12 +57,12 @@ export function TagList() {
   const createMutation = useMutation(
     orpc.cms.tags.admin.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Tag created");
+        notify.success("Tag created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({ queryKey: orpc.cms.tags.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -70,12 +70,12 @@ export function TagList() {
   const updateMutation = useMutation(
     orpc.cms.tags.admin.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Tag updated");
+        notify.success("Tag updated");
         setEditingTag(null);
         queryClient.invalidateQueries({ queryKey: orpc.cms.tags.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -83,11 +83,11 @@ export function TagList() {
   const deleteMutation = useMutation(
     orpc.cms.tags.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Tag deleted");
+        notify.success("Tag deleted");
         queryClient.invalidateQueries({ queryKey: orpc.cms.tags.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

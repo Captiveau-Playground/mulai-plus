@@ -5,7 +5,7 @@ import { Loader2, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 interface OrderActionsProps {
@@ -37,21 +37,21 @@ export function OrderActions({ courseId, price, title, slug }: OrderActionsProps
           if (data.paymentUrl) {
             window.location.href = data.paymentUrl;
           } else {
-            toast.error("Gagal memuat link pembayaran.");
+            notify.error("Gagal memuat link pembayaran.");
           }
         } else {
-          toast.error("Gagal membuat pembayaran: Token tidak ditemukan");
+          notify.error("Gagal membuat pembayaran: Token tidak ditemukan");
         }
       },
       onError: (err) => {
-        toast.error(`Gagal membuat order: ${err.message}`);
+        notify.error(`Gagal membuat order: ${err.message}`);
       },
     }),
   );
 
   const handleBuy = () => {
     if (!session) {
-      toast.error("Silakan login terlebih dahulu");
+      notify.error("Silakan login terlebih dahulu");
       router.push(`/auth/sign-in?callbackUrl=/courses/${slug}` as any);
       return;
     }

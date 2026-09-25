@@ -39,7 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const testimonialSchema = z.object({
@@ -79,14 +79,14 @@ export function TestimonialList() {
   const createMutation = useMutation(
     orpc.testimonials.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Testimonial created");
+        notify.success("Testimonial created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.testimonials.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -94,14 +94,14 @@ export function TestimonialList() {
   const updateMutation = useMutation(
     orpc.testimonials.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Testimonial updated");
+        notify.success("Testimonial updated");
         setEditingTestimonial(null);
         queryClient.invalidateQueries({
           queryKey: orpc.testimonials.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -109,13 +109,13 @@ export function TestimonialList() {
   const deleteMutation = useMutation(
     orpc.testimonials.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Testimonial deleted");
+        notify.success("Testimonial deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.testimonials.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

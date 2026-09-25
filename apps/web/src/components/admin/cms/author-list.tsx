@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const authorSchema = z.object({
@@ -71,12 +71,12 @@ export function AuthorList() {
   const createMutation = useMutation(
     orpc.cms.authors.admin.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Author created");
+        notify.success("Author created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({ queryKey: orpc.cms.authors.admin.listAuthors.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -84,12 +84,12 @@ export function AuthorList() {
   const updateMutation = useMutation(
     orpc.cms.authors.admin.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Author updated");
+        notify.success("Author updated");
         setEditingAuthor(null);
         queryClient.invalidateQueries({ queryKey: orpc.cms.authors.admin.listAuthors.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -97,11 +97,11 @@ export function AuthorList() {
   const deleteMutation = useMutation(
     orpc.cms.authors.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Author deleted");
+        notify.success("Author deleted");
         queryClient.invalidateQueries({ queryKey: orpc.cms.authors.admin.listAuthors.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

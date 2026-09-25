@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const programSchema = z.object({
@@ -33,13 +33,13 @@ export function ProgramInfo({ program }: { program: Program }) {
   const updateMutation = useMutation(
     orpc.programs.admin.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Program updated");
+        notify.success("Program updated");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.get.key({ input: { id: program.id } }),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

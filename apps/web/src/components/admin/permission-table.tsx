@@ -39,7 +39,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 export type Permission = {
@@ -67,11 +67,11 @@ export function PermissionTable() {
   const { mutate: deletePermission } = useMutation(
     orpc.permission.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Permission deleted successfully");
+        notify.success("Permission deleted successfully");
         queryClient.invalidateQueries({ queryKey: orpc.permission.list.key() });
       },
       onError: (error) => {
-        toast.error(`Failed to delete permission: ${error.message}`);
+        notify.error(`Failed to delete permission: ${error.message}`);
       },
     }),
   );
@@ -300,14 +300,14 @@ function CreatePermissionDialog({ children }: { children: React.ReactNode }) {
   const { mutate: createPermission, isPending } = useMutation(
     orpc.permission.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Permission created successfully");
+        notify.success("Permission created successfully");
         queryClient.invalidateQueries({ queryKey: orpc.permission.list.key() });
         setOpen(false);
         setId("");
         setDescription("");
       },
       onError: (error) => {
-        toast.error(`Failed to create permission: ${error.message}`);
+        notify.error(`Failed to create permission: ${error.message}`);
       },
     }),
   );

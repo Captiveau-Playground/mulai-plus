@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -78,10 +78,10 @@ function TemplateManager({ templates }: { templates: any[] }) {
   const deleteMutation = useMutation(
     orpc.feedback.template.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Template deleted");
+        notify.success("Template deleted");
         queryClient.invalidateQueries({ queryKey: orpc.feedback.template.list.key() });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
@@ -205,33 +205,33 @@ function TemplateFormDialog({
   const createMutation = useMutation(
     orpc.feedback.template.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Template created");
+        notify.success("Template created");
         queryClient.invalidateQueries({ queryKey: orpc.feedback.template.list.key() });
         onOpenChange(false);
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const updateMutation = useMutation(
     orpc.feedback.template.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Template updated");
+        notify.success("Template updated");
         queryClient.invalidateQueries({ queryKey: orpc.feedback.template.list.key() });
         onOpenChange(false);
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const handleSave = () => {
     if (!name.trim()) {
-      toast.error("Name is required");
+      notify.error("Name is required");
       return;
     }
     const validQuestions = questions.filter((q) => q.question.trim());
     if (validQuestions.length === 0) {
-      toast.error("At least one question is required");
+      notify.error("At least one question is required");
       return;
     }
 
@@ -459,7 +459,7 @@ function CampaignManager() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: orpc.feedback.campaign.list.key() });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
@@ -468,10 +468,10 @@ function CampaignManager() {
   const deleteMutation = useMutation(
     orpc.feedback.campaign.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Campaign deleted");
+        notify.success("Campaign deleted");
         queryClient.invalidateQueries({ queryKey: orpc.feedback.campaign.list.key() });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
@@ -621,17 +621,17 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const createMutation = useMutation(
     orpc.feedback.campaign.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Campaign created");
+        notify.success("Campaign created");
         queryClient.invalidateQueries({ queryKey: orpc.feedback.campaign.list.key() });
         onOpenChange(false);
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
   const handleCreate = () => {
     if (!templateId || !batchId || !startDate || !endDate) {
-      toast.error("All fields are required");
+      notify.error("All fields are required");
       return;
     }
     createMutation.mutate({ templateId, batchId, startDate, endDate, campaignType });

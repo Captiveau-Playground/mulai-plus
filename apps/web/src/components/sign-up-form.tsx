@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
-import { toast } from "@/lib/toast-client";
+import { notify } from "@/lib/toast";
 
 import Loader from "./loader";
 
@@ -26,14 +26,14 @@ export default function SignUpForm({
       },
       {
         onSuccess: () => {
-          toast.success("Sign up successful");
+          notify.success("Sign up successful");
         },
         onError: (error) => {
           trackEvent("signup_error", {
             method: "google",
             error_code: error.error.message,
           });
-          toast.error(error.error.message || error.error.statusText);
+          notify.error(error.error.message || error.error.statusText);
         },
       },
     );
