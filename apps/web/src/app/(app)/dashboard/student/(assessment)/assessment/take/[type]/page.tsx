@@ -7,6 +7,7 @@ import { ArrowRight, Check, Home, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -54,6 +55,7 @@ export default function TmbTestPage() {
     onSuccess: async (data) => {
       setAttemptId(data.attemptId);
       setTotal(data.total);
+      trackEvent("assessment_start", { type: testCode });
       await loadQuestion(data.attemptId);
     },
   });
@@ -103,6 +105,7 @@ export default function TmbTestPage() {
       setDone(true);
       setBothDone(!!data.bothDone);
       setResultId(data.resultId ?? null);
+      trackEvent("assessment_completed", { type: testCode, both_done: !!data.bothDone });
       setXpEarned(isInterest ? 50 : 100);
       fireConfetti();
       queryClient.invalidateQueries({ queryKey: orpc.tmb.assessment.list.key() });
