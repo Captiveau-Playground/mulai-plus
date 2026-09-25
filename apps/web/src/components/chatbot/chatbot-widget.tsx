@@ -204,7 +204,10 @@ export function ChatbotWidget() {
           },
           SEND_TIMEOUT,
         );
-        if (!res.ok) throw new Error(`API error ${res.status}`);
+        if (!res.ok) {
+          console.error("[chatbot] gagal:", res.status, API_CHAT);
+          throw new Error(`API error ${res.status} · ${API_CHAT}`);
+        }
 
         const ct = res.headers.get("content-type") ?? "";
 
