@@ -148,12 +148,20 @@ export function createApp(options: CreateAppOptions) {
       }
     });
 
+    // Forward tanpa encoding header (browser decode gagal bila header gzip + body sudah apa adanya)
+    const cleanHeaders = (resp: Response): Headers => {
+      const h = new Headers(resp.headers);
+      h.delete("content-encoding");
+      h.delete("content-length");
+      return h;
+    };
+
     // /ai/health → status AI worker via binding (aman, tanpa LLM)
     app.get("/ai/health", async (c: any) => {
       // Absolute URL — konsisten dgn /ai/chat (binding mengikutsertakan target internal)
       const target = `${env.AI_SERVICE_URL}/health`;
       const resp = await aiFetch(c, target, { headers: { "Content-Type": "application/json" } }, 15_000);
-      return c.newResponse(resp.body, resp);
+      return c.newResponse(resp.body, { status: resp.status as any, headers: Object.fromEntries(cleanHeaders(resp)) });
     });
 
     // Admin-only routes: analytics, stats, admin endpoints
@@ -175,7 +183,10 @@ export function createApp(options: CreateAppOptions) {
 
       if (c.req.method === "GET") {
         const resp = await fetchWithTimeout(target, { headers }, 30_000);
-        return c.newResponse(resp.body, resp);
+        return c.newResponse(resp.body, {
+          status: resp.status as any,
+          headers: Object.fromEntries(cleanHeaders(resp)),
+        });
       }
 
       const body = await c.req.json();
@@ -220,7 +231,10 @@ export function createApp(options: CreateAppOptions) {
 
       if (c.req.method === "GET") {
         const resp = await fetchWithTimeout(target, { headers }, 30_000);
-        return c.newResponse(resp.body, resp);
+        return c.newResponse(resp.body, {
+          status: resp.status as any,
+          headers: Object.fromEntries(cleanHeaders(resp)),
+        });
       }
 
       const body = await c.req.json();
