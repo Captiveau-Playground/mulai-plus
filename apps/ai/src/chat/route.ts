@@ -138,7 +138,7 @@ chatRoute.post("/chat", async (c) => {
     await record(c, { sessionId: key, userId, event: "tool_called", data: { tool } });
   }
   if (result.reply)
-    exactCachePut(c, message, result.reply, result.suggested, {
+    await exactCachePut(c, message, result.reply, result.suggested, {
       prompt: result.promptTokens,
       completion: result.completionTokens,
     }).catch(() => {});
