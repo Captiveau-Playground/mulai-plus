@@ -15,6 +15,7 @@ export type Env = {
   OPENAI_BASE_URL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
+  OPENAI_FAST_MODEL?: string;
   AI_API_KEY?: string;
   CORS_ORIGIN?: string;
   CF_ACCOUNT_ID?: string;
@@ -28,6 +29,8 @@ export type Env = {
 export type AppContext = Context<{ Bindings: Env }>;
 
 export const DEFAULT_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8";
+/** Model cepat/cadangan (fallback chain) — murah + tool calling, TTFB lebih cepat. */
+export const DEFAULT_FAST_MODEL = "@cf/zai-org/glm-4.7-flash";
 
 export const CF_DEFAULT_ACCOUNT_ID = "7b23b1f8e20fd9cb2a7ab0fa6df7021d";
 
@@ -43,6 +46,10 @@ export function apiKey(c: AppContext): string {
 
 export function model(c: AppContext): string {
   return c.env.OPENAI_MODEL || DEFAULT_MODEL;
+}
+
+export function fastModel(c: AppContext): string {
+  return c.env.OPENAI_FAST_MODEL || DEFAULT_FAST_MODEL;
 }
 
 export function aiApiKey(c: AppContext): string {

@@ -171,6 +171,18 @@ jobs:
           tag_prefix: v
           append_to_pre_release_tag: staging
 
+      # Auto-release: bikin GitHub Release (catatan digenerate otomatis) tiap tag baru.
+      # Halaman /changelog membaca daftar release ini. Skip kalau tidak ada bump.
+      - name: Create GitHub Release (auto-changelog)
+        if: steps.tag_version.outputs.already_tagged != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ needs.tag.outputs.new_tag }}
+          name: ${{ needs.tag.outputs.new_tag }}
+          generate_release_notes: true
+          prerelease: true
+
   # ──────────────────────────── MIGRATE (DB) ────────────────────────────
   migrate:
     needs: tag
@@ -347,6 +359,7 @@ jobs:
           set_secret RESEND_API_KEY
           set_secret HERMES_API_KEY
 
+      # ---------- AI Worker (TS) ----------
       - name: Deploy API Worker (staging)
         working-directory: apps/server
         run: ./node_modules/.bin/wrangler deploy --env staging
@@ -412,7 +425,6 @@ jobs:
             exit 1
           fi
 
-      # ---------- AI Worker (TS) ----------
       - name: Set AI Worker secrets (staging)
         working-directory: apps/ai
         env:
@@ -430,17 +442,16 @@ jobs:
       - name: Smoke test AI — /health + chat /api/chat (workers.dev)
         run: |
           set -euo pipefail
-          URL="https://ai.staging.mulaiplus.id"
+          URL="https://api.staging.mulaiplus.id"
           ok=0
           for i in 1 2 3; do
-            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/health" || true)
+            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/ai/health" || true)
             if [ "$code" = "200" ]; then ok=1; break; fi
             echo "[attempt $i/3] HTTP=$code — retry..."
             sleep 5
           done
           [ "$ok" = "1" ] || { echo "❌ AI /health gagal"; exit 1; }
-          reply=$(curl -s -X POST "$URL/api/chat" -H "Authorization: Bearer ${{ secrets.AI_API_KEY }}" \
-            -H "Content-Type: application/json" \
+          reply=$(curl -s -X POST "$URL/ai/chat" -H "Content-Type: application/json" \
             -H "x-session-id: ci-smoke-$(date +%s)" \
             -d '{"message":"halo"}' --max-time 60 || true)
           echo "$reply" | grep -q "full_reply"

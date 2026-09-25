@@ -40,6 +40,7 @@ const footerNavLinks = [
     links: [
       { label: "About Us", href: "/#about" },
       { label: "Mentors", href: "/#mentors" },
+      { label: "Pembaruan / Changelog", href: "/changelog" },
       { label: "FAQ", href: "/#faq" },
     ],
   },
@@ -272,12 +273,13 @@ export function Footer() {
 
               {/* Release version badge */}
               {RELEASE_TAG && (
-                <span
-                  title={`Release: ${RELEASE_TAG}`}
+                <Link
+                  href={"/changelog" as any}
+                  title={`Release: ${RELEASE_TAG} — lihat changelog`}
                   className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-medium font-mono text-[10px] text-text-lighter-blue/70 tracking-wide transition-colors hover:bg-white/10 hover:text-text-lighter-blue"
                 >
                   {RELEASE_TAG}
-                </span>
+                </Link>
               )}
 
               <span className="hidden text-white/20 lg:inline">|</span>

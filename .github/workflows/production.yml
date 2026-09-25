@@ -175,6 +175,18 @@ jobs:
           release_branches: master
           tag_prefix: v
 
+      # Auto-release: bikin GitHub Release (catatan digenerate otomatis) tiap tag baru
+      # di master → /changelog membacanya.
+      - name: Create GitHub Release (auto-changelog)
+        if: steps.tag_version.outputs.already_tagged != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ needs.tag.outputs.new_tag }}
+          name: ${{ needs.tag.outputs.new_tag }}
+          generate_release_notes: true
+          prerelease: false
+
   # ──────────────────────────── BUILD + PUSH GHCR (VPS images) ────────────────────────────
   # Hanya jalan kalau target-nya vps/both (opsional — refresh image rollback VPS).
   build-images:
@@ -371,10 +383,10 @@ jobs:
       - name: Smoke test AI — /health + chat (custom domain)
         run: |
           set -euo pipefail
-          URL="https://ai.mulaiplus.id"
+          URL="https://api.mulaiplus.id"
           ok=0
           for i in 1 2 3; do
-            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/health" || true)
+            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/ai/health" || true)
             if [ "$code" = "200" ]; then ok=1; break; fi
             echo "[attempt $i/3] HTTP=$code — retry (DNS custom domain)..."
             sleep 8

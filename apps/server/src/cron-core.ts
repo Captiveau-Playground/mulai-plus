@@ -157,3 +157,50 @@ export async function runAutoPublish(client: typeof db = db): Promise<void> {
     console.error("[Cron] Error:", err);
   }
 }
+
+/**
+ * Reliability — cek kesehatan AI tiap menit (via binding bila ada).
+ * Tulis status terakhir + hitungan kegagalan beruntun ke KV_CACHE
+ * (dipakai /ai/status untuk monitor & alert).
+ */
+type HealthEnv = {
+  AI_SERVICE_URL?: string;
+  AI_SERVICE?: { fetch?: (input: string | URL, init?: RequestInit) => Promise<Response> };
+  KV_CACHE?: {
+    get(key: string, type: "json"): Promise<unknown>;
+    put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+  };
+};
+
+export async function runAiHealthCheck(env: HealthEnv): Promise<{ ok: boolean; ms: number }> {
+  const t0 = Date.now();
+  let ok = false;
+  let status = 0;
+  try {
+    const svc = env.AI_SERVICE;
+    const base = (env.AI_SERVICE_URL || "").replace(/\/$/, "");
+    const resp = svc?.fetch
+      ? await svc.fetch(`${base}/health`, { signal: AbortSignal.timeout(15_000) })
+      : await fetch(`${base}/health`, { signal: AbortSignal.timeout(15_000) });
+    status = resp.status;
+    ok = resp.status === 200;
+  } catch {
+    ok = false;
+  }
+  const ms = Date.now() - t0;
+
+  const kv = env.KV_CACHE;
+  if (kv) {
+    try {
+      const prev = ((await kv.get("ai:status:last", "json")) as { fails?: number } | null) ?? {};
+      const fails = ok ? 0 : (prev.fails ?? 0) + 1;
+      await kv.put("ai:status:last", JSON.stringify({ ok, ms, status, fails, at: new Date().toISOString() }));
+      if (fails >= 3 && fails % 3 === 0) {
+        console.error(`[ai-health] ${fails}x gagal beruntun (status=${status} ${ms}ms)`);
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }
+  return { ok, ms };
+}

@@ -19,7 +19,8 @@ import { adminRoute } from "./admin/routes";
 import { initRag } from "./agent/sources/rag";
 import { registerSqlSources } from "./agent/sources/sql-tools";
 import { chatRoute } from "./chat/route";
-import { aiApiKey, type Env } from "./config";
+import { streamRoute } from "./chat/stream-route";
+import type { Env } from "./config";
 import { RateLimitDO } from "./do/rate-limit";
 
 // Daftarkan source agent sekali per isolate (SQL sekarang, RAG menyusul).
@@ -30,20 +31,8 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/health", (c) => c.text("OK"));
 
-// Auth: shared secret antara apps/server ↔ worker AI (sama seperti python).
-app.use("/api/*", async (c, next) => {
-  const key = aiApiKey(c);
-  if (!key) {
-    return c.json({ error: "AI service not configured" }, 503);
-  }
-  const auth = c.req.header("Authorization") ?? "";
-  if (auth !== `Bearer ${key}`) {
-    return c.json({ error: "Unauthorized. Provide valid API key." }, 401);
-  }
-  await next();
-});
-
 app.route("/api", chatRoute);
+app.route("/api", streamRoute);
 app.route("/api/admin", adminRoute);
 
 export { RateLimitDO };

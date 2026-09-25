@@ -45,7 +45,8 @@ export async function kvRpcCache(c: Context, next: () => Promise<void>): Promise
   const proc = path.split("/").pop() ?? "";
 
   if (!kv || c.req.method !== "POST" || !CACHEABLE.has(proc)) {
-    return next();
+    await next();
+    return;
   }
 
   const bodyText = await c.req.raw.clone().text();
