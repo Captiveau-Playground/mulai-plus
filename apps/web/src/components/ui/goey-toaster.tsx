@@ -29,7 +29,7 @@ export function GooeyToasterMount() {
       position="top-center"
       richColors
       showProgress
-      style={{ "--width": isMobile ? "min(92vw, 380px)" : "380px" } as React.CSSProperties}
+      toastOptions={{ style: { "--width": isMobile ? "min(92vw, 380px)" : "380px" } as React.CSSProperties }}
     />
   );
 }
