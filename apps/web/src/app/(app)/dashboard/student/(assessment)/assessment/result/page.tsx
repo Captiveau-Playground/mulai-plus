@@ -133,7 +133,7 @@ export default function TmbResultPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      notify.success("Laporan PDF diunduh 🎉", { description: "Cek folder unduhan kamu." });
+      notify.create("Laporan PDF siap", { description: "Cek folder unduhan kamu." });
     } catch (_e) {
       notify.error("Gagal membuat PDF 🙈", { description: "Coba sekali lagi ya." });
     } finally {

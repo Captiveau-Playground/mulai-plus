@@ -92,7 +92,7 @@ export function Footer() {
       await client.cms.newsletter.subscribe({ email, source: "footer-form" });
       setSubscribed(true);
       setEmail("");
-      notify.success("Berlangganan berhasil 🎉", { description: "Ikuti update program & tips universitas." });
+      notify.create("Berlangganan berhasil", { description: "Ikuti update program & tips universitas." });
       setTimeout(() => setSubscribed(false), 3000);
     } catch (_error) {
       notify.error("Gagal berlangganan 🙈", { description: "Coba lagi sebentar ya." });

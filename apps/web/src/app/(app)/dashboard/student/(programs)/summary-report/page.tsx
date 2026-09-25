@@ -117,10 +117,14 @@ function DownloadButton({ report }: { report: Report }) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      notify.success("PDF berhasil diunduh 🎉");
+      notify.create("PDF berhasil diunduh");
       trackEvent("summary_report_downloaded", { report_id: report.id });
     } catch (error) {
-      notify.error("Gagal membuat PDF 🙈", { description: "Coba lagi dalam beberapa detik." });
+      notify.error("Gagal membuat PDF", {
+        description: "Coba lagi dalam beberapa detik.",
+        actionLabel: "Coba lagi",
+        onAction: () => handleDownload(),
+      });
       console.error(error);
     } finally {
       setLoading(false);

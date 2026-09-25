@@ -78,10 +78,12 @@ export default function StudentSettingsPage() {
   async function onSubmit(data: ProfileFormValues) {
     try {
       await updateProfile.mutateAsync(data);
-      notify.success("Profil tersimpan 🎉", { description: "Perubahan langsung aktif." });
+      notify.updateDone("Profil diperbarui", { description: "Perubahan langsung aktif." });
       refetch();
     } catch (error) {
-      notify.error("Gagal simpan profil 🙈", { description: "Periksa koneksi lalu coba lagi." });
+      notify.error("Gagal simpan profil", {
+        description: "Periksa koneksi lalu coba lagi.",
+      });
       console.error(error);
     }
   }
