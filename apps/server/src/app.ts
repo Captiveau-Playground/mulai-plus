@@ -199,7 +199,7 @@ export function createApp(options: CreateAppOptions) {
           headers,
           body: JSON.stringify(body),
         },
-        60_000,
+        120_000,
       );
 
       // Handle SSE streaming responses
