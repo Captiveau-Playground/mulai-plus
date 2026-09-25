@@ -58,3 +58,5 @@ docs/*
 .agents/
 
 scripts
+.dev.vars
+

@@ -4,11 +4,12 @@
   "main": "src/index.ts",
   "scripts": {
     "check-types": "tsc --noEmit",
-    "dev": "wrangler dev --env staging",
+    "dev": "bun run scripts/dev.ts",
     "test": "bun test",
     "worker:deploy:staging": "wrangler deploy --env staging",
     "worker:deploy:production": "wrangler deploy --env production",
-    "worker:tail": "wrangler tail"
+    "worker:tail": "wrangler tail",
+    "dev:direct": "wrangler dev --env staging"
   },
   "dependencies": {
     "hono": "catalog:",
