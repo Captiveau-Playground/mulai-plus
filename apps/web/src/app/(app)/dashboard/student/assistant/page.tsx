@@ -3,36 +3,48 @@
 import { useChat } from "@ai-sdk/react";
 import { env } from "@mulai-plus/env/web";
 import { DefaultChatTransport } from "ai";
+import { BrainIcon, CheckIcon, SparklesIcon, ZapIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
+import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import {
+  ModelSelector,
+  ModelSelectorContent,
+  ModelSelectorInput,
+  ModelSelectorItem,
+  ModelSelectorList,
+  ModelSelectorTrigger,
+} from "@/components/ai-elements/model-selector";
 import {
   PromptInput,
   PromptInputBody,
   PromptInputFooter,
-  PromptInputSelect,
-  PromptInputSelectContent,
-  PromptInputSelectItem,
-  PromptInputSelectTrigger,
-  PromptInputSelectValue,
+  type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
+import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import { Task, TaskContent, TaskTrigger } from "@/components/ai-elements/task";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "@/components/ui/loader-circle";
-import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
 import { notify } from "@/lib/toast";
 import type { UserContext } from "./types";
 
 const AI_BASE = (env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
 
 const TIERS = [
-  { id: "simple", name: "⚡ Simple" },
-  { id: "smart", name: "🧠 Advanced" },
-  { id: "premium", name: "★ Premium" },
+  { id: "simple", name: "Simple", desc: "Cepat & hemat untuk tanya ringan", icon: <ZapIcon className="size-4" /> },
+  { id: "smart", name: "Advanced", desc: "Seimbang, jawaban mendalam", icon: <BrainIcon className="size-4" /> },
+  {
+    id: "premium",
+    name: "Premium",
+    desc: "Kualitas maksimal — kuota 5/hari",
+    icon: <SparklesIcon className="size-4" />,
+  },
 ];
 
-const QUICK = [
+const SUGGESTIONS = [
   "Cari universitas negeri di Jawa Timur",
   "Berapa passing grade kedokteran di UI?",
   "Rekomendasi jurusan sesuai minatku",
@@ -44,6 +56,7 @@ export default function AssistantPage() {
   const [showCtx, setShowCtx] = useState(true);
   const [text, setText] = useState("");
   const [model, setModel] = useState("smart");
+  const [modelOpen, setModelOpen] = useState(false);
   const modelRef = useRef(model);
   modelRef.current = model;
   const chatRef = useRef<any>(null);
@@ -64,7 +77,7 @@ export default function AssistantPage() {
   const status = (chat as any).status;
   const busy = status === "submitted" || status === "streaming";
 
-  const handleSubmit = (message: { text?: string; files?: File[] }) => {
+  const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text?.trim());
     const hasFiles = Boolean(message.files?.length);
     if (!hasText && !hasFiles) return;
@@ -75,12 +88,18 @@ export default function AssistantPage() {
     setText("");
   };
 
+  const sendText = (q: string) => {
+    (chatRef.current as any)?.sendMessage({ text: q }, { body: { model: modelRef.current } });
+  };
+
   useEffect(() => {
     void fetch(`${AI_BASE}/ai/context`, { headers: { "x-session-id": "ast" } })
       .then((r) => r.json())
       .then((d) => setCtx((d as any).profile ?? null))
       .catch(() => setCtx(null));
   }, []);
+
+  const current = TIERS.find((t) => t.id === model) ?? TIERS[1];
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-7.5rem)] w-full max-w-[1180px] flex-col gap-3 px-0 pt-0 sm:px-3">
@@ -118,39 +137,28 @@ export default function AssistantPage() {
         </div>
       </header>
 
-      {/* Percakapan (Conversation dari AI Elements) */}
+      {/* Percakapan */}
       <Conversation key={convoKey} className="rounded-2xl border border-gray-200 bg-white">
         <ConversationContent>
           {messages.length === 0 && (
-            <div className="mx-auto max-w-xl px-4 pt-10">
+            <div className="px-4 pt-10">
               <p className="font-manrope text-sm text-text-muted-custom">
                 Halo! 👋 Tanya apa saja — jawaban dipersonalisasi: {ctx?.school || "sekolah belum terisi"} ·{" "}
                 {ctx?.riasecPrimary ? `minat ${ctx.riasecPrimary}` : "tes minat belum ada"}.
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {QUICK.map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    onClick={() =>
-                      (chatRef.current as any)?.sendMessage({ text: q }, { body: { model: modelRef.current } })
-                    }
-                    className="rounded-full border border-brand-navy/10 bg-brand-navy/5 px-3 py-1.5 font-manrope text-brand-navy text-xs transition-colors hover:bg-brand-navy/10"
-                  >
-                    {q}
-                  </button>
-                ))}
+              <div className="mt-4">
+                <Suggestions>
+                  {SUGGESTIONS.map((s) => (
+                    <Suggestion key={s} suggestion={s} onClick={() => sendText(s)} />
+                  ))}
+                </Suggestions>
               </div>
             </div>
           )}
 
           {messages.map((m: any) => (
-            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 font-manrope text-sm leading-relaxed ${
-                  m.role === "user" ? "bg-brand-navy text-white" : "border border-gray-200 bg-gray-50 text-gray-900"
-                }`}
-              >
+            <Message key={m.id} from={m.role === "user" ? "user" : "assistant"}>
+              <MessageContent className={m.role === "user" ? "!bg-brand-navy !text-white" : "!max-w-none w-full"}>
                 {m.role === "user" ? (
                   <span>
                     {(m as any).content ??
@@ -160,31 +168,37 @@ export default function AssistantPage() {
                         "…")}
                   </span>
                 ) : (
-                  <>
-                    {(m.parts ?? []).map((p: any, i: number) => {
-                      const kind = p.kind ?? p.type;
-                      if (kind === "text") return <MarkdownRenderer key={i}>{p.text ?? ""}</MarkdownRenderer>;
-                      if (kind === "tool-invocation" || kind === "tool") {
-                        const ti = p.toolInvocation ?? p;
-                        const done = (ti.state ?? "call") === "result";
-                        return (
-                          <div
-                            key={i}
-                            className="mb-1.5 inline-flex flex-wrap items-center gap-1.5 rounded-lg bg-brand-navy/5 px-2 py-1 font-mono text-[10px] text-brand-navy"
-                          >
-                            🔧 {ti.toolName ?? ti.name ?? "tool"} {done ? "✓" : "…"}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })}
-                    {(m.parts ?? []).length === 0 && busy && (
-                      <span className="text-text-muted-custom/50 italic">memikirkan…</span>
-                    )}
-                  </>
+                  (m.parts ?? []).map((p: any, i: number) => {
+                    const kind = p.kind ?? p.type;
+                    if (kind === "text") {
+                      return p.text ? <MessageResponse key={i}>{p.text}</MessageResponse> : null;
+                    }
+                    if (kind === "tool-invocation" || kind === "tool") {
+                      const ti = p.toolInvocation ?? p;
+                      const done = (ti.state ?? "call") === "result";
+                      const name = ti.toolName ?? ti.name ?? "tool";
+                      const result = done ? ti.result : undefined;
+                      return (
+                        <Task key={i} defaultOpen={false} className="rounded-xl border border-gray-200 bg-white">
+                          <TaskTrigger title={`${done ? "✓" : "…"} ${name}`} />
+                          <TaskContent>
+                            <pre className="overflow-x-auto p-3 font-mono text-[10px] text-text-muted-custom">
+                              {typeof result === "string"
+                                ? result.slice(0, 800)
+                                : JSON.stringify({ args: ti.args ?? {}, result }, null, 2).slice(0, 800)}
+                            </pre>
+                          </TaskContent>
+                        </Task>
+                      );
+                    }
+                    return null;
+                  })
                 )}
-              </div>
-            </div>
+                {m.role === "assistant" && (m.parts ?? []).length === 0 && busy && (
+                  <span className="text-text-muted-custom/50 italic">memikirkan…</span>
+                )}
+              </MessageContent>
+            </Message>
           ))}
         </ConversationContent>
         <ConversationScrollButton />
@@ -210,7 +224,7 @@ export default function AssistantPage() {
           </div>
         )}
 
-        <PromptInput onSubmit={handleSubmit as any} multiple className="rounded-2xl border border-gray-200 bg-white">
+        <PromptInput onSubmit={handleSubmit} multiple className="rounded-2xl border border-gray-200 bg-white">
           <PromptInputBody>
             <PromptInputTextarea
               value={text}
@@ -220,18 +234,44 @@ export default function AssistantPage() {
           </PromptInputBody>
           <PromptInputFooter>
             <PromptInputTools>
-              <PromptInputSelect value={model} onValueChange={setModel}>
-                <PromptInputSelectTrigger>
-                  <PromptInputSelectValue />
-                </PromptInputSelectTrigger>
-                <PromptInputSelectContent>
-                  {TIERS.map((t) => (
-                    <PromptInputSelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </PromptInputSelectItem>
-                  ))}
-                </PromptInputSelectContent>
-              </PromptInputSelect>
+              {/* Model selector (dialog) */}
+              <ModelSelector open={modelOpen} onOpenChange={setModelOpen}>
+                <ModelSelectorTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 rounded-full border border-gray-200 px-3 text-xs"
+                  >
+                    {current.icon}
+                    {current.name}
+                  </Button>
+                </ModelSelectorTrigger>
+                <ModelSelectorContent title="Pilih model">
+                  <ModelSelectorInput placeholder="Cari model…" />
+                  <ModelSelectorList>
+                    {TIERS.map((t) => (
+                      <ModelSelectorItem
+                        key={t.id}
+                        value={t.id}
+                        onSelect={() => {
+                          setModel(t.id);
+                          setModelOpen(false);
+                        }}
+                      >
+                        <div className="flex w-full items-center gap-3 py-1">
+                          {t.icon}
+                          <div className="flex-1">
+                            <p className="font-manrope font-medium text-foreground text-sm">{t.name}</p>
+                            <p className="font-manrope text-muted-foreground text-xs">{t.desc}</p>
+                          </div>
+                          {model === t.id && <CheckIcon className="size-4 text-brand-orange" />}
+                        </div>
+                      </ModelSelectorItem>
+                    ))}
+                  </ModelSelectorList>
+                </ModelSelectorContent>
+              </ModelSelector>
             </PromptInputTools>
             <PromptInputSubmit status={status} />
           </PromptInputFooter>
