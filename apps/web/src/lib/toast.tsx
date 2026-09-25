@@ -44,16 +44,11 @@ export const notify = {
     gooeyToast(title, opts);
   },
   /** Promise wrapper — loading ✨ → sukses 🎉 / gagal 🙈 + morph */
-  promise<T>(
-    p: Promise<T>,
-    msgs: { loading: string; success: string; error: string },
-    opts?: Pick<NotifyOpts, "description" | "duration">,
-  ) {
+  promise<T>(p: Promise<T>, msgs: { loading: string; success: string; error: string }) {
     return gooeyToast.promise(p, {
       loading: `✨ ${msgs.loading}`,
       success: `🎉 ${msgs.success}`,
       error: `🙈 ${msgs.error}`,
-      ...(opts ?? {}),
     });
   },
   update(id: string | number, opts: Parameters<typeof gooeyToast.update>[1]) {
