@@ -36,6 +36,9 @@ pattern = "api.staging.mulaiplus.id"
 zone_name = "mulaiplus.id"
 custom_domain = true
 
+[[env.staging.services]]
+binding = "AI_SERVICE"
+service = "mulai-plus-ai-staging"
 [[env.staging.kv_namespaces]]
 binding = "KV_CACHE"
 id = "48ee59ca404b46cebd7c8aa47eda6e1b"
@@ -75,6 +78,9 @@ pattern = "api.mulaiplus.id"
 zone_name = "mulaiplus.id"
 custom_domain = true
 
+[[env.production.services]]
+binding = "AI_SERVICE"
+service = "mulai-plus-ai-production"
 [[env.production.kv_namespaces]]
 binding = "KV_CACHE"
 id = "48ee59ca404b46cebd7c8aa47eda6e1b"

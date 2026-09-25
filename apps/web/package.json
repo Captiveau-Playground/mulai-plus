@@ -58,6 +58,7 @@
     "@tiptap/pm": "^2.17.0",
     "@tiptap/react": "^2.17.0",
     "@tiptap/starter-kit": "^2.17.0",
+    "ai": "7.0.114",
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "catalog:",
     "canvas-confetti": "^1.9.4",

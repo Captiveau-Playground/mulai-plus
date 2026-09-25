@@ -383,10 +383,10 @@ jobs:
       - name: Smoke test AI — /health + chat (custom domain)
         run: |
           set -euo pipefail
-          URL="https://ai.mulaiplus.id"
+          URL="https://api.mulaiplus.id"
           ok=0
           for i in 1 2 3; do
-            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/health" || true)
+            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/ai/health" || true)
             if [ "$code" = "200" ]; then ok=1; break; fi
             echo "[attempt $i/3] HTTP=$code — retry (DNS custom domain)..."
             sleep 8

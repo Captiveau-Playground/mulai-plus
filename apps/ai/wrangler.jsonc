@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mulai-plus-ai",
   "main": "src/index.ts",
-  "workers_dev": true,
+  "workers_dev": false,
   "compatibility_date": "2026-08-14",
   "compatibility_flags": ["nodejs_compat", "no_handle_cross_request_promise_resolution"],
   "observability": {
@@ -20,7 +20,7 @@
   "migrations": [{ "tag": "kvdo-v1", "new_sqlite_classes": ["RateLimitDO"] }],
   "env": {
     "staging": {
-      "workers_dev": true,
+      "workers_dev": false,
       "kv_namespaces": [
         { "binding": "AI_KV", "id": "434d1a4233b84809b26e7ccc31ceb1c3" }
       ],
@@ -34,20 +34,13 @@
           "id": "5d214aea95a842069ee2a0bba93222c4"
         }
       ],
-      "routes": [
-        {
-          "pattern": "ai.staging.mulaiplus.id",
-          "zone_name": "mulaiplus.id",
-          "custom_domain": true
-        }
-      ],
       "vars": {
         "CORS_ORIGIN": "https://staging.mulaiplus.id",
         "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
       }
     },
     "production": {
-      "workers_dev": true,
+      "workers_dev": false,
       "kv_namespaces": [
         { "binding": "AI_KV", "id": "434d1a4233b84809b26e7ccc31ceb1c3" }
       ],
@@ -59,13 +52,6 @@
         {
           "binding": "HYPERDRIVE",
           "id": "42a918a410c84017afa795d9a58f6eb3"
-        }
-      ],
-      "routes": [
-        {
-          "pattern": "ai.mulaiplus.id",
-          "zone_name": "mulaiplus.id",
-          "custom_domain": true
         }
       ],
       "vars": {

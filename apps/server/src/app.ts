@@ -124,6 +124,26 @@ export function createApp(options: CreateAppOptions) {
       return fetch(target, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(t));
     };
 
+    // Plan A: panggilan AI via SERVICE BINDING (internal, tanpa key) bila ada;
+    // fallback URL (local dev / VPS). Tetap diberi timeout.
+    const aiFetch = (c: any, target: string, init: RequestInit, ms: number) => {
+      const svc = c.env?.AI_SERVICE as
+        | { fetch?(input: string | URL, init?: RequestInit): Promise<Response> }
+        | undefined;
+      if (svc?.fetch) {
+        return svc.fetch(target, { ...init, signal: AbortSignal.timeout(ms) });
+      }
+      return fetchWithTimeout(target, init, ms);
+    };
+
+    // /ai/health → status AI worker via binding (aman, tanpa LLM)
+    app.get("/ai/health", async (c: any) => {
+      // Absolute URL — konsisten dgn /ai/chat (binding mengikutsertakan target internal)
+      const target = `${env.AI_SERVICE_URL}/health`;
+      const resp = await aiFetch(c, target, { headers: { "Content-Type": "application/json" } }, 15_000);
+      return c.newResponse(resp.body, resp);
+    });
+
     // Admin-only routes: analytics, stats, admin endpoints
     app.all("/ai/admin/*", requireAdmin, async (c) => {
       const qs = new URLSearchParams(c.req.query() as Record<string, string>).toString();
@@ -192,7 +212,8 @@ export function createApp(options: CreateAppOptions) {
       }
 
       const body = await c.req.json();
-      const resp = await fetchWithTimeout(
+      const resp = await aiFetch(
+        c,
         target,
         {
           method: c.req.method,
