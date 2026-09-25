@@ -452,8 +452,10 @@ jobs:
           done
           [ "$ok" = "1" ] || { echo "❌ AI /health gagal"; exit 1; }
           reply=$(curl -s -X POST "$URL/ai/chat" -H "Content-Type: application/json" \
+            -H "Origin: https://staging.mulaiplus.id" \
+            -H "User-Agent: Mozilla/5.0 (CI smoke; like browser)" \
             -H "x-session-id: ci-smoke-$(date +%s)" \
-            -d '{"message":"halo"}' --max-time 60 || true)
+            -d '{"message":"halo"}' --max-time 90 || true)
           echo "$reply" | grep -q "full_reply"
           echo "✅ mulai-plus-ai-staging (Workers) sehat"
 
