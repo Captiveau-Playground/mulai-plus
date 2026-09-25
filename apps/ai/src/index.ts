@@ -44,6 +44,11 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
+app.onError((err, c) => {
+  console.error("[ai] unhandled:", (err as Error).message);
+  return c.json({ error: "internal", debug: (err as Error).message.slice(0, 200) }, 500);
+});
+
 app.route("/api", chatRoute);
 app.route("/api", streamRoute);
 app.route("/api/admin", adminRoute);

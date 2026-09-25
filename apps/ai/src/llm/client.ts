@@ -73,6 +73,8 @@ export async function llmChat(
     payload.tools = opts.tools;
     payload.tool_choice = "auto";
   }
+  // Timeout 60s — WA bisa mengantre model (async_queue); tanpa batas waktu
+  // request bisa menggantung selama berjam-jam ketika model throttling.
   const resp = await fetch(`${baseUrl(c)}/chat/completions`, {
     method: "POST",
     headers: {
@@ -80,6 +82,7 @@ export async function llmChat(
       Authorization: `Bearer ${apiKey(c)}`,
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(60_000),
   });
   return { body: resp.body, headers: resp.headers, status: resp.status };
 }
