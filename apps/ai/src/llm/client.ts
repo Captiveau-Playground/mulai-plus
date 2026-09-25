@@ -104,3 +104,13 @@ export async function llmChatJson(c: AppContext, messages: LlmMessage[], opts: {
 export function usageOf(data: unknown): Usage {
   return (data as { usage?: Usage })?.usage ?? {};
 }
+
+// ── Streaming passthrough (AI SDK trial) ──────────────────
+export async function llmChatStream(
+  c: AppContext,
+  messages: LlmMessage[],
+  opts: { tools?: ToolDef[] } = {},
+): Promise<ReadableStream<Uint8Array> | null> {
+  const { body } = await llmChat(c, messages, { ...opts, stream: true });
+  return body;
+}

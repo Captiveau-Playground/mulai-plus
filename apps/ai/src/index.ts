@@ -19,6 +19,7 @@ import { adminRoute } from "./admin/routes";
 import { initRag } from "./agent/sources/rag";
 import { registerSqlSources } from "./agent/sources/sql-tools";
 import { chatRoute } from "./chat/route";
+import { streamRoute } from "./chat/stream-route";
 import { aiApiKey, type Env } from "./config";
 import { RateLimitDO } from "./do/rate-limit";
 
@@ -44,6 +45,7 @@ app.use("/api/*", async (c, next) => {
 });
 
 app.route("/api", chatRoute);
+app.route("/api", streamRoute);
 app.route("/api/admin", adminRoute);
 
 export { RateLimitDO };
