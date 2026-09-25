@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Gift, Loader2, MoreHorizontal, Pencil, Plus, Trash, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import {
   AlertDialog,
@@ -39,6 +38,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 const benefitSchema = z.object({

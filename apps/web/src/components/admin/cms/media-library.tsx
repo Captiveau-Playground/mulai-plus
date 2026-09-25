@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Cloud, Database, File, FileImage, FileText, Folder, RefreshCw, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import React, { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

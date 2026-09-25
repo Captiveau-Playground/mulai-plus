@@ -7,7 +7,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type * as React from "react";
 import { useState } from "react";
-import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 
 function NavLink({ item, onNavigate }: { item: (typeof navItems)[number]; onNavigate?: () => void }) {

@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2, Plus } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +19,7 @@ import { PageState } from "@/components/ui/page-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { authClient, useAuthorizePage } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 export default function EnrollmentsPage() {

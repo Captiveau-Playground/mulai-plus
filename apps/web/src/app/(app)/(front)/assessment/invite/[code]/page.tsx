@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import { Loader2, LogIn } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 export default function TestInvitePage() {

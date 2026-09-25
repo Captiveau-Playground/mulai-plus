@@ -4,7 +4,9 @@
  * Helper toast "MULAI+" — lucu & keren, ikut desain system.
  * Semua API dari sonner, ditambah emoji & deskripsi opsional + action.
  */
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
+
+const toast = gooeyToast;
 
 type NotifyOpts = {
   description?: string;

@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Globe, Laptop, Loader2, Smartphone, Trash2 } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +15,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 interface EditUserRoleDialogProps {

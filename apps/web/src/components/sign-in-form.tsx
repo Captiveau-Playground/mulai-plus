@@ -1,9 +1,9 @@
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import z from "zod";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 
 import Loader from "./loader";
 

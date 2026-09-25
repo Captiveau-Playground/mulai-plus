@@ -6,7 +6,6 @@ import { BookOpen, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-r
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import {
   AlertDialog,
@@ -42,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { authClient, isAdmin } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 const programSchema = z.object({

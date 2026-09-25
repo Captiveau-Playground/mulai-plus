@@ -16,7 +16,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 

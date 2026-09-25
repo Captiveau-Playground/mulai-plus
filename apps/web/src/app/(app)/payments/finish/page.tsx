@@ -4,9 +4,9 @@ import { useMutation } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 function FinishPaymentContent() {

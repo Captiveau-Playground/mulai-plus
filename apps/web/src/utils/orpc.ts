@@ -2,8 +2,8 @@ import { env } from "@mulai-plus/env/web";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { client } from "@/lib/client";
+import { toast } from "@/lib/toast-client";
 
 export { client };
 

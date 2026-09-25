@@ -19,10 +19,10 @@ import {
 import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
 import { FutureCareerMap } from "@/components/front/future-career-map";
 import { buildCareerMindMap, type FutureCareerResult } from "@/lib/future-career";
 import { notify } from "@/lib/toast";
+import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 

@@ -5,13 +5,13 @@ import { ArrowLeft, Check, Clock, Loader2, Save, StickyNote, User, X } from "luc
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import { MentorBatchTabs } from "@/components/mentor/mentor-batch-tabs";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageState } from "@/components/ui/page-state";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 

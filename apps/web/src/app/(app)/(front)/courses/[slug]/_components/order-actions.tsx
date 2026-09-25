@@ -3,9 +3,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 interface OrderActionsProps {

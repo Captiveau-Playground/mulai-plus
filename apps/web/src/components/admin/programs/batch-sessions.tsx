@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import {
   AlertDialog,
@@ -52,6 +51,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 import { BatchSessionsCalendar, type CalendarSession } from "./batch-sessions-calendar";
 

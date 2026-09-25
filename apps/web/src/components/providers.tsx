@@ -7,7 +7,7 @@ import { queryClient } from "@/utils/orpc";
 
 import { AnalyticsProvider } from "./analytics-provider";
 import { ThemeProvider } from "./theme-provider";
-import { Toaster } from "./ui/sonner";
+import { GooeyToasterMount } from "./ui/goey-toaster";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -16,7 +16,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <AnalyticsProvider>{children}</AnalyticsProvider>
         <ReactQueryDevtools />
       </QueryClientProvider>
-      <Toaster richColors />
+      <GooeyToasterMount />
     </ThemeProvider>
   );
 }

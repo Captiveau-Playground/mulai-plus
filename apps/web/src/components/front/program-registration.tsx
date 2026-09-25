@@ -18,7 +18,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardTitle } from "@/components/ui/card";
@@ -30,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
+import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 

@@ -6,7 +6,6 @@ import { ArrowLeft, Eye, Loader2, Maximize2, RotateCcw, Save } from "lucide-reac
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/ui/file-upload";
@@ -17,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormDraft } from "@/hooks/use-form-draft";
+import { toast } from "@/lib/toast-client";
 import { client, orpc } from "@/utils/orpc";
 import { RichTextEditor } from "./rich-text-editor";
 

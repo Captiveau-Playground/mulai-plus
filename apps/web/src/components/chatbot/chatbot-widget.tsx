@@ -3,9 +3,9 @@
 import { env } from "@mulai-plus/env/web";
 import { Lock, MessageCircle, MessageSquare, RefreshCw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Chat } from "@/components/ui/chat";
 import type { Message } from "@/components/ui/chat-message";
+import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 
 const RAW_BASE = env.NEXT_PUBLIC_SERVER_URL;

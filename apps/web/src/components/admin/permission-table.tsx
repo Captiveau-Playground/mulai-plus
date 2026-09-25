@@ -15,8 +15,6 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, ChevronDown, Loader2, MoreHorizontal, Plus } from "lucide-react";
 import * as React from "react";
-import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -41,6 +39,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 
 export type Permission = {

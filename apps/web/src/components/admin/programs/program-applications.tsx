@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ClipboardList, Loader2, User, X } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +18,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trackEvent } from "@/lib/analytics";
+import { toast } from "@/lib/toast-client";
 import { orpc } from "@/utils/orpc";
 import { ProgramApplicationAnswers } from "./program-application-answers";
 

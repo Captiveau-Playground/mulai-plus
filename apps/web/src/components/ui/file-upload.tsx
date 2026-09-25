@@ -4,8 +4,8 @@ import { env } from "@mulai-plus/env/web";
 import { Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/lib/toast-client";
 import { cn } from "@/lib/utils";
 
 const UPLOAD_ENDPOINT = `${env.NEXT_PUBLIC_SERVER_URL}/api/upload`;
