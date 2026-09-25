@@ -107,15 +107,22 @@ function NavGroup({ group, onNavigate }: { group: NavGroupDef; onNavigate?: () =
 }
 
 const dashboardItem: NavItem = { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard };
-const mainItems: NavItem[] = [
-  { title: "Asisten AI", url: "/dashboard/student/assistant", icon: Sparkles },
-  { title: "My Programs", url: "/dashboard/student/programs", icon: GraduationCap },
-  { title: "Schedule", url: "/dashboard/student/schedule", icon: Calendar },
-  { title: "Summary Report", url: "/dashboard/student/summary-report", icon: Award },
-];
 
 const navGroups: NavGroupDef[] = [
-  // Program group pindah ke mainItems (di atas) — hindari duplikat
+  {
+    title: "Asisten",
+    icon: Sparkles,
+    items: [{ title: "Asisten AI", url: "/dashboard/student/assistant", icon: Sparkles }],
+  },
+  {
+    title: "Program",
+    icon: GraduationCap,
+    items: [
+      { title: "My Programs", url: "/dashboard/student/programs", icon: GraduationCap },
+      { title: "Schedule", url: "/dashboard/student/schedule", icon: Calendar },
+      { title: "Summary Report", url: "/dashboard/student/summary-report", icon: Award },
+    ],
+  },
   {
     title: "Assessment",
     icon: Brain,
@@ -201,9 +208,6 @@ export function StudentSidebar({
       <SidebarContent className="px-2 sm:px-3">
         <nav className="space-y-1" aria-label="Student navigation">
           <NavLink item={dashboardItem} isActive={pathname === "/dashboard/student"} onNavigate={onNavigate} />
-          {mainItems.map((it) => (
-            <NavLink key={it.title} item={it} isActive={pathname === it.url} onNavigate={onNavigate} />
-          ))}
           {navGroups.map((group) => (
             <NavGroup key={group.title} group={group} onNavigate={onNavigate} />
           ))}
