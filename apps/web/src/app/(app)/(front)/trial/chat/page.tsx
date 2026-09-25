@@ -7,6 +7,7 @@
  */
 import { useChat } from "@ai-sdk/react";
 import { env } from "@mulai-plus/env/web";
+import { DefaultChatTransport } from "ai";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
@@ -19,8 +20,10 @@ export default function TrialChatPage() {
 
   // v4+ useChat: { messages, sendMessage, status, stop, error } — tanpa input built-in
   const chat = useChat({
-    url: `${AI_BASE}/ai/chat/stream`,
-    headers: { "x-session-id": sessionId, "Content-Type": "application/json" },
+    transport: new DefaultChatTransport({
+      api: `${AI_BASE}/ai/chat/stream`,
+      headers: { "x-session-id": sessionId },
+    }),
   } as any);
 
   const send = () => {

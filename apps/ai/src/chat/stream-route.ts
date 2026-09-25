@@ -31,12 +31,49 @@ import { exactCacheGet, exactCachePut } from "./cache";
 import { extractTopics, SYSTEM_PROMPT } from "./prompt";
 
 const streamRoute = new Hono<{ Bindings: Env }>();
-const Body = z.object({
-  message: z.string().min(1).max(4000),
-  session_id: z.string().optional(),
-  // Tier model tersamar (dari UI): cepat | seimbang | maksimal
-  model: z.enum(["simple", "smart", "premium"]).optional(),
+const MsgItem = z.object({
+  role: z.string(),
+  content: z.string().nullable().optional(),
+  text: z.string().optional(),
+  parts: z.array(z.unknown()).optional(),
 });
+// Terima body useChat v4 ({id, messages:[...]}) maupun legacy {message}
+const Body = z
+  .object({
+    message: z.string().max(4000).optional(),
+    messages: z.array(MsgItem).optional(),
+    session_id: z.string().optional(),
+    // Tier model tersamar (dari UI): cepat | seimbang | maksimal
+    model: z.enum(["simple", "smart", "premium"]).optional(),
+  })
+  .transform((d) => {
+    let msg = d.message?.trim() ?? "";
+    if (!msg && Array.isArray(d.messages)) {
+      for (const m of [...d.messages].reverse()) {
+        if (m.role !== "user") continue;
+        if (typeof m.content === "string" && m.content.trim()) {
+          msg = m.content.trim();
+          break;
+        }
+        const parts = (m.parts ?? []) as { kind?: string; type?: string; text?: string }[];
+        const t = parts
+          .filter((p) => (p.kind ?? p.type) === "text")
+          .map((p) => p.text ?? "")
+          .join("")
+          .trim();
+        if (t) {
+          msg = t;
+          break;
+        }
+        if (m.text?.trim()) {
+          msg = m.text.trim();
+          break;
+        }
+      }
+    }
+    return { message: msg, session_id: d.session_id, model: d.model };
+  })
+  .refine((d) => d.message.length >= 1 && d.message.length <= 4000, { message: "message wajib 1..4000 char" });
 const TIER_MODELS: Record<string, string> = {
   simple: DEFAULT_FAST_MODEL, // glm-4.7-flash
   smart: DEFAULT_MODEL, // qwen3-30b

@@ -2,10 +2,12 @@
 
 import { useChat } from "@ai-sdk/react";
 import { env } from "@mulai-plus/env/web";
+import { DefaultChatTransport } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "@/components/ui/loader-circle";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
+import { notify } from "@/lib/toast";
 import type { UserContext } from "./types";
 
 const AI_BASE = (env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
@@ -20,18 +22,29 @@ const QUICK = [
 export default function AssistantPage() {
   const [ctx, setCtx] = useState<UserContext | null>(null);
   const [showCtx, setShowCtx] = useState(true);
+  const [tier, setTier] = useState<"simple" | "smart" | "premium">("smart");
+  const [premLeft, setPremLeft] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const chat = useChat({
-    url: `${AI_BASE}/ai/chat/stream`,
-    headers: { "x-session-id": "ast" },
+    transport: new DefaultChatTransport({
+      api: `${AI_BASE}/ai/chat/stream?model=${tier}`,
+      headers: { "x-session-id": "ast" },
+    }),
+    onError: (err: unknown) => {
+      if (err instanceof Error) notify.error(`Gagal kirim: ${err.message}`);
+    },
   } as any);
 
   useEffect(() => {
-    fetch(`${AI_BASE}/ai/context`, { headers: { "x-session-id": "ast" }, cache: "no-store" })
+    void fetch(`${AI_BASE}/ai/context`, { headers: { "x-session-id": "ast" } })
       .then((r) => r.json())
-      .then((d) => setCtx(d.profile ?? null))
+      .then((d) => setCtx((d as any).profile ?? null))
       .catch(() => setCtx(null));
+    void fetch(`${AI_BASE}/ai/quota`, { headers: { "x-session-id": "ast" } })
+      .then((r) => r.json())
+      .then((d) => setPremLeft((d as any)?.tiers?.premium?.remaining ?? null))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -82,6 +95,11 @@ export default function AssistantPage() {
       {/* Chat utama */}
       <section className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white">
         {/* Header tipis */}
+        {(chat as any).error && !busy && (
+          <div className="border-gray-100 border-b bg-red-50 px-4 py-2 font-manrope text-red-600 text-xs">
+            {(chat as any).error instanceof Error ? (chat as any).error.message : String((chat as any).error)}
+          </div>
+        )}
         <header className="flex items-center justify-between border-gray-100 border-b px-4 py-2.5">
           <div className="flex items-center gap-2">
             <span className="flex size-6 items-center justify-center rounded-lg bg-brand-navy/10 font-manrope text-brand-navy text-xs">
@@ -91,6 +109,21 @@ export default function AssistantPage() {
             {busy && <LoaderCircle className="size-4 text-brand-orange" />}
           </div>
           <div className="flex items-center gap-2">
+            <select
+              value={tier}
+              onChange={(e) => setTier(e.target.value as typeof tier)}
+              aria-label="Model"
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 font-manrope text-brand-navy text-xs outline-none focus:border-brand-orange/60"
+            >
+              <option value="simple">⚡ Simple</option>
+              <option value="smart">🧠 Advanced</option>
+              <option value="premium">★ Premium</option>
+            </select>
+            {tier === "premium" && premLeft !== null && (
+              <span className="rounded-full bg-brand-orange/10 px-2 py-1 font-manrope text-[10px] text-brand-orange">
+                sisa {premLeft}/hari
+              </span>
+            )}
             {!showCtx && (
               <button
                 type="button"
