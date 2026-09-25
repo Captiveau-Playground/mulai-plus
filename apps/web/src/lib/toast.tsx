@@ -36,16 +36,16 @@ export type NotifyOpts = Partial<
 
 export const notify = {
   success(title: string, opts?: NotifyOpts) {
-    gooeyToast.success(`🎉 ${title}`, { ...BRAND_COLORS.success, ...opts });
+    gooeyToast.success(`🎉 ${title}`, { ...BRAND_COLORS.success, showProgress: true, ...opts });
   },
   error(title: string, opts?: NotifyOpts) {
-    gooeyToast.error(`🙈 ${title}`, { ...BRAND_COLORS.error, ...opts });
+    gooeyToast.error(`🙈 ${title}`, { ...BRAND_COLORS.error, duration: 6000, preset: "bouncy", ...opts });
   },
   info(title: string, opts?: NotifyOpts) {
-    gooeyToast.info(`🤖 ${title}`, { ...BRAND_COLORS.info, ...opts });
+    gooeyToast.info(`🤖 ${title}`, { ...BRAND_COLORS.info, preset: "subtle", ...opts });
   },
   warn(title: string, opts?: NotifyOpts) {
-    gooeyToast.warning(`⚠️ ${title}`, { ...BRAND_COLORS.warning, ...opts });
+    gooeyToast.warning(`⚠️ ${title}`, { ...BRAND_COLORS.warning, preset: "subtle", ...opts });
   },
   toast(title: string, opts?: NotifyOpts) {
     gooeyToast(title, opts);
