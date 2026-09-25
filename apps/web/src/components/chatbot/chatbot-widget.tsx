@@ -14,7 +14,7 @@ const API_CHAT = `${AI_BASE}/ai/chat`;
 const SESSION_KEY = "chatbot_session_id";
 const HISTORY_LIMIT = 20;
 const META_TIMEOUT = 8_000; // history/quota timeout
-const SEND_TIMEOUT = 45_000; // batas total stream (LLM bisa 30s+)
+const SEND_TIMEOUT = 120_000; // LLM staging kadang lambat (3s–120s) — jangan potong di 45s // batas total stream (LLM bisa 30s+)
 
 const INITIAL_SUGGESTIONS = [
   "Cari universitas negeri di Jawa Timur",

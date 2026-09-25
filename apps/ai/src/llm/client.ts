@@ -82,7 +82,7 @@ export async function llmChat(
       Authorization: `Bearer ${apiKey(c)}`,
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(90_000),
   });
   return { body: resp.body, headers: resp.headers, status: resp.status };
 }
