@@ -171,6 +171,18 @@ jobs:
           tag_prefix: v
           append_to_pre_release_tag: staging
 
+      # Auto-release: bikin GitHub Release (catatan digenerate otomatis) tiap tag baru.
+      # Halaman /changelog membaca daftar release ini. Skip kalau tidak ada bump.
+      - name: Create GitHub Release (auto-changelog)
+        if: steps.tag_version.outputs.already_tagged != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ needs.tag.outputs.new_tag }}
+          name: ${{ needs.tag.outputs.new_tag }}
+          generate_release_notes: true
+          prerelease: true
+
   # ──────────────────────────── MIGRATE (DB) ────────────────────────────
   migrate:
     needs: tag
