@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Eye, FileText, Globe, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 type CmsArticleStatus = "draft" | "scheduled" | "published" | "archived";
@@ -86,11 +86,11 @@ export function ArticleList() {
   const deleteMutation = useMutation(
     orpc.cms.articles.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Article deleted");
+        notify.success("Article deleted");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -98,11 +98,11 @@ export function ArticleList() {
   const publishMutation = useMutation(
     orpc.cms.articles.admin.publish.mutationOptions({
       onSuccess: () => {
-        toast.success("Article published");
+        notify.success("Article published");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -110,11 +110,11 @@ export function ArticleList() {
   const unpublishMutation = useMutation(
     orpc.cms.articles.admin.unpublish.mutationOptions({
       onSuccess: () => {
-        toast.success("Article unpublished");
+        notify.success("Article unpublished");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -122,12 +122,12 @@ export function ArticleList() {
   const bulkPublishMutation = useMutation(
     orpc.cms.articles.admin.bulkPublish.mutationOptions({
       onSuccess: () => {
-        toast.success("Articles published");
+        notify.success("Articles published");
         setSelected(new Set());
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -135,12 +135,12 @@ export function ArticleList() {
   const bulkDeleteMutation = useMutation(
     orpc.cms.articles.admin.bulkDelete.mutationOptions({
       onSuccess: () => {
-        toast.success("Articles deleted");
+        notify.success("Articles deleted");
         setSelected(new Set());
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

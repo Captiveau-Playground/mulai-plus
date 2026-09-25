@@ -5,10 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import { resetConsent } from "@/lib/analytics";
 import { client } from "@/lib/client";
 import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
+import { notify } from "@/lib/toast";
 import { getWebEnv, RELEASE_TAG } from "@/lib/web-env";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -92,10 +92,10 @@ export function Footer() {
       await client.cms.newsletter.subscribe({ email, source: "footer-form" });
       setSubscribed(true);
       setEmail("");
-      toast.success("Berhasil berlangganan newsletter!");
+      notify.create("Berlangganan berhasil", { description: "Ikuti update program & tips universitas." });
       setTimeout(() => setSubscribed(false), 3000);
     } catch (_error) {
-      toast.error("Gagal berlangganan. Coba lagi.");
+      notify.error("Gagal berlangganan 🙈", { description: "Coba lagi sebentar ya." });
     } finally {
       setSubscribing(false);
     }

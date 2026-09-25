@@ -5,11 +5,11 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Briefcase, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 type CareerRow = { id: string; majorCategory: string; careerName: string };
@@ -30,31 +30,31 @@ export default function AdminCareersPage() {
   const createC = useMutation({
     ...orpc.tmbAdmin.careers.create.mutationOptions(),
     onSuccess: () => {
-      toast.success("Karier ditambahkan!");
+      notify.success("Karier ditambahkan!");
       setShowForm(false);
       setForm({ majorCategory: "", careerName: "" });
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal menambah karier"),
+    onError: (e) => notify.error(e.message || "Gagal menambah karier"),
   });
   const updateC = useMutation({
     ...orpc.tmbAdmin.careers.update.mutationOptions(),
     onSuccess: () => {
-      toast.success("Karier diperbarui!");
+      notify.success("Karier diperbarui!");
       setShowForm(false);
       setEditing(null);
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal memperbarui karier"),
+    onError: (e) => notify.error(e.message || "Gagal memperbarui karier"),
   });
   const deleteC = useMutation({
     ...orpc.tmbAdmin.careers.delete.mutationOptions(),
     onSuccess: () => {
-      toast.success("Karier dihapus");
+      notify.success("Karier dihapus");
       setConfirmDelete(null);
       invalidate();
     },
-    onError: (e) => toast.error(e.message || "Gagal menghapus karier"),
+    onError: (e) => notify.error(e.message || "Gagal menghapus karier"),
   });
 
   const grouped = useMemo(() => {
@@ -79,7 +79,7 @@ export default function AdminCareersPage() {
 
   const submit = () => {
     if (!form.careerName.trim() || !form.majorCategory.trim()) {
-      toast.error("Lengkapi nama karier dan kategori jurusan");
+      notify.error("Lengkapi nama karier dan kategori jurusan");
       return;
     }
     const payload = { careerName: form.careerName.trim(), majorCategory: form.majorCategory.trim() };

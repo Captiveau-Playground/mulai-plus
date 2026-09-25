@@ -7,12 +7,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/analytics";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 
@@ -349,7 +349,7 @@ export default function ArticleDetailPage() {
                     onClick={() => {
                       trackEvent("share_article", { article_slug: slug, platform: "copy" });
                       navigator.clipboard.writeText(typeof window !== "undefined" ? window.location.href : "");
-                      toast.success("Link copied!");
+                      notify.success("Link copied!");
                     }}
                     className="flex h-8 w-8 items-center justify-center rounded-full border transition-all hover:bg-gray-100"
                   >

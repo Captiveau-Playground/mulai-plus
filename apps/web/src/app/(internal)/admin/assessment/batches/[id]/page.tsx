@@ -7,13 +7,13 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import QRCode from "qrcode";
 import { useState } from "react";
-import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 
@@ -40,7 +40,7 @@ export default function BatchDetailPage() {
   const addStudent = useMutation({
     ...orpc.tmbAdmin.students.add.mutationOptions(),
     onSuccess: () => {
-      toast.success("Siswa ditambahkan");
+      notify.success("Siswa ditambahkan");
       setStudentName("");
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.batches.get.key() });
     },
@@ -52,17 +52,17 @@ export default function BatchDetailPage() {
   const updateStudent = useMutation({
     ...orpc.tmbAdmin.students.update.mutationOptions(),
     onSuccess: () => {
-      toast.success("Data siswa diperbarui!");
+      notify.success("Data siswa diperbarui!");
       setEditStudent(null);
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.batches.get.key() });
     },
-    onError: (e) => toast.error(e.message || "Gagal memperbarui siswa"),
+    onError: (e) => notify.error(e.message || "Gagal memperbarui siswa"),
   });
 
   const removeStudent = useMutation({
     ...orpc.tmbAdmin.students.remove.mutationOptions(),
     onSuccess: () => {
-      toast.success("Siswa dihapus");
+      notify.success("Siswa dihapus");
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.batches.get.key() });
     },
   });
@@ -70,24 +70,24 @@ export default function BatchDetailPage() {
   const importCsv = useMutation({
     ...orpc.tmbAdmin.students.import.mutationOptions(),
     onSuccess: (d) => {
-      toast.success(`${d.imported} siswa berhasil diimport!`);
+      notify.success(`${d.imported} siswa berhasil diimport!`);
       setCsvText("");
       queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.batches.get.key() });
     },
-    onError: (e) => toast.error(e.message || "Gagal import"),
+    onError: (e) => notify.error(e.message || "Gagal import"),
   });
 
   const invite = useMutation({
     ...orpc.tmbAdmin.students.sendInviteEmails.mutationOptions(),
     onSuccess: (d) => {
-      toast.success(
+      notify.success(
         d.sent > 0
           ? `${d.sent} email undangan terkirim! 📧`
           : "Kode sudah siap — kirim via email atau bagikan link/QR.",
       );
-      if (d.failed?.length) toast.error(`${d.failed.length} email gagal terkirim`);
+      if (d.failed?.length) notify.error(`${d.failed.length} email gagal terkirim`);
     },
-    onError: (e) => toast.error(e.message || "Gagal mengirim undangan"),
+    onError: (e) => notify.error(e.message || "Gagal mengirim undangan"),
   });
 
   const copyCode = (link: string) => {
@@ -95,7 +95,7 @@ export default function BatchDetailPage() {
     navigator.clipboard.writeText(full);
     setCopied("code");
     setTimeout(() => setCopied(null), 1500);
-    toast.success("Link undangan disalin!");
+    notify.success("Link undangan disalin!");
   };
 
   const [sendEmail, setSendEmail] = useState(false);
@@ -122,9 +122,9 @@ export default function BatchDetailPage() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Rekap");
       XLSX.writeFile(wb, `rekap-${(batch?.name ?? "batch").replace(/\s+/g, "-")}.xlsx`);
-      toast.success("Rekap Excel diunduh!");
+      notify.success("Rekap Excel diunduh!");
     } catch {
-      toast.error("Gagal export");
+      notify.error("Gagal export");
     } finally {
       setExporting(false);
     }

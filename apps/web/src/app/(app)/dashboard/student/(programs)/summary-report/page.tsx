@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Award, Download, FileText, Loader2, MessageSquare } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +19,7 @@ import {
 import { PageState } from "@/components/ui/page-state";
 import { trackEvent } from "@/lib/analytics";
 import { generateSummaryReportPdf } from "@/lib/summary-report-pdf";
+import { notify } from "@/lib/toast";
 import { client, orpc } from "@/utils/orpc";
 
 interface ReportItem {
@@ -58,7 +58,7 @@ function DownloadButton({ report }: { report: Report }) {
       await doDownload();
     } catch (error) {
       console.error("Gagal cek feedback:", error);
-      toast.error("Gagal memverifikasi feedback. Coba lagi.");
+      notify.error("Gagal memverifikasi feedback. Coba lagi.");
     } finally {
       setChecking(false);
     }
@@ -116,10 +116,14 @@ function DownloadButton({ report }: { report: Report }) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success("PDF downloaded!");
+      notify.create("PDF berhasil diunduh");
       trackEvent("summary_report_downloaded", { report_id: report.id });
     } catch (error) {
-      toast.error("Failed to generate PDF");
+      notify.error("Gagal membuat PDF", {
+        description: "Coba lagi dalam beberapa detik.",
+        actionLabel: "Coba lagi",
+        onAction: () => handleDownload(),
+      });
       console.error(error);
     } finally {
       setLoading(false);

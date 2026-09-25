@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, MessageSquare, Send, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 interface ActiveFeedback {
@@ -94,11 +94,11 @@ export function FeedbackPopup({
   const submitMutation = useMutation({
     ...orpc.feedback.response.submit.mutationOptions(),
     onSuccess: () => {
-      toast.success("Feedback submitted! Thank you.");
+      notify.success("Feedback submitted! Thank you.");
       queryClient.invalidateQueries({ queryKey: orpc.feedback.response.myActive.key() });
       if (feedback) onComplete(feedback.id);
     },
-    onError: (err) => toast.error(err.message || "Failed to submit feedback"),
+    onError: (err) => notify.error(err.message || "Failed to submit feedback"),
   });
 
   const handleSubmit = () => {
@@ -110,7 +110,7 @@ export function FeedbackPopup({
     }));
 
     if (allAnswers.some((a) => !a.answer.trim())) {
-      toast.error("Please answer all questions");
+      notify.error("Please answer all questions");
       return;
     }
 

@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { BatchSessionsCalendar, type CalendarSession } from "@/components/admin/programs/batch-sessions-calendar";
 import { SessionCreateDialog } from "@/components/mentor/sessions/session-create-dialog";
 import { SessionUpdateDialog } from "@/components/mentor/sessions/session-update-dialog";
@@ -42,6 +41,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { formatWIB } from "@/lib/date-wib";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -132,14 +132,14 @@ function MentorSessionsContent() {
   const deleteMutation = useMutation(
     orpc.programActivities.mentor.deleteOneOnOne.mutationOptions({
       onSuccess: () => {
-        toast.success("Session deleted");
+        notify.success("Session deleted");
         setDeleteSessionId(null);
         setViewingSession(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.session.mySessions.key(),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

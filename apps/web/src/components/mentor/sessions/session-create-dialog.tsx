@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { type Resolver, type SubmitHandler, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -92,14 +92,14 @@ export function SessionCreateDialog({ open, onOpenChange, defaultBatchId, defaul
   const mutation = useMutation(
     orpc.programActivities.mentor.createOneOnOne.mutationOptions({
       onSuccess: () => {
-        toast.success("Session created");
+        notify.success("Session created");
         onOpenChange(false);
         form.reset();
         queryClient.invalidateQueries({
           queryKey: orpc.programActivities.session.mySessions.key(),
         });
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

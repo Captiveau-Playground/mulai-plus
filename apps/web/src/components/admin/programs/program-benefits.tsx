@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Gift, Loader2, MoreHorizontal, Pencil, Plus, Trash, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import {
   AlertDialog,
@@ -39,6 +38,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const benefitSchema = z.object({
@@ -68,7 +68,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
   const createMutation = useMutation(
     orpc.programs.admin.benefits.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Benefit created");
+        notify.success("Benefit created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.benefits.list.key({
@@ -77,7 +77,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -85,7 +85,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
   const updateMutation = useMutation(
     orpc.programs.admin.benefits.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Benefit updated");
+        notify.success("Benefit updated");
         setEditingBenefit(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.benefits.list.key({
@@ -94,7 +94,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -102,7 +102,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
   const deleteMutation = useMutation(
     orpc.programs.admin.benefits.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Benefit deleted");
+        notify.success("Benefit deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.benefits.list.key({
             input: { programId },
@@ -110,7 +110,7 @@ export function ProgramBenefits({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );

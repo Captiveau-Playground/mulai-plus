@@ -4,12 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { toast } from "sonner";
 import Loader from "@/components/loader";
-
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 
 function LoginContent() {
   const router = useRouter();
@@ -21,7 +20,7 @@ function LoginContent() {
 
   useEffect(() => {
     if (error) {
-      toast.error(`Authentication failed: ${error}`);
+      notify.error(`Authentication failed: ${error}`);
     }
   }, [error]);
 

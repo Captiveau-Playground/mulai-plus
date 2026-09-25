@@ -3,9 +3,9 @@
 import { env } from "@mulai-plus/env/web";
 import { Lock, MessageCircle, MessageSquare, RefreshCw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Chat } from "@/components/ui/chat";
 import type { Message } from "@/components/ui/chat-message";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 const RAW_BASE = env.NEXT_PUBLIC_SERVER_URL;
@@ -175,7 +175,7 @@ export function ChatbotWidget() {
       // Auth gate: jangan append user message kalau quota habis — kasih feedback
       if (requiresAuth) {
         setConn("ok");
-        toast.info(
+        notify.info(
           redirectUrl?.includes("wa.me")
             ? "Limit chat habis — klik tombol request via WhatsApp di atas."
             : "Chat gratis habis — login untuk lanjut.",
@@ -209,7 +209,7 @@ export function ChatbotWidget() {
           console.error("[chatbot] gagal:", res.status, API_CHAT_STREAM);
           const b = await res.json().catch(() => null);
           if ((res.status === 403 || res.status === 429 || res.status === 503) && b?.reply) {
-            toast.error(b.reply);
+            notify.error(b.reply);
             if (b.requires_auth) {
               setRequiresAuth(true);
               setRedirectUrl(b.redirect_url ?? "");

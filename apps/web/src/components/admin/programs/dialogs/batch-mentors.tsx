@@ -3,10 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, Loader2, User, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -40,11 +40,11 @@ export function BatchMentorsDialog({
   const mutation = useMutation(
     orpc.programs.admin.batches.assignMentors.mutationOptions({
       onSuccess: () => {
-        toast.success("Mentors updated");
+        notify.success("Mentors updated");
         queryClient.invalidateQueries({ queryKey: ["batch", batchId] });
         if (!embedded) onOpenChange(false);
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 

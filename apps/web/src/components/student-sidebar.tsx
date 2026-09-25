@@ -20,7 +20,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type * as React from "react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +30,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 type NavItem = { title: string; url: string; icon: React.ComponentType<{ className?: string }> };
@@ -158,7 +158,7 @@ export function StudentSidebar({
       window.location.reload();
     } catch (error) {
       setIsLoggingOut(false);
-      toast.error("Failed to logout");
+      notify.error("Failed to logout");
       console.error(error);
     }
   };
