@@ -29,6 +29,8 @@ import { runAutoPublish } from "./cron-core";
 
 export interface Env {
   HYPERDRIVE: { connectionString: string };
+  /** Binding KV cache (Project 1) — opsional; VPS tidak punya. */
+  KV_CACHE?: unknown;
 }
 
 let cached: { app: ReturnType<typeof createApp> } | null = null;

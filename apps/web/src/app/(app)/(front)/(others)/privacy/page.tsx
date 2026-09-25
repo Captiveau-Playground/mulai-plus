@@ -28,8 +28,8 @@ const sections = [
     id: "google-analytics",
     title: "Google Analytics",
     content: [
-      "Platform ini menggunakan Google Analytics untuk mengumpulkan data penggunaan seperti halaman yang dikunjungi, durasi sesi, dan interaksi dengan elemen. Data ini bersifat anonim dan tidak dapat diidentifikasi secara pribadi.",
-      "Google Analytics menggunakan cookie. Anda dapat memilih untuk menolak cookie analytics melalui banner consent yang muncul saat pertama kali mengunjungi platform ini. Keputusan Anda akan disimpan di browser Anda.",
+      "Platform ini menggunakan Google Analytics (GA4) dengan Consent Mode v2: secara bawaan, pelacakan analytics nonaktif (denied) sampai Anda memberi persetujuan lewat banner. Setelah Anda setuju, cookie analytics dan event lanjutan diaktifkan.",
+      "Bagi pengunjung yang menolak, sistem tetap mengirim sinyal agregat tanpa cookie (cookieless) untuk estimasi statistik volume — tanpa mengidentifikasi pribadi Anda.",
     ],
     extra: (
       <p className="font-manrope text-base text-text-main/80 leading-relaxed">
@@ -91,6 +91,69 @@ const sections = [
       "Kebijakan privasi ini dapat diperbarui dari waktu ke waktu. Perubahan akan diinformasikan melalui platform. Dengan terus menggunakan layanan setelah perubahan, Anda menyetujui kebijakan yang diperbarui.",
     ],
   },
+
+  {
+    id: "amplitude-analitik",
+    title: "Amplitude & Analitik Produk",
+    content: [
+      "Kami menggunakan Amplitude untuk analitik perilaku (alur pendaftaran, penggunaan fitur, hasil tes minat/bakat). Event Amplitude hanya dikirim setelah Anda memberi persetujuan melalui banner consent.",
+      "Selain itu, kami mengumpulkan data penggunaan layanan secara internal (first-party) — seperti riwayat chat asisten, penyelesaian tes, dan status pendaftaran — untuk keperluan operasional dan perbaikan layanan. Data ini dikelola langsung oleh kami.",
+    ],
+  },
+  {
+    id: "dasar-hukum-uupdp",
+    title: "Dasar Hukum & Persetujuan (UU PDP)",
+    content: [
+      "Sesuai Undang-Undang Pelindungan Data Pribadi (UU No. 27 Tahun 2022/efektif), pemrosesan data pribadi kami didasarkan pada: (1) persetujuan eksplisit Anda untuk analitik pihak ketiga (cookie & pelacakan), dan (2) pelaksanaan kontrak/pelayanan untuk akun, pendaftaran program, dan fitur inti.",
+      "Persetujuan bersifat bebas, spesifik, dan dapat Anda tarik kembali kapan saja tanpa memengaruhi layanan inti.",
+    ],
+  },
+  {
+    id: "hak-anda",
+    title: "Hak Anda atas Data Pribadi",
+    content: [
+      "Anda berhak untuk: (1) mengakses salinan data pribadi, (2) memperbaiki data yang tidak akurat, (3) menghapus data, (4) membatasi/menarik persetujuan pemrosesan, (5) portabilitas data, dan (6) mengajukan pengaduan ke otoritas pengawas yang berwenang.",
+      "Untuk menggunakan hak Anda, kirim permintaan ke hello@mulaiplus.id. Kami proses dalam waktu yang wajar (maksimal 30 hari) sejak permintaan terverifikasi.",
+    ],
+  },
+  {
+    id: "retensi",
+    title: "Penyimpanan & Retensi Data",
+    content: [
+      "Data akun disimpan selama Anda memiliki akun aktif. Data percakapan chatbot, log aktivitas, dan data analitik disimpan selama diperlukan untuk tujuan pemrosesan, lalu dihapus atau dianonimkan.",
+      "Saat akun dihapus, data pribadi utama dihapus dalam 30 hari; data yang wajib disimpan karena ketentuan hukum (misal pembukuan) tetap disimpan sesuai jangka waktu yang berlaku.",
+    ],
+  },
+  {
+    id: "pihak-ketiga",
+    title: "Pihak Ketiga (Pemroses Data)",
+    content: [
+      "Data Anda dapat diproses oleh vendor berikut: Google (Google Analytics), Amplitude (analitik perilaku), Microsoft (Clarity — rekaman sesi), Supabase (hosting database), penyedia infrastruktur Cloudflare, penyedia pembayaran, dan penyedia email/notifikasi (Resend/UNOSEND/WhatsApp).",
+      "Setiap pihak ketiga hanya menerima data yang diperlukan untuk fungsinya dan terikat kewajiban kerahasiaan yang setara.",
+    ],
+  },
+  {
+    id: "chatbot-ai",
+    title: "Chatbot & Rekomendasi Otomatis",
+    content: [
+      "Fitur chatbot dan tes minat/bakat menggunakan kecerdasan buatan untuk memberikan rekomendasi jurusan, kampus, dan program. Rekomendasi bersifat informasional dan tidak menggantikan keputusan profesional/mentor.",
+      "Riwayat percakapan disimpan untuk kesinambungan layanan; Anda dapat meminta penghapusannya melalui hello@mulaiplus.id atau saat akun dihapus.",
+    ],
+  },
+  {
+    id: "keamanan",
+    title: "Keamanan Data",
+    content: [
+      "Kami menerapkan enkripsi dalam transmisi (TLS), otentikasi yang aman, kontrol akses, dan pembatasan akses internal untuk melindungi data Anda dari akses atau kebocoran yang tidak sah.",
+    ],
+  },
+  {
+    id: "anak-bawah-umur",
+    title: "Pengguna di Bawah Umur",
+    content: [
+      "Layanan MULAI+ ditujukan untuk pelajar SMA/SMK/MA dan umumnya berusia 13 tahun ke atas. Jika Anda berusia di bawah 13 tahun, gunakan layanan dengan pendampingan orang tua/wali dan jangan mengirimkan data pribadi tanpa izin orang tua.",
+    ],
+  },
   {
     id: "kontak",
     title: "Kontak",
@@ -122,7 +185,7 @@ export default function PrivacyPage() {
       label="Privacy"
       title="Kebijakan Privasi"
       description="Bagaimana MULAI+ mengumpulkan, menggunakan, dan melindungi data pribadi Anda."
-      updatedDate="11 Mei 2026"
+      updatedDate="24 September 2026"
       intro="Di MULAI+, kami menghargai privasi Anda. Kebijakan ini menjelaskan bagaimana kami mengumpulkan, menggunakan, dan melindungi informasi pribadi Anda saat menggunakan platform kami. Dengan menggunakan layanan MULAI+, Anda menyetujui praktik yang dijelaskan dalam kebijakan ini."
     />
   );

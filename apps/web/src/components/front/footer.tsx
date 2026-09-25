@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { resetConsent } from "@/lib/analytics";
 import { client } from "@/lib/client";
 import { BLOG_LINKS, CONTACT, EXPLORE_LINKS, OTHER_LINKS, PROGRAM_LINKS, SOCIAL } from "@/lib/site-config";
 import { getWebEnv, RELEASE_TAG } from "@/lib/web-env";
@@ -306,6 +307,13 @@ export function Footer() {
                   Data perguruan tinggi dari PDDikti &amp; SNPMB (Kemdiktisaintek RI)
                 </p>
               )}
+              <button
+                type="button"
+                onClick={() => resetConsent()}
+                className="font-manrope text-[11px] text-text-lighter-blue/40 underline-offset-2 transition-colors hover:text-text-lighter-blue/70 hover:underline"
+              >
+                Kelola izin cookie
+              </button>
               <p className="font-manrope text-text-lighter-blue/40 text-xs lg:text-sm">
                 Powered by{" "}
                 <Link

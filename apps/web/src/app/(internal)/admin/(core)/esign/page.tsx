@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Fingerprint, Loader2, Search } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageState } from "@/components/ui/page-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,12 +22,15 @@ export default function AdminESignPage() {
     admin_dashboard: ["access"],
   });
   const [search, setSearch] = useState("");
+  const [offset, setOffset] = useState(0);
 
   const { data, isLoading } = useQuery({
     ...orpc.esign.listSignatures.queryOptions({
-      input: { limit: 100, offset: 0 },
+      input: { limit: 100, offset },
     }),
   });
+
+  const hasMore = (data?.pagination?.total ?? 0) > offset + (data?.data?.length ?? 0);
 
   const { data: stats } = useQuery({
     ...orpc.esign.getStats.queryOptions({}),
@@ -192,11 +196,34 @@ export default function AdminESignPage() {
           )}
         </div>
 
-        {/* Footer info */}
-        <p className="font-manrope text-text-muted-custom text-xs">
-          Menampilkan {filtered.length} dari {pagination.total} tanda tangan digital
-          {search && ` (filtered from ${items.length})`}.
-        </p>
+        {/* Footer info + pagination */}
+        <div className="flex items-center justify-between pt-1">
+          <p className="font-manrope text-text-muted-custom text-xs">
+            Menampilkan {offset + 1}–{Math.min(offset + (items?.length ?? 0), pagination.total ?? 0)} dari{" "}
+            {pagination.total} tanda tangan digital
+            {search && ` (filtered dari ${items.length})`}.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={offset === 0}
+              onClick={() => setOffset(Math.max(0, offset - 100))}
+              className="rounded-lg font-manrope text-xs"
+            >
+              ← Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!hasMore}
+              onClick={() => setOffset(offset + 100)}
+              className="rounded-lg font-manrope text-xs"
+            >
+              Next →
+            </Button>
+          </div>
+        </div>
       </div>
     </PageState>
   );

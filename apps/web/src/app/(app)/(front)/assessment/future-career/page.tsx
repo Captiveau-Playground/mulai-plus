@@ -1,3 +1,4 @@
+"use client";
 import {
   ArrowRight,
   CheckCircle2,
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
+import { trackEvent } from "@/lib/analytics";
 
 const STEPS = [
   {
@@ -177,6 +179,7 @@ export default function FutureCareerLandingPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment%2Ffuture-career"
+                  onClick={() => trackEvent("assessment_cta_click", { type: "karir" })}
                   className="group inline-flex items-center justify-center gap-2 rounded-xl bg-brand-navy px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-navy/15 shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
                 >
                   Coba Gratis
@@ -320,6 +323,7 @@ export default function FutureCareerLandingPage() {
           <p className="mt-3 font-manrope text-gray-500">Gratis, langsung, dan terhubung dengan hasil testmu.</p>
           <Link
             href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment%2Ffuture-career"
+            onClick={() => trackEvent("assessment_cta_click", { type: "karir" })}
             className="mt-7 inline-flex items-center gap-2 rounded-xl bg-brand-orange px-8 py-4 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
           >
             Coba Sekarang <ArrowRight className="h-5 w-5" />
