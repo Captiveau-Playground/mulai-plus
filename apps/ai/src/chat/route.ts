@@ -17,6 +17,22 @@ import { quotaPolicy } from "../policies/quota";
 
 const TIER_PREMIUM_LIMIT = Number(process.env.QUOTA_PREMIUM ?? 5);
 
+/** Scope cache legacy: tier + profil siswa (dedupe personalisasi, bukan jawaban bulan). */
+async function legacyCacheScope(c: any): Promise<string> {
+  const uid = c.req.header("x-user-id") ?? null;
+  const tier = c.req.query("model") ?? "smart";
+  const ctx = uid ? await buildUserContext(c, uid).catch(() => null) : null;
+  return [
+    tier,
+    ctx?.riasecPrimary ?? "",
+    ctx?.riasecCode ?? "",
+    ctx?.school ?? "",
+    ctx?.level ?? "",
+    (ctx?.goals ?? []).join(","),
+    JSON.stringify((ctx?.prefs as { targetMajor?: string[] } | undefined)?.targetMajor ?? []),
+  ].join("|");
+}
+
 import { AUTH_RATE_LIMIT_PER_MIN, acquireRateLimitSlot, GUEST_RATE_LIMIT_PER_MIN } from "../policies/rate-limit";
 import { exactCacheGet, exactCachePut } from "./cache";
 import { generateChatReply } from "./responder";
@@ -77,7 +93,7 @@ chatRoute.post("/chat", async (c) => {
   }
 
   // 4. Cache exact (skip quota, hemat token)
-  const cached = await exactCacheGet(c, message).catch(() => null);
+  const cached = await exactCacheGet(c, message, await legacyCacheScope(c)).catch(() => null);
   if (cached?.answer) {
     await record(c, { sessionId: key, userId, event: "cache_hit" });
     await store.saveMessage(c, key, "user", message).catch(() => {});
@@ -142,11 +158,20 @@ chatRoute.post("/chat", async (c) => {
   for (const tool of result.toolsUsed) {
     await record(c, { sessionId: key, userId, event: "tool_called", data: { tool } });
   }
-  if (result.reply)
-    await exactCachePut(c, message, result.reply, result.suggested, {
-      prompt: result.promptTokens,
-      completion: result.completionTokens,
-    }).catch(() => {});
+  if (result.reply) {
+    const scope = await legacyCacheScope(c).catch(() => "");
+    await exactCachePut(
+      c,
+      message,
+      result.reply,
+      result.suggested,
+      {
+        prompt: result.promptTokens,
+        completion: result.completionTokens,
+      },
+      scope,
+    ).catch(() => {});
+  }
 
   return sse({
     session_id: key,

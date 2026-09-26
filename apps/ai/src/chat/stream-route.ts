@@ -133,6 +133,18 @@ streamRoute.post("/chat/stream", async (c) => {
   await ensureAiTables(c).catch(() => {});
 
   const modelOverride = TIER_MODELS[tier] ?? DEFAULT_MODEL;
+  // Konteks siswa (profil + hasil tes) — disuntik ke prompt & dipakai sbg scope cache
+  const userCtx = await buildUserContext(c, userId).catch(() => null);
+  const userCtxPrompt = contextPrompt(userCtx);
+  const cacheScope = [
+    tier,
+    userCtx?.riasecPrimary ?? "",
+    userCtx?.riasecCode ?? "",
+    userCtx?.school ?? "",
+    userCtx?.level ?? "",
+    (userCtx?.goals ?? []).join(","),
+    JSON.stringify((userCtx?.prefs as { targetMajor?: string[] } | undefined)?.targetMajor ?? []),
+  ].join("|");
 
   const g = validateMessageInput(message);
   if (!g.ok) return c.json({ error: `Input ditolak (${g.reason})` }, 400);
@@ -156,7 +168,7 @@ streamRoute.post("/chat/stream", async (c) => {
   if (!rlOk) return c.json({ error: "Terlalu banyak permintaan. Coba lagi dalam 1 menit.", rate_limited: true }, 429);
 
   // Cache hit → text part tunggal (cepat)
-  const cached = await exactCacheGet(c, message).catch(() => null);
+  const cached = await exactCacheGet(c, message, cacheScope).catch(() => null);
   if (cached?.answer) {
     await record(c, { sessionId: key, userId, event: "cache_hit" });
     await store.saveMessage(c, key, "user", message).catch(() => {});
@@ -218,10 +230,6 @@ streamRoute.post("/chat/stream", async (c) => {
   }
 
   const history = await store.getHistory(c, key, 6).catch(() => []);
-  // Konteks siswa (profil + hasil tes minat bakat) → disuntik sebagai system message
-  const userCtx = await buildUserContext(c, userId).catch(() => null);
-  const userCtxPrompt = contextPrompt(userCtx);
-
   const messages: LlmMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
     ...(userCtxPrompt ? [{ role: "system" as const, content: userCtxPrompt }] : []),
@@ -363,7 +371,8 @@ streamRoute.post("/chat/stream", async (c) => {
               .catch(() => null);
             if (branch_group && saved?.id)
               await store.supersedeBranch(c, key, branch_group, saved.id).catch(() => undefined);
-            if (finalText) await exactCachePut(c, message, finalText, extractTopics(finalText), {}).catch(() => {});
+            if (finalText)
+              await exactCachePut(c, message, finalText, extractTopics(finalText), {}, cacheScope).catch(() => {});
           };
           if (execCtx2) execCtx2.waitUntil(persist());
           else void persist();

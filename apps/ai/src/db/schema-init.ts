@@ -40,6 +40,7 @@ export async function ensureAiTables(c: AppContext): Promise<void> {
      );
      CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hash ON chatbot_cache(question_hash);
      CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hit ON chatbot_cache(hit_count DESC);
+    ALTER TABLE chatbot_cache ADD COLUMN IF NOT EXISTS expires_at timestamptz;
     -- Versioning jawaban (branch / regenerate)
     ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS title text;
     CREATE TABLE IF NOT EXISTS student_reco_profile (
