@@ -373,7 +373,7 @@ function ChatRuntime({
                               className={
                                 isUser
                                   ? "rounded-xl! bg-brand-navy! px-4! py-2.5! text-white!"
-                                  : "border! w-full max-w-none! rounded-xl! border-border! bg-muted! px-4! py-3! text-foreground!"
+                                  : "border! w-full max-w-none! rounded-xl! border-border! bg-muted! px-4! py-3! text-foreground! shadow-xs!"
                               }
                             >
                               {isUser ? (
@@ -508,7 +508,7 @@ function ChatRuntime({
           {(busy && messages.length > 0 && (messages[messages.length - 1] as any)?.role === "user") ||
           (busy && messages.length === 0) ? (
             <div className="flex justify-start">
-              <span className="border! inline-flex items-center gap-1.5 rounded-full border-border! bg-muted! px-3 py-1.5 font-manrope text-[11px] text-muted-foreground">
+              <span className="border! inline-flex items-center gap-1.5 rounded-full border-border! bg-muted! px-3 py-1.5 font-manrope text-[11px] text-muted-foreground shadow-xs!">
                 <LoaderCircle className="size-3 animate-spin text-brand-orange" />
                 Sedang berpikir
                 <span className="flex gap-0.5" aria-hidden>
@@ -548,7 +548,7 @@ function ChatRuntime({
         {(ctx?.school || ctx?.riasecPrimary || model === "premium") && (
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1">
             {ctx?.school && (
-              <span className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy">
+              <span className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy transition-colors hover:bg-brand-navy/10">
                 🏫 {ctx.school}
               </span>
             )}
@@ -810,8 +810,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
                     }
                   }}
                   title={s.title}
-                  className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors ${
-                    s.id === activeId ? "bg-brand-navy/10" : "hover:bg-gray-100"
+                  className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg border-l-2 px-2 py-1.5 text-left transition-colors ${
+                    s.id === activeId ? "border-brand-orange bg-brand-navy/10" : "border-transparent hover:bg-muted"
                   }`}
                 >
                   <span className="min-w-0 flex-1 overflow-hidden">
@@ -899,7 +899,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
 
       {/* Panel utama chat */}
       <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-card">
-        <header className="flex shrink-0 items-center gap-2 border-border border-b px-3 py-2">
+        <header className="flex shrink-0 items-center gap-2 rounded-xl border-border border-b bg-card/60 px-3 py-2 backdrop-blur-sm">
           {!showSidebar && (
             <Button
               type="button"

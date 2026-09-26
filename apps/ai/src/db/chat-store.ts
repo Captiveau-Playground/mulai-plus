@@ -126,6 +126,17 @@ export async function listSessions(c: AppContext, userId: string): Promise<Sessi
 
 /** Hapus sesi milik user. */
 /** Rename judul sesi (owner). */
+export async function getSessionTitle(c: AppContext, sessionId: string): Promise<{ title: string | null } | null> {
+  const r = await queryOne<{ title: string | null }>(c, "SELECT title FROM chatbot_sessions WHERE id = $1", [
+    sessionId,
+  ]);
+  return r ?? null;
+}
+
+export async function setSessionTitle(c: AppContext, sessionId: string, title: string): Promise<void> {
+  await unsafe(c, "UPDATE chatbot_sessions SET title = $2, last_active = NOW() WHERE id = $1", [sessionId, title]);
+}
+
 export async function renameSession(c: AppContext, userId: string, sessionId: string, title: string): Promise<boolean> {
   const rows = await unsafe(
     c,

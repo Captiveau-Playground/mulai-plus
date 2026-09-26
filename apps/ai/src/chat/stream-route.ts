@@ -20,8 +20,8 @@ import { z } from "zod";
 import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
 import { buildUserContext, contextPrompt } from "../agent/user-context";
 import { record } from "../analytics/events";
-import type { Env } from "../config";
-import { DEFAULT_FAST_MODEL, DEFAULT_MODEL } from "../config";
+import type { AppContext, Env } from "../config";
+import { DEFAULT_FAST_MODEL, DEFAULT_MODEL, fastModel } from "../config";
 import * as store from "../db/chat-store";
 import { ensureAiTables } from "../db/schema-init";
 import { allowRequest } from "../do/access";
@@ -99,6 +99,26 @@ const TIER_QUOTA: Record<string, number> = {
   premium: Number(process.env.QUOTA_PREMIUM ?? 5),
 };
 const part = (o: Record<string, unknown>) => `data: ${JSON.stringify(o)}\n\n`;
+
+/** Ringkas pesan pertama → judul chat (via model cepat; tidak boleh melempar error). */
+async function summarizeTitle(c: AppContext, text: string): Promise<string> {
+  try {
+    const resp = await llmChatJson(
+      c,
+      [
+        {
+          role: "user",
+          content: `Buat judul chat yang singkat (maks 6 kata, bahasa Indonesia, tanpa tanda kutip/emoji) untuk pesan ini: ${text.slice(0, 240)}. Jawab HANYA judulnya.`,
+        },
+      ],
+      { model: fastModel(c) },
+    );
+    const title = resp.data?.choices?.[0]?.message?.content?.trim?.().slice(0, 60);
+    return title || text.trim().slice(0, 40);
+  } catch {
+    return text.trim().slice(0, 40);
+  }
+}
 
 streamRoute.post("/chat/stream", async (c) => {
   const parsed = Body.safeParse(await c.req.json().catch(() => null));
@@ -330,6 +350,14 @@ streamRoute.post("/chat/stream", async (c) => {
           const persist = async () => {
             if (!regenerate)
               await store.saveMessage(c, key, "user", message, { branchGroup: branch_group ?? null }).catch(() => null);
+            // Auto-summary judul (sekali per sesi, via model cepat; fallback potongan teks)
+            if (!regenerate) {
+              const trow = await store.getSessionTitle(c, key).catch(() => null);
+              if (!trow?.title) {
+                const title = await summarizeTitle(c, message).catch(() => message.trim().slice(0, 40));
+                await store.setSessionTitle(c, key, title).catch(() => undefined);
+              }
+            }
             const saved = await store
               .saveMessage(c, key, "assistant", finalTextSnap, { branchGroup: branch_group ?? null })
               .catch(() => null);
