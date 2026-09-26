@@ -1,8 +1,10 @@
-export type UserContext = {
+export interface UserContext {
   school?: string;
   level?: string;
   riasecPrimary?: string;
+  riasecCode?: string;
+  isTmbTested?: boolean;
   goals?: string[];
-  prefs?: { targetMajor?: string[] };
-  applications?: { programId: string; status: string }[];
-} | null;
+  prefs?: Record<string, unknown>;
+  applications?: { programId?: string; status?: string }[];
+}

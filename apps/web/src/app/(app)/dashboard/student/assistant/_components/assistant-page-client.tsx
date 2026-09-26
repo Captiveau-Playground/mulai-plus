@@ -274,7 +274,8 @@ function ChatRuntime({
           {messages.length === 0 && (
             <div className="px-4 pt-10">
               <p className="font-manrope text-sm text-text-muted-custom">
-                Halo! 👋 Tanya apa saja — jawaban dipersonalisasi: {ctx?.school || "sekolah belum terisi"} ·{" "}
+                Halo! 👋 Tanya apa saja — jawaban dipersonalisasi:{" "}
+                {ctx?.school ? `sekolah ${ctx.school}` : "sekolah belum terisi"} ·{" "}
                 {ctx?.riasecPrimary ? `minat ${ctx.riasecPrimary}` : "tes minat belum ada"}.
               </p>
             </div>
@@ -485,7 +486,7 @@ function ChatRuntime({
             </Suggestions>
           </div>
         )}
-        {!ctx?.riasecPrimary && (
+        {ctx && !ctx.isTmbTested && (
           <div className="mx-3 mt-2 rounded-xl border border-brand-orange/20 bg-brand-orange/5 px-3 py-2 font-manrope text-[11px] text-brand-navy">
             Belum ada hasil Tes Minat Bakat — ikuti tes dulu biar jawaban &amp; rekomendasi lebih personal.{" "}
             <Link
@@ -496,21 +497,25 @@ function ChatRuntime({
             </Link>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1">
-          <button
-            type="button"
-            onClick={() => notify.info("Diperkaya dari profil, tes, & riwayat. Lihat Kebijakan Privasi.")}
-            className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy hover:bg-brand-navy/10"
-          >
-            {ctx?.school ? `🏫 ${ctx.school}` : "🏫 sekolah?"} ·{" "}
-            {ctx?.riasecPrimary ? `🧭 ${ctx.riasecPrimary}` : "🧭 tes minat?"}
-          </button>
-          {model === "premium" && (
-            <span className="rounded-full bg-brand-orange/10 px-2 py-1 font-manrope text-[10px] text-brand-orange">
-              kuota premium 5/hari
-            </span>
-          )}
-        </div>
+        {(ctx?.school || ctx?.riasecPrimary || model === "premium") && (
+          <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1">
+            {ctx?.school && (
+              <span className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy">
+                🏫 {ctx.school}
+              </span>
+            )}
+            {ctx?.riasecPrimary && (
+              <span className="rounded-full bg-brand-orange/10 px-2 py-1 font-manrope text-[10px] text-brand-orange">
+                🧭 {ctx.riasecPrimary}
+              </span>
+            )}
+            {model === "premium" && (
+              <span className="rounded-full bg-brand-orange/10 px-2 py-1 font-manrope text-[10px] text-brand-orange">
+                kuota premium 5/hari
+              </span>
+            )}
+          </div>
+        )}
 
         <PromptInput onSubmit={handleSubmit} multiple className="rounded-none border-0 bg-white px-3 pb-3">
           <PromptInputBody>
