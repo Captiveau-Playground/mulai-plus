@@ -55,7 +55,8 @@
     "db:push": "turbo -F @mulai-plus/db db:push",
     "db:studio": "turbo -F @mulai-plus/db db:studio",
     "db:generate": "turbo -F @mulai-plus/db db:generate",
-    "db:migrate": "turbo -F @mulai-plus/db db:migrate"
+    "db:migrate": "turbo -F @mulai-plus/db db:migrate",
+    "dev:ai": "turbo -F ai dev"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.19.4",

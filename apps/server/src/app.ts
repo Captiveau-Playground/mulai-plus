@@ -136,6 +136,23 @@ export function createApp(options: CreateAppOptions) {
       return fetchWithTimeout(target, init, ms);
     };
 
+    // Bungkus call AI: connect-refused/timeout → JSON 503 yang jelas (bukan crash).
+    const safeAi = async (c: any, fn: () => Promise<Response>, hint?: string) => {
+      try {
+        return await fn();
+      } catch (err) {
+        const cause = (err as Error).message || "koneksi ditolak";
+        console.error("[ai-proxy] AI service unreachable:", cause);
+        return c.json(
+          {
+            error: `Layanan AI tidak dapat dijangkau. Mulai worker AI lokal: cd apps/ai && bun run dev:ai (atau di stack: bun dev). Detail: ${cause}`,
+            hint: hint ?? "ai-offline",
+          },
+          503,
+        );
+      }
+    };
+
     // /ai/status → status terakhir dari uptime-checker (KV_CACHE), untuk monitor/alert
     app.get("/ai/status", async (c: any) => {
       const kv = (c.env as { KV_CACHE?: { get(key: string, t: string): Promise<unknown> } }).KV_CACHE;
@@ -172,7 +189,12 @@ export function createApp(options: CreateAppOptions) {
     app.get("/ai/health", async (c: any) => {
       // Absolute URL — konsisten dgn /ai/chat (binding mengikutsertakan target internal)
       const target = `${env.AI_SERVICE_URL}/health`;
-      const resp = await aiFetch(c, target, { headers: { "Content-Type": "application/json" } }, 15_000);
+      const resp = await safeAi(
+        c,
+        () => aiFetch(c, target, { headers: { "Content-Type": "application/json" } }, 15_000),
+        "ai-offline",
+      );
+      if (resp.status === 503) return resp;
       const merged: Record<string, string> = Object.fromEntries(cleanHeaders(resp));
       for (const [k, v] of Object.entries(proxyHeaders(c, resp))) if (v) merged[k] = v;
       return c.newResponse(resp.body, { status: resp.status as any, headers: merged });
@@ -261,7 +283,8 @@ export function createApp(options: CreateAppOptions) {
       }
 
       if (c.req.method === "GET") {
-        const resp = await fetchWithTimeout(target, { headers }, 30_000);
+        const resp = await safeAi(c, () => fetchWithTimeout(target, { headers }, 30_000), "ai-offline");
+        if (resp.status === 503) return resp;
         const merged: Record<string, string> = Object.fromEntries(cleanHeaders(resp));
         for (const [k, v] of Object.entries(proxyHeaders(c, resp))) if (v) merged[k] = v;
         return c.newResponse(resp.body, {
@@ -271,16 +294,22 @@ export function createApp(options: CreateAppOptions) {
       }
 
       const body = await c.req.json();
-      const resp = await aiFetch(
+      const resp = await safeAi(
         c,
-        target,
-        {
-          method: c.req.method,
-          headers,
-          body: JSON.stringify(body),
-        },
-        120_000,
+        () =>
+          aiFetch(
+            c,
+            target,
+            {
+              method: c.req.method,
+              headers,
+              body: JSON.stringify(body),
+            },
+            120_000,
+          ),
+        "ai-offline",
       );
+      if (resp.status === 503) return resp;
 
       // Handle SSE streaming responses
       const contentType = resp.headers.get("content-type") || "";
