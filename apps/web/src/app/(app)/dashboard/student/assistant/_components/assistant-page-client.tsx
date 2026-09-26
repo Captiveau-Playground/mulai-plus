@@ -70,6 +70,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LoaderCircle } from "@/components/ui/loader-circle";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
@@ -644,6 +645,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const [history, setHistory] = useState<any[]>([]);
   const [ready, setReady] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [mobileListOpen, setMobileListOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<SessionItem | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
@@ -668,6 +670,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     setActiveId(id);
     setHistory([]);
     setReady(false);
+    setMobileListOpen(false);
     try {
       const r = await fetch(`${AI_BASE}/ai/history?session_id=${encodeURIComponent(id)}`);
       const d = r.ok ? ((await r.json()) as any) : null;
@@ -715,6 +718,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     setHistory([]);
     setReady(true);
     setShowSidebar(false);
+    setMobileListOpen(false);
   };
 
   useEffect(() => {
@@ -897,6 +901,122 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
         </aside>
       )}
 
+      {/* Mobile: daftar & manajemen percakapan (slide-over) */}
+      <Dialog open={mobileListOpen} onOpenChange={setMobileListOpen}>
+        <DialogContent className="top-0 left-0 h-dvh w-[86vw] max-w-[320px] translate-x-0 rounded-r-xl rounded-l-none border-border bg-card p-0 shadow-xl sm:hidden sm:w-[320px]">
+          <div className="flex h-full flex-col">
+            <DialogHeader className="flex flex-row items-center justify-between border-border border-b p-3">
+              <DialogTitle className="font-bold font-bricolage text-brand-navy text-sm">Percakapan</DialogTitle>
+              <button
+                type="button"
+                aria-label="Tutup"
+                onClick={() => setMobileListOpen(false)}
+                className="rounded-md p-1 font-manrope text-text-muted-custom text-xs hover:bg-muted"
+              >
+                ✕
+              </button>
+            </DialogHeader>
+            <div className="p-2">
+              <Button
+                type="button"
+                className="w-full gap-1.5 rounded-xl font-manrope text-xs"
+                onClick={() => void handleNewChat()}
+              >
+                <PlusIcon className="size-4" /> Percakapan baru
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              {sessions.length === 0 ? (
+                <p className="px-2 py-6 text-center font-manrope text-text-muted-custom/70 text-xs">
+                  Belum ada riwayat.
+                  <br />
+                  Kirim pertanyaan pertama kamu.
+                </p>
+              ) : (
+                sessions.map((s) => (
+                  // biome-ignore lint/a11y/useSemanticElements: container klik utk row percakapan (bukan button nested)
+                  <div
+                    key={s.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`);
+                      }
+                    }}
+                    title={s.title}
+                    className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg border-l-2 px-2 py-1.5 text-left transition-colors ${
+                      s.id === activeId ? "border-brand-orange bg-brand-navy/10" : "border-transparent hover:bg-muted"
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1 overflow-hidden">
+                      {editingId === s.id ? (
+                        <input
+                          value={draftTitle}
+                          onChange={(e) => setDraftTitle(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onBlur={() => {
+                            void saveRename(s.id, draftTitle);
+                            setEditingId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              void saveRename(s.id, draftTitle);
+                              setEditingId(null);
+                            } else if (e.key === "Escape") {
+                              setEditingId(null);
+                            }
+                            e.stopPropagation();
+                          }}
+                          className="w-full rounded-md border border-border bg-card px-1.5 py-0.5 font-manrope text-xs outline-none focus:border-brand-orange/60"
+                        />
+                      ) : (
+                        <span className="block truncate font-manrope font-medium text-text-main text-xs">
+                          {s.title}
+                        </span>
+                      )}
+                      <span className="block truncate font-manrope text-[10px] text-text-muted-custom">
+                        {fmtTime(s.lastActive)} · {s.messageCount} pesan
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-0.5">
+                      {s.id === activeId && <CheckMark className="size-3.5 text-brand-orange" />}
+                      <button
+                        type="button"
+                        aria-label="Ubah judul"
+                        title="Ubah judul"
+                        className="hidden shrink-0 rounded-md p-1 text-text-muted-custom hover:bg-muted hover:text-brand-navy group-hover:inline-flex"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDraftTitle(s.title);
+                          setEditingId((cur) => (cur === s.id ? null : s.id));
+                        }}
+                      >
+                        <PencilIcon className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Hapus ${s.title}`}
+                        className="hidden shrink-0 rounded-md p-1 text-text-muted-custom transition-colors hover:bg-red-50 hover:text-red-500 group-hover:inline-flex"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(s);
+                        }}
+                      >
+                        <Trash2Icon className="size-3.5" />
+                      </button>
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          {/* Dialog hapus digunakan bersama (deleteTarget) — sudah ada di level page */}
+        </DialogContent>
+      </Dialog>
+
       {/* Panel utama chat */}
       <section className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
         <header className="flex shrink-0 items-center gap-2 rounded-xl border-border border-b bg-card/60 px-3 py-2 backdrop-blur-sm">
@@ -907,6 +1027,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
               size="icon-sm"
               onClick={() => setShowSidebar(true)}
               aria-label="Buka percakapan"
+              className="hidden lg:inline-flex"
             >
               {/** menu icon */}
               <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -914,6 +1035,18 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
               </svg>
             </Button>
           )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setMobileListOpen(true)}
+            aria-label="Buka daftar percakapan"
+            className="lg:hidden"
+          >
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </Button>
           <span className="flex size-6 items-center justify-center rounded-lg bg-brand-navy/10 font-manrope text-brand-navy text-xs">
             AI
           </span>
