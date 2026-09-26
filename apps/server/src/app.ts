@@ -69,7 +69,7 @@ export function createApp(options: CreateAppOptions) {
     cors({
       origin: env.CORS_ORIGIN,
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowHeaders: ["Content-Type", "Authorization", "x-session-id", "x-api-key"],
+      allowHeaders: ["Content-Type", "Authorization", "x-session-id", "x-api-key", "x-user-id"],
       credentials: true,
     }),
   );
@@ -156,12 +156,26 @@ export function createApp(options: CreateAppOptions) {
       return h;
     };
 
+    // Proxy /ai/* membangun response sendiri → header CORS dari middleware hilang.
+    // Gabungkan lagi (ACAO sesuai origin middleware + expose minimal).
+    const proxyHeaders = (c: any, resp: Response): Record<string, string> => {
+      const headers: Record<string, string> = {};
+      for (const [key, val] of c.res.headers.entries()) {
+        if (key.toLowerCase().startsWith("access-control-")) headers[key] = val;
+      }
+      const acao = resp.headers.get("access-control-allow-origin");
+      if (!headers["Access-Control-Allow-Origin"] && acao) headers["Access-Control-Allow-Origin"] = acao;
+      return headers;
+    };
+
     // /ai/health → status AI worker via binding (aman, tanpa LLM)
     app.get("/ai/health", async (c: any) => {
       // Absolute URL — konsisten dgn /ai/chat (binding mengikutsertakan target internal)
       const target = `${env.AI_SERVICE_URL}/health`;
       const resp = await aiFetch(c, target, { headers: { "Content-Type": "application/json" } }, 15_000);
-      return c.newResponse(resp.body, { status: resp.status as any, headers: Object.fromEntries(cleanHeaders(resp)) });
+      const merged: Record<string, string> = Object.fromEntries(cleanHeaders(resp));
+      for (const [k, v] of Object.entries(proxyHeaders(c, resp))) if (v) merged[k] = v;
+      return c.newResponse(resp.body, { status: resp.status as any, headers: merged });
     });
 
     // Admin-only routes: analytics, stats, admin endpoints
@@ -183,9 +197,11 @@ export function createApp(options: CreateAppOptions) {
 
       if (c.req.method === "GET") {
         const resp = await fetchWithTimeout(target, { headers }, 30_000);
+        const merged: Record<string, string> = Object.fromEntries(cleanHeaders(resp));
+        for (const [k, v] of Object.entries(proxyHeaders(c, resp))) if (v) merged[k] = v;
         return c.newResponse(resp.body, {
           status: resp.status as any,
-          headers: Object.fromEntries(cleanHeaders(resp)),
+          headers: merged,
         });
       }
 
@@ -246,9 +262,11 @@ export function createApp(options: CreateAppOptions) {
 
       if (c.req.method === "GET") {
         const resp = await fetchWithTimeout(target, { headers }, 30_000);
+        const merged: Record<string, string> = Object.fromEntries(cleanHeaders(resp));
+        for (const [k, v] of Object.entries(proxyHeaders(c, resp))) if (v) merged[k] = v;
         return c.newResponse(resp.body, {
           status: resp.status as any,
-          headers: Object.fromEntries(cleanHeaders(resp)),
+          headers: merged,
         });
       }
 
