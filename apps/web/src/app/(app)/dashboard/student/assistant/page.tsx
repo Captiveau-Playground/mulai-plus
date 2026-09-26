@@ -239,7 +239,13 @@ function ChatRuntime({
                 </Checkpoint>
               )}
               <Message from={m.role === "user" ? "user" : "assistant"}>
-                <MessageContent className={m.role === "user" ? "bg-brand-navy! text-white!" : "w-full max-w-none!"}>
+                <MessageContent
+                  className={
+                    m.role === "user"
+                      ? "rounded-2xl! bg-brand-navy! px-4! py-2.5! text-white!"
+                      : "border! w-full max-w-none! rounded-2xl! border-border! bg-muted! px-4! py-3! text-foreground!"
+                  }
+                >
                   {m.role === "user" ? (
                     <span>
                       {(m as any).content ??
@@ -305,11 +311,20 @@ function ChatRuntime({
               </Message>
             </motion.div>
           ))}
-          {busy && messages.length > 0 && (messages[messages.length - 1] as any)?.role === "user" && (
+          {(busy && messages.length > 0 && (messages[messages.length - 1] as any)?.role === "user") ||
+          (busy && messages.length === 0) ? (
             <div className="flex justify-start">
-              <span className="inline-block size-2 animate-pulse rounded-full bg-brand-navy/60" />
+              <span className="border! inline-flex items-center gap-1.5 rounded-full border-border! bg-muted! px-3 py-1.5 font-manrope text-[11px] text-muted-foreground">
+                <LoaderCircle className="size-3 animate-spin text-brand-orange" />
+                Sedang berpikir
+                <span className="flex gap-0.5" aria-hidden>
+                  <i className="size-1 animate-bounce rounded-full bg-current [animation-delay:0ms]" />
+                  <i className="size-1 animate-bounce rounded-full bg-current [animation-delay:150ms]" />
+                  <i className="size-1 animate-bounce rounded-full bg-current [animation-delay:300ms]" />
+                </span>
+              </span>
             </div>
-          )}
+          ) : null}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
