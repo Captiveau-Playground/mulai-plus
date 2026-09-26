@@ -31,25 +31,30 @@ const RIASEC_LABELS: Record<string, string> = {
 
 export async function buildUserContext(c: AppContext, userId: string | null): Promise<UserContext | null> {
   if (!userId) return null;
+  // Semua sumber bersifat OPSIONAL: tabel sekunder yang belum ada/hilang
+  // tidak boleh membuat seluruh konteks gagal (fail-fast tiap bagian).
+  const safeGet = async <T = Record<string, any>>(sqlText: string, params: unknown[]): Promise<T | null> => {
+    try {
+      return await queryOne<T>(c, sqlText, params);
+    } catch {
+      return null;
+    }
+  };
   try {
-    const detail = await queryOne<{ school: string | null; education_level: string | null }>(
-      c,
+    const detail = await safeGet<{ school: string | null; education_level: string | null }>(
       "SELECT school, education_level FROM student_detail WHERE user_id = $1",
       [userId],
     );
-    const tmb = await queryOne<{ education_level: string | null; school_name: string | null }>(
-      c,
+    const tmb = await safeGet<{ education_level: string | null; school_name: string | null }>(
       "SELECT education_level, school_name FROM tmb_profiles WHERE user_id = $1",
       [userId],
     );
-    const reco = await queryOne<{ riasec_primary: string | null; goals: unknown; prefs: unknown }>(
-      c,
+    const reco = await safeGet<{ riasec_primary: string | null; goals: unknown; prefs: unknown }>(
       "SELECT riasec_primary, goals, prefs FROM student_reco_profile WHERE user_id = $1",
       [userId],
     );
     // SUMBER KEBENARAN hasil tes: tmb_assessment_results (holland_code/scores)
-    const tmbRes = await queryOne<{ holland_code: string | null; holland_scores: unknown; ability_scores: unknown }>(
-      c,
+    const tmbRes = await safeGet<{ holland_code: string | null; holland_scores: unknown; ability_scores: unknown }>(
       `SELECT holland_code, holland_scores, ability_scores
        FROM tmb_assessment_results
        WHERE user_id = $1
@@ -66,8 +71,8 @@ export async function buildUserContext(c: AppContext, userId: string | null): Pr
     );
 
     return {
-      school: detail?.school ?? tmb?.school_name ?? undefined,
-      level: detail?.education_level ?? tmb?.education_level ?? undefined,
+      school: (detail?.school || tmb?.school_name || undefined) ?? undefined,
+      level: (detail?.education_level || tmb?.education_level || undefined) ?? undefined,
       riasecPrimary:
         reco?.riasec_primary ??
         (primaryCode ? `${primaryCode} · ${RIASEC_LABELS[primaryCode] ?? primaryCode}` : undefined),

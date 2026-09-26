@@ -42,6 +42,18 @@ export async function ensureAiTables(c: AppContext): Promise<void> {
      CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hit ON chatbot_cache(hit_count DESC);
     -- Versioning jawaban (branch / regenerate)
     ALTER TABLE chatbot_sessions ADD COLUMN IF NOT EXISTS title text;
+    CREATE TABLE IF NOT EXISTS student_reco_profile (
+      user_id text NOT NULL PRIMARY KEY,
+      riasec_primary text,
+      riasec_vector jsonb,
+      ability jsonb,
+      goals jsonb,
+      prefs jsonb,
+      interests_signals jsonb,
+      last_active timestamptz,
+      created_at timestamptz DEFAULT now() NOT NULL,
+      updated_at timestamptz DEFAULT now() NOT NULL
+    );
     ALTER TABLE chatbot_messages ADD COLUMN IF NOT EXISTS branch_group text;
     ALTER TABLE chatbot_messages ADD COLUMN IF NOT EXISTS superseded boolean NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS idx_chatbot_messages_branch ON chatbot_messages(session_id, branch_group, superseded);`,
