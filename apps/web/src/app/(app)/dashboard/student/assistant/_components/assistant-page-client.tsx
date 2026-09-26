@@ -667,8 +667,10 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   useEffect(() => {
     // Jangan fetch /ai/sessions sebelum userId diketahui — kalau nembak tanpa
     // user id → 401 noise di log & sidebar kosong. List ditarik via efek di bawah.
-    setReady(true);
-  }, []);
+    // ChatRuntime DILARANG mount lebih dulu bila ada sesi yang harus dimuat:
+    // useChat baca initialMessages hanya saat mount, jadi tunggu openSession selesai.
+    if (!paramId && !initialSessionId) setReady(true);
+  }, [paramId, initialSessionId]);
 
   useEffect(() => {
     if (userId) void refreshSessions();
