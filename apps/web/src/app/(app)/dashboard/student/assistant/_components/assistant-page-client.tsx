@@ -20,7 +20,7 @@ import {
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import {
@@ -89,7 +89,7 @@ const TIERS = [
   },
 ];
 
-const SUGGESTIONS = [
+const _SUGGESTIONS = [
   "Cari universitas negeri di Jawa Timur",
   "Berapa passing grade kedokteran di UI?",
   "Rekomendasi jurusan sesuai minatku",
@@ -265,6 +265,54 @@ function ChatRuntime({
   };
 
   const current = TIERS.find((t) => t.id === model) ?? TIERS[1];
+
+  /** Suggestion dinamis — menyesuaikan profil + isi percakapan (tool & kata kunci terakhir). */
+  const dynamicSuggestions = useMemo(() => {
+    // Belum ada percakapan → sarankan mulai dari konteks user
+    if (messages.length === 0) {
+      const out: string[] = [];
+      if (ctx?.riasecPrimary) out.push(`Rekomendasi jurusan sesuai minat (${ctx.riasecPrimary})`);
+      if (ctx?.school) out.push(`Cari universitas negeri di daerah ${ctx.school}`);
+      out.push("Cari universitas negeri di Jawa Timur", "Info program mentoring MULAI+");
+      return out.slice(0, 4);
+    }
+
+    const last = [...messages].reverse();
+    const lastUser = last.find((m: any) => m.role === "user");
+    const lastAsst = last.find((m: any) => m.role === "assistant");
+    const userText = (
+      ((lastUser as any)?.content ?? "") ||
+      (lastUser?.parts ?? []).map((p: any) => ((p.kind ?? p.type) === "text" ? (p.text ?? "") : "")).join("") ||
+      ""
+    ).toLowerCase();
+
+    const out: string[] = [];
+    // Pahami tool evaluasi terakhir (search_universities/programs/passing_grade)
+    const toolParts = (lastAsst?.parts ?? []).filter((p: any) => {
+      const k = p.kind ?? p.type;
+      return k === "tool-invocation" || k === "tool";
+    });
+    const lastTool = toolParts[toolParts.length - 1];
+    const ti = lastTool ? (lastTool.toolInvocation ?? lastTool) : undefined;
+    const arg = ti?.args ?? {};
+    if (ti?.toolName?.includes("search_universities") && (arg as any).province) {
+      const sw = (arg as any).type === "Negeri" ? "swasta" : "negeri";
+      out.push(`Cari universitas ${sw} di ${(arg as any).province}`);
+    }
+    if (ti?.toolName?.includes("search_programs") && (arg as any).program_name) {
+      out.push(`Info passing grade ${(arg as any).program_name}`);
+    }
+
+    if (/passing grade/.test(userText)) out.push("Bandingkan passing grade dengan kampus lain");
+    if (/beasiswa|pendanaan|biaya/.test(userText)) out.push("Info beasiswa yang cocok untukku");
+    if (/mentoring/.test(userText)) out.push("Jadwal & biaya mentoring 1-on-1");
+    if (/universitas|kampus|ptn|pts|ujian/.test(userText) && !out.length) {
+      out.push("Info passing grade & biaya kuliah jurusan tsb");
+    }
+    if (!out.length) out.push("Rekomendasi jurusan sesuai minatku");
+    out.push("Apa saja program mentoring MULAI+?", "Info beasiswa yang cocok untukku");
+    return out.slice(0, 4);
+  }, [messages, ctx]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -480,7 +528,7 @@ function ChatRuntime({
         {!busy && (
           <div className="px-3 pt-2 pb-1">
             <Suggestions>
-              {SUGGESTIONS.map((q) => (
+              {dynamicSuggestions.map((q: string) => (
                 <Suggestion key={q} suggestion={q} onClick={() => sendText(q)} />
               ))}
             </Suggestions>
