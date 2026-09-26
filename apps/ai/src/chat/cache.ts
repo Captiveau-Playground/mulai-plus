@@ -24,11 +24,14 @@ type CacheEntry = {
   token_usage: unknown;
 };
 
-export async function exactCacheGet(c: AppContext, question: string): Promise<CacheEntry | null> {
-  const hash = await sha256(question.trim().toLowerCase());
+export async function exactCacheGet(c: AppContext, question: string, scope = ""): Promise<CacheEntry | null> {
+  // Key = pertanyaan + scope (fingerprint konteks: profil siswa + tier model).
+  // Tanpa scope: user A/B tanya persis sama → jawaban sama walau profil beda (bocor personalisasi).
+  const hash = await sha256(`${question.trim().toLowerCase()}|${scope}`);
   const r = await queryOne<{ answer: string; follow_ups: unknown; token_usage: unknown }>(
     c,
-    "SELECT answer, follow_ups, token_usage FROM chatbot_cache WHERE question_hash = $1",
+    `SELECT answer, follow_ups, token_usage FROM chatbot_cache
+     WHERE question_hash = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
     [hash],
   );
   return r;
@@ -40,17 +43,19 @@ export async function exactCachePut(
   answer: string,
   followUps: string[] = [],
   tokenUsage: Record<string, unknown> = {},
+  scope = "",
 ): Promise<void> {
-  const hash = await sha256(question.trim().toLowerCase());
+  const hash = await sha256(`${question.trim().toLowerCase()}|${scope}`);
   const norm = normalizeQuestion(question);
   await unsafe(
     c,
-    `INSERT INTO chatbot_cache (question_hash, question, question_normalized, answer, follow_ups, token_usage)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO chatbot_cache (question_hash, question, question_normalized, answer, follow_ups, token_usage, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL '30 days')
      ON CONFLICT (question_hash) DO UPDATE
        SET answer = EXCLUDED.answer,
            follow_ups = EXCLUDED.follow_ups,
            token_usage = EXCLUDED.token_usage,
+           expires_at = NOW() + INTERVAL '30 days',
            hit_count = chatbot_cache.hit_count + 1,
            last_accessed_at = NOW()`,
     [hash, question, norm, answer, JSON.stringify(followUps), JSON.stringify(tokenUsage)],

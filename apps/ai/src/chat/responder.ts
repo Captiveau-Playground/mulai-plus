@@ -10,6 +10,7 @@
  */
 
 import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
+import { buildUserContext, contextPrompt } from "../agent/user-context";
 import type { AppContext } from "../config";
 import { kvMark, kvShortCircuit } from "../llm/circuit-kv";
 import { type LlmMessage, llmChatJson, llmFailureShortCircuit, llmRecordOutcome } from "../llm/client";
@@ -52,6 +53,9 @@ export async function generateChatReply(
     return { reply, suggested, promptTokens: 0, completionTokens: 0, cost: 0, toolsUsed: [] };
   }
 
+  const userCtx = userId ? await buildUserContext(c, userId).catch(() => null) : null;
+  const ctxPrompt = contextPrompt(userCtx);
+
   const cleanHistory: LlmMessage[] = (history ?? [])
     .filter((h) => (h.role === "user" || h.role === "assistant") && typeof h.content === "string")
     .slice(-6)
@@ -59,6 +63,7 @@ export async function generateChatReply(
 
   const messages: LlmMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
+    ...(ctxPrompt ? [{ role: "system" as const, content: ctxPrompt }] : []),
     ...cleanHistory,
     { role: "user", content: message },
   ];

@@ -7,6 +7,7 @@
  */
 import { useChat } from "@ai-sdk/react";
 import { env } from "@mulai-plus/env/web";
+import { DefaultChatTransport } from "ai";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
@@ -19,8 +20,10 @@ export default function TrialChatPage() {
 
   // v4+ useChat: { messages, sendMessage, status, stop, error } — tanpa input built-in
   const chat = useChat({
-    url: `${AI_BASE}/ai/chat/stream`,
-    headers: { "x-session-id": sessionId, "Content-Type": "application/json" },
+    transport: new DefaultChatTransport({
+      api: `${AI_BASE}/ai/chat/stream`,
+      headers: { "x-session-id": sessionId },
+    }),
   } as any);
 
   const send = () => {
@@ -64,22 +67,30 @@ export default function TrialChatPage() {
                       return <MarkdownRenderer key={i}>{p.text ?? ""}</MarkdownRenderer>;
                     }
                     if (kind === "tool-invocation" || kind === "tool") {
-                      const ti = p.toolInvocation ?? p.toolInvocation ?? p;
+                      const ti = p.toolInvocation ?? p;
+                      const st = ti.state ?? "call";
+                      const running =
+                        st === "call" ||
+                        st === "streaming" ||
+                        st === "partial-call" ||
+                        st === "input-streaming" ||
+                        st === "input-available" ||
+                        st === "output-available";
                       return (
                         <div key={i} className="mt-2 rounded-xl border border-brand-navy/10 bg-brand-orange/[0.03] p-3">
                           <div className="flex items-center gap-1.5">
                             <span className="rounded-md bg-brand-navy/10 px-1.5 py-0.5 font-mono text-[10px] text-brand-navy">
                               🔧 {ti.toolName ?? ti.name ?? "tool"}
                             </span>
-                            {ti.state === "call" || ti.state === "streaming" || ti.state === "partial-call" ? (
+                            {running ? (
                               <span className="animate-pulse text-[10px] text-text-muted-custom">mengambil data…</span>
-                            ) : ti.state === "result" ? (
+                            ) : (
                               <span className="text-[10px] text-emerald-600">✓ selesai</span>
-                            ) : null}
+                            )}
                           </div>
-                          {ti.state === "result" && ti.result && (
+                          {(ti.state === "result" || ti.state === "output-available") && (ti.result ?? ti.output) && (
                             <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-white/70 p-2 font-mono text-[10px] text-gray-600">
-                              {JSON.stringify(ti.result, null, 1).slice(0, 1500)}
+                              {JSON.stringify(ti.result ?? ti.output, null, 1).slice(0, 1500)}
                             </pre>
                           )}
                         </div>

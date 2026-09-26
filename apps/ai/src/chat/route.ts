@@ -5,13 +5,34 @@
  */
 import { Hono } from "hono";
 import { z } from "zod";
+import { buildUserContext } from "../agent/user-context";
 import { record } from "../analytics/events";
 import type { Env } from "../config";
 import * as store from "../db/chat-store";
 import { unsafe } from "../db/db";
 import { ensureAiTables } from "../db/schema-init";
+import { dailyStub } from "../do/access-daily";
 import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
+
+const TIER_PREMIUM_LIMIT = Number(process.env.QUOTA_PREMIUM ?? 5);
+
+/** Scope cache legacy: tier + profil siswa (dedupe personalisasi, bukan jawaban bulan). */
+async function legacyCacheScope(c: any): Promise<string> {
+  const uid = c.req.header("x-user-id") ?? null;
+  const tier = c.req.query("model") ?? "smart";
+  const ctx = uid ? await buildUserContext(c, uid).catch(() => null) : null;
+  return [
+    tier,
+    ctx?.riasecPrimary ?? "",
+    ctx?.riasecCode ?? "",
+    ctx?.school ?? "",
+    ctx?.level ?? "",
+    (ctx?.goals ?? []).join(","),
+    JSON.stringify((ctx?.prefs as { targetMajor?: string[] } | undefined)?.targetMajor ?? []),
+  ].join("|");
+}
+
 import { AUTH_RATE_LIMIT_PER_MIN, acquireRateLimitSlot, GUEST_RATE_LIMIT_PER_MIN } from "../policies/rate-limit";
 import { exactCacheGet, exactCachePut } from "./cache";
 import { generateChatReply } from "./responder";
@@ -72,7 +93,7 @@ chatRoute.post("/chat", async (c) => {
   }
 
   // 4. Cache exact (skip quota, hemat token)
-  const cached = await exactCacheGet(c, message).catch(() => null);
+  const cached = await exactCacheGet(c, message, await legacyCacheScope(c)).catch(() => null);
   if (cached?.answer) {
     await record(c, { sessionId: key, userId, event: "cache_hit" });
     await store.saveMessage(c, key, "user", message).catch(() => {});
@@ -137,11 +158,20 @@ chatRoute.post("/chat", async (c) => {
   for (const tool of result.toolsUsed) {
     await record(c, { sessionId: key, userId, event: "tool_called", data: { tool } });
   }
-  if (result.reply)
-    await exactCachePut(c, message, result.reply, result.suggested, {
-      prompt: result.promptTokens,
-      completion: result.completionTokens,
-    }).catch(() => {});
+  if (result.reply) {
+    const scope = await legacyCacheScope(c).catch(() => "");
+    await exactCachePut(
+      c,
+      message,
+      result.reply,
+      result.suggested,
+      {
+        prompt: result.promptTokens,
+        completion: result.completionTokens,
+      },
+      scope,
+    ).catch(() => {});
+  }
 
   return sse({
     session_id: key,
@@ -155,23 +185,89 @@ chatRoute.post("/chat", async (c) => {
 });
 
 // ── quota / history / feedback / track ────────────────────────────
+chatRoute.get("/context", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  const ctx = await buildUserContext(c, userId).catch(() => null);
+  return c.json({ profile: ctx, enrolled: !!userId });
+});
+
+// ── Session management (sidebar ChatGPT-like + checkpoint restore) ──
+chatRoute.get("/sessions", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required", sessions: [] }, 401);
+  const sessions = await store.listSessions(c, userId).catch(() => []);
+  return c.json({ sessions });
+});
+
+chatRoute.post("/sessions", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required", id: null }, 401);
+  const body = (await c.req.json().catch(() => ({}))) as { id?: string };
+  const id = body.id && body.id.length <= 64 ? body.id : `s-${crypto.randomUUID().slice(0, 12)}`;
+  await store.getOrCreateSession(c, id, userId).catch(() => null);
+  return c.json({ id });
+});
+
+chatRoute.post("/sessions/truncate", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const body = (await c.req.json().catch(() => ({}))) as { session_id?: string; keep?: number };
+  if (!body.session_id) return c.json({ error: "missing session_id" }, 400);
+  const keep = Math.max(1, Math.min(200, Number(body.keep) || 1));
+  const removed = await store.truncateSessionMessages(c, body.session_id, keep).catch(() => 0);
+  return c.json({ removed });
+});
+
+chatRoute.patch("/sessions/:sessionId", async (c) => {
+  await ensureAiTables(c).catch(() => {});
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const b = (await c.req.json().catch(() => ({}))) as { title?: string };
+  const title = (b.title ?? "").toString().trim().slice(0, 60);
+  if (!title) return c.json({ error: "title kosong" }, 400);
+  const ok = await store.renameSession(c, userId, c.req.param("sessionId"), title).catch(() => false);
+  return c.json({ ok });
+});
+
+chatRoute.delete("/sessions/:sessionId", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const ok = await store.deleteSession(c, userId, c.req.param("sessionId")).catch(() => false);
+  return c.json({ ok });
+});
+
 chatRoute.get("/quota", async (c) => {
-  const isAuth = !!c.req.header("x-user-id");
+  const userId = c.req.header("x-user-id") ?? null;
+  const isAuth = userId !== null;
   const key = c.req.header("x-session-id") ?? c.req.query("session_id") ?? "";
   if (!key) return c.json({ error: "missing session" }, 400);
   const used = await store.countMessages(c, key).catch(() => 0);
-  if (isAuth) return c.json({ remaining: null, limit: "unlimited", requires_auth: false });
-  return c.json({
+  const guest = {
     remaining: Math.max(0, quotaPolicy(false).max - used),
     limit: quotaPolicy(false).max,
     requires_auth: !isAuth,
-  });
+  };
+  if (!isAuth) return c.json({ ...guest });
+  // Tier model (auth): simple unlimited; smart unlimited; premium berkuota.
+  const tiers: Record<string, { remaining: number | null; limit: number }> = {
+    simple: { remaining: null, limit: -1 },
+    smart: { remaining: null, limit: -1 },
+    premium: { remaining: null, limit: TIER_PREMIUM_LIMIT },
+  };
+  if (TIER_PREMIUM_LIMIT > 0 && userId) {
+    const stub = dailyStub(c, `u:${userId}`);
+    if (stub) {
+      const usedToday = await stub.peekDaily("premium").catch(() => 0);
+      tiers.premium = { remaining: Math.max(0, TIER_PREMIUM_LIMIT - usedToday), limit: TIER_PREMIUM_LIMIT };
+    }
+  }
+  return c.json({ remaining: null, limit: "unlimited", requires_auth: false, tiers });
 });
 
 chatRoute.get("/history", async (c) => {
   const key = c.req.header("x-session-id") ?? c.req.query("session_id") ?? "";
   if (!key) return c.json({ error: "missing session" }, 400);
-  const messages = await store.getHistory(c, key, 20).catch(() => []);
+  const messages = await store.getHistory(c, key, 50).catch(() => []);
   return c.json({ messages, total: messages.length });
 });
 

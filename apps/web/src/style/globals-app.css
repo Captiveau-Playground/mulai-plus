@@ -231,11 +231,11 @@ body {
 
 /* Ensure text is always visible on white backgrounds */
 .text-foreground {
-  color: var(--text-main) !important;
+  color: var(--text-main);
 }
 
 .text-muted-foreground {
-  color: var(--text-muted-custom) !important;
+  color: var(--text-muted-custom);
 }
 
 /* Card component base styles for visibility */
@@ -448,4 +448,113 @@ body {
 
 .animate-in {
   animation: fadeInSlide 0.3s ease-out forwards;
+}
+
+/* ── Markdown jawaban asisten (au-markdown) — konsisten dgn design system ── */
+.au-markdown {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+.au-markdown > :first-child {
+  margin-top: 0;
+}
+.au-markdown > :last-child {
+  margin-bottom: 0;
+}
+.au-markdown p {
+  margin: 0.35rem 0;
+}
+.au-markdown h1,
+.au-markdown h2,
+.au-markdown h3,
+.au-markdown h4 {
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0.9rem 0 0.4rem;
+  line-height: 1.3;
+}
+.au-markdown h1 {
+  font-size: 1.05rem;
+}
+.au-markdown h2 {
+  font-size: 1rem;
+}
+.au-markdown h3 {
+  font-size: 0.95rem;
+}
+.au-markdown h4 {
+  font-size: 0.9rem;
+}
+.au-markdown ul,
+.au-markdown ol {
+  margin: 0.35rem 0;
+  padding-left: 1.15rem;
+}
+.au-markdown li {
+  margin: 0.18rem 0;
+}
+.au-markdown a {
+  color: var(--brand-navy);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.au-markdown a:hover {
+  opacity: 0.8;
+}
+.au-markdown code {
+  background: var(--muted);
+  border-radius: 0.35rem;
+  padding: 0.1rem 0.35rem;
+  font-family: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.8em;
+  color: var(--brand-navy);
+}
+.au-markdown pre {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+.au-markdown pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.78rem;
+}
+.au-markdown blockquote {
+  border-left: 3px solid var(--brand-navy);
+  padding: 0.15rem 0 0.15rem 0.75rem;
+  margin: 0.5rem 0;
+  color: var(--muted-foreground);
+}
+.au-markdown table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  width: 100%;
+  font-size: 0.8rem;
+}
+.au-markdown th,
+.au-markdown td {
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+}
+.au-markdown th {
+  background: var(--muted);
+  font-weight: 600;
+}
+.au-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0.8rem 0;
+}
+.au-markdown img {
+  border-radius: 0.6rem;
+  max-width: 100%;
+}
+.au-markdown strong {
+  font-weight: 700;
 }

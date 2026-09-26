@@ -6,6 +6,62 @@ import type { GooeyToastOptions } from "goey-toast";
  * (description, action, promise, showProgress, preset, callbacks, …).
  */
 import { gooeyToast } from "goey-toast";
+import type { ReactNode } from "react";
+import { useState } from "react";
+
+const MAX_TITLE = 130;
+
+/** Tombol salin untuk pesan panjang (dalam description toast). */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        void navigator.clipboard
+          ?.writeText(text)
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1600);
+          })
+          .catch(() => undefined);
+      }}
+      className="mt-1.5 shrink-0 self-start rounded-md border border-brand-navy/20 bg-brand-navy/5 px-2 py-1 font-manrope font-medium text-[11px] text-brand-navy hover:bg-brand-navy/10"
+    >
+      {copied ? "✓ Disalin" : "📋 Copy"}
+    </button>
+  );
+}
+
+/**
+ * Pesan panjang → title dipangkas  + deskripsi scrollable (max 9rem = muat layar)
+ * + tombol copy. Pesan pendek → polos.
+ */
+function longMessage(msg: string, max = MAX_TITLE): { title: string; description?: ReactNode } {
+  const clean = msg.trim();
+  if (clean.length <= max) return { title: clean };
+  return {
+    title: `${clean.slice(0, max)}…`,
+    description: (
+      // biome-ignore lint/a11y/noStaticElementInteractions: wrapper — mencegah klik di dalam deskripsi menutup toast
+      <div
+        role="presentation"
+        className="flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <div
+          className="overflow-y-auto whitespace-pre-wrap rounded-md bg-black/5 p-2 font-mono text-[11px] leading-relaxed"
+          style={{ maxHeight: "9rem" }}
+        >
+          {clean}
+        </div>
+        <CopyButton text={clean} />
+      </div>
+    ),
+  };
+}
 
 export type NotifyRealOpts = Partial<
   Pick<
@@ -43,14 +99,23 @@ export const notify = {
   success(title: string, opts?: NotifyOpts) {
     gooeyToast.success(`🎉 ${title}`, { ...withAction({ showProgress: true, ...opts }) });
   },
+  /**
+   * Error — dipastikan SELALU muat di layar:
+   * - pesan pendek → title biasa (durasi 8s + optional action).
+   * - pesan panjang → title dipotong + deskripsi scrollable (max 9rem) + tombol 📋 Copy.
+   */
   error(title: string, opts?: NotifyOpts) {
-    gooeyToast.error(`🙈 ${title}`, { ...withAction({ duration: 6000, ...opts }) });
+    const { title: shortTitle, description } = longMessage(title);
+    const merged = withAction({ duration: 8000, ...opts });
+    gooeyToast.error(`🙈 ${shortTitle}`, { ...merged, description: description ?? merged?.description });
   },
   info(title: string, opts?: NotifyOpts) {
     gooeyToast.info(`🤖 ${title}`, { ...withAction(opts) });
   },
   warn(title: string, opts?: NotifyOpts) {
-    gooeyToast.warning(`⚠️ ${title}`, { ...withAction(opts) });
+    const { title: shortTitle, description } = longMessage(title, 200);
+    const merged = withAction({ duration: 7000, ...opts });
+    gooeyToast.warning(`⚠️ ${shortTitle}`, { ...merged, description: description ?? merged?.description });
   },
   toast(title: string, opts?: NotifyOpts) {
     gooeyToast(title, withAction(opts));

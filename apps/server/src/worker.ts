@@ -32,6 +32,8 @@ export interface Env {
   KV_CACHE?: unknown;
   AI_SERVICE?: { fetch(input: string | URL, init?: RequestInit): Promise<Response> };
   AI_SERVICE_URL?: string;
+  /** Origin web yang dipercaya meneruskan x-user-id (daftar csv). */
+  WEB_ORIGINS?: string;
 }
 
 let cached: { app: ReturnType<typeof createApp> } | null = null;

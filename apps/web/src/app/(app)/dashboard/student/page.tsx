@@ -2,7 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowRight, BookOpen, Calendar, Clock, GraduationCap, ShoppingCart, Video } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Brain,
+  Calendar,
+  Clock,
+  GraduationCap,
+  ShoppingCart,
+  Sparkles,
+  Video,
+} from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -76,6 +86,40 @@ export default function StudentDashboardPage() {
             href="/dashboard/student/orders"
             color="bg-brand-navy-light"
           />
+        </div>
+
+        {/* Quick Start — AI + Assessment */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Link
+            href="/dashboard/student/assistant"
+            className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-brand-navy/10">
+              <Sparkles className="size-5 text-brand-navy" />
+            </div>
+            <h3 className="font-bold font-bricolage text-base text-brand-navy">Asisten AI</h3>
+            <p className="mt-0.5 font-manrope text-sm text-text-muted-custom">
+              Tanya jurusan, passing grade, atau program — jawaban dipersonalisasi sesuai profil kamu.
+            </p>
+            <span className="mt-3 inline-flex items-center gap-1 font-manrope font-semibold text-brand-orange text-xs">
+              Mulai chat <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+          <Link
+            href="/dashboard/student/assessment"
+            className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-brand-orange/10">
+              <Brain className="size-5 text-brand-orange" />
+            </div>
+            <h3 className="font-bold font-bricolage text-base text-brand-navy">Tes Minat &amp; Bakat</h3>
+            <p className="mt-0.5 font-manrope text-sm text-text-muted-custom">
+              Ikuti tes untuk melihat minat (RIASEC) &amp; rekomendasi jurusan yang paling cocok.
+            </p>
+            <span className="mt-3 inline-flex items-center gap-1 font-manrope font-semibold text-brand-orange text-xs">
+              Ikuti tes <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
         </div>
 
         {/* Main Content Grid */}
