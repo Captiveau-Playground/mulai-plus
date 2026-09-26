@@ -45,6 +45,16 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { Task, TaskContent, TaskTrigger } from "@/components/ai-elements/task";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle } from "@/components/ui/loader-circle";
 import { authClient } from "@/lib/auth-client";
@@ -239,54 +249,67 @@ function ChatRuntime({
                 </Checkpoint>
               )}
               <Message from={m.role === "user" ? "user" : "assistant"}>
-                <MessageContent
-                  className={
-                    m.role === "user"
-                      ? "rounded-2xl! bg-brand-navy! px-4! py-2.5! text-white!"
-                      : "border! w-full max-w-none! rounded-2xl! border-border! bg-muted! px-4! py-3! text-foreground!"
-                  }
-                >
-                  {m.role === "user" ? (
-                    <span>
-                      {(m as any).content ??
-                        ((m.parts ?? [])
-                          .map((p: any) => ((p.kind ?? p.type) === "text" ? (p.text ?? "") : ""))
-                          .join("") ||
-                          "…")}
-                    </span>
-                  ) : (
-                    (m.parts ?? []).map((p: any, i: number) => {
-                      const kind = p.kind ?? p.type;
-                      if (kind === "text") {
-                        return p.text ? <MessageResponse key={i}>{p.text}</MessageResponse> : null;
+                {(() => {
+                  const isUser = m.role === "user";
+                  const partsTxt = (m.parts ?? [])
+                    .map((pp: any) => ((pp.kind ?? pp.type) === "text" ? (pp.text ?? "") : ""))
+                    .join("");
+                  const hasTool = (m.parts ?? []).some((pp: any) => {
+                    const k = pp.kind ?? pp.type;
+                    return k === "tool-invocation" || k === "tool";
+                  });
+                  const showBubble = isUser || partsTxt.length > 0 || hasTool;
+                  if (!showBubble) return null;
+                  return (
+                    <MessageContent
+                      className={
+                        isUser
+                          ? "rounded-2xl! bg-brand-navy! px-4! py-2.5! text-white!"
+                          : "border! w-full max-w-none! rounded-2xl! border-border! bg-muted! px-4! py-3! text-foreground!"
                       }
-                      if (kind === "tool-invocation" || kind === "tool") {
-                        const ti = p.toolInvocation ?? p;
-                        const st = ti.state ?? "call";
-                        const done = st === "result" || st === "output-available";
-                        const result = done ? (ti.output ?? ti.result) : undefined;
-                        return (
-                          <Task key={i} defaultOpen={false} className="rounded-xl border border-gray-200 bg-white">
-                            <TaskTrigger title={`${done ? "✓" : "…"} ${ti.toolName ?? ti.name ?? "tool"}`} />
-                            <TaskContent>
-                              <pre className="overflow-x-auto p-3 font-mono text-[10px] text-text-muted-custom">
-                                {typeof result === "string"
-                                  ? result.slice(0, 800)
-                                  : JSON.stringify({ args: ti.args ?? {}, result }, null, 2).slice(0, 800)}
-                              </pre>
-                            </TaskContent>
-                          </Task>
-                        );
-                      }
-                      return null;
-                    })
-                  )}
-                  {m.role === "assistant" && (m.parts ?? []).length === 0 && busy && (
-                    <span className="flex items-center gap-1.5 text-text-muted-custom/50 italic">
-                      <LoaderCircle className="size-3" /> memikirkan…
-                    </span>
-                  )}
-                </MessageContent>
+                    >
+                      {isUser ? (
+                        <span>
+                          {(m as any).content ??
+                            ((m.parts ?? [])
+                              .map((p: any) => ((p.kind ?? p.type) === "text" ? (p.text ?? "") : ""))
+                              .join("") ||
+                              "…")}
+                        </span>
+                      ) : (
+                        (m.parts ?? []).map((p: any, i: number) => {
+                          const kind = p.kind ?? p.type;
+                          if (kind === "text") {
+                            return p.text ? (
+                              <MessageResponse key={i} className="au-markdown">
+                                {p.text}
+                              </MessageResponse>
+                            ) : null;
+                          }
+                          if (kind === "tool-invocation" || kind === "tool") {
+                            const ti = p.toolInvocation ?? p;
+                            const st = ti.state ?? "call";
+                            const done = st === "result" || st === "output-available";
+                            const result = done ? (ti.output ?? ti.result) : undefined;
+                            return (
+                              <Task key={i} defaultOpen={false} className="rounded-xl border border-gray-200 bg-white">
+                                <TaskTrigger title={`${done ? "✓" : "…"} ${ti.toolName ?? ti.name ?? "tool"}`} />
+                                <TaskContent>
+                                  <pre className="overflow-x-auto p-3 font-mono text-[10px] text-text-muted-custom">
+                                    {typeof result === "string"
+                                      ? result.slice(0, 800)
+                                      : JSON.stringify({ args: ti.args ?? {}, result }, null, 2).slice(0, 800)}
+                                  </pre>
+                                </TaskContent>
+                              </Task>
+                            );
+                          }
+                          return null;
+                        })
+                      )}
+                    </MessageContent>
+                  );
+                })()}
                 {m.role === "assistant" && (
                   <MessageToolbar>
                     <MessageActions>
@@ -369,7 +392,10 @@ function ChatRuntime({
                     {current.name}
                   </Button>
                 </ModelSelectorTrigger>
-                <ModelSelectorContent title="Pilih model">
+                <ModelSelectorContent
+                  title="Pilih model"
+                  className="border! overflow-hidden rounded-2xl border-border! shadow-xl! sm:max-h-[500px] sm:w-[420px]"
+                >
                   <ModelSelectorInput placeholder="Cari model…" />
                   <ModelSelectorList>
                     {TIERS.map((t) => (
@@ -411,6 +437,7 @@ export default function AssistantPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [ready, setReady] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<SessionItem | null>(null);
   const _loaded = useRef<string | null>(null);
 
   const refreshSessions = useCallback(async () => {
@@ -480,6 +507,20 @@ export default function AssistantPage() {
 
   const active = sessions.find((s) => s.id === activeId);
 
+  const doDeleteSession = async (target: SessionItem) => {
+    try {
+      await fetch(`${AI_BASE}/ai/sessions/${encodeURIComponent(target.id)}`, {
+        method: "DELETE",
+        headers: userId ? { "x-user-id": userId } : {},
+      });
+    } catch {
+      /* noop */
+    }
+    if (target.id === activeId) await handleNewChat();
+    setDeleteTarget(null);
+    void refreshSessions();
+  };
+
   return (
     <div className="relative flex h-full w-full gap-3 px-0 pt-3 sm:px-3">
       {/* Sidebar percakapan */}
@@ -515,47 +556,60 @@ export default function AssistantPage() {
               </p>
             ) : (
               sessions.map((s) => (
-                <div key={s.id} className="group relative">
-                  <button
-                    type="button"
-                    className={`flex w-full cursor-pointer items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-colors ${
-                      s.id === activeId ? "bg-brand-navy/10" : "hover:bg-gray-50"
-                    }`}
-                    onClick={() => void openSession(s.id)}
-                  >
-                    <div className="min-h-0 flex-1">
-                      <p className="truncate font-manrope font-medium text-text-main text-xs">{s.title}</p>
-                      <p className="font-manrope text-[10px] text-text-muted-custom">
-                        {fmtTime(s.lastActive)} · {s.messageCount} pesan
-                      </p>
-                    </div>
-                    {s.id === activeId && <CheckMark className="size-3.5 shrink-0 text-brand-orange" />}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Hapus percakapan"
-                    className="absolute top-1.5 right-1.5 hidden rounded-md p-1 text-text-muted-custom hover:bg-red-50 hover:text-red-500 group-hover:inline-flex"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (!window.confirm(`Hapus percakapan "${s.title}"?`)) return;
-                      try {
-                        await fetch(`${AI_BASE}/ai/sessions/${encodeURIComponent(s.id)}`, {
-                          method: "DELETE",
-                          headers: userId ? { "x-user-id": userId } : {},
-                        });
-                      } catch {
-                        /* noop */
-                      }
-                      if (s.id === activeId) await handleNewChat();
-                      void refreshSessions();
-                    }}
-                  >
-                    <Trash2Icon className="size-3.5" />
-                  </button>
-                </div>
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => void openSession(s.id)}
+                  title={s.title}
+                  className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors ${
+                    s.id === activeId ? "bg-brand-navy/10" : "hover:bg-gray-100"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1 overflow-hidden">
+                    <span className="block truncate font-manrope font-medium text-text-main text-xs">{s.title}</span>
+                    <span className="block truncate font-manrope text-[10px] text-text-muted-custom">
+                      {fmtTime(s.lastActive)} · {s.messageCount} pesan
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    {s.id === activeId && <CheckMark className="size-3.5 text-brand-orange" />}
+                    <button
+                      type="button"
+                      aria-label={`Hapus ${s.title}`}
+                      className="hidden shrink-0 rounded-md p-1 text-text-muted-custom transition-colors hover:bg-red-50 hover:text-red-500 group-hover:inline-flex"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(s);
+                      }}
+                    >
+                      <Trash2Icon className="size-3.5" />
+                    </button>
+                  </span>
+                </button>
               ))
             )}
           </div>
+
+          {/* Dialog hapus percakapan — bukan confirm browser */}
+          <AlertDialog open={deleteTarget !== null} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hapus percakapan?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  &ldquo;{deleteTarget?.title ?? ""}&rdquo; akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={() => deleteTarget && void doDeleteSession(deleteTarget)}
+                >
+                  Ya, hapus
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </aside>
       )}
 
