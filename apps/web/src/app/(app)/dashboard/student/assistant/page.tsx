@@ -424,14 +424,16 @@ export default function AssistantPage() {
 
   const handleNewChat = async () => {
     const id = `s-${crypto.randomUUID().slice(0, 12)}`;
-    try {
-      await fetch(`${AI_BASE}/ai/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-    } catch {
-      /* sesi tetap jalan pakai id lokal */
+    if (userId) {
+      try {
+        await fetch(`${AI_BASE}/ai/sessions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-user-id": userId },
+          body: JSON.stringify({ id }),
+        });
+      } catch {
+        /* sesi tetap jalan pakai id lokal */
+      }
     }
     setActiveId(id);
     setHistory([]);
@@ -440,12 +442,9 @@ export default function AssistantPage() {
   };
 
   useEffect(() => {
-    void fetch(`${AI_BASE}/ai/sessions`, { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<any>) : Promise.reject()))
-      .then((d) => setSessions(d?.sessions ?? []))
-      .catch(() => undefined);
+    // Jangan fetch /ai/sessions sebelum userId diketahui — kalau nembak tanpa
+    // user id → 401 noise di log & sidebar kosong. List ditarik via efek di bawah.
     setReady(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
