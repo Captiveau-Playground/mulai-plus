@@ -106,14 +106,14 @@ function NavGroup({ group, onNavigate }: { group: NavGroupDef; onNavigate?: () =
   );
 }
 
-const dashboardItem: NavItem = { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard };
+// Item datar (setara Dashboard) — tidak dibungkus grup
+const topItems: NavItem[] = [
+  { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard },
+  { title: "Asisten AI", url: "/dashboard/student/assistant", icon: Sparkles },
+  { title: "Settings", url: "/dashboard/student/settings", icon: Settings },
+];
 
 const navGroups: NavGroupDef[] = [
-  {
-    title: "Asisten",
-    icon: Sparkles,
-    items: [{ title: "Asisten AI", url: "/dashboard/student/assistant", icon: Sparkles }],
-  },
   {
     title: "Program",
     icon: GraduationCap,
@@ -131,11 +131,6 @@ const navGroups: NavGroupDef[] = [
       { title: "Hasil", url: "/dashboard/student/assessment/result", icon: FileText },
       { title: "History", url: "/dashboard/student/assessment/history", icon: History },
     ],
-  },
-  {
-    title: "General",
-    icon: Settings,
-    items: [{ title: "Settings", url: "/dashboard/student/settings", icon: Settings }],
   },
 ];
 
@@ -207,7 +202,13 @@ export function StudentSidebar({
 
       <SidebarContent className="px-2 sm:px-3">
         <nav className="space-y-1" aria-label="Student navigation">
-          <NavLink item={dashboardItem} isActive={pathname === "/dashboard/student"} onNavigate={onNavigate} />
+          {topItems.map((item) => {
+            const active =
+              item.url === "/dashboard/student"
+                ? pathname === "/dashboard/student"
+                : pathname === item.url || pathname.startsWith(`${item.url}/`);
+            return <NavLink key={item.title} item={item} isActive={active} onNavigate={onNavigate} />;
+          })}
           {navGroups.map((group) => (
             <NavGroup key={group.title} group={group} onNavigate={onNavigate} />
           ))}
