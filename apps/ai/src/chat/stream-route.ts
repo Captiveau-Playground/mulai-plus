@@ -18,6 +18,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
+import { buildUserContext, contextPrompt } from "../agent/user-context";
 import { record } from "../analytics/events";
 import type { Env } from "../config";
 import { DEFAULT_FAST_MODEL, DEFAULT_MODEL } from "../config";
@@ -197,8 +198,13 @@ streamRoute.post("/chat/stream", async (c) => {
   }
 
   const history = await store.getHistory(c, key, 6).catch(() => []);
+  // Konteks siswa (profil + hasil tes minat bakat) → disuntik sebagai system message
+  const userCtx = await buildUserContext(c, userId).catch(() => null);
+  const userCtxPrompt = contextPrompt(userCtx);
+
   const messages: LlmMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
+    ...(userCtxPrompt ? [{ role: "system" as const, content: userCtxPrompt }] : []),
     ...history
       .filter((h) => (h.role === "user" || h.role === "assistant") && typeof h.content === "string")
       .map((h) => ({ role: h.role as LlmMessage["role"], content: h.content })),
