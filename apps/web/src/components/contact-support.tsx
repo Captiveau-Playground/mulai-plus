@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
-const CONTACT_CHANNELS = [
+export const CONTACT_CHANNELS = [
   {
     id: "wa1",
     label: "WhatsApp",

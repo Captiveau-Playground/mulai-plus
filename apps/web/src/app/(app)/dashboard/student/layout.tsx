@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { ContactSupport } from "@/components/contact-support";
 import DashboardFooter from "@/components/dashboard-footer";
 import DashboardHeader from "@/components/dashboard-header";
 import { FeedbackProvider } from "@/components/feedback-provider";
@@ -32,7 +31,6 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
           <DashboardFooter />
         </div>
       </SidebarInset>
-      <ContactSupport />
     </>
   );
 }
