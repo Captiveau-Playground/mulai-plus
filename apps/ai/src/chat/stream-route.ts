@@ -251,6 +251,7 @@ streamRoute.post("/chat/stream", async (c) => {
           if (!finalText) {
             ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));
             const body = await llmChatStream(c, messages, { model: modelOverride });
+            let reasoningStarted = false;
             const reader = body?.getReader();
             const decoder = new TextDecoder();
             let buf = "";
@@ -271,14 +272,30 @@ streamRoute.post("/chat/stream", async (c) => {
                   const rawC = j?.choices?.[0]?.delta?.content;
                   const piece = rawC == null ? "" : typeof rawC === "string" ? rawC : String(rawC);
                   if (piece) {
+                    if (reasoningStarted) {
+                      ct.enqueue(enc.encode(part({ type: "reasoning-end", id })));
+                      reasoningStarted = false;
+                    }
                     finalText += piece;
                     ct.enqueue(enc.encode(part({ type: "text-delta", id, delta: piece })));
+                    continue;
+                  }
+                  // Reasoning (thinking) streaming — protokol reasoning-start/delta/end
+                  const rawR = j?.choices?.[0]?.delta?.reasoning_content ?? j?.choices?.[0]?.delta?.reasoning;
+                  const rPiece = rawR == null ? "" : typeof rawR === "string" ? rawR : String(rawR);
+                  if (rPiece) {
+                    if (!reasoningStarted) {
+                      ct.enqueue(enc.encode(part({ type: "reasoning-start", id })));
+                      reasoningStarted = true;
+                    }
+                    ct.enqueue(enc.encode(part({ type: "reasoning-delta", id, delta: rPiece })));
                   }
                 } catch {
                   /* skip */
                 }
               }
             }
+            if (reasoningStarted) ct.enqueue(enc.encode(part({ type: "reasoning-end", id })));
             ct.enqueue(enc.encode(part({ type: "text-end", id })));
           } else {
             ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));

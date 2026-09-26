@@ -7,6 +7,7 @@ import {
   BrainIcon,
   CheckIcon,
   Check as CheckMark,
+  ChevronDownIcon,
   CopyIcon,
   PlusIcon,
   SparklesIcon,
@@ -29,9 +30,12 @@ import {
 import {
   ModelSelector,
   ModelSelectorContent,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
   ModelSelectorInput,
   ModelSelectorItem,
   ModelSelectorList,
+  ModelSelectorName,
   ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector";
 import {
@@ -221,13 +225,6 @@ function ChatRuntime({
                 Halo! 👋 Tanya apa saja — jawaban dipersonalisasi: {ctx?.school || "sekolah belum terisi"} ·{" "}
                 {ctx?.riasecPrimary ? `minat ${ctx.riasecPrimary}` : "tes minat belum ada"}.
               </p>
-              <div className="mt-4">
-                <Suggestions>
-                  {SUGGESTIONS.map((s) => (
-                    <Suggestion key={s} suggestion={s} onClick={() => sendText(s)} />
-                  ))}
-                </Suggestions>
-              </div>
             </div>
           )}
 
@@ -352,9 +349,18 @@ function ChatRuntime({
         <ConversationScrollButton />
       </Conversation>
 
-      {/* Konteks + composer */}
+      {/* Suggestions selalu tampil (pola ref examples/chatbot) + konteks + composer */}
       <div className="shrink-0 border-gray-100 border-t">
-        <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2 pb-1">
+        {!busy && (
+          <div className="px-3 pt-2 pb-1">
+            <Suggestions>
+              {SUGGESTIONS.map((q) => (
+                <Suggestion key={q} suggestion={q} onClick={() => sendText(q)} />
+              ))}
+            </Suggestions>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1">
           <button
             type="button"
             onClick={() => notify.info("Diperkaya dari profil, tes, & riwayat. Lihat Kebijakan Privasi.")}
@@ -390,6 +396,7 @@ function ChatRuntime({
                   >
                     {current.icon}
                     {current.name}
+                    <ChevronDownIcon className="size-3 text-muted-foreground" />
                   </Button>
                 </ModelSelectorTrigger>
                 <ModelSelectorContent
@@ -398,25 +405,32 @@ function ChatRuntime({
                 >
                   <ModelSelectorInput placeholder="Cari model…" />
                   <ModelSelectorList>
-                    {TIERS.map((t) => (
-                      <ModelSelectorItem
-                        key={t.id}
-                        value={t.id}
-                        onSelect={() => {
-                          setModel(t.id);
-                          setModelOpen(false);
-                        }}
-                      >
-                        <div className="flex w-full items-center gap-3 py-1">
-                          {t.icon}
-                          <div className="flex-1">
-                            <p className="font-manrope font-medium text-foreground text-sm">{t.name}</p>
-                            <p className="font-manrope text-muted-foreground text-xs">{t.desc}</p>
+                    <ModelSelectorEmpty>Model tidak ditemukan.</ModelSelectorEmpty>
+                    <ModelSelectorGroup heading="Pilihan MULAI+">
+                      {TIERS.map((t) => (
+                        <ModelSelectorItem
+                          key={t.id}
+                          value={t.id}
+                          onSelect={() => {
+                            setModel(t.id);
+                            setModelOpen(false);
+                          }}
+                        >
+                          <div className="flex w-full items-center gap-3 py-1">
+                            {t.icon}
+                            <div className="min-w-0 flex-1 pr-2">
+                              <ModelSelectorName>{t.name}</ModelSelectorName>
+                              <p className="truncate font-manrope text-muted-foreground text-xs">{t.desc}</p>
+                            </div>
+                            {model === t.id ? (
+                              <CheckIcon className="ml-auto size-4 shrink-0 text-brand-orange" />
+                            ) : (
+                              <div className="ml-auto size-4 shrink-0" />
+                            )}
                           </div>
-                          {model === t.id && <CheckIcon className="size-4 text-brand-orange" />}
-                        </div>
-                      </ModelSelectorItem>
-                    ))}
+                        </ModelSelectorItem>
+                      ))}
+                    </ModelSelectorGroup>
                   </ModelSelectorList>
                 </ModelSelectorContent>
               </ModelSelector>
