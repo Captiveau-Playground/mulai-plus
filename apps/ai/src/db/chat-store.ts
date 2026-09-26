@@ -21,6 +21,8 @@ export type ChatMessageRow = {
   content: string;
   feedback: string | null;
   created_at: string | null;
+  branch_group?: string | null;
+  superseded?: boolean;
 };
 
 export async function getOrCreateSession(
@@ -65,14 +67,23 @@ export async function saveMessage(
   sessionId: string,
   role: string,
   content: string,
-  tokens: { prompt?: number; completion?: number; cost?: number; model?: string } = {},
+  tokens: { prompt?: number; completion?: number; cost?: number; model?: string; branchGroup?: string | null } = {},
 ): Promise<{ id: number; created_at: string | null }> {
   const row = await unsafe(
     c,
-    `INSERT INTO chatbot_messages (session_id, role, content, prompt_tokens, completion_tokens, model, cost)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO chatbot_messages (session_id, role, content, prompt_tokens, completion_tokens, model, cost, branch_group)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id, created_at`,
-    [sessionId, role, content, tokens.prompt ?? 0, tokens.completion ?? 0, tokens.model ?? null, tokens.cost ?? 0],
+    [
+      sessionId,
+      role,
+      content,
+      tokens.prompt ?? 0,
+      tokens.completion ?? 0,
+      tokens.model ?? null,
+      tokens.cost ?? 0,
+      tokens.branchGroup ?? null,
+    ],
   );
   const r = ((row as Record<string, any>[])[0] ?? {}) as Record<string, any>;
   return { id: Number(r.id), created_at: r.created_at ? String(r.created_at) : null };
@@ -142,10 +153,25 @@ export async function truncateSessionMessages(c: AppContext, sessionId: string, 
   return (rows as Record<string, any>[]).length;
 }
 
+/** Supersede jawaban lama dalam satu branch (regenerate): aktifkan yang terbaru saja. */
+export async function supersedeBranch(
+  c: AppContext,
+  sessionId: string,
+  branchGroup: string,
+  keepNewerThanId: number,
+): Promise<void> {
+  await unsafe(
+    c,
+    `UPDATE chatbot_messages SET superseded = true
+     WHERE session_id = $1 AND role = 'assistant' AND branch_group = $2 AND id < $3 AND superseded = false`,
+    [sessionId, branchGroup, keepNewerThanId],
+  );
+}
+
 export async function getHistory(c: AppContext, sessionId: string, limit = 6): Promise<ChatMessageRow[]> {
   const rows = await query(
     c,
-    `SELECT id, role, content, feedback, created_at
+    `SELECT id, role, content, feedback, created_at, branch_group, superseded
      FROM chatbot_messages
      WHERE session_id = $1
      ORDER BY id DESC
@@ -161,6 +187,8 @@ export async function getHistory(c: AppContext, sessionId: string, limit = 6): P
       content: m.content,
       feedback: m.feedback ?? null,
       created_at: m.created_at ? String(m.created_at) : null,
+      branch_group: m.branch_group ? String(m.branch_group) : null,
+      superseded: !!m.superseded,
     }));
 }
 

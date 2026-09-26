@@ -39,7 +39,11 @@ export async function ensureAiTables(c: AppContext): Promise<void> {
        created_at TIMESTAMPTZ DEFAULT NOW()
      );
      CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hash ON chatbot_cache(question_hash);
-     CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hit ON chatbot_cache(hit_count DESC);`,
+     CREATE INDEX IF NOT EXISTS idx_chatbot_cache_hit ON chatbot_cache(hit_count DESC);
+    -- Versioning jawaban (branch / regenerate)
+    ALTER TABLE chatbot_messages ADD COLUMN IF NOT EXISTS branch_group text;
+    ALTER TABLE chatbot_messages ADD COLUMN IF NOT EXISTS superseded boolean NOT NULL DEFAULT false;
+    CREATE INDEX IF NOT EXISTS idx_chatbot_messages_branch ON chatbot_messages(session_id, branch_group, superseded);`,
   ).catch((e) => console.error("[db] ensureAiTables:", (e as Error).message));
   ensured = true;
 }

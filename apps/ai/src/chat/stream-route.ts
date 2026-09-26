@@ -47,6 +47,10 @@ const Body = z
     session_id: z.string().optional(),
     // Tier model tersamar (dari UI): cepat | seimbang | maksimal
     model: z.enum(["simple", "smart", "premium"]).optional(),
+    // Branch / regenerate: regenerate=true → jangan simpan pesan user baru; jawaban baru
+    // masuk branch_group yang sama & versi lama di-supersede (dapat ditampilkan lagi).
+    regenerate: z.boolean().optional(),
+    branch_group: z.string().max(64).optional(),
   })
   .transform((d) => {
     let msg = d.message?.trim() ?? "";
@@ -73,7 +77,13 @@ const Body = z
         }
       }
     }
-    return { message: msg, session_id: d.session_id, model: d.model };
+    return {
+      message: msg,
+      session_id: d.session_id,
+      model: d.model,
+      regenerate: d.regenerate === true,
+      branch_group: d.branch_group,
+    };
   })
   .refine((d) => d.message.length >= 1 && d.message.length <= 4000, { message: "message wajib 1..4000 char" });
 const TIER_MODELS: Record<string, string> = {
@@ -92,7 +102,7 @@ const part = (o: Record<string, unknown>) => `data: ${JSON.stringify(o)}\n\n`;
 streamRoute.post("/chat/stream", async (c) => {
   const parsed = Body.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid request" }, 400);
-  const { message } = parsed.data;
+  const { message, regenerate = false, branch_group } = parsed.data;
 
   const userId = c.req.header("x-user-id") ?? null;
   const isAuth = userId !== null;
@@ -312,8 +322,13 @@ streamRoute.post("/chat/stream", async (c) => {
             .executionCtx;
           const finalTextSnap = finalText || "…";
           const persist = async () => {
-            await store.saveMessage(c, key, "user", message).catch(() => null);
-            await store.saveMessage(c, key, "assistant", finalTextSnap).catch(() => null);
+            if (!regenerate)
+              await store.saveMessage(c, key, "user", message, { branchGroup: branch_group ?? null }).catch(() => null);
+            const saved = await store
+              .saveMessage(c, key, "assistant", finalTextSnap, { branchGroup: branch_group ?? null })
+              .catch(() => null);
+            if (branch_group && saved?.id)
+              await store.supersedeBranch(c, key, branch_group, saved.id).catch(() => undefined);
             if (finalText) await exactCachePut(c, message, finalText, extractTopics(finalText), {}).catch(() => {});
           };
           if (execCtx2) execCtx2.waitUntil(persist());
