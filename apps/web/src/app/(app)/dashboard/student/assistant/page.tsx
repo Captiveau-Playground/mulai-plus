@@ -14,7 +14,8 @@ import {
   X,
   ZapIcon,
 } from "lucide-react";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import {
@@ -203,7 +204,7 @@ function ChatRuntime({
     <div className="flex h-full min-h-0 flex-col">
       {/* Percakapan */}
       <Conversation className="min-h-0 flex-1 rounded-none border-0 bg-white">
-        <ConversationContent>
+        <ConversationContent className="gap-3 px-3 py-3 sm:px-5 sm:py-4">
           {messages.length === 0 && (
             <div className="px-4 pt-10">
               <p className="font-manrope text-sm text-text-muted-custom">
@@ -221,7 +222,13 @@ function ChatRuntime({
           )}
 
           {messages.map((m: any, idx: number) => (
-            <Fragment key={m.id}>
+            <motion.div
+              key={m.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="contents"
+            >
               {/* Checkpoint — pembatas "mulai ulang dari sini" di tiap pertanyaan user */}
               {idx > 0 && m.role === "user" && (
                 <Checkpoint className="my-1">
@@ -296,8 +303,13 @@ function ChatRuntime({
                   </MessageToolbar>
                 )}
               </Message>
-            </Fragment>
+            </motion.div>
           ))}
+          {busy && messages.length > 0 && (messages[messages.length - 1] as any)?.role === "user" && (
+            <div className="flex justify-start">
+              <span className="inline-block size-2 animate-pulse rounded-full bg-brand-navy/60" />
+            </div>
+          )}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
@@ -454,7 +466,7 @@ export default function AssistantPage() {
   const active = sessions.find((s) => s.id === activeId);
 
   return (
-    <div className="relative mx-auto flex h-full w-full gap-3 px-0 pt-3 sm:px-3">
+    <div className="relative flex h-full w-full gap-3 px-0 pt-3 sm:px-3">
       {/* Sidebar percakapan */}
       {showSidebar && (
         <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white lg:flex">
