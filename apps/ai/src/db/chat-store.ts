@@ -103,7 +103,7 @@ export interface SessionListItem {
 export async function listSessions(c: AppContext, userId: string): Promise<SessionListItem[]> {
   const rows = await query(
     c,
-    `SELECT s.id, s.created_at, s.last_active,
+    `SELECT s.id, s.created_at, s.last_active, s.title AS session_title,
             (SELECT COUNT(*) FROM chatbot_messages m WHERE m.session_id = s.id) AS message_count,
             (SELECT m.content FROM chatbot_messages m
               WHERE m.session_id = s.id AND m.role = 'user'
@@ -117,7 +117,7 @@ export async function listSessions(c: AppContext, userId: string): Promise<Sessi
   );
   return (rows as Record<string, any>[]).map((r) => ({
     id: r.id,
-    title: (r.first_user ?? "").slice(0, 60) || "Percakapan baru",
+    title: (r.session_title ?? r.first_user ?? "Percakapan baru").slice(0, 60),
     messageCount: Number(r.message_count ?? 0),
     lastActive: r.last_active ? String(r.last_active) : null,
     createdAt: r.created_at ? String(r.created_at) : null,
@@ -125,6 +125,16 @@ export async function listSessions(c: AppContext, userId: string): Promise<Sessi
 }
 
 /** Hapus sesi milik user. */
+/** Rename judul sesi (owner). */
+export async function renameSession(c: AppContext, userId: string, sessionId: string, title: string): Promise<boolean> {
+  const rows = await unsafe(
+    c,
+    "UPDATE chatbot_sessions SET title = $3, last_active = NOW() WHERE id = $1 AND user_id = $2 RETURNING id",
+    [sessionId, userId, title],
+  );
+  return (rows as Record<string, any>[]).length > 0;
+}
+
 export async function deleteSession(c: AppContext, userId: string, sessionId: string): Promise<boolean> {
   const rows = await unsafe(c, "DELETE FROM chatbot_sessions WHERE id = $1 AND user_id = $2 RETURNING id", [
     sessionId,

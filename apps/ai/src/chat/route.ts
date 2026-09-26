@@ -193,6 +193,17 @@ chatRoute.post("/sessions/truncate", async (c) => {
   return c.json({ removed });
 });
 
+chatRoute.patch("/sessions/:sessionId", async (c) => {
+  await ensureAiTables(c).catch(() => {});
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const b = (await c.req.json().catch(() => ({}))) as { title?: string };
+  const title = (b.title ?? "").toString().trim().slice(0, 60);
+  if (!title) return c.json({ error: "title kosong" }, 400);
+  const ok = await store.renameSession(c, userId, c.req.param("sessionId"), title).catch(() => false);
+  return c.json({ ok });
+});
+
 chatRoute.delete("/sessions/:sessionId", async (c) => {
   const userId = c.req.header("x-user-id") ?? null;
   if (!userId) return c.json({ error: "auth required" }, 401);

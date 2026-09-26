@@ -9,6 +9,7 @@ import {
   Check as CheckMark,
   ChevronDownIcon,
   CopyIcon,
+  PencilIcon,
   PlusIcon,
   RefreshCwIcon,
   SparklesIcon,
@@ -268,7 +269,7 @@ function ChatRuntime({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Percakapan */}
-      <Conversation className="min-h-0 flex-1 rounded-none border-0 bg-white">
+      <Conversation className="min-h-0 flex-1 rounded-none border-0 bg-card">
         <ConversationContent className="gap-3 px-3 py-3 sm:px-5 sm:py-4">
           {messages.length === 0 && (
             <div className="px-4 pt-10">
@@ -322,8 +323,8 @@ function ChatRuntime({
                             <MessageContent
                               className={
                                 isUser
-                                  ? "rounded-2xl! bg-brand-navy! px-4! py-2.5! text-white!"
-                                  : "border! w-full max-w-none! rounded-2xl! border-border! bg-muted! px-4! py-3! text-foreground!"
+                                  ? "rounded-xl! bg-brand-navy! px-4! py-2.5! text-white!"
+                                  : "border! w-full max-w-none! rounded-xl! border-border! bg-muted! px-4! py-3! text-foreground!"
                               }
                             >
                               {isUser ? (
@@ -355,7 +356,7 @@ function ChatRuntime({
                                       <Task
                                         key={i}
                                         defaultOpen={false}
-                                        className="rounded-xl border border-gray-200 bg-white"
+                                        className="rounded-xl border border-gray-200 bg-card"
                                       >
                                         <TaskTrigger
                                           title={`${done ? "✓" : "…"} ${ti.toolName ?? ti.name ?? "tool"}`}
@@ -474,7 +475,7 @@ function ChatRuntime({
       </Conversation>
 
       {/* Suggestions selalu tampil (pola ref examples/chatbot) + konteks + composer */}
-      <div className="shrink-0 border-gray-100 border-t">
+      <div className="shrink-0 border-border border-t">
         {!busy && (
           <div className="px-3 pt-2 pb-1">
             <Suggestions>
@@ -536,7 +537,7 @@ function ChatRuntime({
                 </ModelSelectorTrigger>
                 <ModelSelectorContent
                   title="Pilih model"
-                  className="border! overflow-hidden rounded-2xl border-border! shadow-xl! sm:max-h-[500px] sm:w-[420px]"
+                  className="border! overflow-hidden rounded-xl border-border! shadow-xl! sm:max-h-[500px] sm:w-[420px]"
                 >
                   <ModelSelectorInput placeholder="Cari model…" />
                   <ModelSelectorList>
@@ -591,6 +592,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const [ready, setReady] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<SessionItem | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
   const _loaded = useRef<string | null>(null);
 
   const refreshSessions = useCallback(async () => {
@@ -633,7 +636,9 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   useEffect(() => {
     if (paramId) {
       void openSession(paramId);
-    } else {
+    } else if (initialSessionId) {
+      void openSession(initialSessionId);
+    } else if (process.env.NEXT_PUBLIC_CHAT_NO_REDIRECT !== "1") {
       const id = `s-${crypto.randomUUID().slice(0, 12)}`;
       (router.replace as any)(`/dashboard/student/assistant/chat/${id}`);
     }
@@ -671,6 +676,23 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
 
   const active = sessions.find((s) => s.id === activeId);
 
+  const saveRename = async (sessionId: string, title: string) => {
+    const clean = title.trim().slice(0, 60);
+    if (!clean || !userId) return;
+    try {
+      const r = await fetch(`${AI_BASE}/ai/sessions/${encodeURIComponent(sessionId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({ title: clean }),
+      });
+      if (r.ok) {
+        setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title: clean } : s)));
+      }
+    } catch {
+      /* noop */
+    }
+  };
+
   const doDeleteSession = async (target: SessionItem) => {
     try {
       await fetch(`${AI_BASE}/ai/sessions/${encodeURIComponent(target.id)}`, {
@@ -689,8 +711,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     <div className="relative flex h-full w-full gap-3 px-0 pt-3 sm:px-3">
       {/* Sidebar percakapan */}
       {showSidebar && (
-        <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white lg:flex">
-          <div className="flex items-center justify-between border-gray-100 border-b p-3">
+        <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:flex">
+          <div className="flex items-center justify-between border-border border-b p-3">
             <h2 className="font-bold font-bricolage text-brand-navy text-sm">Percakapan</h2>
             <Button
               type="button"
@@ -738,13 +760,48 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
                   }`}
                 >
                   <span className="min-w-0 flex-1 overflow-hidden">
-                    <span className="block truncate font-manrope font-medium text-text-main text-xs">{s.title}</span>
+                    {editingId === s.id ? (
+                      <input
+                        value={draftTitle}
+                        onChange={(e) => setDraftTitle(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onBlur={() => {
+                          void saveRename(s.id, draftTitle);
+                          setEditingId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            void saveRename(s.id, draftTitle);
+                            setEditingId(null);
+                          } else if (e.key === "Escape") {
+                            setEditingId(null);
+                          }
+                          e.stopPropagation();
+                        }}
+                        className="w-full rounded-md border border-border bg-card px-1.5 py-0.5 font-manrope text-xs outline-none focus:border-brand-orange/60"
+                      />
+                    ) : (
+                      <span className="block truncate font-manrope font-medium text-text-main text-xs">{s.title}</span>
+                    )}
                     <span className="block truncate font-manrope text-[10px] text-text-muted-custom">
                       {fmtTime(s.lastActive)} · {s.messageCount} pesan
                     </span>
                   </span>
-                  <span className="flex shrink-0 items-center gap-1">
+                  <span className="flex shrink-0 items-center gap-0.5">
                     {s.id === activeId && <CheckMark className="size-3.5 text-brand-orange" />}
+                    <button
+                      type="button"
+                      aria-label="Ubah judul"
+                      title="Ubah judul"
+                      className="hidden shrink-0 rounded-md p-1 text-text-muted-custom hover:bg-muted hover:text-brand-navy group-hover:inline-flex"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDraftTitle(s.title);
+                        setEditingId((cur) => (cur === s.id ? null : s.id));
+                      }}
+                    >
+                      <PencilIcon className="size-3.5" />
+                    </button>
                     <button
                       type="button"
                       aria-label={`Hapus ${s.title}`}
@@ -786,8 +843,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       )}
 
       {/* Panel utama chat */}
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <header className="flex shrink-0 items-center gap-2 border-gray-100 border-b px-3 py-2">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-card">
+        <header className="flex shrink-0 items-center gap-2 border-border border-b px-3 py-2">
           {!showSidebar && (
             <Button
               type="button"

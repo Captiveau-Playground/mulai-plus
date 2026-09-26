@@ -254,10 +254,10 @@ streamRoute.post("/chat/stream", async (c) => {
   return new Response(
     new ReadableStream({
       async start(ct) {
+        let finalText = llmError;
         try {
           if (toolParts) ct.enqueue(enc.encode(toolParts));
 
-          let finalText = llmError;
           if (!finalText) {
             ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));
             const body = await llmChatStream(c, messages, { model: modelOverride });
@@ -335,6 +335,19 @@ streamRoute.post("/chat/stream", async (c) => {
           else void persist();
         } catch (err) {
           console.error("[chat/stream] stream err:", (err as Error).message);
+          // Persist jawaban PARSIAL + pesan user walau stream error (jangan sampai hilang).
+          const execCtx3 = (c as unknown as { executionCtx?: { waitUntil: (p: Promise<unknown>) => void } })
+            .executionCtx;
+          const persistPartial = async () => {
+            if (!regenerate)
+              await store.saveMessage(c, key, "user", message, { branchGroup: branch_group ?? null }).catch(() => null);
+            if (finalText)
+              await store
+                .saveMessage(c, key, "assistant", finalText, { branchGroup: branch_group ?? null })
+                .catch(() => null);
+          };
+          if (execCtx3) execCtx3.waitUntil(persistPartial());
+          else void persistPartial();
           ct.enqueue(enc.encode(part({ type: "error", id, error: "stream error" })));
           ct.close();
         }
