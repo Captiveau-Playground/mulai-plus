@@ -14,8 +14,8 @@ import { useAuthorizePage } from "@/lib/auth-client";
 function StudentDashboardContent({ children }: { children: React.ReactNode }) {
   const { setOpenMobile } = useSidebar();
   const pathname = usePathname();
-  // Halaman asisten pakai full-viewport (100dvh) — header/footer dashboard
-  // disembunyikan supaya scroll hanya di dalam container chat.
+  // Asisten: area chat mengisi sisa tinggi viewport (scroll di dalam chat),
+  // tapi header/footer dashboard & tombol toggle sidebar TETAP ada (konsisten dgn page lain).
   const fullVh = pathname.startsWith("/dashboard/student/assistant");
 
   const handleNavigate = () => {
@@ -27,12 +27,12 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
       <StudentSidebar onNavigate={handleNavigate} />
       <SidebarInset className="!bg-bg-light">
         <div className={`flex flex-col ${fullVh ? "h-dvh overflow-hidden" : "min-h-screen"}`}>
-          {!fullVh && <DashboardHeader />}
-          <div className={fullVh ? "min-h-0 flex-1" : "flex-1"}>{children}</div>
-          {!fullVh && <DashboardFooter />}
+          <DashboardHeader />
+          <div className={fullVh ? "min-h-0 flex-1 overflow-y-auto" : "flex-1"}>{children}</div>
+          <DashboardFooter />
         </div>
       </SidebarInset>
-      {!fullVh && <ContactSupport />}
+      <ContactSupport />
     </>
   );
 }

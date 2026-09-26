@@ -763,7 +763,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   };
 
   return (
-    <div className="relative flex h-full w-full gap-3 px-0 pt-3 sm:px-3">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1280px] gap-3 p-4 md:p-6 lg:p-8">
       {/* Sidebar percakapan */}
       {showSidebar && (
         <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:flex">
@@ -898,7 +898,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       )}
 
       {/* Panel utama chat */}
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-card">
+      <section className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
         <header className="flex shrink-0 items-center gap-2 rounded-xl border-border border-b bg-card/60 px-3 py-2 backdrop-blur-sm">
           {!showSidebar && (
             <Button
