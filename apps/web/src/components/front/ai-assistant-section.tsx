@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { BarChart3, Building2, GraduationCap, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { AiMockChat } from "@/components/front/ai-mock-chat";
+import { trackEvent } from "@/lib/analytics";
+import { mulaiAiUrl } from "@/lib/utm";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -71,17 +73,33 @@ export function AiAssistantSection() {
           </div>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link href="/explore/ai-assistant">
+            <Link href={mulaiAiUrl("/explore/ai-assistant", "home-section-cta") as any}>
               <button
                 type="button"
+                onClick={() =>
+                  trackEvent("mul_ai_cta_click", {
+                    campaign: "mulaiai_launch",
+                    placement: "home-section",
+                    cta_content: "home-section-cta",
+                    cta_to: "/explore/ai-assistant",
+                  })
+                }
                 className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-brand-orange px-8 py-3.5 font-bold font-manrope text-sm text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:brightness-105 sm:w-auto"
               >
                 <Sparkles className="size-4" /> Kenali Mul.ai
               </button>
             </Link>
-            <Link href="/dashboard/student/assistant">
+            <Link href={mulaiAiUrl("/dashboard/student/assistant", "home-section-open") as any}>
               <button
                 type="button"
+                onClick={() =>
+                  trackEvent("mul_ai_cta_click", {
+                    campaign: "mulaiai_launch",
+                    placement: "home-section",
+                    cta_content: "home-section-open",
+                    cta_to: "/dashboard/student/assistant",
+                  })
+                }
                 className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-8 py-3.5 font-bold font-manrope text-sm text-white transition-all duration-300 hover:bg-white/20 sm:w-auto"
               >
                 Buka Asisten

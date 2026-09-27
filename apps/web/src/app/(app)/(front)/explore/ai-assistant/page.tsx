@@ -1,6 +1,7 @@
 import { CheckCircle2, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { AiMockChat } from "@/components/front/ai-mock-chat";
+import { MulAiCta } from "@/components/front/mulai-ai-cta";
 
 const HOW = [
   {
@@ -45,41 +46,42 @@ export const metadata = {
 export default function AiAssistantPage() {
   return (
     <main className="bg-white">
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-brand-navy py-16 lg:py-24">
-        <div className="pointer-events-none absolute -top-20 right-0 size-80 rounded-full bg-brand-orange/20 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 -left-20 size-72 rounded-full bg-white/10 blur-3xl" />
+      {/* Hero (light — navbar tetap kontras) */}
+      <section className="relative overflow-hidden bg-white py-16 lg:py-24">
+        <div
+          className="pointer-events-none absolute -top-24 -right-24 h-[350px] w-[350px] rounded-full opacity-[0.08]"
+          style={{ background: "var(--brand-orange)" }}
+        />
+        <div
+          className="pointer-events-none absolute -bottom-28 -left-28 h-[300px] w-[300px] rounded-full opacity-[0.05]"
+          style={{ background: "var(--brand-navy)" }}
+        />
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 md:px-6 lg:grid-cols-2 lg:px-8">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/30 bg-brand-orange/10 px-3.5 py-1.5 font-manrope font-medium text-[11px] text-brand-orange tracking-wide">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/20 bg-brand-orange/5 px-3.5 py-1.5 font-manrope font-medium text-[11px] text-brand-orange tracking-wide">
               <Sparkles className="size-3.5" /> Mul.ai — Asisten AI
             </span>
-            <h1 className="mt-4 font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl">
+            <h1 className="mt-4 font-bold font-bricolage text-4xl text-brand-navy leading-tight sm:text-5xl">
               Jawaban kuliahmu, <span className="text-brand-orange">dari AI yang mengerti</span> kamu
             </h1>
-            <p className="mt-4 max-w-xl font-manrope text-sm text-white/70 leading-relaxed sm:text-base">
+            <p className="mt-4 max-w-xl font-manrope text-sm text-text-muted leading-relaxed sm:text-base">
               Mul.ai membantu calon mahasiswa Indonesia mencari universitas, membandingkan passing grade, dan memilih
               jurusan sesuai minat & hasil tes — dengan data 408+ PTN/PTS &amp; 18.881 prodi.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/dashboard/student/assistant">
-                <button
-                  type="button"
-                  className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-brand-orange px-8 py-3.5 font-bold font-manrope text-sm text-white shadow-lg transition-all hover:scale-[1.02] hover:brightness-105 sm:w-auto"
-                >
-                  <Sparkles className="size-4" /> Mulai Chat
-                </button>
-              </Link>
-              <Link href="/assessment">
-                <button
-                  type="button"
-                  className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-8 py-3.5 font-bold font-manrope text-sm text-white transition-all hover:bg-white/20 sm:w-auto"
-                >
-                  Kenali Minatmu Dulu
-                </button>
-              </Link>
+              <MulAiCta
+                to="/dashboard/student/assistant"
+                content="ai-page-hero-cta"
+                placement="ai-page-hero"
+                variant="primary"
+              >
+                <Sparkles className="size-4" /> Mulai Chat
+              </MulAiCta>
+              <MulAiCta to="/assessment" content="ai-page-hero-assessment" placement="ai-page-hero" variant="outline">
+                Kenali Minatmu Dulu
+              </MulAiCta>
             </div>
-            <ul className="mt-6 space-y-1.5 font-manrope text-white/60 text-xs">
+            <ul className="mt-6 space-y-1.5 font-manrope text-text-muted text-xs">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="size-3.5 text-brand-orange" /> Personalisasi dengan profil & tes minat bakat
               </li>
@@ -92,7 +94,7 @@ export default function AiAssistantPage() {
               </li>
             </ul>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white p-4 shadow-2xl">
+          <div className="rounded-3xl border border-border bg-card p-4 shadow-2xl">
             <div className="flex items-center gap-2 border-gray-100 border-b pb-2.5">
               <span className="flex size-7 items-center justify-center rounded-lg bg-brand-navy/10 font-manrope text-brand-navy text-xs">
                 M
@@ -126,6 +128,16 @@ export default function AiAssistantPage() {
                 <p className="mt-1.5 font-manrope text-muted-foreground text-xs leading-relaxed">{h.desc}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-10 text-center">
+            <MulAiCta
+              to="/dashboard/student/assistant"
+              content="ai-page-bottom-cta"
+              placement="ai-page-bottom"
+              variant="primary"
+            >
+              <Sparkles className="size-4" /> Mulai Chat — Gratis
+            </MulAiCta>
           </div>
         </div>
       </section>

@@ -4,6 +4,8 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { motion } from "framer-motion";
 import { BookOpen, ChevronDown, GraduationCap, MapPin, MessageCircleMore, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { trackEvent } from "@/lib/analytics";
+import { mulaiAiUrl } from "@/lib/utm";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -106,9 +108,17 @@ export function HeroSection() {
             animate="show"
             className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center"
           >
-            <Link href="/explore/ai-assistant" className="w-full sm:w-auto">
+            <Link href={mulaiAiUrl("/explore/ai-assistant", "hero-main-cta") as any} className="w-full sm:w-auto">
               <button
                 type="button"
+                onClick={() =>
+                  trackEvent("mul_ai_cta_click", {
+                    campaign: "mulaiai_launch",
+                    placement: "home-hero",
+                    cta_content: "hero-main-cta",
+                    cta_to: "/explore/ai-assistant",
+                  })
+                }
                 className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-brand-red px-8 py-4 font-bold font-manrope text-base text-white shadow-brand-red/25 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-brand-red/90 hover:shadow-xl active:scale-[0.98] sm:px-10 sm:py-4"
               >
                 <Sparkles className="h-5 w-5" />
@@ -116,18 +126,34 @@ export function HeroSection() {
               </button>
             </Link>
 
-            <Link href="/assessment" className="w-full sm:w-auto">
+            <Link href={mulaiAiUrl("/assessment", "hero-assessment-cta") as any} className="w-full sm:w-auto">
               <button
                 type="button"
+                onClick={() =>
+                  trackEvent("mul_ai_cta_click", {
+                    campaign: "mulaiai_launch",
+                    placement: "home-hero",
+                    cta_content: "hero-assessment-cta",
+                    cta_to: "/assessment",
+                  })
+                }
                 className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-brand-navy/15 px-8 py-4 font-bold font-manrope text-base text-brand-navy transition-all duration-300 hover:border-brand-navy/30 hover:bg-brand-navy/5 active:scale-[0.98] sm:px-10 sm:py-4"
               >
                 Kenali Minatmu — Gratis
               </button>
             </Link>
 
-            <Link href="/explore" className="w-full sm:w-auto">
+            <Link href={mulaiAiUrl("/explore", "hero-explore-cta") as any} className="w-full sm:w-auto">
               <button
                 type="button"
+                onClick={() =>
+                  trackEvent("mul_ai_cta_click", {
+                    campaign: "mulaiai_launch",
+                    placement: "home-hero",
+                    cta_content: "hero-explore-cta",
+                    cta_to: "/explore",
+                  })
+                }
                 className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-brand-navy/15 px-8 py-4 font-bold font-manrope text-base text-brand-navy transition-all duration-300 hover:border-brand-navy/30 hover:bg-brand-navy/5 active:scale-[0.98] sm:px-10 sm:py-4"
               >
                 <MessageCircleMore className="h-4 w-4" />
