@@ -2,7 +2,7 @@
 
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { motion } from "framer-motion";
-import { BookOpen, ChevronDown, GraduationCap, MapPin, MessageCircleMore } from "lucide-react";
+import { BookOpen, ChevronDown, GraduationCap, MapPin, MessageCircleMore, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 const fadeUp = {
@@ -56,7 +56,7 @@ export function HeroSection() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-orange opacity-60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-orange" />
               </span>
-              Tes Minat Bakat · Bimbingan Universitas & Beasiswa
+              Mul.ai — Asisten AI Kuliah · Tes Minat Bakat · Bimbingan
             </span>
           </motion.div>
 
@@ -68,8 +68,8 @@ export function HeroSection() {
             animate="show"
             className="max-w-3xl font-bold font-bricolage text-3xl text-brand-navy leading-[1.08] tracking-tight md:text-5xl lg:text-[72px] lg:leading-[1.05]"
           >
-            <span className="text-brand-red">Kenali Dirimu,</span>
-            {" Temukan Jurusan & PTN Impianmu"}
+            <span className="text-brand-orange">Tanya apa saja</span>
+            {" seputar kuliahmu — dijawab AI, langsung"}
           </motion.h1>
 
           {/* ── Description ── */}
@@ -80,8 +80,9 @@ export function HeroSection() {
             animate="show"
             className="max-w-xl font-manrope text-base text-text-muted leading-relaxed md:text-lg lg:text-xl"
           >
-            Mulai dari <b className="text-gray-700">Tes Minat Bakat gratis</b> (20 soal, ±10 menit) untuk mengenali
-            arahmu — lalu dalami dengan data passing grade 10k+ prodi, akreditasi, dan mentor 1-on-1.
+            Mul.ai menjawab pertanyaan{" "}
+            <b className="text-gray-700">universitas, jurusan, passing grade, dan beasiswa</b> dengan data MULAI+ —
+            dipersonalisasi oleh Tes Minat Bakat gratismu (±10 menit) dan profil sekolahmu.
           </motion.p>
 
           {/* ── Stats Row ── */}
@@ -105,12 +106,22 @@ export function HeroSection() {
             animate="show"
             className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center"
           >
+            <Link href="/explore/ai-assistant" className="w-full sm:w-auto">
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-brand-red px-8 py-4 font-bold font-manrope text-base text-white shadow-brand-red/25 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-brand-red/90 hover:shadow-xl active:scale-[0.98] sm:px-10 sm:py-4"
+              >
+                <Sparkles className="h-5 w-5" />
+                Mul.ai — Tanya Apa Saja
+              </button>
+            </Link>
+
             <Link href="/assessment" className="w-full sm:w-auto">
               <button
                 type="button"
-                className="w-full cursor-pointer rounded-full bg-brand-red px-8 py-4 font-bold font-manrope text-base text-white shadow-brand-red/25 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-brand-red/90 hover:shadow-xl active:scale-[0.98] sm:px-10 sm:py-4"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-brand-navy/15 px-8 py-4 font-bold font-manrope text-base text-brand-navy transition-all duration-300 hover:border-brand-navy/30 hover:bg-brand-navy/5 active:scale-[0.98] sm:px-10 sm:py-4"
               >
-                Kenali Dirimu — Gratis
+                Kenali Minatmu — Gratis
               </button>
             </Link>
 
