@@ -158,7 +158,7 @@ streamRoute.post("/chat/stream", async (c) => {
   }
 
   // Kuota harian 40 pertanyaan/user (reset 24 jam via DATE key) — ala ChatGPT.
-  const dailyLimit = Number(process.env.QUOTA_DAILY ?? 40);
+  const dailyLimit = Number((c.env as Record<string, string | undefined>).QUOTA_DAILY ?? 40);
   if (isAuth && userId && dailyLimit > 0) {
     const ds = dailyStub(c, `u:${userId}`);
     let ok = true;

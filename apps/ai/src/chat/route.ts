@@ -82,7 +82,7 @@ chatRoute.post("/chat", async (c) => {
   }
 
   // 3b. Kuota harian 40 (auth)
-  const dailyLimit = Number(process.env.QUOTA_DAILY ?? 40);
+  const dailyLimit = Number((c.env as Record<string, string | undefined>).QUOTA_DAILY ?? 40);
   if (isAuth && userId && dailyLimit > 0 && dailyStub) {
     const ds = dailyStub(c, `u:${userId}`);
     if (ds) {
@@ -270,7 +270,7 @@ chatRoute.get("/quota", async (c) => {
     requires_auth: !isAuth,
   };
   if (!isAuth) return c.json({ ...guest });
-  const dailyLimit = Number(process.env.QUOTA_DAILY ?? 40);
+  const dailyLimit = Number((c.env as Record<string, string | undefined>).QUOTA_DAILY ?? 40);
   // Tier model (auth): simple unlimited; smart unlimited; premium berkuota.
   const tiers: Record<string, { remaining: number | null; limit: number }> = {
     simple: { remaining: null, limit: -1 },
