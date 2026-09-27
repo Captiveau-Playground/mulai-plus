@@ -13,6 +13,7 @@ import {
   Loader2,
   LogOut,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
@@ -20,6 +21,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type * as React from "react";
 import { useEffect, useState } from "react";
+import { CONTACT_CHANNELS } from "@/components/contact-support";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
+import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -105,7 +108,12 @@ function NavGroup({ group, onNavigate }: { group: NavGroupDef; onNavigate?: () =
   );
 }
 
-const dashboardItem: NavItem = { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard };
+// Item datar (setara Dashboard) — tidak dibungkus grup
+const topItems: NavItem[] = [
+  { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard },
+  { title: "Asisten AI", url: "/dashboard/student/assistant", icon: Sparkles },
+  { title: "Settings", url: "/dashboard/student/settings", icon: Settings },
+];
 
 const navGroups: NavGroupDef[] = [
   {
@@ -126,11 +134,6 @@ const navGroups: NavGroupDef[] = [
       { title: "History", url: "/dashboard/student/assessment/history", icon: History },
     ],
   },
-  {
-    title: "General",
-    icon: Settings,
-    items: [{ title: "Settings", url: "/dashboard/student/settings", icon: Settings }],
-  },
 ];
 
 export function StudentSidebar({
@@ -141,6 +144,7 @@ export function StudentSidebar({
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const user = session?.user
     ? {
@@ -201,7 +205,13 @@ export function StudentSidebar({
 
       <SidebarContent className="px-2 sm:px-3">
         <nav className="space-y-1" aria-label="Student navigation">
-          <NavLink item={dashboardItem} isActive={pathname === "/dashboard/student"} onNavigate={onNavigate} />
+          {topItems.map((item) => {
+            const active =
+              item.url === "/dashboard/student"
+                ? pathname === "/dashboard/student"
+                : pathname === item.url || pathname.startsWith(`${item.url}/`);
+            return <NavLink key={item.title} item={item} isActive={active} onNavigate={onNavigate} />;
+          })}
           {navGroups.map((group) => (
             <NavGroup key={group.title} group={group} onNavigate={onNavigate} />
           ))}
@@ -217,6 +227,40 @@ export function StudentSidebar({
             <ExternalLink className="h-4 w-4 shrink-0" />
             <span>Back to Site</span>
           </Link>
+        </div>
+
+        {/* Bantuan — collapsible, paling bawah di atas profil */}
+        <div className="mt-1 border-white/10 border-t pt-2">
+          <button
+            type="button"
+            onClick={() => setHelpOpen((v) => !v)}
+            className="flex w-full items-center justify-between rounded-xl px-3 py-1.5 font-manrope text-[10px] text-white/40 uppercase tracking-wider transition-colors hover:bg-white/10 hover:text-white/70"
+          >
+            <span>Bantuan</span>
+            <ChevronDown className={`size-3.5 transition-transform ${helpOpen ? "rotate-180" : ""}`} />
+          </button>
+          {helpOpen && (
+            <div className="mt-0.5 space-y-0.5">
+              {CONTACT_CHANNELS.map((channel) => {
+                const Icon = channel.icon;
+                return (
+                  <a
+                    key={channel.id}
+                    href={channel.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackEvent("contact_support", { channel: channel.id, label: channel.label })}
+                    className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate font-manrope text-xs">
+                      {channel.label} <span className="text-white/50">· {channel.description}</span>
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </div>
       </SidebarContent>
 

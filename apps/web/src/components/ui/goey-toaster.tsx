@@ -5,15 +5,11 @@ import { useEffect, useState } from "react";
 
 /**
  * Toast gooey — posisi berdasar KONTEKS (perangkat):
- *  - DESKTOP → bottom-right (gaya "feedback" — tidak menutup hero/CTA/konten,
- *    dekat scroll & aksi; default library).
- *  - MOBILE  → top-center (tidak menutup bottom-nav/keyboard; dekat status).
- * Konteks non-posisi diekspresikan per tipe: richColors + fillColor brand,
- * durasi lebih lama untuk error/aksi, progress bar untuk proses panjang.
- *
- * CATATAN: goy-toast memakai satu toaster global (tanpa posisi per-toast),
- * jadi pemilihan konteks dilakukan di level perangkat + per tipe (warna/durasi),
- * bukan per pesan.
+ *  - DESKTOP → top-right (dekat status/judul — tidak menutup bottom action,
+ *    tetap terlihat saat scroll di chat/composer).
+ *  - MOBILE  → top-center (dekat status; tidak menutup bottom-nav/keyboard).
+ * Error panjang dikelola di lib/toast (deskripsi scrollable + tombol copy),
+ * jadi tidak pernah lebih tinggi dari layar.
  */
 function useIsMobile(query = "(max-width: 640px)"): boolean {
   const [m, setM] = useState(false);
@@ -32,11 +28,12 @@ export function GooeyToasterMount() {
 
   return (
     <GooeyToaster
-      position={isMobile ? "top-center" : "bottom-right"}
+      position={isMobile ? "top-center" : "top-right"}
       richColors
       showProgress
+      offset={isMobile ? 12 : 16}
       toastOptions={{
-        style: { "--width": isMobile ? "min(92vw, 380px)" : "380px" } as React.CSSProperties,
+        style: { "--width": isMobile ? "min(92vw, 380px)" : "420px" } as React.CSSProperties,
       }}
       duration={4000}
     />

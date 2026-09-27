@@ -83,14 +83,20 @@ export async function llmChat(
       Authorization: `Bearer ${apiKey(c)}`,
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(20_000),
+    // qwen3-30b berpikir (reasoning) lama sebelum mengeluarkan teks — timeout 20s
+    // sering habis → susul "sedang sibuk". Naikkan ke 60s utk ruang bernapas.
+    signal: AbortSignal.timeout(60_000),
   });
   return { body: resp.body, headers: resp.headers, status: resp.status };
 }
 
 /** Non-streaming helper → parse JSON (dipakai tool loop / final answer). */
 /** Non-streaming helper → parse JSON, dengan FALLBACK CHAIN (primary → fast). */
-export async function llmChatJson(c: AppContext, messages: LlmMessage[], opts: { tools?: ToolDef[] } = {}) {
+export async function llmChatJson(
+  c: AppContext,
+  messages: LlmMessage[],
+  opts: { tools?: ToolDef[]; model?: string } = {},
+) {
   const mode = await fallbackMode(c);
   const requestedModel = mode === "fast" ? fastModel(c) : model(c);
 
@@ -130,7 +136,7 @@ export function usageOf(data: unknown): Usage {
 export async function llmChatStream(
   c: AppContext,
   messages: LlmMessage[],
-  opts: { tools?: ToolDef[] } = {},
+  opts: { tools?: ToolDef[]; model?: string } = {},
 ): Promise<ReadableStream<Uint8Array> | null> {
   const { body } = await llmChat(c, messages, { ...opts, stream: true });
   return body;

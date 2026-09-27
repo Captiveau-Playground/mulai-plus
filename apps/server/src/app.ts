@@ -68,8 +68,8 @@ export function createApp(options: CreateAppOptions) {
     "/*",
     cors({
       origin: env.CORS_ORIGIN,
-      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowHeaders: ["Content-Type", "Authorization", "x-session-id", "x-api-key"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowHeaders: ["Content-Type", "Authorization", "x-session-id", "x-api-key", "x-user-id"],
       credentials: true,
     }),
   );
@@ -136,6 +136,23 @@ export function createApp(options: CreateAppOptions) {
       return fetchWithTimeout(target, init, ms);
     };
 
+    // Bungkus call AI: connect-refused/timeout → JSON 503 yang jelas (bukan crash).
+    const safeAi = async (c: any, fn: () => Promise<Response>, hint?: string) => {
+      try {
+        return await fn();
+      } catch (err) {
+        const cause = (err as Error).message || "koneksi ditolak";
+        console.error("[ai-proxy] AI service unreachable:", cause);
+        return c.json(
+          {
+            error: `Layanan AI tidak dapat dijangkau. Mulai worker AI lokal: cd apps/ai && bun run dev:ai (atau di stack: bun dev). Detail: ${cause}`,
+            hint: hint ?? "ai-offline",
+          },
+          503,
+        );
+      }
+    };
+
     // /ai/status → status terakhir dari uptime-checker (KV_CACHE), untuk monitor/alert
     app.get("/ai/status", async (c: any) => {
       const kv = (c.env as { KV_CACHE?: { get(key: string, t: string): Promise<unknown> } }).KV_CACHE;
@@ -156,12 +173,31 @@ export function createApp(options: CreateAppOptions) {
       return h;
     };
 
+    // Proxy /ai/* membangun response sendiri → header CORS dari middleware hilang.
+    // Gabungkan lagi (ACAO sesuai origin middleware + expose minimal).
+    const proxyHeaders = (c: any, resp: Response): Record<string, string> => {
+      const headers: Record<string, string> = {};
+      for (const [key, val] of c.res.headers.entries()) {
+        if (key.toLowerCase().startsWith("access-control-")) headers[key] = val;
+      }
+      const acao = resp.headers.get("access-control-allow-origin");
+      if (!headers["Access-Control-Allow-Origin"] && acao) headers["Access-Control-Allow-Origin"] = acao;
+      return headers;
+    };
+
     // /ai/health → status AI worker via binding (aman, tanpa LLM)
     app.get("/ai/health", async (c: any) => {
       // Absolute URL — konsisten dgn /ai/chat (binding mengikutsertakan target internal)
       const target = `${env.AI_SERVICE_URL}/health`;
-      const resp = await aiFetch(c, target, { headers: { "Content-Type": "application/json" } }, 15_000);
-      return c.newResponse(resp.body, { status: resp.status as any, headers: Object.fromEntries(cleanHeaders(resp)) });
+      const resp = await safeAi(
+        c,
+        () => aiFetch(c, target, { headers: { "Content-Type": "application/json" } }, 15_000),
+        "ai-offline",
+      );
+      if (resp.status === 503) return resp;
+      const merged: Record<string, string> = Object.fromEntries(cleanHeaders(resp));
+      for (const [k, v] of Object.entries(proxyHeaders(c, resp))) if (v) merged[k] = v;
+      return c.newResponse(resp.body, { status: resp.status as any, headers: merged });
     });
 
     // Admin-only routes: analytics, stats, admin endpoints
@@ -183,9 +219,11 @@ export function createApp(options: CreateAppOptions) {
 
       if (c.req.method === "GET") {
         const resp = await fetchWithTimeout(target, { headers }, 30_000);
+        const merged: Record<string, string> = Object.fromEntries(cleanHeaders(resp));
+        for (const [k, v] of Object.entries(proxyHeaders(c, resp))) if (v) merged[k] = v;
         return c.newResponse(resp.body, {
           status: resp.status as any,
-          headers: Object.fromEntries(cleanHeaders(resp)),
+          headers: merged,
         });
       }
 
@@ -214,15 +252,30 @@ export function createApp(options: CreateAppOptions) {
         headers.Authorization = `Bearer ${env.AI_API_KEY}`;
       }
 
-      // Forward user info for rate limiting
+      // Forward user info — prioritas:
+      // 1. session cookie autentikasi (paling aman) → user.id
+      // 2. server-to-server (Authorization = AI_API_KEY) → percaya x-user-id client
+      // 3. same-site web origin → percaya x-user-id client (dev: cookie cross-port tak
+      //    ikut di fetch 3001→3000; dipakai utk rate-limit/quota/session — risiko kecil)
+      const clientUid = c.req.header("x-user-id");
+      let uid: string | null = null;
       try {
         const session = await authInstance.api.getSession({
           headers: c.req.raw.headers,
         });
-        if (session?.user?.id) {
-          headers["x-user-id"] = session.user.id;
-        }
+        if (session?.user?.id) uid = session.user.id;
       } catch {}
+      if (!uid && clientUid) {
+        const origin = c.req.header("origin") || "";
+        const ae = (env.WEB_ORIGINS || "http://localhost:3001,https://mulaiplus.id,https://staging.mulaiplus.id")
+          .split(",")
+          .map((o: string) => o.trim())
+          .filter(Boolean);
+        const saHeader = c.req.header("authorization") || "";
+        const sameSite = ae.includes(origin) || (!!env.AI_API_KEY && saHeader === `Bearer ${env.AI_API_KEY}`);
+        if (sameSite) uid = clientUid;
+      }
+      if (uid) headers["x-user-id"] = uid;
 
       const sessionId = c.req.header("x-session-id");
       if (sessionId) {
@@ -230,24 +283,33 @@ export function createApp(options: CreateAppOptions) {
       }
 
       if (c.req.method === "GET") {
-        const resp = await fetchWithTimeout(target, { headers }, 30_000);
+        const resp = await safeAi(c, () => fetchWithTimeout(target, { headers }, 30_000), "ai-offline");
+        if (resp.status === 503) return resp;
+        const merged: Record<string, string> = Object.fromEntries(cleanHeaders(resp));
+        for (const [k, v] of Object.entries(proxyHeaders(c, resp))) if (v) merged[k] = v;
         return c.newResponse(resp.body, {
           status: resp.status as any,
-          headers: Object.fromEntries(cleanHeaders(resp)),
+          headers: merged,
         });
       }
 
       const body = await c.req.json();
-      const resp = await aiFetch(
+      const resp = await safeAi(
         c,
-        target,
-        {
-          method: c.req.method,
-          headers,
-          body: JSON.stringify(body),
-        },
-        120_000,
+        () =>
+          aiFetch(
+            c,
+            target,
+            {
+              method: c.req.method,
+              headers,
+              body: JSON.stringify(body),
+            },
+            120_000,
+          ),
+        "ai-offline",
       );
+      if (resp.status === 503) return resp;
 
       // Handle SSE streaming responses
       const contentType = resp.headers.get("content-type") || "";
@@ -260,7 +322,7 @@ export function createApp(options: CreateAppOptions) {
           }
         }
         return c.newResponse(resp.body, {
-          status: resp.status,
+          status: resp.status as any,
           headers: {
             ...corsHeaders,
             "Content-Type": "text/event-stream",

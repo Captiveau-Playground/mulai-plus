@@ -14,6 +14,22 @@ import { DurableObject } from "cloudflare:workers";
 type Bucket = { m: number; c: number };
 
 export class RateLimitDO extends DurableObject {
+  /** Quota harian per tier model — true jika masih ≤ limit (slot dikonsumsi). */
+  async checkDaily(tier: string, limit: number): Promise<boolean> {
+    const day = new Date().toISOString().slice(0, 10);
+    const k = `d:${tier}:${day}`;
+    const cur = (await this.ctx.storage.get<number>(k)) ?? 0;
+    if (cur >= limit) return false;
+    await this.ctx.storage.put(k, cur + 1);
+    return true;
+  }
+
+  /** Lihat pemakaian hari ini (tanpa konsumsi). */
+  async peekDaily(tier: string): Promise<number> {
+    const day = new Date().toISOString().slice(0, 10);
+    return (await this.ctx.storage.get<number>(`d:${tier}:${day}`)) ?? 0;
+  }
+
   /** true jika masih ≤ limit (slot dikonsumsi). */
   async check(key: string, limit: number): Promise<boolean> {
     const nowBucket = Math.floor(Date.now() / 60_000);

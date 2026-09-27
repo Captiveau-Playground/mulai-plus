@@ -10,10 +10,25 @@ import { MeetTheMentor } from "@/components/front/meet-the-mentor";
 import { client } from "@/lib/client";
 import { FAQS, jsonLdBreadcrumb, jsonLdFAQ, jsonLdOrganization, jsonLdWebpage, jsonLdWebsite } from "@/lib/site-config";
 
+// ISR 5 menit: homepage disajikan dari cache — DB (Hyperdrive CF) hanya dipanggil saat revalidate,
+// jadi monitor/visitor tidak pernah menunggu query lambat/dingin.
+export const revalidate = 300;
+
 export default async function LandingPage() {
+  const withTimeout = async <T,>(p: Promise<T>, ms: number, fb: T): Promise<T> =>
+    Promise.race([p, new Promise<T>((res) => setTimeout(() => res(fb), ms))]);
+  // Jangan biarkan query DB menahan page > 6 dtk → fallback kosong (isi refresh saat revalidate).
   const [programsData, articlesData] = await Promise.all([
-    client.programs.public.list({ limit: 10 }).catch(() => ({ data: [] })),
-    client.cms.articles.public.list({ limit: 4, offset: 0 }).catch(() => ({ data: [] })),
+    withTimeout(
+      client.programs.public.list({ limit: 10 }).catch(() => ({ data: [] })),
+      6000,
+      { data: [] },
+    ),
+    withTimeout(
+      client.cms.articles.public.list({ limit: 4, offset: 0 }).catch(() => ({ data: [] })),
+      6000,
+      { data: [] },
+    ),
   ]);
 
   const jsonLd = {

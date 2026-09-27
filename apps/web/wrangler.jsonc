@@ -29,13 +29,17 @@
 		}
 	],
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		"head_sampling_rate": 1
 	},
 	// Env-scoped config: `wrangler deploy --env staging` → worker
 	// mulai-plus-web-staging (identik dengan api-staging naming convention).
 	"env": {
 		"staging": {
 			"workers_dev": true,
+			"r2_buckets": [
+				{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "mulai-plus-web-opennext-cache-staging" }
+			],
 			"services": [
 				{
 					"binding": "WORKER_SELF_REFERENCE",
@@ -52,6 +56,9 @@
 		},
 		"production": {
 			"workers_dev": false,
+			"r2_buckets": [
+				{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "mulai-plus-web-opennext-cache" }
+			],
 			"services": [
 				{
 					"binding": "WORKER_SELF_REFERENCE",

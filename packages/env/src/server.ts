@@ -26,6 +26,8 @@ export const env = createEnv({
     R2_PUBLIC_URL: z.string().min(1),
     // AI Service
     AI_SERVICE_URL: z.string().url().optional(),
+    // Origin web yang dipercaya meneruskan x-user-id (csv, opsional)
+    WEB_ORIGINS: z.string().optional(),
     AI_API_KEY: z.string().optional(),
     // Hermes Agent API Key
     HERMES_API_KEY: z.string().min(16).optional(),

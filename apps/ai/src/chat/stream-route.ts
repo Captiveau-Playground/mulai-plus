@@ -2,9 +2,11 @@
  * Trial Phase 1 — streaming dengan protokol AI SDK 5 (parts).
  * Endpoint: POST /api/chat/stream (dipakai useChat di halaman trial /trial/chat)
  *
- * Wire format (SSE, satu object JSON per baris `data:`):
- *   {"type":"tool-call-start","id":...,"toolCallId":...,"toolName":...,"args":{...}}   (jika ada)
- *   {"type":"tool-call-end",   "id":...,"toolCallId":...,"toolName":...,"args":{...},"result":...}
+ * Wire format (SSE, satu object JSON per baris `data:`; protokol UIMessage v4 @ai-sdk/react):
+ *   {"type":"tool-input-start",     "toolCallId":...,"toolName":...}                    (jika ada)
+ *   {"type":"tool-input-delta",     "toolCallId":...,"inputTextDelta":"{...}"}
+ *   {"type":"tool-input-available", "toolCallId":...,"toolName":...,"input":{...}}
+ *   {"type":"tool-output-available","toolCallId":...,"output":...}
  *   {"type":"text-start","id":...}
  *   {"type":"text-delta","id":...,"delta":"..."}
  *   {"type":"text-end","id":...}
@@ -16,11 +18,14 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
+import { buildUserContext, contextPrompt } from "../agent/user-context";
 import { record } from "../analytics/events";
-import type { Env } from "../config";
+import type { AppContext, Env } from "../config";
+import { DEFAULT_FAST_MODEL, DEFAULT_MODEL, fastModel } from "../config";
 import * as store from "../db/chat-store";
 import { ensureAiTables } from "../db/schema-init";
 import { allowRequest } from "../do/access";
+import { dailyStub } from "../do/access-daily";
 import { type LlmMessage, llmChatJson, llmChatStream } from "../llm/client";
 import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
@@ -29,18 +34,117 @@ import { exactCacheGet, exactCachePut } from "./cache";
 import { extractTopics, SYSTEM_PROMPT } from "./prompt";
 
 const streamRoute = new Hono<{ Bindings: Env }>();
-const Body = z.object({ message: z.string().min(1).max(4000), session_id: z.string().optional() });
+const MsgItem = z.object({
+  role: z.string(),
+  content: z.string().nullable().optional(),
+  text: z.string().optional(),
+  parts: z.array(z.unknown()).optional(),
+});
+// Terima body useChat v4 ({id, messages:[...]}) maupun legacy {message}
+const Body = z
+  .object({
+    message: z.string().max(4000).optional(),
+    messages: z.array(MsgItem).optional(),
+    session_id: z.string().optional(),
+    // Tier model tersamar (dari UI): cepat | seimbang | maksimal
+    model: z.enum(["simple", "smart", "premium"]).optional(),
+    // Branch / regenerate: regenerate=true → jangan simpan pesan user baru; jawaban baru
+    // masuk branch_group yang sama & versi lama di-supersede (dapat ditampilkan lagi).
+    regenerate: z.boolean().optional(),
+    branch_group: z.string().max(64).optional(),
+  })
+  .transform((d) => {
+    let msg = d.message?.trim() ?? "";
+    if (!msg && Array.isArray(d.messages)) {
+      for (const m of [...d.messages].reverse()) {
+        if (m.role !== "user") continue;
+        if (typeof m.content === "string" && m.content.trim()) {
+          msg = m.content.trim();
+          break;
+        }
+        const parts = (m.parts ?? []) as { kind?: string; type?: string; text?: string }[];
+        const t = parts
+          .filter((p) => (p.kind ?? p.type) === "text")
+          .map((p) => p.text ?? "")
+          .join("")
+          .trim();
+        if (t) {
+          msg = t;
+          break;
+        }
+        if (m.text?.trim()) {
+          msg = m.text.trim();
+          break;
+        }
+      }
+    }
+    return {
+      message: msg,
+      session_id: d.session_id,
+      model: d.model,
+      regenerate: d.regenerate === true,
+      branch_group: d.branch_group,
+    };
+  })
+  .refine((d) => d.message.length >= 1 && d.message.length <= 4000, { message: "message wajib 1..4000 char" });
+const TIER_MODELS: Record<string, string> = {
+  simple: DEFAULT_FAST_MODEL, // glm-4.7-flash
+  smart: DEFAULT_MODEL, // qwen3-30b
+  premium: "@cf/openai/gpt-oss-120b", // gpt-oss-120b
+};
+// Kuota harian per tier (per user): -1 = unlimited. Preview env overridable.
+const TIER_QUOTA: Record<string, number> = {
+  simple: Number(process.env.QUOTA_SIMPLE ?? -1),
+  smart: Number(process.env.QUOTA_SMART ?? -1),
+  premium: Number(process.env.QUOTA_PREMIUM ?? 5),
+};
 const part = (o: Record<string, unknown>) => `data: ${JSON.stringify(o)}\n\n`;
+
+/** Ringkas pesan pertama → judul chat (via model cepat; tidak boleh melempar error). */
+async function summarizeTitle(c: AppContext, text: string): Promise<string> {
+  try {
+    const resp = await llmChatJson(
+      c,
+      [
+        {
+          role: "user",
+          content: `Buat judul chat yang singkat (maks 6 kata, bahasa Indonesia, tanpa tanda kutip/emoji) untuk pesan ini: ${text.slice(0, 240)}. Jawab HANYA judulnya.`,
+        },
+      ],
+      { model: fastModel(c) },
+    );
+    const title = resp.data?.choices?.[0]?.message?.content?.trim?.().slice(0, 60);
+    return title || text.trim().slice(0, 40);
+  } catch {
+    return text.trim().slice(0, 40);
+  }
+}
 
 streamRoute.post("/chat/stream", async (c) => {
   const parsed = Body.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid request" }, 400);
-  const { message } = parsed.data;
+  const { message, regenerate = false, branch_group } = parsed.data;
 
   const userId = c.req.header("x-user-id") ?? null;
   const isAuth = userId !== null;
   const key = c.req.header("x-session-id") || parsed.data.session_id || `anon-${crypto.randomUUID().slice(0, 12)}`;
+  // UI kirim tier via query ?model= (aman lewat transport)
+  const tier = parsed.data.model ?? c.req.query("model") ?? "smart";
   await ensureAiTables(c).catch(() => {});
+
+  const modelOverride = TIER_MODELS[tier] ?? DEFAULT_MODEL;
+  // Konteks siswa (profil + hasil tes) — disuntik ke prompt & dipakai sbg scope cache
+  const userCtx = await buildUserContext(c, userId).catch(() => null);
+  const userCtxPrompt = contextPrompt(userCtx);
+  const cacheScope = [
+    tier,
+    userCtx?.riasecPrimary ?? "",
+    userCtx?.riasecCode ?? "",
+    userCtx?.school ?? "",
+    userCtx?.level ?? "",
+    (userCtx?.goals ?? []).join(","),
+    JSON.stringify((userCtx?.prefs as { targetMajor?: string[] } | undefined)?.targetMajor ?? []),
+  ].join("|");
 
   const g = validateMessageInput(message);
   if (!g.ok) return c.json({ error: `Input ditolak (${g.reason})` }, 400);
@@ -64,7 +168,7 @@ streamRoute.post("/chat/stream", async (c) => {
   if (!rlOk) return c.json({ error: "Terlalu banyak permintaan. Coba lagi dalam 1 menit.", rate_limited: true }, 429);
 
   // Cache hit → text part tunggal (cepat)
-  const cached = await exactCacheGet(c, message).catch(() => null);
+  const cached = await exactCacheGet(c, message, cacheScope).catch(() => null);
   if (cached?.answer) {
     await record(c, { sessionId: key, userId, event: "cache_hit" });
     await store.saveMessage(c, key, "user", message).catch(() => {});
@@ -86,6 +190,33 @@ streamRoute.post("/chat/stream", async (c) => {
   }
   record(c, { sessionId: key, userId, event: "cache_miss" });
 
+  // Quota harian per tier model (auth; kala DO tersedia)
+  if (isAuth && userId) {
+    const limit = TIER_QUOTA[tier] ?? -1;
+    if (limit > 0) {
+      const stub = dailyStub(c, `u:${userId}`);
+      let allowed = true;
+      if (stub) {
+        try {
+          allowed = await stub.checkDaily(tier, limit);
+        } catch {
+          allowed = true;
+        }
+      }
+      if (!allowed) {
+        return c.json(
+          {
+            error: `Kuota model "${tier}" hari ini habis (${limit} pesan). Ganti ke model lain ya.`,
+            quota_exhausted: true,
+            model: tier,
+            reply: `Kuota model "${tier}" hari ini habis (${limit} pesan). Ganti ke model lain ya.`,
+          },
+          429,
+        );
+      }
+    }
+  }
+
   // Quota guest
   if (!isAuth) {
     const reserved = await store.reserveMessageSlot(c, key, quotaPolicy(false).max).catch(() => 1);
@@ -101,6 +232,7 @@ streamRoute.post("/chat/stream", async (c) => {
   const history = await store.getHistory(c, key, 6).catch(() => []);
   const messages: LlmMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
+    ...(userCtxPrompt ? [{ role: "system" as const, content: userCtxPrompt }] : []),
     ...history
       .filter((h) => (h.role === "user" || h.role === "assistant") && typeof h.content === "string")
       .map((h) => ({ role: h.role as LlmMessage["role"], content: h.content })),
@@ -113,7 +245,7 @@ streamRoute.post("/chat/stream", async (c) => {
   let toolParts = "";
   let llmError = "";
   try {
-    const resp1 = await llmChatJson(c, messages, { tools: toolDefinitions() });
+    const resp1 = await llmChatJson(c, messages, { tools: toolDefinitions(), model: modelOverride });
     if (resp1.status !== 200) throw new Error(`LLM HTTP ${resp1.status}`);
     const msg = resp1.data?.choices?.[0]?.message;
     if (msg?.tool_calls?.length) {
@@ -135,16 +267,11 @@ streamRoute.post("/chat/stream", async (c) => {
           /* noop */
         }
         const toolCallId = tc.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
-        buf += part({ type: "tool-call-start", id, toolCallId, toolName: tc.function.name, args });
+        buf += part({ type: "tool-input-start", toolCallId, toolName: tc.function.name });
+        buf += part({ type: "tool-input-delta", toolCallId, inputTextDelta: tc.function.arguments ?? "{}" });
+        buf += part({ type: "tool-input-available", toolCallId, toolName: tc.function.name, input: args });
         const result = await dispatchTool(ctx, tc.function.name, args);
-        buf += part({
-          type: "tool-call-end",
-          id,
-          toolCallId,
-          toolName: tc.function.name,
-          args,
-          result: { text: result },
-        });
+        buf += part({ type: "tool-output-available", toolCallId, output: { text: result } });
         messages.push({ role: "tool", tool_call_id: toolCallId, content: result });
         await record(c, { sessionId: key, userId, event: "tool_called", data: { tool: tc.function.name } });
       }
@@ -161,13 +288,14 @@ streamRoute.post("/chat/stream", async (c) => {
   return new Response(
     new ReadableStream({
       async start(ct) {
+        let finalText = llmError;
         try {
           if (toolParts) ct.enqueue(enc.encode(toolParts));
 
-          let finalText = llmError;
           if (!finalText) {
             ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));
-            const body = await llmChatStream(c, messages);
+            const body = await llmChatStream(c, messages, { model: modelOverride });
+            let reasoningStarted = false;
             const reader = body?.getReader();
             const decoder = new TextDecoder();
             let buf = "";
@@ -184,16 +312,34 @@ streamRoute.post("/chat/stream", async (c) => {
                 if (raw === "[DONE]") continue;
                 try {
                   const j = JSON.parse(raw);
-                  const piece = j?.choices?.[0]?.delta?.content ?? "";
+                  // Workers AI kadang kirim delta.content sebagai ANGKA (protokol quirk)
+                  const rawC = j?.choices?.[0]?.delta?.content;
+                  const piece = rawC == null ? "" : typeof rawC === "string" ? rawC : String(rawC);
                   if (piece) {
+                    if (reasoningStarted) {
+                      ct.enqueue(enc.encode(part({ type: "reasoning-end", id })));
+                      reasoningStarted = false;
+                    }
                     finalText += piece;
                     ct.enqueue(enc.encode(part({ type: "text-delta", id, delta: piece })));
+                    continue;
+                  }
+                  // Reasoning (thinking) streaming — protokol reasoning-start/delta/end
+                  const rawR = j?.choices?.[0]?.delta?.reasoning_content ?? j?.choices?.[0]?.delta?.reasoning;
+                  const rPiece = rawR == null ? "" : typeof rawR === "string" ? rawR : String(rawR);
+                  if (rPiece) {
+                    if (!reasoningStarted) {
+                      ct.enqueue(enc.encode(part({ type: "reasoning-start", id })));
+                      reasoningStarted = true;
+                    }
+                    ct.enqueue(enc.encode(part({ type: "reasoning-delta", id, delta: rPiece })));
                   }
                 } catch {
                   /* skip */
                 }
               }
             }
+            if (reasoningStarted) ct.enqueue(enc.encode(part({ type: "reasoning-end", id })));
             ct.enqueue(enc.encode(part({ type: "text-end", id })));
           } else {
             ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));
@@ -204,12 +350,47 @@ streamRoute.post("/chat/stream", async (c) => {
           ct.enqueue(enc.encode(part({ type: "finish", id, finishReason: "stop" })));
           ct.close();
 
-          // persist + cache (after stream)
-          await store.saveMessage(c, key, "user", message).catch(() => {});
-          await store.saveMessage(c, key, "assistant", finalText || "…").catch(() => null);
-          if (finalText) await exactCachePut(c, message, finalText, extractTopics(finalText), {}).catch(() => {});
+          // persist + cache — via waitUntil supaya TETAP jalan setelah response streaming selesai
+          // (tanpa ini, workerd mematikan konteks request begitu body close → pesan tidak tersimpan).
+          const execCtx2 = (c as unknown as { executionCtx?: { waitUntil: (p: Promise<unknown>) => void } })
+            .executionCtx;
+          const finalTextSnap = finalText || "…";
+          const persist = async () => {
+            if (!regenerate)
+              await store.saveMessage(c, key, "user", message, { branchGroup: branch_group ?? null }).catch(() => null);
+            // Auto-summary judul (sekali per sesi, via model cepat; fallback potongan teks)
+            if (!regenerate) {
+              const trow = await store.getSessionTitle(c, key).catch(() => null);
+              if (!trow?.title) {
+                const title = await summarizeTitle(c, message).catch(() => message.trim().slice(0, 40));
+                await store.setSessionTitle(c, key, title).catch(() => undefined);
+              }
+            }
+            const saved = await store
+              .saveMessage(c, key, "assistant", finalTextSnap, { branchGroup: branch_group ?? null })
+              .catch(() => null);
+            if (branch_group && saved?.id)
+              await store.supersedeBranch(c, key, branch_group, saved.id).catch(() => undefined);
+            if (finalText)
+              await exactCachePut(c, message, finalText, extractTopics(finalText), {}, cacheScope).catch(() => {});
+          };
+          if (execCtx2) execCtx2.waitUntil(persist());
+          else void persist();
         } catch (err) {
           console.error("[chat/stream] stream err:", (err as Error).message);
+          // Persist jawaban PARSIAL + pesan user walau stream error (jangan sampai hilang).
+          const execCtx3 = (c as unknown as { executionCtx?: { waitUntil: (p: Promise<unknown>) => void } })
+            .executionCtx;
+          const persistPartial = async () => {
+            if (!regenerate)
+              await store.saveMessage(c, key, "user", message, { branchGroup: branch_group ?? null }).catch(() => null);
+            if (finalText)
+              await store
+                .saveMessage(c, key, "assistant", finalText, { branchGroup: branch_group ?? null })
+                .catch(() => null);
+          };
+          if (execCtx3) execCtx3.waitUntil(persistPartial());
+          else void persistPartial();
           ct.enqueue(enc.encode(part({ type: "error", id, error: "stream error" })));
           ct.close();
         }
