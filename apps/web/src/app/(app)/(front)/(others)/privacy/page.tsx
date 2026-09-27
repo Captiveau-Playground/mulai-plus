@@ -161,6 +161,15 @@ const sections = [
       "Jika Anda memiliki pertanyaan tentang kebijakan privasi ini, hubungi kami di hello@mulaiplus.id atau melalui WhatsApp yang tersedia di platform.",
     ],
   },
+  {
+    id: "assessment",
+    title: "Tes Minat & Bakat (Assessment)",
+    content: [
+      "Fitur Tes Minat & Bakat (Assessment) masih dalam tahap pengembangan. Hasil, skor RIASEC, dan rekomendasi jurusan/karier yang ditampilkan bersifat sementara dan dapat berubah seiring pembaruan algoritma dan data soal.",
+      "Jawaban Anda pada tes digunakan untuk membangun profil minat (RIASEC) dan kemampuan, memberi rekomendasi jurusan/kampus, serta mempersonalisasi asisten AI. Profil ini disimpan pada akun Anda dan dipakai khusus untuk pengalaman penilaian jurusan.",
+      "Rekomendasi bersifat informasional dan bukan pengganti keputusan atau pendampingan mentor/profesional. Anda berhak menghapus akun atau meminta peninjauan data hasil tes melalui dukungan MULAI+.",
+    ],
+  },
 ];
 
 export default function PrivacyPage() {

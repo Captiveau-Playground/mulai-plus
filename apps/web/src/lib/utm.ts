@@ -113,3 +113,18 @@ export function getUtmFromUrl(): UTMParams | null {
     content: params.get("utm_content") ?? undefined,
   };
 }
+
+/**
+ * UTM khusus Mul.ai (halaman front produk).
+ * Dipakai di semua CTA Mul.ai (hero homepage, section, halaman detail).
+ */
+export const MULAI_AI_UTM = {
+  source: "mulaiplus_web",
+  medium: "front",
+  campaign: "mulaiai_launch",
+} as const;
+
+/** URL dengan UTM Mul.ai (path aplikasi/tes/lain) — `content` menandai posisi tombol. */
+export function mulaiAiUrl(path: string, content: string): string {
+  return buildUtmUrl(path, { ...MULAI_AI_UTM, content });
+}

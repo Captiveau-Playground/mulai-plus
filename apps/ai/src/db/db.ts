@@ -40,18 +40,47 @@ export function getSql(c: AppContext): Sql {
   return _sql;
 }
 
-/** Eksekusi query dengan retry 1x (pool di-reset jika koneksi bermasalah). */
+const DB_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(p: Promise<T>): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("DbTimeout")), DB_TIMEOUT_MS))]);
+}
+
+function resetPool() {
+  _sql?.end().catch(() => {});
+  _sql = undefined;
+  _connKey = undefined;
+}
+
+function isTransient(err: unknown): boolean {
+  const m = (err as Error)?.message ?? "";
+  return (
+    /CONNECTION_ENDED|ECONN|connection|socket|timeout|ETIMEDOUT|terminat/i.test(m) ||
+    (err as any)?.code === "CONNECTION_ENDED"
+  );
+}
+
+/** Eksekusi query dengan retry (3x + backoff) + timeout — tahan terhadap Hyperdrive flaky. */
 export async function unsafe(c: AppContext, sqlText: string, params: unknown[] = []): Promise<Record<string, any>[]> {
-  try {
-    return (await getSql(c).unsafe(sqlText, params as never[])) as Record<string, any>[];
-  } catch (_e) {
-    // Reset pool & coba sekali lagi (transient: Hyperdrive/aksio koneksi drop)
-    _sql?.end().catch(() => {});
-    _sql = undefined;
-    _connKey = undefined;
-    const rows = await getSql(c).unsafe(sqlText, params as never[]);
-    return rows as Record<string, any>[];
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await withTimeout(getSql(c).unsafe(sqlText, params as never[]));
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 3 && isTransient(err)) {
+        resetPool();
+        await new Promise((r) => setTimeout(r, 150 * attempt));
+        continue;
+      }
+      if (attempt < 3) {
+        // kesalahan lain: reset & coba sekali lagi
+        resetPool();
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
   }
+  throw lastErr;
 }
 
 /** Eksekusi query read-only. */

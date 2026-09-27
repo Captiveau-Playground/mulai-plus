@@ -103,7 +103,7 @@ function formatDate(iso: string | null): string {
   });
 }
 
-export default function ChatbotUsersPage() {
+export default function AiAssistantUsersPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -217,9 +217,9 @@ export default function ChatbotUsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Chatbot Users</h2>
+          <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">AI Assistant — Users</h2>
           <p className="font-manrope text-sm text-text-muted-custom">
-            Kelola session chat, credit limit, dan ban user.
+            Sesuaikan limit & kuota per session, estimasi biaya, ban, dan catatan user Mul.ai.
           </p>
         </div>
         <div className="flex items-center gap-2">

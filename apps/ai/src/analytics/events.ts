@@ -29,7 +29,9 @@ export type ChatEvent =
   | "reply_fallback"
   | "tool_called"
   | "feedback"
-  | "login_click";
+  | "login_click"
+  | "mul_ai_cta_click"
+  | "mul_ai_page_view";
 
 export async function ensureEventsTable(c: AppContext): Promise<void> {
   await unsafe(
