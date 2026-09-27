@@ -453,7 +453,7 @@ function ChatRuntime({
                           );
                         })()}
                         {m.role === "assistant" && (
-                          <MessageToolbar className="justify-end! mt-1! gap-1.5">
+                          <MessageToolbar className="mt-1! gap-1.5">
                             <MessageActions>
                               <MessageAction
                                 variant="ghost"
