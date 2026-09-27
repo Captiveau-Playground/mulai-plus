@@ -438,29 +438,29 @@ function ChatRuntime({
       <Conversation className="min-h-0 flex-1 rounded-none border-0 bg-card">
         <ConversationContent className="gap-3 px-3 py-3 sm:px-5 sm:py-4">
           {messages.length === 0 && (
-            <div className="flex min-h-[52vh] flex-col items-center justify-center px-4 pb-6 text-center">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-navy to-brand-navy-light font-bold font-bricolage text-lg text-white shadow-lg">
+            <div className="flex min-h-[36vh] flex-col items-center justify-center px-4 pb-4 text-center sm:min-h-[52vh] sm:pb-6">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-navy to-brand-navy-light font-bold font-bricolage text-sm text-white shadow-lg sm:size-12 sm:rounded-2xl sm:text-lg">
                 M
               </span>
-              <h2 className="mt-4 font-bold font-bricolage text-2xl text-brand-navy sm:text-3xl">
+              <h2 className="mt-2.5 font-bold font-bricolage text-brand-navy text-lg sm:mt-4 sm:text-3xl">
                 Kamu bisa bertanya apa saja
               </h2>
-              <p className="mt-1.5 max-w-md font-manrope text-muted-foreground text-sm">
+              <p className="mt-1 max-w-md font-manrope text-muted-foreground text-xs sm:mt-1.5 sm:text-sm">
                 Cari universitas, rekomendasi jurusan, sampai passing grade — dipersonalisasi buat kamu.
               </p>
-              <div className="mt-8 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-5 grid w-full max-w-2xl grid-cols-1 gap-2.5 sm:mt-8 sm:grid-cols-2 sm:gap-3">
                 {EMPTY_CARDS.map((card) => (
                   <button
                     key={card.title}
                     type="button"
                     onClick={() => sendText(card.prompt)}
-                    className="group flex flex-col gap-1.5 rounded-2xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-orange/50 hover:shadow-md"
+                    className="group flex flex-col gap-1 rounded-xl border border-border bg-card p-3 text-left transition-all hover:-translate-y-0.5 hover:border-brand-orange/50 hover:shadow-md sm:gap-1.5 sm:rounded-2xl sm:p-4"
                   >
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-navy">
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-brand-orange/10 text-brand-navy sm:size-9 sm:rounded-xl">
                       {card.icon}
                     </span>
-                    <span className="font-manrope font-semibold text-brand-navy text-sm">{card.title}</span>
-                    <span className="font-manrope text-muted-foreground text-xs">{card.desc}</span>
+                    <span className="font-manrope font-semibold text-brand-navy text-xs sm:text-sm">{card.title}</span>
+                    <span className="font-manrope text-[11px] text-muted-foreground sm:text-xs">{card.desc}</span>
                   </button>
                 ))}
               </div>
