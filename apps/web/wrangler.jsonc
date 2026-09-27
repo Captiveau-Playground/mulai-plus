@@ -37,6 +37,9 @@
 	"env": {
 		"staging": {
 			"workers_dev": true,
+			"r2_buckets": [
+				{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "mulai-plus-web-opennext-cache-staging" }
+			],
 			"services": [
 				{
 					"binding": "WORKER_SELF_REFERENCE",
@@ -53,6 +56,9 @@
 		},
 		"production": {
 			"workers_dev": false,
+			"r2_buckets": [
+				{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "mulai-plus-web-opennext-cache" }
+			],
 			"services": [
 				{
 					"binding": "WORKER_SELF_REFERENCE",
