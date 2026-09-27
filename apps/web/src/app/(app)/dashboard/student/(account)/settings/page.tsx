@@ -16,23 +16,33 @@ import { Separator } from "@/components/ui/separator";
 import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
-const profileFormSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
-  address: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  school: z.string().optional(),
-  educationLevel: z.string().optional(),
-  socialMedia: z
-    .object({
-      instagram: z.string().optional(),
-      tiktok: z.string().optional(),
-      threads: z.string().optional(),
-      linkedin: z.string().optional(),
-    })
-    .optional(),
-});
+const profileFormSchema = z
+  .object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    email: z.string().optional(), // autofill dari akun (readonly)
+    address: z.string().optional(),
+    phoneNumber: z.string().optional(),
+    school: z.string().optional(), // jenjang otomatis diambil dari pilihan sekolah
+    educationLevel: z.string().optional(),
+    socialMedia: z
+      .object({
+        instagram: z.string().optional(),
+        tiktok: z.string().optional(),
+        threads: z.string().optional(),
+        linkedin: z.string().optional(),
+      })
+      .optional(),
+  })
+  .superRefine((val, ctx) => {
+    const sm = val.socialMedia;
+    if (sm && !(sm.instagram || sm.tiktok || sm.threads || sm.linkedin)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["socialMedia"],
+        message: "Minimal lengkapi 1 sosial media (Instagram/TikTok/Threads/LinkedIn).",
+      });
+    }
+  });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
@@ -97,6 +107,7 @@ export default function StudentSettingsPage() {
     resolver: standardSchemaResolver(profileFormSchema),
     defaultValues: {
       name: "",
+      email: "",
       address: "",
       phoneNumber: "",
       school: "",
@@ -114,6 +125,7 @@ export default function StudentSettingsPage() {
     if (user) {
       form.reset({
         name: user.name || "",
+        email: user.email || "",
         address: user.address || "",
         phoneNumber: user.phoneNumber || "",
         school: user.school || "",
@@ -242,6 +254,27 @@ export default function StudentSettingsPage() {
 
                   <FormField
                     control={form.control}
+                    name="email"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel className="font-manrope text-sm text-text-main">Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            value={user?.email ?? ""}
+                            readOnly
+                            disabled
+                            className="bg-gray-50 font-manrope text-muted-foreground"
+                          />
+                        </FormControl>
+                        <p className="font-manrope text-[10px] text-muted-foreground">
+                          Autofill dari akun — tidak dapat diubah di sini.
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="address"
                     render={({ field }) => (
                       <FormItem>
@@ -275,6 +308,9 @@ export default function StudentSettingsPage() {
                           <FormLabel className="flex items-center gap-1 font-manrope text-sm text-text-main">
                             School (Sekolah) <span className="text-brand-orange">*</span>
                           </FormLabel>
+                          <p className="mb-1 font-manrope text-[10px] text-muted-foreground">
+                            Pilih sekolah → jenjang (SMA/SMK/SMP) terisi otomatis. Ketik minimal 3 huruf.
+                          </p>
                           <div className="mb-1 flex flex-wrap items-center gap-2">
                             <Select
                               value={provSel}
@@ -334,6 +370,17 @@ export default function StudentSettingsPage() {
                                   onMouseDown={(e) => {
                                     e.preventDefault();
                                     field.onChange(sk.nama);
+                                    const j = sk.jenjang.toUpperCase();
+                                    form.setValue(
+                                      "educationLevel",
+                                      /SMK/.test(j)
+                                        ? "SMK"
+                                        : /SMA|MA/.test(j)
+                                          ? "SMA"
+                                          : /SMP|MTS/.test(j)
+                                            ? "SMP"
+                                            : "SMA",
+                                    );
                                     setSchoolQ("");
                                     setSchoolSug([]);
                                     setSchoolOpen(false);
@@ -358,28 +405,7 @@ export default function StudentSettingsPage() {
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="educationLevel"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-manrope text-sm text-text-main">Level (SMA/Universitas)</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="bg-white font-manrope">
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="SMA">SMA / SMK</SelectItem>
-                              <SelectItem value="Universitas">Universitas</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {/* Jenjang otomatis dari pilihan sekolah — tidak perlu diisi manual */}
                   </div>
                 </div>
 
@@ -389,8 +415,16 @@ export default function StudentSettingsPage() {
                 <div className="space-y-4">
                   <h4 className="flex items-center gap-2 font-inter font-semibold text-sm text-text-main">
                     <Globe className="h-4 w-4 text-brand-navy" />
-                    Social Media
+                    Social Media <span className="text-brand-orange">*</span>
+                    {form.formState.errors.socialMedia && (
+                      <span className="ml-1 font-manrope font-normal text-[11px] text-red-500">
+                        {form.formState.errors.socialMedia.message}
+                      </span>
+                    )}
                   </h4>
+                  <p className="font-manrope text-[10px] text-muted-foreground">
+                    Wajib minimal 1 platform (untuk konseling &amp; komunitas).
+                  </p>
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
