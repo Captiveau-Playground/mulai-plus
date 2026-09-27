@@ -74,6 +74,7 @@ export default function ChatbotAnalyticsPage() {
     }
     const r = await fetch(`${AI_BASE}/ai/admin/settings`, {
       method: "PUT",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ daily_quota: Math.round(n) }),
     });
