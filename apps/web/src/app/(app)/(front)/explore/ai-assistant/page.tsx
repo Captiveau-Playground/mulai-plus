@@ -47,7 +47,7 @@ export default function AiAssistantPage() {
   return (
     <main className="bg-white">
       {/* Hero (light — navbar tetap kontras) */}
-      <section className="relative overflow-hidden bg-white py-16 lg:py-24">
+      <section className="relative overflow-hidden bg-gradient-to-b from-brand-orange/10 via-white to-white pt-24 pb-16 lg:pt-28 lg:pb-24">
         <div
           className="pointer-events-none absolute -top-24 -right-24 h-[350px] w-[350px] rounded-full opacity-[0.08]"
           style={{ background: "var(--brand-orange)" }}

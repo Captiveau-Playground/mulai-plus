@@ -178,8 +178,7 @@ export function Navbar() {
     pathname.replace(/\/$/, "") === "/explore/universities" ||
     pathname.replace(/\/$/, "") === "/explore/study-programs" ||
     pathname.replace(/\/$/, "") === "/explore/passing-grade" ||
-    pathname.replace(/\/$/, "") === "/explore/compare" ||
-    pathname.replace(/\/$/, "") === "/explore/ai-assistant";
+    pathname.replace(/\/$/, "") === "/explore/compare";
   const isBlogList =
     pathname === "/blog" ||
     pathname === "/blog/" ||
