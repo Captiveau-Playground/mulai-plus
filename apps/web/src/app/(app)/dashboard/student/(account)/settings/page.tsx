@@ -40,12 +40,25 @@ export default function StudentSettingsPage() {
   const { data: user, isLoading, refetch } = useQuery(orpc.user.getProfile.queryOptions());
   const updateProfile = useMutation(orpc.user.updateProfile.mutationOptions());
 
-  // Autocomplete sekolah dari api-sekolah-indonesia
+  // Autocomplete sekolah — API Sekolah Mandiri + filter provinsi & jenjang (SMP ke atas)
+  const SCHOOL_API = "https://api-sekolah-kita.pages.dev/api/sekolah";
+  const BENTUK_ATAS = ["SMP", "MTS", "SMA", "MA", "SMK"];
   const [schoolQ, setSchoolQ] = useState("");
   const [schoolSug, setSchoolSug] = useState<
-    { sekolah: string; bentuk: string; propinsi: string; kabupaten_kota: string; npsn: string }[]
+    { nama: string; kab: string; kec: string; prov: string; jenjang: string; npsn: string }[]
   >([]);
   const [schoolOpen, setSchoolOpen] = useState(false);
+  const [provList, setProvList] = useState<string[]>([]);
+  const [provSel, setProvSel] = useState("");
+  const [bentukSel, setBentukSel] = useState("");
+
+  useEffect(() => {
+    fetch("https://api-sekolah-kita.pages.dev/api/rekap")
+      .then((r) => r.json())
+      .then((d) => setProvList(Array.isArray(d?.metadata?.provinsi) ? d.metadata.provinsi : []))
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     const q = schoolQ.trim();
     if (q.length < 3) {
@@ -54,23 +67,31 @@ export default function StudentSettingsPage() {
     }
     const t = setTimeout(async () => {
       try {
-        const r = await fetch(`https://api-sekolah-indonesia.vercel.app/sekolah?nama=${encodeURIComponent(q)}&limit=6`);
+        const params = new URLSearchParams({ keyword: q, limit: "8" });
+        if (provSel) params.set("provinsi", provSel);
+        if (bentukSel && BENTUK_ATAS.includes(bentukSel)) params.set("bentuk", bentukSel);
+        const r = await fetch(`${SCHOOL_API}?${params.toString()}`);
         const d = await r.json();
-        setSchoolSug(
-          (d?.dataSekolah ?? []).map((x: any) => ({
-            sekolah: String(x.sekolah ?? ""),
-            bentuk: String(x.bentuk ?? ""),
-            propinsi: String(x.propinsi ?? "").trim(),
-            kabupaten_kota: String(x.kabupaten_kota ?? ""),
+        const rows = (d?.data ?? [])
+          .map((x: any) => ({
+            nama: String(x.nama ?? ""),
+            kab: String(x.nama_kabupaten ?? ""),
+            kec: String(x.nama_kecamatan ?? ""),
+            prov: String(x.nama_provinsi ?? ""),
+            jenjang: String(x.bentuk_pendidikan_group ?? x.jenjang_pendidikan ?? x.bentuk_pendidikan ?? ""),
             npsn: String(x.npsn ?? ""),
-          })),
-        );
+          }))
+          .filter((x: any) => {
+            const j = `${x.jenjang} ${x.nama}`.toUpperCase();
+            return BENTUK_ATAS.some((b) => j.includes(b)) || /(SLTP|SLTA)/i.test(j);
+          });
+        setSchoolSug(rows.slice(0, 8));
       } catch {
         setSchoolSug([]);
       }
     }, 350);
     return () => clearTimeout(t);
-  }, [schoolQ]);
+  }, [schoolQ, provSel, bentukSel, BENTUK_ATAS.some, BENTUK_ATAS.includes]);
 
   const form = useForm<ProfileFormValues>({
     resolver: standardSchemaResolver(profileFormSchema),
@@ -254,9 +275,45 @@ export default function StudentSettingsPage() {
                           <FormLabel className="flex items-center gap-1 font-manrope text-sm text-text-main">
                             School (Sekolah) <span className="text-brand-orange">*</span>
                           </FormLabel>
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <Select
+                              value={provSel}
+                              onValueChange={(v) => {
+                                if (v != null) setProvSel(v);
+                              }}
+                            >
+                              <SelectTrigger className="w-40 bg-white font-manrope text-xs">
+                                <SelectValue placeholder="Provinsi (opsional)" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-64">
+                                {provList.map((pv) => (
+                                  <SelectItem key={pv} value={pv}>
+                                    {pv.replace("PROV. ", "")}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={bentukSel}
+                              onValueChange={(v) => {
+                                if (v != null) setBentukSel(v);
+                              }}
+                            >
+                              <SelectTrigger className="w-36 bg-white font-manrope text-xs">
+                                <SelectValue placeholder="Jenjang (SMP ke atas)" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["SMP", "MTS", "SMA", "MA", "SMK"].map((b) => (
+                                  <SelectItem key={b} value={b}>
+                                    {b}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                           <FormControl>
                             <Input
-                              placeholder="SMA N 1 Jakarta"
+                              placeholder="ketik nama sekolah (min. 3 huruf)"
                               className="bg-white font-manrope"
                               {...field}
                               onChange={(e) => {
@@ -276,7 +333,7 @@ export default function StudentSettingsPage() {
                                   type="button"
                                   onMouseDown={(e) => {
                                     e.preventDefault();
-                                    field.onChange(sk.sekolah);
+                                    field.onChange(sk.nama);
                                     setSchoolQ("");
                                     setSchoolSug([]);
                                     setSchoolOpen(false);
@@ -286,10 +343,10 @@ export default function StudentSettingsPage() {
                                   <School className="mt-0.5 size-3.5 shrink-0 text-brand-navy" />
                                   <span className="min-w-0">
                                     <span className="block truncate font-manrope font-medium text-text-main text-xs">
-                                      {sk.sekolah}
+                                      {sk.nama}
                                     </span>
                                     <span className="block truncate font-manrope text-[10px] text-muted-foreground">
-                                      {sk.bentuk} · {sk.kabupaten_kota} · {sk.propinsi}
+                                      {sk.jenjang} · {sk.kab} · {sk.kec} · {sk.prov}
                                     </span>
                                   </span>
                                 </button>
