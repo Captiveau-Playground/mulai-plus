@@ -237,6 +237,7 @@ function ChatRuntime({
   onChanged,
   ctx,
   dailyLeft,
+  dailyLimit,
 }: {
   sessionId: string;
   userId: string | null;
@@ -244,6 +245,7 @@ function ChatRuntime({
   onChanged: () => void;
   ctx: UserContext | null;
   dailyLeft: number | null;
+  dailyLimit: number;
 }) {
   const [text, setText] = useState("");
   const [skill, setSkill] = useState("general");
@@ -282,7 +284,6 @@ function ChatRuntime({
   const status = (chat as any).status;
   const busy = status === "submitted" || status === "streaming";
 
-  const _dailyLimit = 40;
   const quotaOut = dailyLeft !== null && dailyLeft <= 0;
   const lastStatus = useRef(status);
   useEffect(() => {
@@ -297,7 +298,7 @@ function ChatRuntime({
     const hasFiles = Boolean(message.files?.length);
     if (!hasText && !hasFiles) return;
     if (quotaOut) {
-      notify.error("Kuota harian 40 pertanyaan sudah habis — reset otomatis besok, yaa!");
+      notify.error(`Kuota harian ${dailyLimit} pertanyaan sudah habis — reset otomatis besok, yaa!`);
       return;
     }
     (chatRef.current as any)?.sendMessage(
@@ -309,7 +310,7 @@ function ChatRuntime({
 
   const sendText = (q: string) => {
     if (quotaOut) {
-      notify.error("Kuota harian 40 pertanyaan sudah habis — reset otomatis besok, yaa!");
+      notify.error(`Kuota harian ${dailyLimit} pertanyaan sudah habis — reset otomatis besok, yaa!`);
       return;
     }
     (chatRef.current as any)?.sendMessage({ text: q }, { body: { model: modelRef.current, skill } });
@@ -958,7 +959,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const active = sessions.find((s) => s.id === activeId);
   const [ctx, setCtx] = useState<UserContext | null>(null);
   const [dailyLeft, setDailyLeft] = useState<number | null>(null);
-  const dailyLimit = 40;
+  const [dailyLimit, setDailyLimit] = useState(40);
   const loadProfile = useCallback(async () => {
     if (!activeId) return;
     try {
@@ -974,6 +975,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       });
       const d = (await r.json()) as any;
       setDailyLeft(typeof d?.daily?.remaining === "number" ? d.daily.remaining : null);
+      if (typeof d?.daily?.limit === "number") setDailyLimit(d.daily.limit);
     } catch {
       /* nonblokir */
     }
@@ -1486,6 +1488,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
               initialMessages={history}
               ctx={ctx}
               dailyLeft={dailyLeft}
+              dailyLimit={dailyLimit}
               onChanged={() => {
                 void refreshSessions();
                 void loadProfile();
