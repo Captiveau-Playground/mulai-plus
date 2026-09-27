@@ -153,6 +153,33 @@ const SKILLS = [
   },
 ];
 
+const EMPTY_CARDS = [
+  {
+    icon: <Building2 className="size-4.5" />,
+    title: "Cari kampus",
+    desc: "universitas negeri di Jawa Timur",
+    prompt: "Cari universitas negeri di Jawa Timur",
+  },
+  {
+    icon: <BrainIcon className="size-4.5" />,
+    title: "Rekomendasi jurusan",
+    desc: "sesuai minat & profil kamu",
+    prompt: "Rekomendasi jurusan sesuai minatku",
+  },
+  {
+    icon: <BarChart3 className="size-4.5" />,
+    title: "Passing grade",
+    desc: "kedokteran di UI tahun lalu",
+    prompt: "Berapa passing grade kedokteran di UI tahun lalu?",
+  },
+  {
+    icon: <GraduationCap className="size-4.5" />,
+    title: "Program mentoring",
+    desc: "1-on-1 & beasiswa mentoring",
+    prompt: "Info program mentoring MULAI+",
+  },
+];
+
 const _SUGGESTIONS = [
   "Cari universitas negeri di Jawa Timur",
   "Berapa passing grade kedokteran di UI?",
@@ -387,12 +414,37 @@ function ChatRuntime({
       <Conversation className="min-h-0 flex-1 rounded-none border-0 bg-card">
         <ConversationContent className="gap-3 px-3 py-3 sm:px-5 sm:py-4">
           {messages.length === 0 && (
-            <div className="px-4 pt-10">
-              <p className="font-manrope text-sm text-text-muted-custom">
-                Halo! 👋 Tanya apa saja — jawaban dipersonalisasi:{" "}
-                {ctx?.school ? `sekolah ${ctx.school}` : "sekolah belum terisi"} ·{" "}
-                {ctx?.riasecPrimary ? `minat ${ctx.riasecPrimary}` : "tes minat belum ada"}.
+            <div className="flex min-h-[52vh] flex-col items-center justify-center px-4 pb-6 text-center">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-navy to-brand-navy-light font-bold font-bricolage text-lg text-white shadow-lg">
+                M
+              </span>
+              <h2 className="mt-4 font-bold font-bricolage text-2xl text-brand-navy sm:text-3xl">
+                Kamu bisa bertanya apa saja
+              </h2>
+              <p className="mt-1.5 max-w-md font-manrope text-muted-foreground text-sm">
+                Cari universitas, rekomendasi jurusan, sampai passing grade — dipersonalisasi buat kamu.
               </p>
+              <div className="mt-8 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+                {EMPTY_CARDS.map((card) => (
+                  <button
+                    key={card.title}
+                    type="button"
+                    onClick={() => sendText(card.prompt)}
+                    className="group flex flex-col gap-1.5 rounded-2xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-orange/50 hover:shadow-md"
+                  >
+                    <span className="flex size-9 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-navy">
+                      {card.icon}
+                    </span>
+                    <span className="font-manrope font-semibold text-brand-navy text-sm">{card.title}</span>
+                    <span className="font-manrope text-muted-foreground text-xs">{card.desc}</span>
+                  </button>
+                ))}
+              </div>
+              {(ctx?.school || ctx?.riasecPrimary) && (
+                <p className="mt-6 font-manrope text-muted-foreground text-xs">
+                  Konteks kamu: {[ctx.school, ctx.riasecPrimary].filter(Boolean).join(" · ")}
+                </p>
+              )}
             </div>
           )}
 
@@ -1029,128 +1081,134 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
 
       {/* Mobile: daftar & manajemen percakapan (slide-over) */}
 
-      {/* Mobile: daftar & manajemen percakapan — drawer kiri ala ChatGPT/Claude */}
-      {mobileListOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
-            onClick={() => setMobileListOpen(false)}
-            aria-hidden
-          />
-          <div className="slide-in-from-left absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] animate-in flex-col bg-card shadow-2xl duration-200">
-            <div className="flex items-center justify-between border-border border-b p-3">
-              <h2 className="font-bold font-bricolage text-brand-navy text-sm">Percakapan</h2>
-              <button
-                type="button"
-                aria-label="Tutup"
-                onClick={() => setMobileListOpen(false)}
-                className="flex size-7 items-center justify-center rounded-md text-text-muted-custom transition-colors hover:bg-muted"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-2">
-              <Button
-                type="button"
-                onClick={() => void handleNewChat()}
-                className="w-full gap-1.5 rounded-xl bg-brand-navy font-manrope text-white text-xs transition-colors hover:bg-brand-navy-light"
-              >
-                <PlusIcon className="size-4" /> Percakapan baru
-              </Button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-6">
-              {sessions.length === 0 ? (
-                <p className="px-2 py-6 text-center font-manrope text-text-muted-custom/70 text-xs">
-                  Belum ada riwayat.
-                  <br />
-                  Kirim pertanyaan pertama kamu.
-                </p>
-              ) : (
-                sessions.map((s) => (
-                  // biome-ignore lint/a11y/useSemanticElements: container klik utk row percakapan (bukan button nested)
-                  <div
-                    key={s.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`);
-                      }
-                    }}
-                    title={s.title}
-                    className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg border-l-2 px-2 py-1.5 text-left transition-colors ${
-                      s.id === activeId ? "border-brand-orange bg-brand-navy/10" : "border-transparent hover:bg-muted"
-                    }`}
-                  >
-                    <span className="min-w-0 flex-1 overflow-hidden">
-                      {editingId === s.id ? (
-                        <input
-                          value={draftTitle}
-                          onChange={(e) => setDraftTitle(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          onBlur={() => {
+      {/* Mobile: drawer percakapan — selalu ter-mount, transisi smooth (bukan cilukba) */}
+      <div
+        className={`fixed inset-0 z-50 lg:hidden ${mobileListOpen ? "" : "pointer-events-none"}`}
+        aria-hidden={!mobileListOpen}
+      >
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents: scrim overlay tutup drawer */}
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: scrim overlay tutup drawer */}
+        <div
+          className={`absolute inset-0 bg-black/40 backdrop-blur-[1px] transition-opacity duration-300 ${
+            mobileListOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setMobileListOpen(false)}
+        />
+        <div
+          className={`absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col bg-card shadow-2xl transition-transform duration-300 ease-out ${
+            mobileListOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="flex items-center justify-between border-border border-b p-3">
+            <h2 className="font-bold font-bricolage text-brand-navy text-sm">Percakapan</h2>
+            <button
+              type="button"
+              aria-label="Tutup"
+              onClick={() => setMobileListOpen(false)}
+              className="flex size-7 items-center justify-center rounded-md text-text-muted-custom transition-colors hover:bg-muted"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="p-2">
+            <Button
+              type="button"
+              onClick={() => void handleNewChat()}
+              className="w-full gap-1.5 rounded-xl bg-brand-navy font-manrope text-white text-xs transition-colors hover:bg-brand-navy-light"
+            >
+              <PlusIcon className="size-4" /> Percakapan baru
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-6">
+            {sessions.length === 0 ? (
+              <p className="px-2 py-6 text-center font-manrope text-text-muted-custom/70 text-xs">
+                Belum ada riwayat.
+                <br />
+                Kirim pertanyaan pertama kamu.
+              </p>
+            ) : (
+              sessions.map((s) => (
+                // biome-ignore lint/a11y/useSemanticElements: container klik utk row percakapan (bukan button nested)
+                <div
+                  key={s.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`);
+                    }
+                  }}
+                  title={s.title}
+                  className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg border-l-2 px-2 py-1.5 text-left transition-colors ${
+                    s.id === activeId ? "border-brand-orange bg-brand-navy/10" : "border-transparent hover:bg-muted"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1 overflow-hidden">
+                    {editingId === s.id ? (
+                      <input
+                        value={draftTitle}
+                        onChange={(e) => setDraftTitle(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onBlur={() => {
+                          void saveRename(s.id, draftTitle);
+                          setEditingId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
                             void saveRename(s.id, draftTitle);
                             setEditingId(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              void saveRename(s.id, draftTitle);
-                              setEditingId(null);
-                            } else if (e.key === "Escape") {
-                              setEditingId(null);
-                            }
-                            e.stopPropagation();
-                          }}
-                          className="w-full rounded-md border border-border bg-card px-1.5 py-0.5 font-manrope text-xs outline-none focus:border-brand-orange/60"
-                        />
-                      ) : (
-                        <span className="block truncate font-manrope font-medium text-text-main text-xs">
-                          {s.title}
-                        </span>
-                      )}
-                      <span className="block truncate font-manrope text-[10px] text-text-muted-custom">
-                        {fmtTime(s.lastActive)} · {s.messageCount} pesan
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-0.5">
-                      {s.id === activeId && <CheckMark className="size-3.5 text-brand-orange" />}
-                      <button
-                        type="button"
-                        aria-label="Ubah judul"
-                        title="Ubah judul"
-                        className="hidden shrink-0 rounded-md p-1 text-text-muted-custom hover:bg-muted hover:text-brand-navy group-hover:inline-flex"
-                        onClick={(e) => {
+                          } else if (e.key === "Escape") {
+                            setEditingId(null);
+                          }
                           e.stopPropagation();
-                          setDraftTitle(s.title);
-                          setEditingId((cur) => (cur === s.id ? null : s.id));
                         }}
-                      >
-                        <PencilIcon className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Hapus ${s.title}`}
-                        className="hidden shrink-0 rounded-md p-1 text-text-muted-custom transition-colors hover:bg-red-50 hover:text-red-500 group-hover:inline-flex"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(s);
-                        }}
-                      >
-                        <Trash2Icon className="size-3.5" />
-                      </button>
+                        className="w-full rounded-md border border-border bg-card px-1.5 py-0.5 font-manrope text-xs outline-none focus:border-brand-orange/60"
+                      />
+                    ) : (
+                      <span className="block truncate font-manrope font-medium text-text-main text-xs">{s.title}</span>
+                    )}
+                    <span className="block truncate font-manrope text-[10px] text-text-muted-custom">
+                      {fmtTime(s.lastActive)} · {s.messageCount} pesan
                     </span>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="border-border border-t px-3 py-2 font-manrope text-[10px] text-text-muted-custom">
-              Kelola: pilih untuk lanjut · ✏️ ubah judul · 🗑 hapus
-            </div>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-0.5">
+                    {s.id === activeId && <CheckMark className="size-3.5 text-brand-orange" />}
+                    <button
+                      type="button"
+                      aria-label="Ubah judul"
+                      title="Ubah judul"
+                      className="hidden shrink-0 rounded-md p-1 text-text-muted-custom hover:bg-muted hover:text-brand-navy group-hover:inline-flex"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDraftTitle(s.title);
+                        setEditingId((cur) => (cur === s.id ? null : s.id));
+                      }}
+                    >
+                      <PencilIcon className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Hapus ${s.title}`}
+                      className="hidden shrink-0 rounded-md p-1 text-text-muted-custom transition-colors hover:bg-red-50 hover:text-red-500 group-hover:inline-flex"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(s);
+                      }}
+                    >
+                      <Trash2Icon className="size-3.5" />
+                    </button>
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="border-border border-t px-3 py-2 font-manrope text-[10px] text-text-muted-custom">
+            Kelola: pilih untuk lanjut · ✏️ ubah judul · 🗑 hapus
           </div>
         </div>
-      )}
+      </div>
 
       {/* Panel utama chat */}
       <section className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
