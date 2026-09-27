@@ -774,20 +774,6 @@ function ChatRuntime({
         )}
         {(ctx?.school || ctx?.riasecPrimary || model === "premium" || dailyLeft !== null) && (
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1">
-            {dailyLeft !== null && (
-              <span
-                className={`rounded-full px-2 py-1 font-manrope text-[10px] ${
-                  quotaOut ? "bg-red-50 text-red-500" : "bg-brand-navy/5 text-brand-navy"
-                }`}
-              >
-                🗨️ {Math.max(0, dailyLeft)}/{dailyLimit} hari ini
-              </span>
-            )}
-            {quotaOut && (
-              <span className="rounded-full bg-red-50 px-2 py-1 font-manrope text-[10px] text-red-500">
-                Kuota hari ini habis — lanjut besok
-              </span>
-            )}
             {ctx?.school && (
               <span className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy transition-colors hover:bg-brand-navy/10">
                 🏫 {ctx.school}
@@ -803,6 +789,33 @@ function ChatRuntime({
                 kuota premium 5/hari
               </span>
             )}
+          </div>
+        )}
+
+        {dailyLeft !== null && (
+          <div className="px-4 pt-2 pb-0.5 sm:px-5">
+            <div className="flex items-center justify-between pb-1 font-manrope text-[10px] text-muted-foreground">
+              <span>
+                🗨️ {Math.max(0, dailyLimit - dailyLeft)}/{dailyLimit} pertanyaan hari ini
+              </span>
+              {quotaOut ? (
+                <span className="font-semibold text-red-500">habis — reset otomatis besok</span>
+              ) : (
+                <span>reset otomatis besok</span>
+              )}
+            </div>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-border">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  quotaOut
+                    ? "bg-red-500"
+                    : dailyLeft <= Math.ceil(dailyLimit * 0.2)
+                      ? "bg-brand-orange"
+                      : "bg-brand-orange/70"
+                }`}
+                style={{ width: `${Math.min(100, Math.round(((dailyLimit - dailyLeft) / dailyLimit) * 100))}%` }}
+              />
+            </div>
           </div>
         )}
 
@@ -1270,7 +1283,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             mobileListOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex items-center justify-between border-border border-b p-3">
+          <div className="flex items-center justify-between border-border border-b p-2.5">
             <h2 className="font-bold font-bricolage text-brand-navy text-sm">Percakapan</h2>
             <button
               type="button"
