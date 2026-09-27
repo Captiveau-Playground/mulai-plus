@@ -4,11 +4,15 @@ import { useChat } from "@ai-sdk/react";
 import { env } from "@mulai-plus/env/web";
 import { DefaultChatTransport } from "ai";
 import {
+  BarChart3,
+  BookOpen,
   BrainIcon,
+  Building2,
   CheckIcon,
   Check as CheckMark,
   ChevronDownIcon,
   CopyIcon,
+  GraduationCap,
   PencilIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -96,6 +100,51 @@ const TIERS = [
   },
 ];
 
+// Skills ala Gemini Gems / Claude Skills — preset agentik Mul.ai
+const SKILLS = [
+  { id: "general", name: "Umum", icon: <SparklesIcon className="size-3.5" />, desc: "Semua keperluan", suggest: [] },
+  {
+    id: "univ",
+    name: "Universitas",
+    icon: <Building2 className="size-3.5" />,
+    desc: "Kampus PTN/PTS",
+    suggest: [
+      "Cari universitas negeri di Jawa Timur",
+      "Kampus terbaik utk Teknik Informatika?",
+      "Info akreditasi & biaya kuliah",
+    ],
+  },
+  {
+    id: "prodi",
+    name: "Prodi & Jurusan",
+    icon: <BookOpen className="size-3.5" />,
+    desc: "Pilih jurusan",
+    suggest: [
+      "Rekomendasi jurusan sesuai minatku",
+      "Prodi dengan prospek kerja bagus",
+      "Cari prodi kedokteran + persyaratan",
+    ],
+  },
+  {
+    id: "pg",
+    name: "Passing Grade",
+    icon: <BarChart3 className="size-3.5" />,
+    desc: "Data SNBP/SNBT",
+    suggest: [
+      "Passing grade kedokteran di UI",
+      "Bandingkan passing grade 3 kampus",
+      "Jurusan dengan passing grade bersaing utk aku",
+    ],
+  },
+  {
+    id: "mentor",
+    name: "Mentoring",
+    icon: <GraduationCap className="size-3.5" />,
+    desc: "Program & bimbingan",
+    suggest: ["Info program mentoring 1-on-1", "Beasiswa mentoring MULAI+", "Cara daftar mentoring"],
+  },
+];
+
 const _SUGGESTIONS = [
   "Cari universitas negeri di Jawa Timur",
   "Berapa passing grade kedokteran di UI?",
@@ -135,6 +184,7 @@ function ChatRuntime({
 }) {
   const [ctx, setCtx] = useState<UserContext | null>(null);
   const [text, setText] = useState("");
+  const [skill, setSkill] = useState("general");
   const [model, setModel] = useState("smart");
   const [modelOpen, setModelOpen] = useState(false);
   const modelRef = useRef(model);
@@ -194,13 +244,13 @@ function ChatRuntime({
     if (!hasText && !hasFiles) return;
     (chatRef.current as any)?.sendMessage(
       { text: message.text?.trim() || "Sent with attachment(s)", files: message.files },
-      { body: { model: modelRef.current, branch_group: `g-${crypto.randomUUID().slice(0, 12)}` } },
+      { body: { model: modelRef.current, branch_group: `g-${crypto.randomUUID().slice(0, 12)}`, skill } },
     );
     setText("");
   };
 
   const sendText = (q: string) => {
-    (chatRef.current as any)?.sendMessage({ text: q }, { body: { model: modelRef.current } });
+    (chatRef.current as any)?.sendMessage({ text: q }, { body: { model: modelRef.current, skill } });
   };
 
   /** Checkpoint restore: potong chat di sini + serempakkan DB. */
@@ -294,7 +344,10 @@ function ChatRuntime({
 
   /** Suggestion dinamis — menyesuaikan profil + isi percakapan (tool & kata kunci terakhir). */
   const dynamicSuggestions = useMemo(() => {
-    // Belum ada percakapan → sarankan mulai dari konteks user
+    const activeSkill = SKILLS.find((x) => x.id === skill);
+    if (activeSkill && activeSkill.id !== "general") {
+      return activeSkill.suggest.slice(0, 4);
+    }
     if (messages.length === 0) {
       const out: string[] = [];
       if (ctx?.riasecPrimary) out.push(`Rekomendasi jurusan sesuai minat (${ctx.riasecPrimary})`);
@@ -338,7 +391,7 @@ function ChatRuntime({
     if (!out.length) out.push("Rekomendasi jurusan sesuai minatku");
     out.push("Apa saja program mentoring MULAI+?", "Info beasiswa yang cocok untukku");
     return out.slice(0, 4);
-  }, [messages, ctx]);
+  }, [messages, ctx, skill]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -572,7 +625,25 @@ function ChatRuntime({
       {/* Suggestions selalu tampil (pola ref examples/chatbot) + konteks + composer */}
       <div className="shrink-0 border-border border-t">
         {!busy && (
-          <div className="px-3 pt-2 pb-1">
+          <div className="flex flex-col gap-1.5 px-3 pt-2 pb-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              {SKILLS.map((sk) => (
+                <button
+                  key={sk.id}
+                  type="button"
+                  onClick={() => setSkill(sk.id)}
+                  title={sk.desc}
+                  className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 font-manrope text-[11px] transition-colors ${
+                    skill === sk.id
+                      ? "border-brand-navy bg-brand-navy text-white"
+                      : "border-border bg-card text-brand-navy hover:bg-muted"
+                  }`}
+                >
+                  {sk.icon}
+                  {sk.name}
+                </button>
+              ))}
+            </div>
             <Suggestions>
               {dynamicSuggestions.map((q: string) => (
                 <Suggestion key={q} suggestion={q} onClick={() => sendText(q)} />
