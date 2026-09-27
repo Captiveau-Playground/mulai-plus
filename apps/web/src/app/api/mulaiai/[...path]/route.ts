@@ -1,9 +1,8 @@
-import { env } from "@mulai-plus/env/server";
 import { type NextRequest, NextResponse } from "next/server";
 
 // Proxy same-origin utk admin Mul.ai — cookie admin di-web diteruskan ke API
 // (hindari 403 cross-origin karena cookie host-only tidak ikut ke api.*)
-const API = (process.env.NEXT_PUBLIC_SERVER_URL || env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
+const API = (process.env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const { path } = await params;
