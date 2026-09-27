@@ -7,14 +7,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ProgressCharts } from "@/components/student/progress-charts";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -60,36 +53,70 @@ export default function AssessmentHomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Info: masih development — dialog, muncul tiap kali halaman dibuka */}
+      {/* Info: masih development — dialog brand (bukan base-ui) */}
       <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="mb-1 flex items-center gap-2.5">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-orange/10">
-                <TriangleAlert className="size-4.5 text-brand-orange" />
-              </span>
-              <DialogTitle className="font-bold font-bricolage text-brand-navy">
-                Tes Minat &amp; Bakat — dalam pengembangan
-              </DialogTitle>
-            </div>
-            <DialogDescription className="font-manrope text-sm leading-relaxed">
-              Hasil yang tampil <b>masih bisa berubah</b> dan belum dapat dijadikan acuan final — gunakan sebagai
-              gambaran awal. Rekomendasi bersifat informasional, bukan pengganti pendampingan mentor.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="ghost">
-              <Link
-                href="/privacy#assessment"
-                className="font-manrope text-brand-navy text-xs underline underline-offset-2"
+        <DialogContent className="overflow-hidden! gap-0! border-border! bg-card! p-0! shadow-2xl! sm:max-w-[26rem]">
+          {/* Header brand */}
+          <div className="relative overflow-hidden bg-gradient-to-r from-brand-navy to-brand-navy-light px-6 py-5 text-white">
+            <div className="absolute -top-6 -right-6 size-24 rounded-full bg-brand-orange/25 blur-2xl" />
+            <div className="absolute -bottom-8 left-10 size-20 rounded-full bg-white/10 blur-xl" />
+            <div className="relative flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                  <TriangleAlert className="size-5 text-brand-orange" />
+                </span>
+                <div>
+                  <span className="inline-flex rounded-full bg-brand-orange/25 px-2 py-0.5 font-manrope font-semibold text-[10px] text-brand-orange uppercase tracking-wide">
+                    Development
+                  </span>
+                  <h3 className="mt-1 font-bold font-bricolage text-base leading-tight">
+                    Tes Minat &amp; Bakat masih dalam pengembangan
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Tutup"
+                onClick={() => setInfoOpen(false)}
+                className="flex size-7 shrink-0 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               >
-                Kebijakan Privasi (bab Assessment)
-              </Link>
-            </Button>
-            <Button type="button" onClick={() => setInfoOpen(false)}>
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="space-y-2.5 px-6 py-5">
+            <p className="flex items-start gap-2.5 font-manrope text-sm text-text-main leading-relaxed">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-orange" />
+              Hasil yang tampil bisa berubah dan belum menjadi acuan final — pakai sebagai gambaran awal.
+            </p>
+            <p className="flex items-start gap-2.5 font-manrope text-sm text-text-main leading-relaxed">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-orange" />
+              Jawaban tes dipakai untuk profil RIASEC & rekomendasi jurusan/karier yang dipersonalisasi.
+            </p>
+            <p className="flex items-start gap-2.5 font-manrope text-sm text-text-main leading-relaxed">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-orange" />
+              Rekomendasi bersifat informasional — bukan pengganti pendampingan mentor.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between gap-2 border-border border-t px-6 py-4">
+            <Link
+              href="/privacy#assessment"
+              className="font-manrope font-semibold text-brand-navy text-xs underline decoration-brand-orange/60 underline-offset-2 hover:opacity-80"
+            >
+              Kebijakan Privasi · bab Assessment
+            </Link>
+            <Button
+              type="button"
+              onClick={() => setInfoOpen(false)}
+              className="rounded-xl bg-brand-navy px-5 font-manrope font-semibold text-sm text-white transition-colors hover:bg-brand-navy-light"
+            >
               Mengerti
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
