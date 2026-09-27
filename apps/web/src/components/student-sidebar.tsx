@@ -145,7 +145,7 @@ export function StudentSidebar({
 
       <Separator className="my-4 bg-white/10" />
 
-      <SidebarContent className="px-2 sm:px-3">
+      <SidebarContent className="px-2">
         <NavMain items={topItems} />
         <NavMain label="Program" items={programItems} />
         <NavMain label="Assessment" items={assessmentItems} />
