@@ -1,6 +1,5 @@
 "use client";
 
-import { env } from "@mulai-plus/env/web";
 import { MessageSquare, Settings2, ThumbsDown, ThumbsUp, TrendingUp } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
@@ -11,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { notify } from "@/lib/toast";
 
-const AI_BASE = (env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
+const AI_BASE = "/api/mulaiai"; // proxy same-origin -> meneruskan cookie admin
 
 type Trend = { d: string; messages: number; up: number; down: number };
 type Feedback = {
@@ -36,7 +35,7 @@ export default function ChatbotAnalyticsPage() {
     async (d = days) => {
       const j = async (p: string) => {
         try {
-          const r = await fetch(`${AI_BASE}/ai/admin${p}`);
+          const r = await fetch(`${AI_BASE}${p}`);
           return r.ok ? await r.json() : null;
         } catch {
           return null;
@@ -72,9 +71,8 @@ export default function ChatbotAnalyticsPage() {
       notify.error("Masukkan angka");
       return;
     }
-    const r = await fetch(`${AI_BASE}/ai/admin/settings`, {
+    const r = await fetch(`${AI_BASE}/settings`, {
       method: "PUT",
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ daily_quota: Math.round(n) }),
     });
