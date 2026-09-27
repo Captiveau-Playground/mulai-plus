@@ -111,7 +111,7 @@ function NavGroup({ group, onNavigate }: { group: NavGroupDef; onNavigate?: () =
 // Item datar (setara Dashboard) — tidak dibungkus grup
 const topItems: NavItem[] = [
   { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard },
-  { title: "Mul.ai", url: "/dashboard/student/assistant", icon: Sparkles },
+  { title: "AI Assistant", url: "/dashboard/student/assistant", icon: Sparkles },
   { title: "Settings", url: "/dashboard/student/settings", icon: Settings },
 ];
 

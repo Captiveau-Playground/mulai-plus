@@ -636,7 +636,7 @@ function ChatRuntime({
                 </ModelSelectorContent>
               </ModelSelector>
             </PromptInputTools>
-            <PromptInputSubmit status={status} />
+            <PromptInputSubmit status={status} className="bg-brand-navy! text-white! hover:bg-brand-navy-light!" />
           </PromptInputFooter>
         </PromptInput>
       </div>
