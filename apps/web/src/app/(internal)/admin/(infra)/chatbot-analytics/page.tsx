@@ -1,370 +1,271 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import {
-  BarChart3,
-  Bot,
-  DollarSign,
-  Eye,
-  EyeOff,
-  Loader2,
-  MessageSquare,
-  RefreshCw,
-  TrendingUp,
-  UserCheck,
-  UserPlus,
-  Users,
-} from "lucide-react";
-import { useState } from "react";
+import { env } from "@mulai-plus/env/web";
+import { MessageSquare, Settings2, ThumbsDown, ThumbsUp, TrendingUp } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { client } from "@/lib/client";
-import { useFeatures } from "@/lib/features-context";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { notify } from "@/lib/toast";
 
-interface Stats {
-  total_sessions: number;
-  guest_sessions: number;
-  auth_sessions: number;
-  total_messages: number;
-  today_messages: number;
-  today_sessions: number;
-  recent_questions: { question: string; is_auth: boolean }[];
-  top_questions: { question: string; count: number }[];
-  total_cost: number;
-  total_prompt_tokens: number;
-  total_completion_tokens: number;
-}
+const AI_BASE = (env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
 
-interface FunnelStage {
-  stage: string;
-  label: string;
-  count: number;
-}
-
-interface FunnelStats {
-  total_sessions: number;
-  guest_total: number;
-  guest_hit_limit: number;
-  guest_clicked_login: number;
-  guest_converted: number;
-  auth_total: number;
-  total_authenticated: number;
-  conversion_rate: number;
-  click_rate: number;
-  funnel: FunnelStage[];
-}
-
-function FunnelStep({
-  label,
-  count,
-  prevCount,
-  maxCount,
-  isFirst,
-}: {
-  label: string;
-  count: number;
-  prevCount: number;
-  maxCount: number;
-  isFirst: boolean;
-}) {
-  const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
-  const dropoff = !isFirst && prevCount > 0 ? ((prevCount - count) / prevCount) * 100 : null;
-  const completion = maxCount > 0 ? (count / maxCount) * 100 : 0;
-
-  return (
-    <div className="relative">
-      {/* Connector line between steps */}
-      {!isFirst && <div className="absolute top-0 left-[11px] -z-10 h-6 w-0.5 bg-gray-200" />}
-
-      <div className="flex items-start gap-4">
-        {/* Dot indicator */}
-        <div className="mt-0.5 flex shrink-0 flex-col items-center">
-          <div
-            className={`h-5 w-5 rounded-full border-2 ${isFirst ? "border-brand-navy bg-brand-navy" : "border-gray-300 bg-white"}`}
-          >
-            {isFirst && <div className="m-auto mt-[3px] h-2 w-2 rounded-full bg-white" />}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="min-w-0 flex-1 pb-5">
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="truncate font-manrope text-sm text-text-main">{label}</span>
-            <div className="flex shrink-0 items-baseline gap-3">
-              <span className="font-manrope font-semibold text-brand-navy text-sm tabular-nums">
-                {count.toLocaleString()}
-              </span>
-              {!isFirst && dropoff !== null && (
-                <span className="font-manrope text-gray-400 text-xs tabular-nums">
-                  {dropoff > 0 ? `−${dropoff.toFixed(0)}%` : `${dropoff.toFixed(0)}%`}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-sm bg-gray-100">
-            <div className="h-full rounded-sm bg-gray-400 transition-all" style={{ width: `${barWidth}%` }} />
-          </div>
-          <div className="mt-0.5 font-manrope text-[10px] text-gray-400 tabular-nums">
-            {completion.toFixed(0)}% dari total sesi
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+type Trend = { d: string; messages: number; up: number; down: number };
+type Feedback = {
+  id: number;
+  sessionId: string;
+  feedback: string;
+  question: string;
+  isAuth: boolean;
+  createdAt: string | null;
+};
 
 export default function ChatbotAnalyticsPage() {
-  const { data, isLoading, isError, refetch } = useQuery<Stats>({
-    queryKey: ["chatbot-analytics"],
-    queryFn: () => client.ai.admin.stats(),
-    refetchInterval: 30_000,
-  });
+  const [daily, setDaily] = useState<string>("");
+  const [settings, setSettings] = useState<{ daily_quota: number | null; default_daily: number } | null>(null);
+  const [trend, setTrend] = useState<Trend[]>([]);
+  const [hourly, setHourly] = useState<{ h: string; n: number }[]>([]);
+  const [fb, setFb] = useState<{ up: number; down: number; data: Feedback[] } | null>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [days, setDays] = useState("30");
 
-  // Feature flag (via React Context — shared with ChatbotProvider in root layout)
-  const { features, refresh } = useFeatures();
-  const [toggling, setToggling] = useState(false);
+  const load = useCallback(
+    async (d = days) => {
+      const j = async (p: string) => {
+        try {
+          const r = await fetch(`${AI_BASE}/ai/admin${p}`);
+          return r.ok ? await r.json() : null;
+        } catch {
+          return null;
+        }
+      };
+      const [s, t, h, f, st] = await Promise.all([
+        j("/settings"),
+        j(`/analytics/trend?days=${d}`),
+        j("/analytics/hourly"),
+        j("/feedback?limit=50"),
+        j("/stats"),
+      ]);
+      if (s) {
+        setSettings(s);
+        const dv = s?.daily_quota ?? s?.default_daily ?? 40;
+        if (typeof dv === "number") setDaily(String(dv));
+      }
+      if (t?.data) setTrend(t.data);
+      if (h?.data) setHourly(h.data);
+      if (f) setFb(f);
+      if (st) setStats(st);
+    },
+    [days],
+  );
 
-  const chatbotVisible = features.chatbot_enabled;
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  const toggleChatbot = async () => {
-    const next = !chatbotVisible;
-    setToggling(true);
-    try {
-      await client.features.set({ flags: { chatbot_enabled: next } });
-      await refresh(); // ← updates context → ChatbotProvider re-renders instantly
-    } catch {}
-    setToggling(false);
+  const saveQuota = async () => {
+    const n = Number(daily);
+    if (!Number.isFinite(n)) {
+      notify.error("Masukkan angka");
+      return;
+    }
+    const r = await fetch(`${AI_BASE}/ai/admin/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ daily_quota: Math.round(n) }),
+    });
+    const d = await r.json();
+    if (r.ok) {
+      notify.success(`Kuota harian diset: ${d.daily_quota}${d.note ? ` (${d.note})` : ""}`);
+      void load();
+    } else notify.error(d.error || "Gagal simpan");
   };
 
-  const { data: funnel } = useQuery<FunnelStats>({
-    queryKey: ["chatbot-funnel"],
-    queryFn: () => client.ai.admin.funnel(),
-    refetchInterval: 30_000,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-navy" />
-      </div>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <div className="flex flex-col items-center py-20 text-center">
-        <Bot className="mb-4 h-12 w-12 text-gray-300" />
-        <h2 className="font-bold font-bricolage text-gray-900 text-xl">AI Service Offline</h2>
-        <p className="mt-1 mb-6 font-manrope text-gray-500 text-sm">
-          Python AI service tidak dapat dijangkau. Pastikan `uvicorn` berjalan di port 8000.
-        </p>
-        <Button onClick={() => refetch()} variant="outline" className="rounded-xl">
-          <RefreshCw className="mr-2 h-4 w-4" /> Coba Lagi
-        </Button>
-      </div>
-    );
-  }
-
-  const guestPct = data.total_sessions > 0 ? Math.round((data.guest_sessions / data.total_sessions) * 100) : 0;
+  const fmt = (n: number) => (Number.isFinite(n) ? n : 0);
+  const tooltipStyle = { borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)" };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Chatbot Analytics</h2>
-          <p className="font-manrope text-sm text-text-muted-custom">Live stats dari MULAI+ AI chatbot.</p>
+          <h1 className="font-bold font-bricolage text-2xl text-brand-navy">Mul.ai — Admin Pengelolaan</h1>
+          <p className="font-manrope text-muted-foreground text-sm">
+            Chatbot widget digantikan asisten AI penuh. Monitoring usage, kuota, feedback &amp; tren di sini.
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          {chatbotVisible !== null && (
-            <Button
-              onClick={toggleChatbot}
-              variant="outline"
-              size="sm"
-              disabled={toggling}
-              className={`gap-2 rounded-xl ${chatbotVisible ? "border-green-300 text-green-700" : "text-gray-500"}`}
-            >
-              {chatbotVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-              {chatbotVisible ? "Widget Aktif" : "Widget Tersembunyi"}
-            </Button>
-          )}
-          <Button onClick={() => refetch()} variant="outline" size="sm" className="gap-2 rounded-xl">
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          <Select
+            value={days}
+            onValueChange={(v) => {
+              if (v != null) setDays(v);
+            }}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">7 hari</SelectItem>
+              <SelectItem value="30">30 hari</SelectItem>
+              <SelectItem value="90">90 hari</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={() => void load()}>
+            Muat ulang
           </Button>
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 font-bricolage text-sm text-text-muted-custom">
-              <MessageSquare className="h-4 w-4" /> Total Pesan
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold font-bricolage text-3xl text-brand-navy">{data.total_messages}</p>
-            <p className="font-manrope text-text-muted-custom text-xs">{data.today_messages} hari ini</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 font-bricolage text-sm text-text-muted-custom">
-              <Users className="h-4 w-4" /> Sesi Chat
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold font-bricolage text-3xl text-brand-navy">{data.total_sessions}</p>
-            <p className="font-manrope text-text-muted-custom text-xs">{data.today_sessions} sesi baru hari ini</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 font-bricolage text-sm text-text-muted-custom">
-              <UserCheck className="h-4 w-4" /> User Terdaftar
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold font-bricolage text-3xl text-brand-navy">{data.auth_sessions}</p>
-            <p className="font-manrope text-text-muted-custom text-xs">
-              {data.total_sessions > 0 ? `${100 - guestPct}% dari total sesi` : "-"}
+      {/* Pengaturan Kuota */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="font-bricolage text-brand-navy">Kuota Harian per User (OLTP)</CardTitle>
+          <Settings2 className="size-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="daily-quota" className="font-manrope text-muted-foreground text-xs">
+              Pertanyaan/hari (0 atau -1 = tanpa batas)
+            </label>
+            <Input
+              id="daily-quota"
+              type="number"
+              value={daily}
+              onChange={(e) => setDaily(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <Button onClick={() => void saveQuota()} className="bg-brand-navy text-white hover:bg-brand-navy-light">
+            Simpan
+          </Button>
+          {settings && (
+            <p className="font-manrope text-muted-foreground text-xs">
+              Berlaku real-time · default kode {settings.default_daily} · yang disimpan:{" "}
+              {settings.daily_quota ?? "belum ada (pakai default)"}
             </p>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 font-bricolage text-sm text-text-muted-custom">
-              <BarChart3 className="h-4 w-4" /> Guest vs Auth
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold font-bricolage text-3xl text-brand-navy">{guestPct}%</p>
-            <p className="font-manrope text-text-muted-custom text-xs">
-              {data.guest_sessions} guest : {data.auth_sessions} terdaftar
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 font-bricolage text-sm text-text-muted-custom">
-              <DollarSign className="h-4 w-4" /> Biaya Token
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-bold font-bricolage text-3xl text-brand-navy">{`$${data.total_cost.toFixed(4)}`}</p>
-            <p className="font-manrope text-text-muted-custom text-xs">
-              {data.total_prompt_tokens.toLocaleString()} prompt · {data.total_completion_tokens.toLocaleString()}{" "}
-              completion
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Conversion Funnel ── */}
-      {funnel && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-bricolage text-brand-navy text-lg">
-              <UserPlus className="h-5 w-5 text-brand-orange" /> Chatbot → Login Funnel
-            </CardTitle>
-            <CardDescription className="font-manrope">
-              <span className="font-semibold">{funnel.conversion_rate}%</span> guest conversion ·{" "}
-              <span className="font-semibold">{funnel.click_rate}%</span> login click rate ·{" "}
-              <span className="font-semibold">{funnel.total_authenticated}</span> total authenticated
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="ml-1">
-              {funnel.funnel.map((stage, i) => {
-                const maxCount = funnel.funnel[0].count;
-                const prevCount = i > 0 ? funnel.funnel[i - 1].count : stage.count;
-                return (
-                  <FunnelStep
-                    key={stage.stage}
-                    label={stage.label}
-                    count={stage.count}
-                    prevCount={prevCount}
-                    maxCount={maxCount}
-                    isFirst={i === 0}
-                  />
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+      {/* KPI */}
+      {stats && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Card>
+            <CardContent className="pt-5">
+              <MessageSquare className="size-4 text-brand-navy" />
+              <p className="mt-2 font-bold font-bricolage text-2xl text-brand-navy">{fmt(stats.total_messages)}</p>
+              <p className="font-manrope text-muted-foreground text-xs">
+                Total pesan · {fmt(stats.today_messages)} hari ini
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <TrendingUp className="size-4 text-brand-orange" />
+              <p className="mt-2 font-bold font-bricolage text-2xl text-brand-navy">{fmt(stats.auth_sessions)}</p>
+              <p className="font-manrope text-muted-foreground text-xs">
+                Sesi user ({fmt(stats.guest_sessions)} guest)
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <ThumbsUp className="size-4 text-emerald-600" />
+              <p className="mt-2 font-bold font-bricolage text-2xl text-brand-navy">{fmt(fb?.up ?? 0)}</p>
+              <p className="font-manrope text-muted-foreground text-xs">Feedback positif</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <ThumbsDown className="size-4 text-red-500" />
+              <p className="mt-2 font-bold font-bricolage text-2xl text-brand-navy">{fmt(fb?.down ?? 0)}</p>
+              <p className="font-manrope text-muted-foreground text-xs">Feedback negatif</p>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Top Questions & Recent Questions */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Top Questions */}
+      {/* Tren & jam-an */}
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-bricolage text-brand-navy text-lg">
-              <TrendingUp className="h-5 w-5 text-brand-orange" /> Pertanyaan Terpopuler
-            </CardTitle>
-            <CardDescription className="font-manrope">Top 10 pertanyaan yang paling sering ditanyakan</CardDescription>
+            <CardTitle className="font-bricolage text-brand-navy text-sm">Tren Harian ({days} hari)</CardTitle>
           </CardHeader>
-          <CardContent>
-            {data.top_questions.length === 0 ? (
-              <p className="py-8 text-center font-manrope text-sm text-text-muted-custom">Belum ada data</p>
-            ) : (
-              <div className="space-y-2">
-                {data.top_questions.map((q, i) => (
-                  <div key={q.question} className="flex items-center justify-between rounded-lg bg-gray-50 p-2.5">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-navy font-bold text-[10px] text-white">
-                        {i + 1}
-                      </span>
-                      <span className="truncate font-manrope text-sm text-text-main">{q.question}</span>
-                    </div>
-                    <Badge className="ml-2 shrink-0 bg-brand-navy/10 font-manrope text-[10px] text-brand-navy">
-                      {q.count}x
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
+          <CardContent className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trend}>
+                <defs>
+                  <linearGradient id="gMsg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--brand-orange)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="var(--brand-orange)" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="d" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <RTooltip contentStyle={tooltipStyle} />
+                <Area dataKey="messages" name="Pesan" stroke="var(--brand-orange)" fill="url(#gMsg)" strokeWidth={2} />
+                <Area dataKey="up" name="👍" stroke="#16a34a" fill="none" strokeWidth={1.5} strokeDasharray="4 4" />
+                <Area dataKey="down" name="👎" stroke="#dc2626" fill="none" strokeWidth={1.5} strokeDasharray="4 4" />
+              </AreaChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Recent Questions */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-bricolage text-brand-navy text-lg">
-              <MessageSquare className="h-5 w-5 text-brand-orange" /> Pertanyaan Terbaru
-            </CardTitle>
-            <CardDescription className="font-manrope">50 pertanyaan terakhir dari semua sesi</CardDescription>
+            <CardTitle className="font-bricolage text-brand-navy text-sm">Jam Sibuk (24 jam)</CardTitle>
           </CardHeader>
-          <CardContent>
-            {data.recent_questions.length === 0 ? (
-              <p className="py-8 text-center font-manrope text-sm text-text-muted-custom">Belum ada chat</p>
-            ) : (
-              <ScrollArea className="max-h-[400px]">
-                <div className="space-y-1.5">
-                  {data.recent_questions.map((q, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm hover:bg-gray-50">
-                      <Badge
-                        className={`shrink-0 font-manrope text-[9px] ${
-                          q.is_auth ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {q.is_auth ? "Auth" : "Guest"}
-                      </Badge>
-                      <span className="truncate font-manrope text-text-main">{q.question}</span>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
+          <CardContent className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={hourly}>
+                <XAxis dataKey="h" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <RTooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="n" name="Pesan" fill="var(--brand-navy)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
+
+      {/* Feedback terbaru */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="font-bricolage text-brand-navy text-sm">Feedback Terbaru</CardTitle>
+          <div className="flex items-center gap-2 font-manrope text-muted-foreground text-xs">
+            <span className="flex items-center gap-1">
+              <ThumbsUp className="size-3.5 text-emerald-600" /> {fmt(fb?.up ?? 0)}
+            </span>
+            <span className="flex items-center gap-1">
+              <ThumbsDown className="size-3.5 text-red-500" /> {fmt(fb?.down ?? 0)}
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {!fb?.data?.length && <p className="font-manrope text-muted-foreground text-sm">Belum ada feedback.</p>}
+          {fb?.data.map((row) => (
+            <div key={row.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2">
+              {row.feedback === "up" ? (
+                <ThumbsUp className="size-4 shrink-0 text-emerald-600" />
+              ) : (
+                <ThumbsDown className="size-4 shrink-0 text-red-500" />
+              )}
+              <span className="min-w-0 flex-1 truncate font-manrope text-xs">
+                {row.question || "(tanpa pertanyaan)"}
+              </span>
+              {row.isAuth && (
+                <Badge variant="secondary" className="shrink-0">
+                  auth
+                </Badge>
+              )}
+              <span className="shrink-0 font-manrope text-[10px] text-muted-foreground">
+                {row.createdAt?.slice(0, 10) ?? ""}
+              </span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -765,7 +765,7 @@ function ChatRuntime({
           id="tour-composer"
           onSubmit={handleSubmit}
           multiple
-          className="rounded-none border-0 bg-white px-3 pb-3"
+          className="rounded-none border-0 bg-white px-3 pt-1 pb-3"
         >
           <PromptInputBody>
             <PromptInputTextarea

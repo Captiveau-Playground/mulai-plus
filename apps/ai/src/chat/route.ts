@@ -5,6 +5,7 @@
  */
 import { Hono } from "hono";
 import { z } from "zod";
+import { resolveDailyQuota } from "../admin/quota-settings";
 import { buildUserContext } from "../agent/user-context";
 import { record } from "../analytics/events";
 import type { Env } from "../config";
@@ -82,7 +83,7 @@ chatRoute.post("/chat", async (c) => {
   }
 
   // 3b. Kuota harian 40 (auth)
-  const dailyLimit = Number((c.env as Record<string, string | undefined>).QUOTA_DAILY ?? 40);
+  const dailyLimit = await resolveDailyQuota(c);
   if (isAuth && userId && dailyLimit > 0 && dailyStub) {
     const ds = dailyStub(c, `u:${userId}`);
     if (ds) {

@@ -17,6 +17,7 @@
  */
 import { Hono } from "hono";
 import { z } from "zod";
+import { resolveDailyQuota } from "../admin/quota-settings";
 import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
 import { skillPersona, skillToolFilter } from "../agent/skills";
 import { buildUserContext, contextPrompt } from "../agent/user-context";
@@ -158,7 +159,7 @@ streamRoute.post("/chat/stream", async (c) => {
   }
 
   // Kuota harian 40 pertanyaan/user (reset 24 jam via DATE key) — ala ChatGPT.
-  const dailyLimit = Number((c.env as Record<string, string | undefined>).QUOTA_DAILY ?? 40);
+  const dailyLimit = await resolveDailyQuota(c);
   if (isAuth && userId && dailyLimit > 0) {
     const ds = dailyStub(c, `u:${userId}`);
     let ok = true;
