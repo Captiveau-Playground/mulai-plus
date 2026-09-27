@@ -16,6 +16,14 @@ import { dailyStub } from "../do/access-daily";
 import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
 
+/** Buang blok <tools>...</tools> (LLM legacy kadang menulis spec tool ke dalam jawaban). */
+function stripTools(text: string): string {
+  const i = text.indexOf("<tools");
+  if (i < 0) return text.trim();
+  const j = text.lastIndexOf("</tools>");
+  return (j > i ? text.slice(0, i) + text.slice(j + 8) : text.slice(0, i)).trim();
+}
+
 const TIER_PREMIUM_LIMIT = Number(process.env.QUOTA_PREMIUM ?? 5);
 
 /** Scope cache legacy: tier + profil siswa (dedupe personalisasi, bukan jawaban bulan). */
@@ -127,7 +135,7 @@ chatRoute.post("/chat", async (c) => {
       message_id: m?.id ?? undefined,
       remaining: isAuth ? undefined : Math.max(0, quotaPolicy(false).max - used),
       requires_auth: false,
-      full_reply: cached.answer,
+      full_reply: stripTools(cached.answer),
     });
   }
   record(c, { sessionId: key, userId, event: "cache_miss" });
