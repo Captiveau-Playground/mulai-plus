@@ -157,6 +157,29 @@ streamRoute.post("/chat/stream", async (c) => {
     return c.json({ reply: "Akun ini telah dibatasi. Hubungi admin.", remaining: 0 }, 403);
   }
 
+  // Kuota harian 40 pertanyaan/user (reset 24 jam via DATE key) — ala ChatGPT.
+  const dailyLimit = Number(process.env.QUOTA_DAILY ?? 40);
+  if (isAuth && userId && dailyLimit > 0) {
+    const ds = dailyStub(c, `u:${userId}`);
+    let ok = true;
+    if (ds) {
+      try {
+        ok = await ds.checkDaily("chat", dailyLimit);
+      } catch {
+        ok = true;
+      }
+    }
+    if (!ok) {
+      return c.json(
+        {
+          error: `Kamu sudah memakai ${dailyLimit} pertanyaan hari ini. Kuota di-reset otomatis besok — semangat, lanjut lagi yaa!`,
+          daily_quota: true,
+        },
+        429,
+      );
+    }
+  }
+
   let rlOk = true;
   try {
     rlOk = await allowRequest(

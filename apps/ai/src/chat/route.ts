@@ -81,6 +81,28 @@ chatRoute.post("/chat", async (c) => {
     );
   }
 
+  // 3b. Kuota harian 40 (auth)
+  const dailyLimit = Number(process.env.QUOTA_DAILY ?? 40);
+  if (isAuth && userId && dailyLimit > 0 && dailyStub) {
+    const ds = dailyStub(c, `u:${userId}`);
+    if (ds) {
+      let ok = true;
+      try {
+        ok = await ds.checkDaily("chat", dailyLimit);
+      } catch {
+        ok = true;
+      }
+      if (!ok)
+        return c.json(
+          {
+            error: `Kamu sudah memakai ${dailyLimit} pertanyaan hari ini. Besok di-reset otomatis.`,
+            daily_quota: true,
+          },
+          429,
+        );
+    }
+  }
+
   // 3. Rate limit: auth 15/mnt/user, guest 5/mnt/session
   const rlOk = await acquireRateLimitSlot(
     c,
@@ -248,6 +270,7 @@ chatRoute.get("/quota", async (c) => {
     requires_auth: !isAuth,
   };
   if (!isAuth) return c.json({ ...guest });
+  const dailyLimit = Number(process.env.QUOTA_DAILY ?? 40);
   // Tier model (auth): simple unlimited; smart unlimited; premium berkuota.
   const tiers: Record<string, { remaining: number | null; limit: number }> = {
     simple: { remaining: null, limit: -1 },
@@ -261,7 +284,15 @@ chatRoute.get("/quota", async (c) => {
       tiers.premium = { remaining: Math.max(0, TIER_PREMIUM_LIMIT - usedToday), limit: TIER_PREMIUM_LIMIT };
     }
   }
-  return c.json({ remaining: null, limit: "unlimited", requires_auth: false, tiers });
+  let daily = { limit: dailyLimit, remaining: -1 };
+  if (dailyLimit > 0 && userId) {
+    const ds = dailyStub(c, `u:${userId}`);
+    if (ds) {
+      const used = await ds.peekDaily("chat").catch(() => 0);
+      daily = { limit: dailyLimit, remaining: Math.max(0, dailyLimit - used) };
+    }
+  }
+  return c.json({ remaining: null, limit: "unlimited", requires_auth: false, tiers, daily });
 });
 
 chatRoute.get("/history", async (c) => {

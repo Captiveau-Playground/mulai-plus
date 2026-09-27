@@ -84,7 +84,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { LoaderCircle } from "@/components/ui/loader-circle";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
@@ -181,27 +180,27 @@ const EMPTY_CARDS = [
   },
 ];
 
-// Onboarding Mul.ai — cara pakai (tampil sekali, tersimpan di localStorage)
-const _ONBOARD_STEPS = [
+// Tour Mul.ai — highlight elemen asli (first-visit)
+const TOUR_STEPS = [
   {
-    icon: <SparklesIcon className="size-5" />,
-    title: "Kenalan dengan Mul.ai",
-    desc: "Asisten AI personal buatmu — bantu cari universitas, jurusan, passing grade, dan program mentoring, semua dipersonalisasi dengan profil & hasil tes minat bakatmu.",
+    target: "tour-header",
+    title: "Ini Mul.ai",
+    desc: "Asisten AI personalmu — semua jawaban dipersonalisasi dengan profil & hasil tes minat bakat.",
   },
   {
-    icon: <BrainIcon className="size-5" />,
-    title: "Pilih Skill sesuai kebutuhan",
-    desc: "Di atas kotak chat ada chip skill: Universitas, Prodi & Jurusan, Passing Grade, atau Mentoring. Tiap skill memandu AI fokus di bidang itu (saran pertanyaan ikut menyesuaikan).",
+    target: "tour-skills",
+    title: "Pilih Skill",
+    desc: "Chip ini memandu AI fokus: Universitas, Prodi & Jurusan, Passing Grade, atau Mentoring — saran pertanyaan ikut menyesuaikan.",
   },
   {
-    icon: <ZapIcon className="size-5" />,
-    title: "Atur model — Mulai Cerdas / Pintar / Bijak",
-    desc: "Klik nama model di toolbar composer untuk pilih: Mulai Cerdas (cepat & hemat), Mulai Pintar (seimbang), atau Mulai Bijak (kualitas maksimal, kuota 5/hari).",
+    target: "tour-model",
+    title: "Atur Model",
+    desc: "Pilih Mulai Cerdas (cepat), Mulai Pintar (seimbang), atau Mulai Bijak (maksimal, kuota 5/hari).",
   },
   {
-    icon: <ThumbsUp className="size-5" />,
-    title: "Lihat langkah AI & kasih feedback",
-    desc: "Saat AI memakai data (universitas/prodi/passing grade) akan tampil step statusnya. Setiap jawaban bisa di-copy, dicoba ulang, dan diberi feedback 👍/👎.",
+    target: "tour-composer",
+    title: "Tanya di Sini",
+    desc: "Ketik pertanyaan lalu Enter. Lihat langkah tool saat AI mengecek data (universitas/prodi/passing grade) dan beri feedback 👍/👎 di tiap jawaban.",
   },
 ];
 
@@ -707,7 +706,7 @@ function ChatRuntime({
       <div className="shrink-0 border-border border-t">
         {!busy && (
           <div className="flex flex-col gap-1.5 px-3 pt-2 pb-1">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            <div id="tour-skills" className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
               {SKILLS.map((sk) => (
                 <button
                   key={sk.id}
@@ -763,7 +762,12 @@ function ChatRuntime({
           </div>
         )}
 
-        <PromptInput onSubmit={handleSubmit} multiple className="rounded-none border-0 bg-white px-3 pb-3">
+        <PromptInput
+          id="tour-composer"
+          onSubmit={handleSubmit}
+          multiple
+          className="rounded-none border-0 bg-white px-3 pb-3"
+        >
           <PromptInputBody>
             <PromptInputTextarea
               value={text}
@@ -777,6 +781,7 @@ function ChatRuntime({
                 <ModelSelectorTrigger asChild>
                   <Button
                     type="button"
+                    id="tour-model"
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 rounded-full border border-gray-200 px-3 text-xs"
@@ -849,12 +854,34 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const [ready, setReady] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [mobileListOpen, setMobileListOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [tourRect, setTourRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  // Tampilkan tour sekali (first-visit)
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("mulai-ai-onboard-seen")) {
+      setTourOpen(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (!tourOpen) return;
+    const target = document.getElementById(TOUR_STEPS[tourStep].target);
+    const update = () => {
+      if (!target) return;
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      const r = target.getBoundingClientRect();
+      setTourRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [tourOpen, tourStep]);
   const [deleteTarget, setDeleteTarget] = useState<SessionItem | null>(null);
-  const [_onboardOpen, _setOnboardOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return !localStorage.getItem("mulai-ai-onboard-seen");
-  });
-  const [_onboardStep, _setOnboardStep] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const _loaded = useRef<string | null>(null);
@@ -976,80 +1003,74 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
 
   return (
     <div className="flex h-full min-h-0 w-full gap-3 p-4 md:p-4 lg:p-4">
-      {/* Onboarding first-visit Mul.ai */}
-      <Dialog open={_onboardOpen} onOpenChange={_setOnboardOpen}>
-        <DialogContent className="overflow-hidden! gap-0! border-border! bg-card! p-0! shadow-2xl! sm:max-w-md">
-          <div className="relative overflow-hidden bg-gradient-to-r from-brand-navy to-brand-navy-light px-6 py-6 text-center text-white">
-            <div className="absolute -top-6 -right-6 size-24 rounded-full bg-brand-orange/25 blur-2xl" />
-            <div className="absolute -bottom-8 left-8 size-20 rounded-full bg-white/10 blur-xl" />
-            <div className="relative mx-auto flex size-12 items-center justify-center rounded-2xl bg-white/15">
-              {_ONBOARD_STEPS[_onboardStep].icon}
-            </div>
-            <h3 className="mt-3 font-bold font-bricolage text-lg">Mul.ai — Kamu Pergi Melangkah</h3>
-            <p className="mt-0.5 font-manrope text-white/70 text-xs">Kenalan, lalu mulai tanya apa saja.</p>
-          </div>
-          <div className="px-6 py-5">
-            <div className="flex items-center justify-center gap-1.5 pb-3">
-              {_ONBOARD_STEPS.map((_, i) => (
-                <span
-                  key={i}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === _onboardStep ? "w-5 bg-brand-orange" : "w-1.5 bg-border"
-                  }`}
-                />
-              ))}
-            </div>
-            <h4 className="text-center font-bold font-bricolage text-base text-brand-navy">
-              {_ONBOARD_STEPS[_onboardStep].title}
-            </h4>
-            <p className="mt-2 text-center font-manrope text-muted-foreground text-sm leading-relaxed">
-              {_ONBOARD_STEPS[_onboardStep].desc}
+      {/* Tour first-visit Mul.ai */}
+      {tourOpen && tourRect && (
+        <div className="fixed inset-0 z-[90]" style={{ pointerEvents: "none" }}>
+          <div
+            className="rounded-xl bg-transparent transition-all duration-300"
+            style={{
+              position: "absolute",
+              top: tourRect.top - 4,
+              left: tourRect.left - 4,
+              width: tourRect.width + 8,
+              height: tourRect.height + 8,
+              boxShadow: "0 0 0 9999px rgba(9,9,11,0.55)",
+            }}
+          />
+          <div
+            className="absolute z-[91] max-w-[90vw] rounded-2xl border border-border bg-card p-4 shadow-2xl sm:max-w-sm"
+            style={{
+              pointerEvents: "auto",
+              top: Math.min(tourRect.top + tourRect.height + 16, window.innerHeight - 190),
+              left: Math.max(16, Math.min(tourRect.left, window.innerWidth - 360)),
+            }}
+          >
+            <p className="font-manrope font-semibold text-[10px] text-brand-orange uppercase tracking-wider">
+              {tourStep + 1} / {TOUR_STEPS.length}
             </p>
-          </div>
-          <div className="flex items-center justify-between gap-2 border-border border-t px-6 py-4">
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.setItem("mulai-ai-onboard-seen", "1");
-                _setOnboardOpen(false);
-              }}
-              className="font-manrope text-muted-foreground text-xs transition-colors hover:text-brand-navy"
-            >
-              Lewati
-            </button>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={_onboardStep === 0}
-                onClick={() => {
-                  if (_onboardStep > 0) _setOnboardStep(_onboardStep - 1);
-                }}
-                className="rounded-xl px-4 font-manrope text-xs"
-              >
-                Kembali
-              </Button>
-              <Button
+            <h4 className="mt-0.5 font-bold font-bricolage text-base text-brand-navy">{TOUR_STEPS[tourStep].title}</h4>
+            <p className="mt-1 font-manrope text-muted-foreground text-sm leading-relaxed">
+              {TOUR_STEPS[tourStep].desc}
+            </p>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <button
                 type="button"
                 onClick={() => {
-                  if (_onboardStep < _ONBOARD_STEPS.length - 1) {
-                    _setOnboardStep(_onboardStep + 1);
-                  } else {
-                    localStorage.setItem("mulai-ai-onboard-seen", "1");
-                    _setOnboardOpen(false);
-                  }
+                  localStorage.setItem("mulai-ai-onboard-seen", "1");
+                  setTourOpen(false);
                 }}
-                className="rounded-xl bg-brand-navy px-5 font-manrope font-semibold text-sm text-white transition-colors hover:bg-brand-navy-light"
+                className="font-manrope text-muted-foreground text-xs hover:text-brand-navy"
               >
-                {_onboardStep < _ONBOARD_STEPS.length - 1 ? "Lanjut" : "Mulai pakai"}
-              </Button>
+                Lewati
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={tourStep === 0}
+                  onClick={() => setTourStep((v) => Math.max(0, v - 1))}
+                  className="rounded-xl border border-border px-3 py-1.5 font-manrope text-brand-navy text-xs transition-colors hover:bg-muted disabled:opacity-40"
+                >
+                  Kembali
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tourStep < TOUR_STEPS.length - 1) setTourStep((v) => v + 1);
+                    else {
+                      localStorage.setItem("mulai-ai-onboard-seen", "1");
+                      setTourOpen(false);
+                    }
+                  }}
+                  className="rounded-xl bg-brand-navy px-4 py-1.5 font-manrope font-semibold text-white text-xs transition-colors hover:bg-brand-navy-light"
+                >
+                  {tourStep < TOUR_STEPS.length - 1 ? "Lanjut" : "Mulai pakai"}
+                </button>
+              </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Sidebar percakapan */}
+        </div>
+      )}
+      {/* Sidebar percakapan */} {/* Sidebar percakapan */}
       {showSidebar && (
         <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:flex">
           <div className="flex items-center justify-between border-border border-b p-3">
@@ -1181,9 +1202,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
           </AlertDialog>
         </aside>
       )}
-
       {/* Mobile: daftar & manajemen percakapan (slide-over) */}
-
       {/* Mobile: drawer percakapan — selalu ter-mount, transisi smooth (bukan cilukba) */}
       <div
         className={`fixed inset-0 z-50 lg:hidden ${mobileListOpen ? "" : "pointer-events-none"}`}
@@ -1312,10 +1331,12 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
           </div>
         </div>
       </div>
-
       {/* Panel utama chat */}
       <section className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
-        <header className="flex shrink-0 items-center gap-2 border-border border-b bg-card px-3 py-2.5">
+        <header
+          id="tour-header"
+          className="flex shrink-0 items-center gap-2 border-border border-b bg-card px-3 py-2.5"
+        >
           {!showSidebar && (
             <Button
               type="button"
