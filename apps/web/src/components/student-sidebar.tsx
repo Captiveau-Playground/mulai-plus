@@ -55,7 +55,7 @@ function NavLink({ item, isActive, onNavigate }: { item: NavItem; isActive: bool
       aria-current={isActive ? "page" : undefined}
     >
       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
-      <span className="whitespace-nowrap">{item.title}</span>
+      <span className="whitespace-nowrap group-data-[collapsible=icon]:hidden">{item.title}</span>
     </Link>
   );
 }
@@ -87,18 +87,26 @@ function NavGroup({ group, onNavigate }: { group: NavGroupDef; onNavigate?: () =
           isActive ? "text-white" : "text-white/40 hover:text-white/70",
         )}
       >
-        <span className="flex items-center gap-3 font-bold font-manrope text-xs uppercase tracking-wide">
+        <span
+          className={cn(
+            "flex items-center gap-3 font-bold font-manrope text-xs uppercase tracking-wide",
+            "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0",
+          )}
+        >
           <GroupIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {group.title}
+          <span className="group-data-[collapsible=icon]:hidden">{group.title}</span>
         </span>
         <ChevronDown
-          className={cn("h-4 w-4 shrink-0 transition-transform duration-200", open && "rotate-180")}
+          className={cn(
+            "h-4 w-4 shrink-0 transition-transform duration-200 group-data-[collapsible=icon]:hidden",
+            open && "rotate-180",
+          )}
           aria-hidden="true"
         />
       </button>
 
       {open && (
-        <div className="mt-0.5 mb-1 ml-[19px] space-y-0.5 border-white/10 border-l pl-2">
+        <div className="mt-0.5 mb-1 ml-[19px] space-y-0.5 border-white/10 border-l pl-2 group-data-[collapsible=icon]:mt-1 group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:border-l-0 group-data-[collapsible=icon]:pl-0">
           {group.items.map((item) => (
             <NavLink key={item.title} item={item} isActive={activeItem?.url === item.url} onNavigate={onNavigate} />
           ))}
@@ -225,7 +233,7 @@ export function StudentSidebar({
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-manrope font-medium text-sm text-white/40 transition-all duration-200 hover:bg-white/10 hover:text-white"
           >
             <ExternalLink className="h-4 w-4 shrink-0" />
-            <span>Back to Site</span>
+            <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
           </Link>
         </div>
 
@@ -236,8 +244,10 @@ export function StudentSidebar({
             onClick={() => setHelpOpen((v) => !v)}
             className="flex w-full items-center justify-between rounded-xl px-3 py-1.5 font-manrope text-[10px] text-white/40 uppercase tracking-wider transition-colors hover:bg-white/10 hover:text-white/70"
           >
-            <span>Bantuan</span>
-            <ChevronDown className={`size-3.5 transition-transform ${helpOpen ? "rotate-180" : ""}`} />
+            <span className="group-data-[collapsible=icon]:hidden">Bantuan</span>
+            <ChevronDown
+              className={`size-3.5 transition-transform group-data-[collapsible=icon]:hidden ${helpOpen ? "rotate-180" : ""}`}
+            />
           </button>
           {helpOpen && (
             <div className="mt-0.5 space-y-0.5">
@@ -253,7 +263,7 @@ export function StudentSidebar({
                     className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                   >
                     <Icon className="size-4 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate font-manrope text-xs">
+                    <span className="flex-1 truncate font-manrope text-xs has-[span]:min-w-0 group-data-[collapsible=icon]:hidden">
                       {channel.label} <span className="text-white/50">· {channel.description}</span>
                     </span>
                   </a>
