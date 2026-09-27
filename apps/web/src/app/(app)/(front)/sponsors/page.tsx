@@ -9,6 +9,7 @@ export const metadata = {
 
 type Sponsor = {
   name: string;
+  tag: string;
   desc: string;
   logo: string;
   href: string;
@@ -18,7 +19,8 @@ type Sponsor = {
 const TIER1: Sponsor[] = [
   {
     name: "UPN Veteran Jawa Timur",
-    desc: "Kampus mitra akademik — kolaborasi pengembangan platform, riset karier pelajar, dan validasi data pendidikan untuk MULAI+.",
+    tag: "Pendanaan Riset",
+    desc: "Mendukung MULAI+ melalui pendanaan riset — kolaborasi riset pengembangan platform bersama civitas akademika.",
     logo: "/sponsors/upn-veteran-jatim.png",
     href: "https://upnjatim.ac.id",
     alt: "Logo Universitas Pembangunan Nasional Veteran Jawa Timur",
@@ -28,21 +30,24 @@ const TIER1: Sponsor[] = [
 const TIER2: Sponsor[] = [
   {
     name: "Cloudflare",
-    desc: "Edge network & serverless — Workers, KV, Durable Objects, Hyperdrive, dan CDN yang menopang API, AI, dan web MULAI+.",
+    tag: "Cloudflare for Startups",
+    desc: "Program Cloudflare for Startups — akses pro ke infrastruktur edge: Workers, KV, Durable Objects, Hyperdrive, dan CDN yang menopang API, AI, dan web MULAI+.",
     logo: "/sponsors/cloudflare.svg",
-    href: "https://cloudflare.com",
+    href: "https://www.cloudflare.com/forstartups/",
     alt: "Logo Cloudflare",
   },
   {
     name: "Amplitude",
+    tag: "Product Analytics",
     desc: "Product analytics — memahami perjalanan pelajar dari tes minat hingga keputusan kuliah, demi pengalaman yang lebih baik.",
-    logo: "/sponsors/amplitude.svg",
+    logo: "/sponsors/amplitude.png",
     href: "https://amplitude.com",
     alt: "Logo Amplitude",
   },
   {
     name: "Sentry",
-    desc: "Error monitoring & tracing — menjaga setiap worker dan request tetap sehat, bug terdeteksi sebelum dirasakan pengguna.",
+    tag: "Product Monitoring",
+    desc: "Product monitoring — error tracking & tracing produksi, menjaga setiap worker dan request tetap sehat.",
     logo: "/sponsors/sentry.svg",
     href: "https://sentry.io",
     alt: "Logo Sentry",
@@ -52,6 +57,7 @@ const TIER2: Sponsor[] = [
 const TIER3: Sponsor[] = [
   {
     name: "API Sekolah Mandiri",
+    tag: "Open Source & Data",
     desc: "Open-source (EduAPI Indonesia) — data master satuan pendidikan untuk autocomplete sekolah, disajikan via edge serverless secara gratis.",
     logo: "/sponsors/github.svg",
     href: "https://github.com/bahrye/api-sekolah-indonesia",
@@ -145,7 +151,10 @@ export default function SponsorsPage() {
                 className="group flex flex-col rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-brand-orange/40 hover:shadow-lg"
               >
                 <LogoBox sponsor={s} className="h-10 w-32" />
-                <h3 className="mt-4 font-bold font-bricolage text-base text-brand-navy group-hover:text-brand-orange">
+                <span className="mt-3 w-fit rounded-md bg-brand-orange/10 px-2 py-0.5 font-manrope font-semibold text-[10px] text-brand-orange">
+                  {s.tag}
+                </span>
+                <h3 className="mt-1 font-bold font-bricolage text-base text-brand-navy group-hover:text-brand-orange">
                   {s.name}
                 </h3>
                 <p className="mt-1.5 font-manrope text-muted-foreground text-xs leading-relaxed">{s.desc}</p>
@@ -173,7 +182,10 @@ export default function SponsorsPage() {
               >
                 <LogoBox sponsor={s} className="h-10 w-16 shrink-0" />
                 <div className="flex-1">
-                  <h3 className="flex items-center gap-1.5 font-bold font-bricolage text-base text-brand-navy group-hover:text-brand-orange">
+                  <span className="rounded-md bg-brand-orange/10 px-2 py-0.5 font-manrope font-semibold text-[10px] text-brand-orange">
+                    {s.tag}
+                  </span>
+                  <h3 className="mt-1 flex items-center gap-1.5 font-bold font-bricolage text-base text-brand-navy group-hover:text-brand-orange">
                     {s.name} <Github className="size-3.5" />
                   </h3>
                   <p className="mt-1 font-manrope text-muted-foreground text-xs leading-relaxed">{s.desc}</p>
