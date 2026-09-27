@@ -411,20 +411,20 @@ function ChatRuntime({
                 const hasBranch = !!block && block.versions.length > 1;
                 const useStored = hasBranch && block?.active < block?.versions.length - 1;
                 const stored = useStored ? block?.versions[block?.active] : "";
+                const msgPartsTxt = (m.parts ?? [])
+                  .map((pp: any) => ((pp.kind ?? pp.type) === "text" ? (pp.text ?? "") : ""))
+                  .join("");
+                const msgHasTool = (m.parts ?? []).some((pp: any) => {
+                  const k = pp.kind ?? pp.type;
+                  return k === "tool-invocation" || k === "tool";
+                });
                 return (
                   <MessageBranch defaultBranch={0} key={`br-${m.id}`}>
                     <MessageBranchContent>
                       <Message from={m.role === "user" ? "user" : "assistant"}>
                         {(() => {
                           const isUser = m.role === "user";
-                          const partsTxt = (m.parts ?? [])
-                            .map((pp: any) => ((pp.kind ?? pp.type) === "text" ? (pp.text ?? "") : ""))
-                            .join("");
-                          const hasTool = (m.parts ?? []).some((pp: any) => {
-                            const k = pp.kind ?? pp.type;
-                            return k === "tool-invocation" || k === "tool";
-                          });
-                          const showBubble = isUser || partsTxt.length > 0 || hasTool;
+                          const showBubble = isUser || msgPartsTxt.length > 0 || msgHasTool;
                           if (!showBubble) return null;
                           return (
                             <MessageContent
@@ -505,68 +505,72 @@ function ChatRuntime({
                             </MessageContent>
                           );
                         })()}
-                        {m.role === "assistant" && (
-                          <MessageToolbar className="mt-1! gap-1.5">
-                            <MessageActions>
-                              <MessageAction
-                                variant="ghost"
-                                size="icon-sm"
-                                title="Salin jawaban"
-                                aria-label="Salin jawaban"
-                                onClick={() =>
-                                  copyMessage(
-                                    (m.parts ?? [])
-                                      .map((p: any) => ((p.kind ?? p.type) === "text" ? (p.text ?? "") : ""))
-                                      .join(""),
-                                  )
-                                }
-                              >
-                                <CopyIcon className="size-3.5" />
-                              </MessageAction>
-                              <MessageAction
-                                variant="ghost"
-                                size="icon-sm"
-                                title="Coba lagi (versi baru)"
-                                aria-label="Coba lagi"
-                                onClick={() => {
-                                  const up = idx > 0 && messages[idx - 1]?.role === "user" ? messages[idx - 1] : null;
-                                  if (!up) return;
-                                  const curText = (m.parts ?? [])
-                                    .map((pp: any) => ((pp.kind ?? pp.type) === "text" ? (pp.text ?? "") : ""))
-                                    .join("");
-                                  const userText =
-                                    (up as any).content ??
-                                    (up.parts ?? [])
+                        {m.role === "assistant" &&
+                          !(busy && idx === messages.length - 1) &&
+                          (msgHasTool || msgPartsTxt.length > 0) && (
+                            <MessageToolbar className="mt-1! gap-1.5">
+                              <MessageActions>
+                                <MessageAction
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  title="Salin jawaban"
+                                  aria-label="Salin jawaban"
+                                  onClick={() =>
+                                    copyMessage(
+                                      (m.parts ?? [])
+                                        .map((p: any) => ((p.kind ?? p.type) === "text" ? (p.text ?? "") : ""))
+                                        .join(""),
+                                    )
+                                  }
+                                >
+                                  <CopyIcon className="size-3.5" />
+                                </MessageAction>
+                                <MessageAction
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  title="Coba lagi (versi baru)"
+                                  aria-label="Coba lagi"
+                                  onClick={() => {
+                                    const up = idx > 0 && messages[idx - 1]?.role === "user" ? messages[idx - 1] : null;
+                                    if (!up) return;
+                                    const curText = (m.parts ?? [])
                                       .map((pp: any) => ((pp.kind ?? pp.type) === "text" ? (pp.text ?? "") : ""))
                                       .join("");
-                                  doRegenerate(idx, up.id, userText, curText);
-                                }}
-                              >
-                                <RefreshCwIcon className="size-3.5" />
-                              </MessageAction>
-                              <MessageAction
-                                variant="ghost"
-                                size="icon-sm"
-                                title="Bermanfaat"
-                                aria-label="Feedback positif"
-                                className={feedbackState[m.id] === "up" ? "bg-brand-orange/10 text-brand-orange" : ""}
-                                onClick={() => void sendFeedback(m, "up")}
-                              >
-                                <ThumbsUp className="size-3.5" />
-                              </MessageAction>
-                              <MessageAction
-                                variant="ghost"
-                                size="icon-sm"
-                                title="Kurang bermanfaat"
-                                aria-label="Feedback negatif"
-                                className={feedbackState[m.id] === "down" ? "bg-brand-orange/10 text-brand-orange" : ""}
-                                onClick={() => void sendFeedback(m, "down")}
-                              >
-                                <ThumbsDown className="size-3.5" />
-                              </MessageAction>
-                            </MessageActions>
-                          </MessageToolbar>
-                        )}
+                                    const userText =
+                                      (up as any).content ??
+                                      (up.parts ?? [])
+                                        .map((pp: any) => ((pp.kind ?? pp.type) === "text" ? (pp.text ?? "") : ""))
+                                        .join("");
+                                    doRegenerate(idx, up.id, userText, curText);
+                                  }}
+                                >
+                                  <RefreshCwIcon className="size-3.5" />
+                                </MessageAction>
+                                <MessageAction
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  title="Bermanfaat"
+                                  aria-label="Feedback positif"
+                                  className={feedbackState[m.id] === "up" ? "bg-brand-orange/10 text-brand-orange" : ""}
+                                  onClick={() => void sendFeedback(m, "up")}
+                                >
+                                  <ThumbsUp className="size-3.5" />
+                                </MessageAction>
+                                <MessageAction
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  title="Kurang bermanfaat"
+                                  aria-label="Feedback negatif"
+                                  className={
+                                    feedbackState[m.id] === "down" ? "bg-brand-orange/10 text-brand-orange" : ""
+                                  }
+                                  onClick={() => void sendFeedback(m, "down")}
+                                >
+                                  <ThumbsDown className="size-3.5" />
+                                </MessageAction>
+                              </MessageActions>
+                            </MessageToolbar>
+                          )}
                       </Message>
                     </MessageBranchContent>
                     {hasBranch && (
