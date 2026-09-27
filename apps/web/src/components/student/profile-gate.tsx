@@ -59,6 +59,7 @@ export default function ProfileGate() {
       onSuccess: () => {
         notify.success("Profil berhasil dilengkapi — sekarang kamu lanjut 🎉");
         refresh();
+        setTimeout(() => window.location.reload(), 700);
       },
       onError: (e: any) => notify.error(e?.message || "Gagal menyimpan"),
     }),
@@ -96,7 +97,7 @@ export default function ProfileGate() {
             <div className="relative">
               <Input
                 id="pg-school"
-                value={sch.q}
+                value={school}
                 placeholder="ketik nama sekolah (min. 3 huruf)"
                 onChange={(e) => {
                   setSchool(e.target.value);
@@ -112,7 +113,7 @@ export default function ProfileGate() {
                 onPick={(item) => {
                   setSchool(item.nama);
                   setLevel(mapLevel(item.jenjang));
-                  sch.setQ("");
+                  sch.setQ(item.nama);
                   sch.setOpen(false);
                 }}
               />
