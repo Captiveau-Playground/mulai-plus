@@ -2,8 +2,8 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Globe, Loader2, MapPin, Phone, School, User } from "lucide-react";
-import { useEffect } from "react";
+import { CheckCircle2, Globe, Loader2, MapPin, Phone, School, User } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,38 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 export default function StudentSettingsPage() {
   const { data: user, isLoading, refetch } = useQuery(orpc.user.getProfile.queryOptions());
   const updateProfile = useMutation(orpc.user.updateProfile.mutationOptions());
+
+  // Autocomplete sekolah dari api-sekolah-indonesia
+  const [schoolQ, setSchoolQ] = useState("");
+  const [schoolSug, setSchoolSug] = useState<
+    { sekolah: string; bentuk: string; propinsi: string; kabupaten_kota: string; npsn: string }[]
+  >([]);
+  const [schoolOpen, setSchoolOpen] = useState(false);
+  useEffect(() => {
+    const q = schoolQ.trim();
+    if (q.length < 3) {
+      setSchoolSug([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`https://api-sekolah-indonesia.vercel.app/sekolah?nama=${encodeURIComponent(q)}&limit=6`);
+        const d = await r.json();
+        setSchoolSug(
+          (d?.dataSekolah ?? []).map((x: any) => ({
+            sekolah: String(x.sekolah ?? ""),
+            bentuk: String(x.bentuk ?? ""),
+            propinsi: String(x.propinsi ?? "").trim(),
+            kabupaten_kota: String(x.kabupaten_kota ?? ""),
+            npsn: String(x.npsn ?? ""),
+          })),
+        );
+      } catch {
+        setSchoolSug([]);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [schoolQ]);
 
   const form = useForm<ProfileFormValues>({
     resolver: standardSchemaResolver(profileFormSchema),
@@ -98,6 +130,34 @@ export default function StudentSettingsPage() {
             Manage your personal information and preferences
           </p>
         </div>
+
+        {/* Akses & Kelengkapan */}
+        <Card className="student-card">
+          <CardContent className="bg-white pt-4 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10">
+                <CheckCircle2 className="size-4.5 text-brand-orange" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold font-bricolage text-brand-navy text-sm">Akses &amp; Kelengkapan Profil</h3>
+                <p className="mt-0.5 font-manrope text-muted-foreground text-xs">
+                  Isi di bawah untuk membuka <b>Tes Minat &amp; Bakat</b> dan <b>Asisten AI (Mul.ai)</b>:
+                </p>
+                <ul className="mt-2 space-y-1 font-manrope text-xs">
+                  <li className={user?.school ? "text-emerald-600" : "text-amber-600"}>
+                    {user?.school ? "✓" : "•"} Sekolah / Instansi {!user?.school && <b>— wajib</b>}
+                  </li>
+                  <li className={user?.educationLevel ? "text-emerald-600" : "text-amber-600"}>
+                    {user?.educationLevel ? "✓" : "•"} Jenjang saat ini {!user?.educationLevel && <b>— wajib</b>}
+                  </li>
+                  <li className="text-muted-foreground">
+                    • Nomor HP, alamat &amp; sosial media — opsional (untuk konseling &amp; komunitas)
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="student-card">
           <CardHeader className="bg-white">
@@ -190,11 +250,52 @@ export default function StudentSettingsPage() {
                       control={form.control}
                       name="school"
                       render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-manrope text-sm text-text-main">School (Sekolah)</FormLabel>
+                        <FormItem className="relative">
+                          <FormLabel className="flex items-center gap-1 font-manrope text-sm text-text-main">
+                            School (Sekolah) <span className="text-brand-orange">*</span>
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="SMA N 1 Jakarta" className="bg-white font-manrope" {...field} />
+                            <Input
+                              placeholder="SMA N 1 Jakarta"
+                              className="bg-white font-manrope"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                setSchoolQ(e.target.value);
+                                setSchoolOpen(true);
+                              }}
+                              onFocus={() => setSchoolOpen(true)}
+                              onBlur={() => setTimeout(() => setSchoolOpen(false), 200)}
+                            />
                           </FormControl>
+                          {schoolOpen && schoolSug.length > 0 && (
+                            <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-lg">
+                              {schoolSug.map((sk, i) => (
+                                <button
+                                  key={`${sk.npsn}-${i}`}
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    field.onChange(sk.sekolah);
+                                    setSchoolQ("");
+                                    setSchoolSug([]);
+                                    setSchoolOpen(false);
+                                  }}
+                                  className="flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-muted"
+                                >
+                                  <School className="mt-0.5 size-3.5 shrink-0 text-brand-navy" />
+                                  <span className="min-w-0">
+                                    <span className="block truncate font-manrope font-medium text-text-main text-xs">
+                                      {sk.sekolah}
+                                    </span>
+                                    <span className="block truncate font-manrope text-[10px] text-muted-foreground">
+                                      {sk.bentuk} · {sk.kabupaten_kota} · {sk.propinsi}
+                                    </span>
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <FormMessage />
                         </FormItem>
                       )}

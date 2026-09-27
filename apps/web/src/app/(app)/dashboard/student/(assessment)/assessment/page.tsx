@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, PlayCircle, RotateCcw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import ProfileGate, { useProfileGate } from "@/components/student/profile-gate";
 import { ProgressCharts } from "@/components/student/progress-charts";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -30,6 +31,7 @@ const TEST_META: Record<string, { emoji: string; color: string; desc: string; xp
 
 export default function AssessmentHomePage() {
   const [infoOpen, setInfoOpen] = useState(true);
+  const gate = useProfileGate();
   const { data, isLoading } = useQuery({
     ...orpc.tmb.assessment.list.queryOptions({ input: {} }),
   });
@@ -50,6 +52,21 @@ export default function AssessmentHomePage() {
 
   const xpToNext = (stats.level + 1) * 150;
   const levelProgress = Math.min(100, ((stats.xp - (stats.level - 1) * 150) / 150) * 100);
+
+  if (gate.loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" />
+      </div>
+    );
+  }
+  if (!gate.ready) {
+    return (
+      <div className="space-y-6">
+        <ProfileGate />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -74,6 +74,7 @@ const TOOL_LABELS: Record<string, string> = {
   search_knowledge: "Mencari dokumentasi",
 };
 
+import ProfileGate from "@/components/student/profile-gate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -996,6 +997,9 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       /* nonblokir */
     }
   }, [activeId, userId]);
+
+  // Gate kelengkapan profil — sekolah & jenjang wajib utk akses Mul.ai & tes
+  const gateBlocked = ctx !== null && !(String(ctx.school || "").trim() && String(ctx.level || "").trim());
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
@@ -1030,6 +1034,27 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     setDeleteTarget(null);
     void refreshSessions();
   };
+
+  if (gateBlocked) {
+    return (
+      <div className="flex h-full min-h-0 w-full gap-3 p-4">
+        <section className="flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+          <header
+            id="tour-header"
+            className="flex h-11 shrink-0 items-center gap-2 border-border border-b bg-card px-3"
+          >
+            <span className="flex size-6 items-center justify-center rounded-lg bg-brand-navy/10 font-manrope text-brand-navy text-xs">
+              M
+            </span>
+            <h1 className="truncate font-bold font-bricolage text-brand-navy text-sm">Mul.ai</h1>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <ProfileGate />
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 w-full gap-3 p-4 md:p-4 lg:p-4">
