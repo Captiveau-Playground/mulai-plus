@@ -56,7 +56,7 @@ export default function AiAssistantPage() {
           className="pointer-events-none absolute -bottom-28 -left-28 h-[300px] w-[300px] rounded-full opacity-[0.05]"
           style={{ background: "var(--brand-navy)" }}
         />
-        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 md:px-6 lg:grid-cols-2 lg:px-8">
+        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-12 px-4 md:px-6 lg:grid-cols-2 lg:px-8">
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/20 bg-brand-orange/5 px-3.5 py-1.5 font-manrope font-medium text-[11px] text-brand-orange tracking-wide">
               <Sparkles className="size-3.5" /> Mul.ai — Asisten AI
@@ -113,7 +113,7 @@ export default function AiAssistantPage() {
 
       {/* How it works */}
       <section className="py-16 lg:py-24">
-        <div className="mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">Gimana cara kerjanya?</h2>
             <p className="mx-auto mt-3 max-w-xl font-manrope text-muted-foreground text-sm">

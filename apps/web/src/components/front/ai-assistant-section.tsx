@@ -46,7 +46,7 @@ export function AiAssistantSection() {
       <div className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-brand-orange/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 -left-16 size-72 rounded-full bg-white/10 blur-3xl" />
 
-      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-4 md:px-6 lg:grid-cols-2 lg:px-8">
+      <div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-4 md:px-6 lg:grid-cols-2 lg:px-8">
         {/* Kiri: copy */}
         <motion.div custom={0} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/30 bg-brand-orange/10 px-3.5 py-1.5 font-manrope font-medium text-[11px] text-brand-orange tracking-wide">

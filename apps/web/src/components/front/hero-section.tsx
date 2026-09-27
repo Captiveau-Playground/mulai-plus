@@ -2,7 +2,7 @@
 
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { motion } from "framer-motion";
-import { BookOpen, ChevronDown, GraduationCap, MapPin, MessageCircleMore, Sparkles } from "lucide-react";
+import { BookOpen, ChevronDown, GraduationCap, MapPin, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { trackEvent } from "@/lib/analytics";
 import { mulaiAiUrl } from "@/lib/utm";
@@ -140,24 +140,6 @@ export function HeroSection() {
                 className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-brand-navy/15 px-8 py-4 font-bold font-manrope text-base text-brand-navy transition-all duration-300 hover:border-brand-navy/30 hover:bg-brand-navy/5 active:scale-[0.98] sm:px-10 sm:py-4"
               >
                 Kenali Minatmu — Gratis
-              </button>
-            </Link>
-
-            <Link href={mulaiAiUrl("/explore", "hero-explore-cta") as any} className="w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() =>
-                  trackEvent("mul_ai_cta_click", {
-                    campaign: "mulaiai_launch",
-                    placement: "home-hero",
-                    cta_content: "hero-explore-cta",
-                    cta_to: "/explore",
-                  })
-                }
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-brand-navy/15 px-8 py-4 font-bold font-manrope text-base text-brand-navy transition-all duration-300 hover:border-brand-navy/30 hover:bg-brand-navy/5 active:scale-[0.98] sm:px-10 sm:py-4"
-              >
-                <MessageCircleMore className="h-4 w-4" />
-                Lihat Universitas
               </button>
             </Link>
           </motion.div>
