@@ -111,6 +111,7 @@ export function StudentSidebar({
   return (
     <Sidebar
       id="tour-sidebar"
+      variant="inset"
       collapsible="icon"
       className={cn("border-r-0 bg-brand-navy pt-3 sm:pt-4")}
       style={
