@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle2, PlayCircle, RotateCcw } from "lucide-react";
+import { ArrowRight, CheckCircle2, PlayCircle, RotateCcw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { ProgressCharts } from "@/components/student/progress-charts";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,22 @@ export default function AssessmentHomePage() {
 
   return (
     <div className="space-y-6">
+      {/* Info: masih development */}
+      <div className="flex items-start gap-2.5 rounded-2xl border border-brand-orange/30 bg-brand-orange/5 px-4 py-3">
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-brand-orange" />
+        <p className="font-manrope text-brand-navy text-xs leading-relaxed">
+          <span className="font-semibold">Tes Minat &amp; Bakat masih dalam pengembangan.</span> Hasil yang tampil bisa
+          berubah dan belum dapat dijadikan acuan final — gunakan sebagai gambaran awal.
+          <br />
+          <Link
+            href="/privacy#assessment"
+            className="font-semibold underline decoration-brand-orange/60 underline-offset-2"
+          >
+            Baca detail di Kebijakan Privasi (bab Assessment) →
+          </Link>
+        </p>
+      </div>
+
       {/* Hero + stat */}
       <div className="grid gap-4 lg:grid-cols-3">
         <motion.div
