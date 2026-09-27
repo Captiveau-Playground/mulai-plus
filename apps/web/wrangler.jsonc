@@ -29,7 +29,8 @@
 		}
 	],
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		"head_sampling_rate": 1
 	},
 	// Env-scoped config: `wrangler deploy --env staging` → worker
 	// mulai-plus-web-staging (identik dengan api-staging naming convention).
