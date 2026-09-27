@@ -79,11 +79,16 @@ const AI_BASE = (env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
 const SESSION_HEADER = "x-session-id";
 
 const TIERS = [
-  { id: "simple", name: "Simple", desc: "Cepat & hemat untuk tanya ringan", icon: <ZapIcon className="size-4" /> },
-  { id: "smart", name: "Advanced", desc: "Seimbang, jawaban mendalam", icon: <BrainIcon className="size-4" /> },
+  {
+    id: "simple",
+    name: "Mulai Cerdas",
+    desc: "Cepat & hemat untuk tanya ringan",
+    icon: <ZapIcon className="size-4" />,
+  },
+  { id: "smart", name: "Mulai Pintar", desc: "Seimbang, jawaban mendalam", icon: <BrainIcon className="size-4" /> },
   {
     id: "premium",
-    name: "Premium",
+    name: "Mulai Bijak",
     desc: "Kualitas maksimal — kuota 5/hari",
     icon: <SparklesIcon className="size-4" />,
   },
@@ -590,12 +595,18 @@ function ChatRuntime({
                 </ModelSelectorTrigger>
                 <ModelSelectorContent
                   title="Pilih model"
-                  className="border! overflow-hidden rounded-xl border-border! shadow-xl! sm:max-h-[500px] sm:w-[420px]"
+                  className="overflow-hidden! rounded-2xl! border-border! bg-card! p-0! shadow-2xl! sm:max-h-[520px] sm:w-[430px]"
                 >
-                  <ModelSelectorInput placeholder="Cari model…" />
+                  <ModelSelectorInput
+                    placeholder="Cari model…"
+                    className="rounded-lg border border-border bg-muted/40 px-3 py-2.5 font-manrope text-sm"
+                  />
                   <ModelSelectorList>
                     <ModelSelectorEmpty>Model tidak ditemukan.</ModelSelectorEmpty>
-                    <ModelSelectorGroup heading="Pilihan MULAI+">
+                    <ModelSelectorGroup
+                      heading="Pilihan Mul.ai"
+                      className="px-3 pb-1 font-manrope font-semibold text-[10px] text-muted-foreground uppercase tracking-wider"
+                    >
                       {TIERS.map((t) => (
                         <ModelSelectorItem
                           key={t.id}
@@ -766,7 +777,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   };
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1280px] gap-3 p-4 md:p-6 lg:p-8">
+    <div className="flex h-full min-h-0 w-full gap-3 p-4 md:p-6 lg:p-8">
       {/* Sidebar percakapan */}
       {showSidebar && (
         <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:flex">
@@ -785,8 +796,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
           <div className="p-2">
             <Button
               type="button"
-              className="w-full gap-1.5 rounded-xl font-manrope text-xs"
               onClick={() => void handleNewChat()}
+              className="w-full gap-1.5 rounded-xl bg-brand-navy font-manrope text-white text-xs transition-colors hover:bg-brand-navy-light"
             >
               <PlusIcon className="size-4" /> Percakapan baru
             </Button>
@@ -925,8 +936,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             <div className="p-2">
               <Button
                 type="button"
-                className="w-full gap-1.5 rounded-xl font-manrope text-xs"
                 onClick={() => void handleNewChat()}
+                className="w-full gap-1.5 rounded-xl bg-brand-navy font-manrope text-white text-xs transition-colors hover:bg-brand-navy-light"
               >
                 <PlusIcon className="size-4" /> Percakapan baru
               </Button>
@@ -1027,7 +1038,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
 
       {/* Panel utama chat */}
       <section className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
-        <header className="flex shrink-0 items-center gap-2 rounded-xl border-border border-b bg-card/60 px-3 py-2 backdrop-blur-sm">
+        <header className="flex shrink-0 items-center gap-2 border-border border-b bg-card px-3 py-2.5">
           {!showSidebar && (
             <Button
               type="button"
@@ -1059,7 +1070,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             AI
           </span>
           <h1 className="truncate font-bold font-bricolage text-brand-navy text-sm">
-            Asisten MULAI+
+            Mul.ai
             {active && (
               <span className="ml-2 font-manrope font-normal text-[10px] text-text-muted-custom">· {active.title}</span>
             )}
