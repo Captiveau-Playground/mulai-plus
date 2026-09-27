@@ -35,11 +35,12 @@ export function getSources(): AgentSource[] {
   return [...registry.values()];
 }
 
-export function toolDefinitions(): {
+export function toolDefinitions(names?: string[]): {
   type: "function";
   function: { name: string; description: string; parameters: Record<string, unknown> };
 }[] {
-  return getSources().map((s) => ({
+  const sources = names?.length ? getSources().filter((s) => names.includes(s.name)) : getSources();
+  return sources.map((s) => ({
     type: "function",
     function: { name: s.name, description: s.description, parameters: s.parameters },
   }));

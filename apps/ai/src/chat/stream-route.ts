@@ -17,7 +17,9 @@
  */
 import { Hono } from "hono";
 import { z } from "zod";
+import { resolveDailyQuota } from "../admin/quota-settings";
 import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
+import { skillPersona, skillToolFilter } from "../agent/skills";
 import { buildUserContext, contextPrompt } from "../agent/user-context";
 import { record } from "../analytics/events";
 import type { AppContext, Env } from "../config";
@@ -31,6 +33,7 @@ import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
 import { AUTH_RATE_LIMIT_PER_MIN, GUEST_RATE_LIMIT_PER_MIN } from "../policies/rate-limit";
 import { exactCacheGet, exactCachePut } from "./cache";
+import { stripTools } from "./clean";
 import { extractTopics, SYSTEM_PROMPT } from "./prompt";
 
 const streamRoute = new Hono<{ Bindings: Env }>();
@@ -52,6 +55,7 @@ const Body = z
     // masuk branch_group yang sama & versi lama di-supersede (dapat ditampilkan lagi).
     regenerate: z.boolean().optional(),
     branch_group: z.string().max(64).optional(),
+    skill: z.string().max(32).optional(),
   })
   .transform((d) => {
     let msg = d.message?.trim() ?? "";
@@ -84,6 +88,7 @@ const Body = z
       model: d.model,
       regenerate: d.regenerate === true,
       branch_group: d.branch_group,
+      skill: d.skill,
     };
   })
   .refine((d) => d.message.length >= 1 && d.message.length <= 4000, { message: "message wajib 1..4000 char" });
@@ -123,7 +128,7 @@ async function summarizeTitle(c: AppContext, text: string): Promise<string> {
 streamRoute.post("/chat/stream", async (c) => {
   const parsed = Body.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid request" }, 400);
-  const { message, regenerate = false, branch_group } = parsed.data;
+  const { message, regenerate = false, branch_group, skill } = parsed.data;
 
   const userId = c.req.header("x-user-id") ?? null;
   const isAuth = userId !== null;
@@ -152,6 +157,29 @@ streamRoute.post("/chat/stream", async (c) => {
   const session = await store.getOrCreateSession(c, key, userId).catch(() => null);
   if (session?.banned || (userId ? await store.isUserBanned(c, userId).catch(() => false) : false)) {
     return c.json({ reply: "Akun ini telah dibatasi. Hubungi admin.", remaining: 0 }, 403);
+  }
+
+  // Kuota harian 40 pertanyaan/user (reset 24 jam via DATE key) — ala ChatGPT.
+  const dailyLimit = await resolveDailyQuota(c);
+  if (isAuth && userId && dailyLimit > 0) {
+    const ds = dailyStub(c, `u:${userId}`);
+    let ok = true;
+    if (ds) {
+      try {
+        ok = await ds.checkDaily("chat", dailyLimit);
+      } catch {
+        ok = true;
+      }
+    }
+    if (!ok) {
+      return c.json(
+        {
+          error: `Kamu sudah memakai ${dailyLimit} pertanyaan hari ini. Kuota di-reset otomatis besok — semangat, lanjut lagi yaa!`,
+          daily_quota: true,
+        },
+        429,
+      );
+    }
   }
 
   let rlOk = true;
@@ -230,8 +258,11 @@ streamRoute.post("/chat/stream", async (c) => {
   }
 
   const history = await store.getHistory(c, key, 6).catch(() => []);
+  const skillPrompt = skillPersona(skill);
+  const skillTools = skillToolFilter(skill);
   const messages: LlmMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
+    ...(skillPrompt ? [{ role: "system" as const, content: skillPrompt }] : []),
     ...(userCtxPrompt ? [{ role: "system" as const, content: userCtxPrompt }] : []),
     ...history
       .filter((h) => (h.role === "user" || h.role === "assistant") && typeof h.content === "string")
@@ -245,7 +276,10 @@ streamRoute.post("/chat/stream", async (c) => {
   let toolParts = "";
   let llmError = "";
   try {
-    const resp1 = await llmChatJson(c, messages, { tools: toolDefinitions(), model: modelOverride });
+    const resp1 = await llmChatJson(c, messages, {
+      tools: toolDefinitions(skillTools ?? undefined),
+      model: modelOverride,
+    });
     if (resp1.status !== 200) throw new Error(`LLM HTTP ${resp1.status}`);
     const msg = resp1.data?.choices?.[0]?.message;
     if (msg?.tool_calls?.length) {
@@ -367,12 +401,13 @@ streamRoute.post("/chat/stream", async (c) => {
               }
             }
             const saved = await store
-              .saveMessage(c, key, "assistant", finalTextSnap, { branchGroup: branch_group ?? null })
+              .saveMessage(c, key, "assistant", stripTools(finalTextSnap), { branchGroup: branch_group ?? null })
               .catch(() => null);
             if (branch_group && saved?.id)
               await store.supersedeBranch(c, key, branch_group, saved.id).catch(() => undefined);
-            if (finalText)
-              await exactCachePut(c, message, finalText, extractTopics(finalText), {}, cacheScope).catch(() => {});
+            const cleanText = stripTools(finalText);
+            if (cleanText && !llmError)
+              await exactCachePut(c, message, cleanText, extractTopics(cleanText), {}, cacheScope).catch(() => {});
           };
           if (execCtx2) execCtx2.waitUntil(persist());
           else void persist();

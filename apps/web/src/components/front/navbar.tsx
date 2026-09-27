@@ -14,6 +14,7 @@ import {
   Map as MapIcon,
   Menu,
   Search,
+  Sparkles,
   User,
 } from "lucide-react";
 import type { Route } from "next";
@@ -69,6 +70,12 @@ const NAV_ITEMS = [
         href: "/explore/compare",
         desc: "Side-by-side universitas",
         icon: BarChart3,
+      },
+      {
+        label: "AI Assistant",
+        href: "/explore/ai-assistant",
+        desc: "Mul.ai — tanya apa saja",
+        icon: Sparkles,
       },
     ],
   },

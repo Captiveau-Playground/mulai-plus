@@ -225,4 +225,104 @@ adminRoute.get("/events", async (c) => {
   return c.json({ events: rows });
 });
 
+// ── Settings (quota via Admin UI, tersimpan di KV) ──
+adminRoute.get("/settings", async (c) => {
+  const kv = (c.env as { AI_KV?: { get(key: string): Promise<string | null> } }).AI_KV;
+  let daily: number | null = null;
+  if (kv) {
+    try {
+      const v = await kv.get("ai:settings:daily-quota");
+      if (v != null) daily = Number(v);
+    } catch {
+      /* ignore */
+    }
+  }
+  return c.json({
+    daily_quota: daily ?? null,
+    default_daily: Number((c.env as Record<string, string | undefined>).QUOTA_DAILY ?? 40),
+    premium_quota: Number(process.env.QUOTA_PREMIUM ?? 5),
+  });
+});
+
+adminRoute.put("/settings", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { daily_quota?: number | string };
+  const kv = (c.env as { AI_KV?: { put(key: string, v: string): Promise<void> } }).AI_KV;
+  if (!kv) return c.json({ error: "KV AI_KV tidak tersedia" }, 500);
+  let n: number = Number(body.daily_quota);
+  if (!Number.isFinite(n)) return c.json({ error: "daily_quota harus angka" }, 400);
+  n = Math.round(n);
+  if (n < -1 || n > 1000) return c.json({ error: "daily_quota antara -1..1000" }, 400);
+  await kv.put("ai:settings:daily-quota", String(n));
+  return c.json({ ok: true, daily_quota: n, note: n <= 0 ? "limit dinonaktifkan" : "berlaku real-time" });
+});
+
+// ── Analytics/OLAP: tren harian 30 hari + jam-an 24 jam + feedback ──
+adminRoute.get("/analytics/trend", async (c) => {
+  await ensureAiTables(c).catch(() => {});
+  const days = Math.min(90, Math.max(7, Number(c.req.query("days") ?? 30)));
+  const rows = await query(
+    c,
+    `SELECT to_char(created_at, 'YYYY-MM-DD') d,
+            COUNT(*) messages,
+            SUM(CASE WHEN role = 'assistant' AND feedback = 'up' THEN 1 ELSE 0 END) up,
+            SUM(CASE WHEN role = 'assistant' AND feedback = 'down' THEN 1 ELSE 0 END) down
+     FROM chatbot_messages
+     WHERE created_at >= now() - ($1::int || ' days')::interval
+     GROUP BY 1 ORDER BY 1`,
+    [days],
+  );
+  return c.json({ days, data: rows });
+});
+
+adminRoute.get("/analytics/hourly", async (c) => {
+  await ensureAiTables(c).catch(() => {});
+  const rows = await query(
+    c,
+    `SELECT to_char(date_trunc('hour', created_at), 'HH24:00') h, COUNT(*) n
+     FROM chatbot_messages
+     WHERE created_at >= now() - interval '24 hours'
+     GROUP BY 1 ORDER BY 1`,
+  );
+  return c.json({ data: rows });
+});
+
+adminRoute.get("/feedback", async (c) => {
+  await ensureAiTables(c).catch(() => {});
+  const limit = Math.min(100, Math.max(10, Number(c.req.query("limit") ?? 50)));
+  const rows = await query(
+    c,
+    `SELECT m.id, m.session_id, m.feedback, m.created_at,
+            COALESCE(s.is_auth, FALSE) is_auth,
+            (SELECT u.content FROM chatbot_messages u
+             WHERE u.session_id = m.session_id AND u.role = 'user'
+               AND u.id < m.id ORDER BY u.id DESC LIMIT 1) AS question
+     FROM chatbot_messages m
+     LEFT JOIN chatbot_sessions s ON s.id = m.session_id
+     WHERE m.role = 'assistant' AND m.feedback IN ('up', 'down')
+     ORDER BY m.id DESC LIMIT $1`,
+    [limit],
+  );
+  const up = (
+    await queryOne<{ n: string }>(c, "SELECT COUNT(*) n FROM chatbot_messages WHERE role='assistant' AND feedback='up'")
+  )?.n;
+  const dn = (
+    await queryOne<{ n: string }>(
+      c,
+      "SELECT COUNT(*) n FROM chatbot_messages WHERE role='assistant' AND feedback='down'",
+    )
+  )?.n;
+  return c.json({
+    up: Number(up ?? 0),
+    down: Number(dn ?? 0),
+    data: rows.map((r) => ({
+      id: Number(r.id),
+      sessionId: r.session_id,
+      feedback: r.feedback,
+      question: (r.question ?? "").slice(0, 160),
+      isAuth: !!r.is_auth,
+      createdAt: r.created_at ? String(r.created_at) : null,
+    })),
+  });
+});
+
 export { adminRoute };

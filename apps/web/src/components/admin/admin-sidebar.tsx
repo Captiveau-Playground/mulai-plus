@@ -2,7 +2,6 @@
 
 import {
   BookOpen,
-  Bot,
   Brain,
   Building2,
   Computer,
@@ -14,6 +13,7 @@ import {
   Link as LinkIcon,
   Settings2,
   Shield,
+  Sparkles,
   Users,
 } from "lucide-react";
 import Image from "next/image";
@@ -219,17 +219,17 @@ const data = {
   ],
   navAi: [
     {
-      title: "Chatbot",
-      url: "#",
-      icon: Bot,
+      title: "AI Assistant",
+      url: "/admin/ai-assistant",
+      icon: Sparkles,
       items: [
         {
           title: "Analytics",
-          url: "/admin/chatbot-analytics",
+          url: "/admin/ai-assistant",
         },
         {
           title: "Users",
-          url: "/admin/chatbot-users",
+          url: "/admin/ai-assistant-users",
         },
       ],
     },

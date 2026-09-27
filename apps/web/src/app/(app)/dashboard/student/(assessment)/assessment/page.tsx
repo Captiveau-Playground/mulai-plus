@@ -2,9 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle2, PlayCircle, RotateCcw } from "lucide-react";
+import { ArrowRight, CheckCircle2, PlayCircle, RotateCcw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import ProfileGate, { useProfileGate } from "@/components/student/profile-gate";
 import { ProgressCharts } from "@/components/student/progress-charts";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -26,6 +30,8 @@ const TEST_META: Record<string, { emoji: string; color: string; desc: string; xp
 };
 
 export default function AssessmentHomePage() {
+  const [infoOpen, setInfoOpen] = useState(true);
+  const gate = useProfileGate();
   const { data, isLoading } = useQuery({
     ...orpc.tmb.assessment.list.queryOptions({ input: {} }),
   });
@@ -47,8 +53,90 @@ export default function AssessmentHomePage() {
   const xpToNext = (stats.level + 1) * 150;
   const levelProgress = Math.min(100, ((stats.xp - (stats.level - 1) * 150) / 150) * 100);
 
+  if (gate.loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" />
+      </div>
+    );
+  }
+  if (!gate.ready) {
+    return (
+      <div className="space-y-6">
+        <ProfileGate />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Info: masih development — dialog brand (bukan base-ui) */}
+      <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+        <DialogContent className="overflow-hidden! gap-0! border-border! bg-card! p-0! shadow-2xl! sm:max-w-[26rem]">
+          {/* Header brand */}
+          <div className="relative overflow-hidden bg-gradient-to-r from-brand-navy to-brand-navy-light px-6 py-5 text-white">
+            <div className="absolute -top-6 -right-6 size-24 rounded-full bg-brand-orange/25 blur-2xl" />
+            <div className="absolute -bottom-8 left-10 size-20 rounded-full bg-white/10 blur-xl" />
+            <div className="relative flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                  <TriangleAlert className="size-5 text-brand-orange" />
+                </span>
+                <div>
+                  <span className="inline-flex rounded-full bg-brand-orange/25 px-2 py-0.5 font-manrope font-semibold text-[10px] text-brand-orange uppercase tracking-wide">
+                    Development
+                  </span>
+                  <h3 className="mt-1 font-bold font-bricolage text-base leading-tight">
+                    Tes Minat &amp; Bakat masih dalam pengembangan
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Tutup"
+                onClick={() => setInfoOpen(false)}
+                className="flex size-7 shrink-0 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="space-y-2.5 px-6 py-5">
+            <p className="flex items-start gap-2.5 font-manrope text-sm text-text-main leading-relaxed">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-orange" />
+              Hasil yang tampil bisa berubah dan belum menjadi acuan final — pakai sebagai gambaran awal.
+            </p>
+            <p className="flex items-start gap-2.5 font-manrope text-sm text-text-main leading-relaxed">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-orange" />
+              Jawaban tes dipakai untuk profil RIASEC & rekomendasi jurusan/karier yang dipersonalisasi.
+            </p>
+            <p className="flex items-start gap-2.5 font-manrope text-sm text-text-main leading-relaxed">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-orange" />
+              Rekomendasi bersifat informasional — bukan pengganti pendampingan mentor.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between gap-2 border-border border-t px-6 py-4">
+            <Link
+              href="/privacy#assessment"
+              className="font-manrope font-semibold text-brand-navy text-xs underline decoration-brand-orange/60 underline-offset-2 hover:opacity-80"
+            >
+              Kebijakan Privasi · bab Assessment
+            </Link>
+            <Button
+              type="button"
+              onClick={() => setInfoOpen(false)}
+              className="rounded-xl bg-brand-navy px-5 font-manrope font-semibold text-sm text-white transition-colors hover:bg-brand-navy-light"
+            >
+              Mengerti
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Hero + stat */}
       <div className="grid gap-4 lg:grid-cols-3">
         <motion.div
