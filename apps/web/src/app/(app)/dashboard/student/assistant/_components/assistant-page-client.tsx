@@ -84,6 +84,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { LoaderCircle } from "@/components/ui/loader-circle";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
@@ -177,6 +178,30 @@ const EMPTY_CARDS = [
     title: "Program mentoring",
     desc: "1-on-1 & beasiswa mentoring",
     prompt: "Info program mentoring MULAI+",
+  },
+];
+
+// Onboarding Mul.ai — cara pakai (tampil sekali, tersimpan di localStorage)
+const _ONBOARD_STEPS = [
+  {
+    icon: <SparklesIcon className="size-5" />,
+    title: "Kenalan dengan Mul.ai",
+    desc: "Asisten AI personal buatmu — bantu cari universitas, jurusan, passing grade, dan program mentoring, semua dipersonalisasi dengan profil & hasil tes minat bakatmu.",
+  },
+  {
+    icon: <BrainIcon className="size-5" />,
+    title: "Pilih Skill sesuai kebutuhan",
+    desc: "Di atas kotak chat ada chip skill: Universitas, Prodi & Jurusan, Passing Grade, atau Mentoring. Tiap skill memandu AI fokus di bidang itu (saran pertanyaan ikut menyesuaikan).",
+  },
+  {
+    icon: <ZapIcon className="size-5" />,
+    title: "Atur model — Mulai Cerdas / Pintar / Bijak",
+    desc: "Klik nama model di toolbar composer untuk pilih: Mulai Cerdas (cepat & hemat), Mulai Pintar (seimbang), atau Mulai Bijak (kualitas maksimal, kuota 5/hari).",
+  },
+  {
+    icon: <ThumbsUp className="size-5" />,
+    title: "Lihat langkah AI & kasih feedback",
+    desc: "Saat AI memakai data (universitas/prodi/passing grade) akan tampil step statusnya. Setiap jawaban bisa di-copy, dicoba ulang, dan diberi feedback 👍/👎.",
   },
 ];
 
@@ -825,6 +850,11 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const [showSidebar, setShowSidebar] = useState(true);
   const [mobileListOpen, setMobileListOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<SessionItem | null>(null);
+  const [_onboardOpen, _setOnboardOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem("mulai-ai-onboard-seen");
+  });
+  const [_onboardStep, _setOnboardStep] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const _loaded = useRef<string | null>(null);
@@ -946,6 +976,79 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
 
   return (
     <div className="flex h-full min-h-0 w-full gap-3 p-4 md:p-4 lg:p-4">
+      {/* Onboarding first-visit Mul.ai */}
+      <Dialog open={_onboardOpen} onOpenChange={_setOnboardOpen}>
+        <DialogContent className="overflow-hidden! gap-0! border-border! bg-card! p-0! shadow-2xl! sm:max-w-md">
+          <div className="relative overflow-hidden bg-gradient-to-r from-brand-navy to-brand-navy-light px-6 py-6 text-center text-white">
+            <div className="absolute -top-6 -right-6 size-24 rounded-full bg-brand-orange/25 blur-2xl" />
+            <div className="absolute -bottom-8 left-8 size-20 rounded-full bg-white/10 blur-xl" />
+            <div className="relative mx-auto flex size-12 items-center justify-center rounded-2xl bg-white/15">
+              {_ONBOARD_STEPS[_onboardStep].icon}
+            </div>
+            <h3 className="mt-3 font-bold font-bricolage text-lg">Mul.ai — Kamu Pergi Melangkah</h3>
+            <p className="mt-0.5 font-manrope text-white/70 text-xs">Kenalan, lalu mulai tanya apa saja.</p>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex items-center justify-center gap-1.5 pb-3">
+              {_ONBOARD_STEPS.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === _onboardStep ? "w-5 bg-brand-orange" : "w-1.5 bg-border"
+                  }`}
+                />
+              ))}
+            </div>
+            <h4 className="text-center font-bold font-bricolage text-base text-brand-navy">
+              {_ONBOARD_STEPS[_onboardStep].title}
+            </h4>
+            <p className="mt-2 text-center font-manrope text-muted-foreground text-sm leading-relaxed">
+              {_ONBOARD_STEPS[_onboardStep].desc}
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-2 border-border border-t px-6 py-4">
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem("mulai-ai-onboard-seen", "1");
+                _setOnboardOpen(false);
+              }}
+              className="font-manrope text-muted-foreground text-xs transition-colors hover:text-brand-navy"
+            >
+              Lewati
+            </button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={_onboardStep === 0}
+                onClick={() => {
+                  if (_onboardStep > 0) _setOnboardStep(_onboardStep - 1);
+                }}
+                className="rounded-xl px-4 font-manrope text-xs"
+              >
+                Kembali
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (_onboardStep < _ONBOARD_STEPS.length - 1) {
+                    _setOnboardStep(_onboardStep + 1);
+                  } else {
+                    localStorage.setItem("mulai-ai-onboard-seen", "1");
+                    _setOnboardOpen(false);
+                  }
+                }}
+                className="rounded-xl bg-brand-navy px-5 font-manrope font-semibold text-sm text-white transition-colors hover:bg-brand-navy-light"
+              >
+                {_onboardStep < _ONBOARD_STEPS.length - 1 ? "Lanjut" : "Mulai pakai"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Sidebar percakapan */}
       {showSidebar && (
         <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:flex">
