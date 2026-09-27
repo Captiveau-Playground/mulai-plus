@@ -260,6 +260,25 @@ function ChatRuntime({
     lastSt.current = status;
   }, [status]);
 
+  const [feedbackState, setFeedbackState] = useState<Record<string, "up" | "down" | null>>({});
+
+  const sendFeedback = async (m: any, val: "up" | "down") => {
+    setFeedbackState((prev) => ({ ...prev, [m.id]: prev[m.id] === val ? null : val }));
+    const numMatch = /^m(\d+)$/.exec(m.id || "");
+    if (numMatch) {
+      try {
+        await fetch(`${AI_BASE}/ai/feedback`, {
+          method: "POST",
+          headers: { [SESSION_HEADER]: sessionId, "Content-Type": "application/json" },
+          body: JSON.stringify({ message_id: Number(numMatch[1]), feedback: val }),
+        });
+      } catch {
+        /* nonblokir */
+      }
+    }
+    notify.info(val === "up" ? "Terima kasih atas feedback positif 🙏" : "Kami catat feedbacknya — terima kasih");
+  };
+
   const copyMessage = async (full: string) => {
     try {
       await navigator.clipboard.writeText(full);
@@ -432,7 +451,7 @@ function ChatRuntime({
                           );
                         })()}
                         {m.role === "assistant" && (
-                          <MessageToolbar>
+                          <MessageToolbar className="justify-end! mt-1! gap-1.5">
                             <MessageActions>
                               <MessageAction
                                 variant="ghost"
@@ -469,6 +488,26 @@ function ChatRuntime({
                                 }}
                               >
                                 <RefreshCwIcon className="size-3.5" />
+                              </MessageAction>
+                              <MessageAction
+                                variant="ghost"
+                                size="icon-sm"
+                                title="Bermanfaat"
+                                aria-label="Feedback positif"
+                                className={feedbackState[m.id] === "up" ? "bg-brand-orange/10 text-brand-orange" : ""}
+                                onClick={() => void sendFeedback(m, "up")}
+                              >
+                                <ThumbsUp className="size-3.5" />
+                              </MessageAction>
+                              <MessageAction
+                                variant="ghost"
+                                size="icon-sm"
+                                title="Kurang bermanfaat"
+                                aria-label="Feedback negatif"
+                                className={feedbackState[m.id] === "down" ? "bg-brand-orange/10 text-brand-orange" : ""}
+                                onClick={() => void sendFeedback(m, "down")}
+                              >
+                                <ThumbsDown className="size-3.5" />
                               </MessageAction>
                             </MessageActions>
                           </MessageToolbar>
@@ -777,7 +816,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   };
 
   return (
-    <div className="flex h-full min-h-0 w-full gap-3 p-4 md:p-6 lg:p-8">
+    <div className="flex h-full min-h-0 w-full gap-3 p-4 md:p-4 lg:p-4">
       {/* Sidebar percakapan */}
       {showSidebar && (
         <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:flex">
