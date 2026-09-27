@@ -12,6 +12,7 @@ import {
   CheckIcon,
   Check as CheckMark,
   ChevronDownIcon,
+  CircleAlert,
   CopyIcon,
   GraduationCap,
   PencilIcon,
@@ -745,6 +746,21 @@ function ChatRuntime({
             </Link>
           </div>
         )}
+        {quotaOut && (
+          <div className="mx-1 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 sm:mx-3">
+            <CircleAlert className="mt-0.5 size-4.5 shrink-0 text-red-500" />
+            <div>
+              <p className="font-manrope font-semibold text-red-600 text-sm">
+                Kuota harian habis ({dailyLimit}/{dailyLimit} terpakai)
+              </p>
+              <p className="mt-0.5 font-manrope text-red-500/90 text-xs leading-relaxed">
+                Kamu sudah memakai semua pertanyaan hari ini. Kuota di-reset otomatis besok (24 jam) — sampai jumpa
+                besok ya, dan terima kasih sudah bertanya! 💙
+              </p>
+            </div>
+          </div>
+        )}
+
         <PromptInput
           id="tour-composer"
           onSubmit={handleSubmit}
