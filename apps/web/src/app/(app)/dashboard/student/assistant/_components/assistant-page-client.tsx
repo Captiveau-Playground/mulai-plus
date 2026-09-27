@@ -8,6 +8,7 @@ import {
   BookOpen,
   BrainIcon,
   Building2,
+  CheckCircle2,
   CheckIcon,
   Check as CheckMark,
   ChevronDownIcon,
@@ -27,7 +28,6 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import {
   Message,
@@ -65,6 +65,14 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { Task, TaskContent, TaskTrigger } from "@/components/ai-elements/task";
+
+const TOOL_LABELS: Record<string, string> = {
+  search_universities: "Mencari universitas",
+  search_programs: "Mencari program studi",
+  get_passing_grade: "Cek passing grade",
+  search_knowledge: "Mencari dokumentasi",
+};
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -253,26 +261,6 @@ function ChatRuntime({
     (chatRef.current as any)?.sendMessage({ text: q }, { body: { model: modelRef.current, skill } });
   };
 
-  /** Checkpoint restore: potong chat di sini + serempakkan DB. */
-  const restoreTo = async (keepIndex: number, label: string) => {
-    if (!window.confirm(`Mulai ulang dari "${label}"? Percakapan setelahnya akan dihapus.`)) return;
-    (chatRef.current as any)?.setMessages((prev: any[]) => prev.slice(0, keepIndex));
-    try {
-      await fetch(`${AI_BASE}/ai/sessions/truncate`, {
-        method: "POST",
-        headers: {
-          [SESSION_HEADER]: sessionId,
-          "Content-Type": "application/json",
-          ...(uidRef.current ? { "x-user-id": uidRef.current } : {}),
-        },
-        body: JSON.stringify({ session_id: sessionId, keep: keepIndex }),
-      });
-    } catch {
-      /* nonblokir */
-    }
-    changedRef.current();
-  };
-
   /** Regenerate: buat versi baru dari jawaban pada index i (ganti di tempat). */
   const doRegenerate = (i: number, userMsgId: string, userText: string, currentText: string) => {
     const blockKey = `b${userMsgId}`;
@@ -416,15 +404,6 @@ function ChatRuntime({
               transition={{ duration: 0.25, ease: "easeOut" }}
               className="contents"
             >
-              {/* Checkpoint — pembatas "mulai ulang dari sini" di tiap pertanyaan user */}
-              {idx > 0 && m.role === "user" && (
-                <Checkpoint className="my-1">
-                  <CheckpointIcon />
-                  <CheckpointTrigger onClick={() => restoreTo(idx, (m.content ?? "").slice(0, 40))}>
-                    Mulai ulang dari sini
-                  </CheckpointTrigger>
-                </Checkpoint>
-              )}
               {(() => {
                 const prevU = idx > 0 ? messages[idx - 1] : null;
                 const blockKey = prevU && prevU.role === "user" ? `b${prevU.id}` : null;
@@ -484,13 +463,34 @@ function ChatRuntime({
                                       <Task
                                         key={i}
                                         defaultOpen={false}
-                                        className="rounded-xl border border-gray-200 bg-card"
+                                        className="my-1 overflow-hidden rounded-lg border border-border bg-card"
                                       >
-                                        <TaskTrigger
-                                          title={`${done ? "✓" : "…"} ${ti.toolName ?? ti.name ?? "tool"}`}
-                                        />
+                                        <TaskTrigger title="" asChild>
+                                          <div className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5">
+                                            <span className="flex min-w-0 items-center gap-1.5 font-manrope font-medium text-[11px] text-brand-navy">
+                                              {done ? (
+                                                <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" />
+                                              ) : (
+                                                <LoaderCircle className="size-3.5 shrink-0 animate-spin text-brand-orange" />
+                                              )}
+                                              <span className="truncate">
+                                                {TOOL_LABELS[ti.toolName ?? ti.name ?? ""] ??
+                                                  ti.toolName ??
+                                                  ti.name ??
+                                                  "tool"}
+                                              </span>
+                                            </span>
+                                            <span
+                                              className={`shrink-0 font-manrope text-[10px] ${
+                                                done ? "text-emerald-600" : "animate-pulse text-muted-foreground"
+                                              }`}
+                                            >
+                                              {done ? "✓ selesai" : "berjalan…"}
+                                            </span>
+                                          </div>
+                                        </TaskTrigger>
                                         <TaskContent>
-                                          <pre className="overflow-x-auto p-3 font-mono text-[10px] text-text-muted-custom">
+                                          <pre className="overflow-x-auto bg-muted/40 p-3 font-mono text-[10px] text-text-muted-custom leading-relaxed">
                                             {typeof result === "string"
                                               ? result.slice(0, 800)
                                               : JSON.stringify({ args: ti.args ?? {}, result }, null, 2).slice(0, 800)}
