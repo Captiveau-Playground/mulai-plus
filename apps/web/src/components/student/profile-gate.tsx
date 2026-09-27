@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { CircleAlert, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { mapLevel, SchoolSuggestions, useSchoolSearch } from "@/components/student/school-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -50,6 +51,7 @@ export function useProfileGate() {
 
 export default function ProfileGate() {
   const { profile, refresh } = useProfileGate();
+  const sch = useSchoolSearch();
   const [school, setSchool] = useState("");
   const [level, setLevel] = useState("");
   const updateProfile = useMutation(
@@ -91,13 +93,30 @@ export default function ProfileGate() {
             <label htmlFor="pg-school" className="mb-1 block font-manrope font-medium text-text-main text-xs">
               Sekolah / Instansi
             </label>
-            <Input
-              id="pg-school"
-              value={school}
-              placeholder="cth: SMA N 1 Jakarta"
-              onChange={(e) => setSchool(e.target.value)}
-              className="bg-card font-manrope"
-            />
+            <div className="relative">
+              <Input
+                id="pg-school"
+                value={sch.q}
+                placeholder="ketik nama sekolah (min. 3 huruf)"
+                onChange={(e) => {
+                  setSchool(e.target.value);
+                  sch.setQ(e.target.value);
+                  sch.setOpen(true);
+                }}
+                onFocus={() => sch.setOpen(true)}
+                onBlur={() => setTimeout(() => sch.setOpen(false), 200)}
+                className="bg-card font-manrope"
+              />
+              <SchoolSuggestions
+                search={sch}
+                onPick={(item) => {
+                  setSchool(item.nama);
+                  setLevel(mapLevel(item.jenjang));
+                  sch.setQ("");
+                  sch.setOpen(false);
+                }}
+              />
+            </div>
             <p className="mt-1 font-manrope text-[10px] text-muted-foreground">
               Ada saran otomatis nama sekolah di halaman Pengaturan.
             </p>

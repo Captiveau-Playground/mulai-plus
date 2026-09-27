@@ -3,9 +3,10 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Globe, Loader2, MapPin, Phone, School, User } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useSchoolSearch } from "@/components/student/school-search";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -50,58 +51,8 @@ export default function StudentSettingsPage() {
   const { data: user, isLoading, refetch } = useQuery(orpc.user.getProfile.queryOptions());
   const updateProfile = useMutation(orpc.user.updateProfile.mutationOptions());
 
-  // Autocomplete sekolah — API Sekolah Mandiri + filter provinsi & jenjang (SMP ke atas)
-  const SCHOOL_API = "https://api-sekolah-kita.pages.dev/api/sekolah";
-  const BENTUK_ATAS = ["SMP", "MTS", "SMA", "MA", "SMK"];
-  const [schoolQ, setSchoolQ] = useState("");
-  const [schoolSug, setSchoolSug] = useState<
-    { nama: string; kab: string; kec: string; prov: string; jenjang: string; npsn: string }[]
-  >([]);
-  const [schoolOpen, setSchoolOpen] = useState(false);
-  const [provList, setProvList] = useState<string[]>([]);
-  const [provSel, setProvSel] = useState("");
-  const [bentukSel, setBentukSel] = useState("");
-
-  useEffect(() => {
-    fetch("https://api-sekolah-kita.pages.dev/api/rekap")
-      .then((r) => r.json())
-      .then((d) => setProvList(Array.isArray(d?.metadata?.provinsi) ? d.metadata.provinsi : []))
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    const q = schoolQ.trim();
-    if (q.length < 3) {
-      setSchoolSug([]);
-      return;
-    }
-    const t = setTimeout(async () => {
-      try {
-        const params = new URLSearchParams({ keyword: q, limit: "8" });
-        if (provSel) params.set("provinsi", provSel);
-        if (bentukSel && BENTUK_ATAS.includes(bentukSel)) params.set("bentuk", bentukSel);
-        const r = await fetch(`${SCHOOL_API}?${params.toString()}`);
-        const d = await r.json();
-        const rows = (d?.data ?? [])
-          .map((x: any) => ({
-            nama: String(x.nama ?? ""),
-            kab: String(x.nama_kabupaten ?? ""),
-            kec: String(x.nama_kecamatan ?? ""),
-            prov: String(x.nama_provinsi ?? ""),
-            jenjang: String(x.bentuk_pendidikan_group ?? x.jenjang_pendidikan ?? x.bentuk_pendidikan ?? ""),
-            npsn: String(x.npsn ?? ""),
-          }))
-          .filter((x: any) => {
-            const j = `${x.jenjang} ${x.nama}`.toUpperCase();
-            return BENTUK_ATAS.some((b) => j.includes(b)) || /(SLTP|SLTA)/i.test(j);
-          });
-        setSchoolSug(rows.slice(0, 8));
-      } catch {
-        setSchoolSug([]);
-      }
-    }, 350);
-    return () => clearTimeout(t);
-  }, [schoolQ, provSel, bentukSel, BENTUK_ATAS.some, BENTUK_ATAS.includes]);
+  // Autocomplete sekolah — hook bersama (API Sekolah Mandiri, filter provinsi/jenjang SMP ke atas)
+  const sch = useSchoolSearch();
 
   const form = useForm<ProfileFormValues>({
     resolver: standardSchemaResolver(profileFormSchema),
@@ -313,16 +264,16 @@ export default function StudentSettingsPage() {
                           </p>
                           <div className="mb-1 flex flex-wrap items-center gap-2">
                             <Select
-                              value={provSel}
+                              value={sch.provSel}
                               onValueChange={(v) => {
-                                if (v != null) setProvSel(v);
+                                if (v != null) sch.setProvSel(v);
                               }}
                             >
                               <SelectTrigger className="w-40 bg-white font-manrope text-xs">
                                 <SelectValue placeholder="Provinsi (opsional)" />
                               </SelectTrigger>
                               <SelectContent className="max-h-64">
-                                {provList.map((pv) => (
+                                {sch.provList.map((pv: string) => (
                                   <SelectItem key={pv} value={pv}>
                                     {pv.replace("PROV. ", "")}
                                   </SelectItem>
@@ -330,9 +281,9 @@ export default function StudentSettingsPage() {
                               </SelectContent>
                             </Select>
                             <Select
-                              value={bentukSel}
+                              value={sch.bentukSel}
                               onValueChange={(v) => {
-                                if (v != null) setBentukSel(v);
+                                if (v != null) sch.setBentukSel(v);
                               }}
                             >
                               <SelectTrigger className="w-36 bg-white font-manrope text-xs">
@@ -354,16 +305,16 @@ export default function StudentSettingsPage() {
                               {...field}
                               onChange={(e) => {
                                 field.onChange(e);
-                                setSchoolQ(e.target.value);
-                                setSchoolOpen(true);
+                                sch.setQ(e.target.value);
+                                sch.setOpen(true);
                               }}
-                              onFocus={() => setSchoolOpen(true)}
-                              onBlur={() => setTimeout(() => setSchoolOpen(false), 200)}
+                              onFocus={() => sch.setOpen(true)}
+                              onBlur={() => setTimeout(() => sch.setOpen(false), 200)}
                             />
                           </FormControl>
-                          {schoolOpen && schoolSug.length > 0 && (
+                          {sch.open && sch.sug.length > 0 && (
                             <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-lg">
-                              {schoolSug.map((sk, i) => (
+                              {sch.sug.map((sk: any, i: number) => (
                                 <button
                                   key={`${sk.npsn}-${i}`}
                                   type="button"
@@ -381,9 +332,9 @@ export default function StudentSettingsPage() {
                                             ? "SMP"
                                             : "SMA",
                                     );
-                                    setSchoolQ("");
-                                    setSchoolSug([]);
-                                    setSchoolOpen(false);
+                                    sch.setQ("");
+                                    sch.setQ("");
+                                    sch.setOpen(false);
                                   }}
                                   className="flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-muted"
                                 >
