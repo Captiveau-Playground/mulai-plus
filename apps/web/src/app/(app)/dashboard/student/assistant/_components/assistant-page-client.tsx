@@ -235,13 +235,16 @@ function ChatRuntime({
   userId,
   initialMessages,
   onChanged,
+  ctx,
+  dailyLeft,
 }: {
   sessionId: string;
   userId: string | null;
   initialMessages: any[];
   onChanged: () => void;
+  ctx: UserContext | null;
+  dailyLeft: number | null;
 }) {
-  const [ctx, setCtx] = useState<UserContext | null>(null);
   const [text, setText] = useState("");
   const [skill, setSkill] = useState("general");
   const [model, setModel] = useState("smart");
@@ -279,46 +282,15 @@ function ChatRuntime({
   const status = (chat as any).status;
   const busy = status === "submitted" || status === "streaming";
 
-  useEffect(() => {
-    void fetch(`${AI_BASE}/ai/context`, {
-      headers: { [SESSION_HEADER]: sessionId, ...(userId ? { "x-user-id": userId } : {}) },
-    })
-      .then((r) => r.json())
-      .then((d) => setCtx((d as any).profile ?? null))
-      .catch(() => setCtx(null));
-  }, [sessionId, userId]);
-
-  // Saat selesai streaming → refresh list (judul/update_at dari pesan pertama).
-  const [dailyLeft, setDailyLeft] = useState<number | null>(null);
-  const dailyLimit = 40;
-
-  const loadUsage = useCallback(async () => {
-    try {
-      const r = await fetch(`${AI_BASE}/ai/quota`, {
-        headers: { [SESSION_HEADER]: sessionId, ...(uidRef.current ? { "x-user-id": uidRef.current } : {}) },
-      });
-      if (!r.ok) return;
-      const d = (await r.json()) as any;
-      if (typeof d?.daily?.remaining === "number") setDailyLeft(d.daily.remaining);
-    } catch {
-      /* nonblokir */
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    void loadUsage();
-  }, [loadUsage]);
-
+  const _dailyLimit = 40;
   const quotaOut = dailyLeft !== null && dailyLeft <= 0;
-
   const lastStatus = useRef(status);
   useEffect(() => {
     if (lastStatus.current === "streaming" && (status === "ready" || status === "error")) {
       changedRef.current();
-      void loadUsage();
     }
     lastStatus.current = status;
-  }, [status, loadUsage]);
+  }, [status]);
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text?.trim());
@@ -772,53 +744,6 @@ function ChatRuntime({
             </Link>
           </div>
         )}
-        {(ctx?.school || ctx?.riasecPrimary || model === "premium" || dailyLeft !== null) && (
-          <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1">
-            {ctx?.school && (
-              <span className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy transition-colors hover:bg-brand-navy/10">
-                🏫 {ctx.school}
-              </span>
-            )}
-            {ctx?.riasecPrimary && (
-              <span className="rounded-full bg-brand-orange/10 px-2 py-1 font-manrope text-[10px] text-brand-orange">
-                🧭 {ctx.riasecPrimary}
-              </span>
-            )}
-            {model === "premium" && (
-              <span className="rounded-full bg-brand-orange/10 px-2 py-1 font-manrope text-[10px] text-brand-orange">
-                kuota premium 5/hari
-              </span>
-            )}
-          </div>
-        )}
-
-        {dailyLeft !== null && (
-          <div className="px-4 pt-2 pb-0.5 sm:px-5">
-            <div className="flex items-center justify-between pb-1 font-manrope text-[10px] text-muted-foreground">
-              <span>
-                🗨️ {Math.max(0, dailyLimit - dailyLeft)}/{dailyLimit} pertanyaan hari ini
-              </span>
-              {quotaOut ? (
-                <span className="font-semibold text-red-500">habis — reset otomatis besok</span>
-              ) : (
-                <span>reset otomatis besok</span>
-              )}
-            </div>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-border">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  quotaOut
-                    ? "bg-red-500"
-                    : dailyLeft <= Math.ceil(dailyLimit * 0.2)
-                      ? "bg-brand-orange"
-                      : "bg-brand-orange/70"
-                }`}
-                style={{ width: `${Math.min(100, Math.round(((dailyLimit - dailyLeft) / dailyLimit) * 100))}%` }}
-              />
-            </div>
-          </div>
-        )}
-
         <PromptInput
           id="tour-composer"
           onSubmit={handleSubmit}
@@ -1031,6 +956,31 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   }, [userId, refreshSessions]);
 
   const active = sessions.find((s) => s.id === activeId);
+  const [ctx, setCtx] = useState<UserContext | null>(null);
+  const [dailyLeft, setDailyLeft] = useState<number | null>(null);
+  const dailyLimit = 40;
+  const loadProfile = useCallback(async () => {
+    if (!activeId) return;
+    try {
+      const r = await fetch(`${AI_BASE}/ai/context`, { headers: { [SESSION_HEADER]: activeId } });
+      const d = (await r.json()) as any;
+      setCtx(d?.profile ?? null);
+    } catch {
+      setCtx(null);
+    }
+    try {
+      const r = await fetch(`${AI_BASE}/ai/quota`, {
+        headers: { [SESSION_HEADER]: activeId, ...(userId ? { "x-user-id": userId } : {}) },
+      });
+      const d = (await r.json()) as any;
+      setDailyLeft(typeof d?.daily?.remaining === "number" ? d.daily.remaining : null);
+    } catch {
+      /* nonblokir */
+    }
+  }, [activeId, userId]);
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
 
   const saveRename = async (sessionId: string, title: string) => {
     const clean = title.trim().slice(0, 60);
@@ -1135,7 +1085,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       {/* Sidebar percakapan */} {/* Sidebar percakapan */}
       {showSidebar && (
         <aside className="hidden min-h-0 w-[264px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:flex">
-          <div className="flex items-center justify-between border-border border-b p-3">
+          <div className="flex items-center justify-between border-border border-b p-2.5">
             <h2 className="font-bold font-bricolage text-brand-navy text-sm">Percakapan</h2>
             <Button
               type="button"
@@ -1242,6 +1192,50 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             )}
           </div>
 
+          {/* Profil & kuota — mentok bawah list chat */}
+          <div className="mt-auto space-y-2 border-border border-t px-3 py-3">
+            {(ctx?.school || ctx?.riasecPrimary) && (
+              <div className="flex flex-wrap gap-1.5">
+                {ctx?.school && (
+                  <span className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy">
+                    🏫 {ctx.school}
+                  </span>
+                )}
+                {ctx?.riasecPrimary && (
+                  <span className="rounded-full bg-brand-orange/10 px-2 py-1 font-manrope text-[10px] text-brand-orange">
+                    🧭 {ctx.riasecPrimary}
+                  </span>
+                )}
+              </div>
+            )}
+            {dailyLeft !== null && (
+              <div>
+                <div className="flex items-center justify-between pb-1 font-manrope text-[10px] text-muted-foreground">
+                  <span>
+                    🗨️ {Math.max(0, dailyLimit - dailyLeft)}/{dailyLimit} hari ini
+                  </span>
+                  {dailyLeft <= 0 ? (
+                    <span className="font-semibold text-red-500">habis·besok reset</span>
+                  ) : (
+                    <span>reset besok</span>
+                  )}
+                </div>
+                <div className="h-1 w-full overflow-hidden rounded-full bg-border">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      dailyLeft <= 0
+                        ? "bg-red-500"
+                        : dailyLeft <= Math.ceil(dailyLimit * 0.2)
+                          ? "bg-brand-orange"
+                          : "bg-brand-orange/70"
+                    }`}
+                    style={{ width: `${Math.min(100, Math.round(((dailyLimit - dailyLeft) / dailyLimit) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Dialog hapus percakapan — bukan confirm browser */}
           <AlertDialog open={deleteTarget !== null} onOpenChange={(o) => !o && setDeleteTarget(null)}>
             <AlertDialogContent>
@@ -1283,7 +1277,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             mobileListOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex items-center justify-between border-border border-b p-2.5">
+          <div className="flex items-center justify-between border-border border-b p-3">
             <h2 className="font-bold font-bricolage text-brand-navy text-sm">Percakapan</h2>
             <button
               type="button"
@@ -1391,6 +1385,48 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
           <div className="border-border border-t px-3 py-2 font-manrope text-[10px] text-text-muted-custom">
             Kelola: pilih untuk lanjut · ✏️ ubah judul · 🗑 hapus
           </div>
+          <div className="border-border border-t px-3 py-2.5">
+            {(ctx?.school || ctx?.riasecPrimary) && (
+              <div className="flex flex-wrap gap-1.5 pb-2">
+                {ctx?.school && (
+                  <span className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy">
+                    🏫 {ctx.school}
+                  </span>
+                )}
+                {ctx?.riasecPrimary && (
+                  <span className="rounded-full bg-brand-orange/10 px-2 py-1 font-manrope text-[10px] text-brand-orange">
+                    🧭 {ctx.riasecPrimary}
+                  </span>
+                )}
+              </div>
+            )}
+            {dailyLeft !== null && (
+              <div>
+                <div className="flex items-center justify-between pb-1 font-manrope text-[10px] text-muted-foreground">
+                  <span>
+                    🗨️ {Math.max(0, dailyLimit - dailyLeft)}/{dailyLimit} hari ini
+                  </span>
+                  {dailyLeft <= 0 ? (
+                    <span className="font-semibold text-red-500">habis·besok reset</span>
+                  ) : (
+                    <span>reset besok</span>
+                  )}
+                </div>
+                <div className="h-1 w-full overflow-hidden rounded-full bg-border">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      dailyLeft <= 0
+                        ? "bg-red-500"
+                        : dailyLeft <= Math.ceil(dailyLimit * 0.2)
+                          ? "bg-brand-orange"
+                          : "bg-brand-orange/70"
+                    }`}
+                    style={{ width: `${Math.min(100, Math.round(((dailyLimit - dailyLeft) / dailyLimit) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {/* Panel utama chat */}
@@ -1448,7 +1484,12 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
               sessionId={activeId}
               userId={userId}
               initialMessages={history}
-              onChanged={() => void refreshSessions()}
+              ctx={ctx}
+              dailyLeft={dailyLeft}
+              onChanged={() => {
+                void refreshSessions();
+                void loadProfile();
+              }}
             />
           </div>
         )}
