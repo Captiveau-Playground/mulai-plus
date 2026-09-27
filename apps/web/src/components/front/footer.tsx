@@ -40,6 +40,7 @@ const footerNavLinks = [
     links: [
       { label: "About Us", href: "/#about" },
       { label: "Mentors", href: "/#mentors" },
+      { label: "Sponsor & Partner", href: "/sponsors" },
       { label: "Pembaruan / Changelog", href: "/changelog" },
       { label: "FAQ", href: "/#faq" },
     ],

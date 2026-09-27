@@ -10,7 +10,8 @@
     "head_sampling_rate": 1
   },
   "vars": {
-    "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
+    "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "QUOTA_DAILY": "40"
   },
   "kv_namespaces": [
     { "binding": "AI_KV", "id": "434d1a4233b84809b26e7ccc31ceb1c3" }
@@ -37,7 +38,8 @@
       ],
       "vars": {
         "CORS_ORIGIN": "https://staging.mulaiplus.id",
-        "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
+        "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+        "QUOTA_DAILY": "40"
       }
     },
     "production": {
