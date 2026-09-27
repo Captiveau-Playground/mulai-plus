@@ -46,6 +46,7 @@ export default function StudentDashboardLayout({ children }: { children: React.R
         style={
           {
             "--sidebar-width": "280px",
+            "--sidebar-width-icon": "3rem",
           } as React.CSSProperties
         }
       >
