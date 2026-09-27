@@ -14,6 +14,11 @@ main = "src/worker.ts"
 compatibility_date = "2026-08-14"
 compatibility_flags = ["nodejs_compat"]
 
+# Observability — logs dashboard aktif di semua env
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 # Auto-publish scheduled articles (same 5-minute cadence as the Bun setInterval)
 [triggers]
 crons = ["*/1 * * * *"]
