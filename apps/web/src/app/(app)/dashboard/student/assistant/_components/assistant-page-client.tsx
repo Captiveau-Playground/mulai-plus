@@ -13,6 +13,8 @@ import {
   PlusIcon,
   RefreshCwIcon,
   SparklesIcon,
+  ThumbsDown,
+  ThumbsUp,
   Trash2Icon,
   X,
   ZapIcon,
