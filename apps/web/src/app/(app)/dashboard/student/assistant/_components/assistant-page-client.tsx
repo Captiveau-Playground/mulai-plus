@@ -289,18 +289,45 @@ function ChatRuntime({
   }, [sessionId, userId]);
 
   // Saat selesai streaming → refresh list (judul/update_at dari pesan pertama).
+  const [dailyLeft, setDailyLeft] = useState<number | null>(null);
+  const dailyLimit = 40;
+
+  const loadUsage = useCallback(async () => {
+    try {
+      const r = await fetch(`${AI_BASE}/ai/quota`, {
+        headers: { [SESSION_HEADER]: sessionId, ...(uidRef.current ? { "x-user-id": uidRef.current } : {}) },
+      });
+      if (!r.ok) return;
+      const d = (await r.json()) as any;
+      if (typeof d?.daily?.remaining === "number") setDailyLeft(d.daily.remaining);
+    } catch {
+      /* nonblokir */
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    void loadUsage();
+  }, [loadUsage]);
+
+  const quotaOut = dailyLeft !== null && dailyLeft <= 0;
+
   const lastStatus = useRef(status);
   useEffect(() => {
     if (lastStatus.current === "streaming" && (status === "ready" || status === "error")) {
       changedRef.current();
+      void loadUsage();
     }
     lastStatus.current = status;
-  }, [status]);
+  }, [status, loadUsage]);
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text?.trim());
     const hasFiles = Boolean(message.files?.length);
     if (!hasText && !hasFiles) return;
+    if (quotaOut) {
+      notify.error("Kuota harian 40 pertanyaan sudah habis — reset otomatis besok, yaa!");
+      return;
+    }
     (chatRef.current as any)?.sendMessage(
       { text: message.text?.trim() || "Sent with attachment(s)", files: message.files },
       { body: { model: modelRef.current, branch_group: `g-${crypto.randomUUID().slice(0, 12)}`, skill } },
@@ -309,6 +336,10 @@ function ChatRuntime({
   };
 
   const sendText = (q: string) => {
+    if (quotaOut) {
+      notify.error("Kuota harian 40 pertanyaan sudah habis — reset otomatis besok, yaa!");
+      return;
+    }
     (chatRef.current as any)?.sendMessage({ text: q }, { body: { model: modelRef.current, skill } });
   };
 
@@ -352,7 +383,6 @@ function ChatRuntime({
   }, [status]);
 
   const [feedbackState, setFeedbackState] = useState<Record<string, "up" | "down" | null>>({});
-
   const sendFeedback = async (m: any, val: "up" | "down") => {
     setFeedbackState((prev) => ({ ...prev, [m.id]: prev[m.id] === val ? null : val }));
     const numMatch = /^m(\d+)$/.exec(m.id || "");
@@ -742,8 +772,22 @@ function ChatRuntime({
             </Link>
           </div>
         )}
-        {(ctx?.school || ctx?.riasecPrimary || model === "premium") && (
+        {(ctx?.school || ctx?.riasecPrimary || model === "premium" || dailyLeft !== null) && (
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1">
+            {dailyLeft !== null && (
+              <span
+                className={`rounded-full px-2 py-1 font-manrope text-[10px] ${
+                  quotaOut ? "bg-red-50 text-red-500" : "bg-brand-navy/5 text-brand-navy"
+                }`}
+              >
+                🗨️ {Math.max(0, dailyLeft)}/{dailyLimit} hari ini
+              </span>
+            )}
+            {quotaOut && (
+              <span className="rounded-full bg-red-50 px-2 py-1 font-manrope text-[10px] text-red-500">
+                Kuota hari ini habis — lanjut besok
+              </span>
+            )}
             {ctx?.school && (
               <span className="rounded-full bg-brand-navy/5 px-2 py-1 font-manrope text-[10px] text-brand-navy transition-colors hover:bg-brand-navy/10">
                 🏫 {ctx.school}
@@ -771,6 +815,7 @@ function ChatRuntime({
           <PromptInputBody>
             <PromptInputTextarea
               value={text}
+              readOnly={quotaOut}
               onChange={(e) => setText(e.target.value)}
               placeholder="Tanyakan apa saja… (Enter kirim, Shift+Enter baris baru)"
             />
@@ -834,7 +879,11 @@ function ChatRuntime({
                 </ModelSelectorContent>
               </ModelSelector>
             </PromptInputTools>
-            <PromptInputSubmit status={status} className="bg-brand-navy! text-white! hover:bg-brand-navy-light!" />
+            <PromptInputSubmit
+              status={status}
+              disabled={quotaOut}
+              className="bg-brand-navy! text-white! hover:bg-brand-navy-light!"
+            />
           </PromptInputFooter>
         </PromptInput>
       </div>
