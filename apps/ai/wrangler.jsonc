@@ -39,7 +39,7 @@
       "vars": {
         "CORS_ORIGIN": "https://staging.mulaiplus.id",
         "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
-        "QUOTA_DAILY": "5"
+        "QUOTA_DAILY": "40"
       }
     },
     "production": {

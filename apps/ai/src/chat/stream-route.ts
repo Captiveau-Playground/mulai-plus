@@ -33,6 +33,7 @@ import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
 import { AUTH_RATE_LIMIT_PER_MIN, GUEST_RATE_LIMIT_PER_MIN } from "../policies/rate-limit";
 import { exactCacheGet, exactCachePut } from "./cache";
+import { stripTools } from "./clean";
 import { extractTopics, SYSTEM_PROMPT } from "./prompt";
 
 const streamRoute = new Hono<{ Bindings: Env }>();
@@ -400,12 +401,13 @@ streamRoute.post("/chat/stream", async (c) => {
               }
             }
             const saved = await store
-              .saveMessage(c, key, "assistant", finalTextSnap, { branchGroup: branch_group ?? null })
+              .saveMessage(c, key, "assistant", stripTools(finalTextSnap), { branchGroup: branch_group ?? null })
               .catch(() => null);
             if (branch_group && saved?.id)
               await store.supersedeBranch(c, key, branch_group, saved.id).catch(() => undefined);
-            if (finalText)
-              await exactCachePut(c, message, finalText, extractTopics(finalText), {}, cacheScope).catch(() => {});
+            const cleanText = stripTools(finalText);
+            if (cleanText && !llmError)
+              await exactCachePut(c, message, cleanText, extractTopics(cleanText), {}, cacheScope).catch(() => {});
           };
           if (execCtx2) execCtx2.waitUntil(persist());
           else void persist();
