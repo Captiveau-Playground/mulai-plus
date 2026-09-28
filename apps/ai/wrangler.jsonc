@@ -9,7 +9,7 @@
     "enabled": true,
     "head_sampling_rate": 1
   },
-  "vars": {
+  "vars": { "DISCORD_WEBHOOK_URL": "",
     "OPENAI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
     "QUOTA_DAILY": "40"
   },

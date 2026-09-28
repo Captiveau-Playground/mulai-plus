@@ -35,7 +35,8 @@
     "dotenv": "catalog:",
     "hono": "catalog:",
     "nanoid": "^5.1.6",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@mulai-plus/notify": "workspace:*"
   },
   "devDependencies": {
     "@mulai-plus/config": "workspace:*",

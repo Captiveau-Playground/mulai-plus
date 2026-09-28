@@ -1,0 +1,15 @@
+{
+  "name": "@mulai-plus/notify",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./discord": "./src/discord.ts"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "@types/bun": "catalog:",
+    "@mulai-plus/config": "workspace:*"
+  },
+  "dependencies": {}
+}

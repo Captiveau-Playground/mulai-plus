@@ -117,7 +117,7 @@ adminRoute.get("/sessions/:id", async (c) => {
   const messages = await query(
     c,
     `SELECT id, role, content, prompt_tokens, completion_tokens, model, cost, feedback, created_at
-     FROM chatbot_messages WHERE session_id = $1 ORDER BY id ASC`,
+     FROM chatbot_messages WHERE session_id = $1 ORDER BY id ASC LIMIT 500`,
     [id],
   );
   const costRow = await queryOne<{ s: string }>(

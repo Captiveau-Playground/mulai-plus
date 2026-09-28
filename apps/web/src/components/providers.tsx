@@ -6,17 +6,15 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { queryClient } from "@/utils/orpc";
 
 import { AnalyticsProvider } from "./analytics-provider";
-import { ThemeProvider } from "./theme-provider";
+
 import { GooeyToasterMount } from "./ui/goey-toaster";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider {...({} as any)} attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-      <QueryClientProvider client={queryClient}>
-        <AnalyticsProvider>{children}</AnalyticsProvider>
-        <ReactQueryDevtools />
-      </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <AnalyticsProvider>{children}</AnalyticsProvider>
+      <ReactQueryDevtools />
       <GooeyToasterMount />
-    </ThemeProvider>
+    </QueryClientProvider>
   );
 }

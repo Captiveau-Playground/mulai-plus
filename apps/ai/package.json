@@ -14,7 +14,8 @@
   "dependencies": {
     "hono": "catalog:",
     "zod": "catalog:",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "@mulai-plus/notify": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250601.0",

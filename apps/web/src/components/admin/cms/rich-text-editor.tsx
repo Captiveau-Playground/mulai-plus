@@ -335,11 +335,7 @@ export function RichTextEditor({
       </div>
 
       {/* Editor Content */}
-      <EditorContent
-        editor={editor}
-        className="prose prose-sm dark:prose-invert max-w-none p-4"
-        style={{ minHeight }}
-      />
+      <EditorContent editor={editor} className="prose prose-sm max-w-none p-4" style={{ minHeight }} />
 
       {/* Character Count */}
       <div className="flex justify-end border-input border-t bg-muted/30 px-3 py-1.5">

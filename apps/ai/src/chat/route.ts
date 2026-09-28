@@ -13,6 +13,7 @@ import * as store from "../db/chat-store";
 import { unsafe } from "../db/db";
 import { ensureAiTables } from "../db/schema-init";
 import { dailyStub } from "../do/access-daily";
+import { notify } from "../notify";
 import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
 import { stripTools } from "./clean";
@@ -140,6 +141,14 @@ chatRoute.post("/chat", async (c) => {
     const reserved = await store.reserveMessageSlot(c, key, quotaPolicy(false).max).catch(() => 1);
     if (reserved === null) {
       await record(c, { sessionId: key, userId, event: "quota_exhausted" });
+      notify(c, {
+        event: "mulai_ai.quota_exhausted",
+        title: "⏳ Kuota harian habis",
+        description: "Pengguna mencapai batas pertanyaan harian di Mul.ai.",
+        fields: [{ name: "User", value: userId ?? "anonim", inline: true }],
+        throttleMs: 10 * 60_000,
+        color: 0xf59e0b,
+      });
       return c.json(
         {
           reply: quotaPolicy(false).exhaustedMessage,
@@ -313,6 +322,19 @@ chatRoute.post("/feedback", async (c) => {
   const userId = c.req.header("x-user-id") ?? null;
   await store.setFeedback(c, message_id, feedback === "none" ? null : feedback).catch(() => {});
   record(c, { sessionId: key, userId, event: "feedback", data: { message_id, feedback } });
+  if (feedback === "down") {
+    notify(c, {
+      event: "mulai_ai.feedback_negative",
+      title: "👎 Feedback negatif — Mul.ai",
+      description: "Seseorang memberi rating tidak puas pada jawaban asisten.",
+      fields: [
+        { name: "User", value: userId ?? "anonim", inline: true },
+        { name: "Message", value: String(message_id ?? "-"), inline: true },
+      ],
+      throttleMs: 5 * 60_000,
+      color: 0xea4b4b,
+    });
+  }
   return c.json({ ok: true });
 });
 

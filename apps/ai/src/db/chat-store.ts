@@ -104,13 +104,13 @@ export async function listSessions(c: AppContext, userId: string): Promise<Sessi
   const rows = await query(
     c,
     `SELECT s.id, s.created_at, s.last_active, s.title AS session_title,
-            (SELECT COUNT(*) FROM chatbot_messages m WHERE m.session_id = s.id) AS message_count,
+            s.message_count,
             (SELECT m.content FROM chatbot_messages m
               WHERE m.session_id = s.id AND m.role = 'user'
               ORDER BY m.id ASC LIMIT 1) AS first_user
      FROM chatbot_sessions s
      WHERE s.user_id = $1
-       AND EXISTS (SELECT 1 FROM chatbot_messages m WHERE m.session_id = s.id)
+       AND s.message_count > 0
      ORDER BY s.last_active DESC
      LIMIT 50`,
     [userId],

@@ -35,6 +35,8 @@ export const env = createEnv({
     COOKIE_DOMAIN: z.string().optional(),
     // E-Sign
     ESIGN_SECRET: z.string().min(16).default("mulai-plus-esign-secret-change-in-production"),
+    // Discord webhook (notifikasi event penting). Kosong → tidak ada notif.
+    DISCORD_WEBHOOK_URL: z.string().url().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

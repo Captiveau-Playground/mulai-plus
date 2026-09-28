@@ -215,6 +215,7 @@ export const lmsRouter = {
             category: true,
           },
           orderBy: desc(course.createdAt),
+          limit: 50,
         });
         return result;
       }),
@@ -335,6 +336,7 @@ export const lmsRouter = {
           },
         },
         orderBy: desc(course.createdAt),
+        limit: 200,
       });
     }),
     get: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
