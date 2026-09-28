@@ -74,8 +74,8 @@ export function CookieConsentBanner({
           </span>
           <h2 className="mt-3 font-bold font-bricolage text-brand-navy text-lg">Kami menghargai privasi Anda</h2>
           <p className="mt-1.5 font-manrope text-[13px] text-muted-foreground leading-relaxed">
-            Kami menggunakan cookie dari Google Analytics dan Microsoft Clarity untuk memahami bagaimana pengunjung
-            memakai MULAI+ — supaya website ini terasa lebih baik untuk Anda.
+            Kami menggunakan cookie untuk keperluan analitik dan peningkatan pengalaman — supaya MULAI+ terasa lebih
+            baik untuk Anda. Tidak ada data pribadi yang dibagikan ke pihak lain.
           </p>
 
           {/* reassurance */}
@@ -115,7 +115,7 @@ export function CookieConsentBanner({
             onClick={onReject}
             className="w-full cursor-pointer py-1 text-center font-manrope text-[11px] text-muted-foreground underline underline-offset-2 transition-colors hover:text-brand-navy"
           >
-            Hanya yang wajib (menolak cookie analytics)
+            Hanya cookie yang wajib (tanpa analitik)
           </button>
         </div>
 
