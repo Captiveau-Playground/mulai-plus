@@ -89,5 +89,47 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_feedback_response_to_user
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_feedback_response_campaign
   ON feedback_response (campaign_id, created_at DESC);
 
+-- ═══ Program (dashboard student/mentor/admin — pertumbuhan utama) ═══
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_application_batch_status
+  ON program_application (batch_id, status);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_session_batch
+  ON program_session (batch_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_session_mentor_status
+  ON program_session (mentor_id, status);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_participant_user
+  ON program_participant (user_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_participant_batch
+  ON program_participant (batch_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_attendance_user
+  ON program_attendance (user_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_attendance_batch
+  ON program_attendance (batch_id);
+
+-- ═══ TMB (admin sekolah/batch/student) ═══
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tmb_batches_school
+  ON tmb_batches (school_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tmb_batch_students_user
+  ON tmb_batch_students (user_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tmb_batch_students_status
+  ON tmb_batch_students (status);
+
+-- ═══ Notifikasi & user ═══
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notification_user_read
+  ON notification (user_id, read);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_role_name
+  ON "user" (role, name);
+
+-- ═══ CMS (list admin sort updated_at) ═══
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cms_article_status_updated
+  ON cms_article (status, updated_at DESC);
+
+-- ═══ E-Sign ═══
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_esign_document
+  ON esign_signature (document_id);
+
+-- ═══ LMS (list kursus publik & admin) ═══
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_course_published_created
+  ON course (published, created_at DESC);
+
 -- Refresh statistik planner
 ANALYZE;

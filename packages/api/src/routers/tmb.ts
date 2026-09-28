@@ -1140,13 +1140,27 @@ function parseCsv(text: string): string[][] {
 export const tmbAdminRouter = {
   schools: {
     list: adminProcedure.handler(async () => {
+      // GROUP BY di DB (bukan muat semua batch+siswa ke JS)
       const schools = await db.query.tmbSchools.findMany({ orderBy: desc(tmbSchools.createdAt) });
-      const batches = await db.query.tmbBatches.findMany();
-      const students = await db.query.tmbBatchStudents.findMany();
+      const [batchCounts, studentCounts] = await Promise.all([
+        db
+          .select({ schoolId: tmbBatches.schoolId, n: count() })
+          .from(tmbBatches)
+          .where(isNotNull(tmbBatches.schoolId))
+          .groupBy(tmbBatches.schoolId),
+        db
+          .select({ schoolId: tmbBatches.schoolId, n: count() })
+          .from(tmbBatchStudents)
+          .innerJoin(tmbBatches, eq(tmbBatchStudents.batchId, tmbBatches.id))
+          .where(isNotNull(tmbBatches.schoolId))
+          .groupBy(tmbBatches.schoolId),
+      ]);
+      const batchMap = new Map(batchCounts.map((r) => [r.schoolId, r.n]));
+      const studentMap = new Map(studentCounts.map((r) => [r.schoolId, r.n]));
       return schools.map((s) => ({
         ...s,
-        batchCount: batches.filter((b) => b.schoolId === s.id).length,
-        studentCount: students.filter((st) => batches.some((b) => b.id === st.batchId && b.schoolId === s.id)).length,
+        batchCount: batchMap.get(s.id) ?? 0,
+        studentCount: studentMap.get(s.id) ?? 0,
       }));
     }),
 
