@@ -71,8 +71,11 @@ export function TestimonialList() {
     ...orpc.testimonials.list.queryOptions(),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+  const [studentSearch, setStudentSearch] = useState("");
   const { data: students } = useQuery({
-    ...orpc.user.listStudents.queryOptions(),
+    ...orpc.user.listStudents.queryOptions({
+      input: studentSearch.trim() ? { search: studentSearch, limit: 200 } : {},
+    }),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -237,6 +240,8 @@ export function TestimonialList() {
           </DialogHeader>
           <TestimonialForm
             students={students || []}
+            studentSearch={studentSearch}
+            onStudentSearchChange={setStudentSearch}
             onSubmit={(values) => createMutation.mutate(values)}
             isSubmitting={createMutation.isPending}
             defaultValues={{
@@ -257,6 +262,8 @@ export function TestimonialList() {
           {editingTestimonial && (
             <TestimonialForm
               students={students || []}
+              studentSearch={studentSearch}
+              onStudentSearchChange={setStudentSearch}
               onSubmit={(values) =>
                 updateMutation.mutate({
                   id: editingTestimonial.id,
@@ -310,12 +317,16 @@ export function TestimonialList() {
 
 function TestimonialForm({
   students,
+  studentSearch,
+  onStudentSearchChange,
   onSubmit,
   isSubmitting,
   onCancel,
   defaultValues,
 }: {
   students: { id: string; name: string; email: string; image: string | null }[];
+  studentSearch: string;
+  onStudentSearchChange: (v: string) => void;
   onSubmit: (values: TestimonialFormValues) => void;
   isSubmitting: boolean;
   onCancel?: () => void;
@@ -343,6 +354,13 @@ function TestimonialForm({
           render={({ field }) => (
             <FormItem className="pb-4">
               <FormLabel>Student</FormLabel>
+              <input
+                type="search"
+                value={studentSearch}
+                onChange={(e) => onStudentSearchChange(e.target.value)}
+                placeholder="Cari siswa (nama/email)…"
+                className="mb-2 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-manrope text-xs outline-none placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-brand-orange/40"
+              />
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -350,6 +368,11 @@ function TestimonialForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  {students.length === 0 && (
+                    <div className="px-3 py-2 font-manrope text-muted-foreground text-xs">
+                      Tidak ada siswa ditemukan
+                    </div>
+                  )}
                   {students.map((student) => (
                     <SelectItem key={student.id} value={student.id}>
                       {student.name} ({student.email})

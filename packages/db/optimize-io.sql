@@ -76,5 +76,12 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_application_user
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_program_batch_mentor_user
   ON program_batch_mentor (user_id, assigned_at DESC);
 
+-- ═══ CMS (blog/list article) ═══
+-- Pencarian judul/ekserp di admin & filter status publik
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cms_article_title_trgm
+  ON cms_article USING gin (title gin_trgm_ops);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cms_article_status_pub
+  ON cms_article (status, published_at DESC);
+
 -- Refresh statistik planner
 ANALYZE;
