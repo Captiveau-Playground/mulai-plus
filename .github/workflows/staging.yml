@@ -361,7 +361,7 @@ jobs:
             local name="$1"
             local value="${!name}"
             if [ -n "$value" ]; then
-              echo "$value" | ./node_modules/.bin/wrangler secret put "$name" --env staging
+              echo "$value" | ./node_modules/.bin/wrangler versions secret put "$name" --env staging
             else
               echo "Skip $name (kosong)"
             fi
