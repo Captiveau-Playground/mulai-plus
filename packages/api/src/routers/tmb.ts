@@ -232,13 +232,13 @@ function matchCareers(
   return results.slice(0, 8);
 }
 
-// Cache prodi (data statis) — refresh 1 jam
+// Cache prodi (data statis) — refresh 24 jam
 let prodiCache: { name: string; level: string | null; university: string; idSms: string; idSp: string }[] | null = null;
 let prodiCacheTs = 0;
 
 async function getProdiList() {
   const now = Date.now();
-  if (!prodiCache || now - prodiCacheTs > 3600_000) {
+  if (!prodiCache || now - prodiCacheTs > 86400_000) {
     const rows = await db
       .select({
         name: studyPrograms.name,

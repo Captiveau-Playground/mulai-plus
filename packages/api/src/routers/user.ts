@@ -94,7 +94,7 @@ export const userRouter = {
         .optional(),
     )
     .handler(async ({ input }) => {
-      // Tanpa input: perilaku lama (semua). Dengan search: dibatasi 200 default.
+      // Batas wajib: default 200 (tanpa search tetap aman utk payload besar).
       const conditions = [eq(user.role, "student")];
       if (input?.search?.trim()) {
         const q = `%${input.search.trim()}%`;
@@ -108,8 +108,8 @@ export const userRouter = {
           email: true,
           image: true,
         },
-        orderBy: input?.search ? asc(user.name) : undefined,
-        limit: input?.limit ?? (input?.search ? 200 : undefined),
+        orderBy: asc(user.name),
+        limit: input?.limit ?? 200,
       });
       return students;
     }),

@@ -74,7 +74,7 @@ export function TestimonialList() {
   const [studentSearch, setStudentSearch] = useState("");
   const { data: students } = useQuery({
     ...orpc.user.listStudents.queryOptions({
-      input: studentSearch.trim() ? { search: studentSearch, limit: 200 } : {},
+      input: { search: studentSearch.trim() || undefined, limit: 200 },
     }),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });

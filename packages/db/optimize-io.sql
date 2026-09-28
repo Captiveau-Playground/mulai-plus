@@ -83,5 +83,11 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cms_article_title_trgm
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cms_article_status_pub
   ON cms_article (status, published_at DESC);
 
+-- ═══ Feedback (mentee→mentor & admin list) ═══
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_feedback_response_to_user
+  ON feedback_response (to_user_id, created_at DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_feedback_response_campaign
+  ON feedback_response (campaign_id, created_at DESC);
+
 -- Refresh statistik planner
 ANALYZE;
