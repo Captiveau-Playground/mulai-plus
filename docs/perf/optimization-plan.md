@@ -94,7 +94,7 @@
 
 ## 6. Backlog yang butuh keputusan user
 
-- [ ] A1–A2: utamakan cache explore publik (perlu sampling traffic/konversi).
+- [x] A1–A5 selesai (2026-09): KV cache explore aktif (kvRpcCache), ISR explore 5 mnt (layout), prune & slow-query cron 03:00, pg_stat_statements aktif.
 - [ ] B5/E-Sign: index `document_id` sudah ada — ok.
 - [ ] C1: mau investasi read-replica? (butuh biaya Supabase / planning)
 - [ ] Retensi `chatbot_events` (analytics AI) — tetapkan 3 bulan? 6?

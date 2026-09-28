@@ -3,7 +3,7 @@ import { db } from "@mulai-plus/db/db";
 import { dbStorage } from "@mulai-plus/db/provider";
 import { createWorkerDb, type WorkerDb } from "@mulai-plus/db/worker";
 import { createApp } from "./app";
-import { runAiHealthCheck, runAutoPublish } from "./cron-core";
+import { runAiHealthCheck, runAutoPublish, runMaintenance } from "./cron-core";
 
 /**
  * Cloudflare Workers runtime entry.
@@ -34,6 +34,8 @@ export interface Env {
   AI_SERVICE_URL?: string;
   /** Origin web yang dipercaya meneruskan x-user-id (daftar csv). */
   WEB_ORIGINS?: string;
+  /** Discord webhook (maintenance/alert slow query). */
+  DISCORD_WEBHOOK_URL?: string;
 }
 
 let cached: { app: ReturnType<typeof createApp> } | null = null;
@@ -61,10 +63,21 @@ export default {
       return await app.fetch(request, env);
     });
   },
-  async scheduled(_controller: unknown, env: Env) {
+  async scheduled(controller: unknown, env: Env) {
     // Kesehatan AI TIDAK butuh DB — jalankan duluan & independen (jangan ikut gagal kalau DB bermasalah).
     await runAiHealthCheck(env as Parameters<typeof runAiHealthCheck>[0]).catch(() => {});
-    // Auto-publish artikel tiap 5 menit (butuh DB).
+    const cron = (controller as { cron?: string } | undefined)?.cron ?? "";
+
+    // Maintenance harian (03:00) — prune audit/snbt + snapshot slow query → Discord
+    if (cron === "0 3 * * *") {
+      return withFreshDb(env, async () => {
+        await runMaintenance(db, { webhookUrl: env.DISCORD_WEBHOOK_URL }).catch((e: unknown) =>
+          console.error("[cron] maintenance:", (e as Error).message),
+        );
+      });
+    }
+
+    // Auto-publish artikel tiap menit (butuh DB).
     return withFreshDb(env, async () => {
       await getRuntime();
       const minute = new Date().getUTCMinutes();

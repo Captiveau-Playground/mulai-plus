@@ -131,5 +131,8 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_esign_document
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_course_published_created
   ON course (published, created_at DESC);
 
+-- Slow query snapshot (pg_stat_statements) — aktif di Supabase (shared_preload).
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
 -- Refresh statistik planner
 ANALYZE;

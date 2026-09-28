@@ -1,8 +1,9 @@
 import { newsletter } from "@mulai-plus/api/lib/newsletter";
-import { and, db, eq, gte, lte } from "@mulai-plus/db/db";
+import { and, db, eq, gte, lte, sql } from "@mulai-plus/db/db";
 import { auditLog } from "@mulai-plus/db/schema/audit";
 import { cmsArticle } from "@mulai-plus/db/schema/cms";
 import { env } from "@mulai-plus/env/server";
+import { notifyDiscord } from "@mulai-plus/notify/discord";
 
 /**
  * Auto-publish scheduled articles + send newsletter broadcast (every 5 minutes).
@@ -203,4 +204,98 @@ export async function runAiHealthCheck(env: HealthEnv): Promise<{ ok: boolean; m
     }
   }
   return { ok, ms };
+}
+
+/**
+ * Maintenance harian (Cron Trigger "0 3 * * *" / VPS setInterval):
+ *  1. Prune audit_log > 90 hari (batch, batas aman utk I/O budget).
+ *  2. Hapus dataset legacy snbt_applicant_provinces (tahun < 2025).
+ *  3. Snapshot pg_stat_statements (10 query terlambat kemarin) → Discord.
+ *
+ * Semua error non-fatal; jangan pernah ikut menggagalkan request.
+ */
+export async function runMaintenance(
+  client: typeof db = db,
+  opts: { webhookUrl?: string | null } = {},
+): Promise<{ auditDeleted: number; snbtDeleted: number; slowQueries: number }> {
+  const AUDIT_RETENTION_DAYS = Number(process.env.AUDIT_RETENTION_DAYS ?? 90);
+  const SNBT_MIN_YEAR = Number(process.env.SNBT_PROVINCE_MIN_YEAR ?? 2025);
+  const webhookUrl = opts.webhookUrl;
+
+  // 1) audit_log — batch delete (hindari lock panjang & burst I/O)
+  let auditDeleted = 0;
+  try {
+    await client.execute(sql`SET statement_timeout = 0`);
+    for (;;) {
+      const res = await client.execute(sql`
+        DELETE FROM audit_log WHERE ctid IN (
+          SELECT ctid FROM audit_log WHERE created_at < NOW() - (${AUDIT_RETENTION_DAYS} || ' days')::interval
+          LIMIT 5000
+        ) RETURNING id`);
+      const n = Number(res.rows?.length ?? 0);
+      if (n === 0) break;
+      auditDeleted += n;
+      if (auditDeleted > 0 && auditDeleted % 5000 === 0) {
+        console.log(`[maintenance] audit_log terhapus ${auditDeleted} baris...`);
+      }
+    }
+    if (auditDeleted > 0)
+      console.log(`[maintenance] audit_log prune selesai: ${auditDeleted} baris (>${AUDIT_RETENTION_DAYS} hari)`);
+  } catch (e) {
+    console.error("[maintenance] prune audit:", (e as Error).message);
+  }
+
+  // 2) legacy SNBT provinsi (dataset 2021-2024 tidak dipakai kode)
+  let snbtDeleted = 0;
+  try {
+    const res = await client.execute(sql`DELETE FROM snbt_applicant_provinces WHERE year < ${SNBT_MIN_YEAR}`);
+    snbtDeleted = Number((res as any).rowsAffected ?? res.rows?.length ?? 0);
+  } catch (e) {
+    console.error("[maintenance] prune snbt:", (e as Error).message);
+  }
+
+  // 3) Slow query snapshot (pg_stat_statements) — 10 terlambat dari kemarin
+  let slowQueries = 0;
+  if (webhookUrl) {
+    try {
+      const rows = (await client.execute(sql`
+        SELECT query, mean_exec_time AS avg_ms, calls, max_exec_time AS max_ms
+        FROM pg_stat_statements
+        WHERE query NOT ILIKE '%pg_stat_statements%' AND query NOT ILIKE '%audit_log%'
+        ORDER BY mean_exec_time DESC LIMIT 10`)) as unknown as {
+        rows?: { query: string; avg_ms: number; calls: number; max_ms: number }[];
+      };
+      const list = rows.rows ?? [];
+      slowQueries = list.length;
+      if (list.length > 0) {
+        notifyDiscord({
+          webhookUrl,
+          event: "db.slow_queries_daily",
+          title: "🐌 Query terlambat (Top 10 · 24 jam)",
+          description: list
+            .slice(0, 10)
+            .map(
+              (r, i) =>
+                `**${i + 1}.** \`${(r.query ?? "").replace(/\s+/g, " ").slice(0, 90)}\` — ${Number(r.avg_ms ?? 0).toFixed(0)}ms (×${r.calls})`,
+            )
+            .join("\n")
+            .slice(0, 1900),
+          color: 0xf59e0b,
+          throttleMs: 0,
+        });
+      }
+    } catch (e) {
+      // pg_stat_statements mungkin belum aktif — non-fatal
+      console.error("[maintenance] slow query:", (e as Error).message);
+    }
+  }
+
+  // Reset statistik utk snapshot berikutnya (harian)
+  try {
+    await client.execute(sql`SELECT pg_stat_statements_reset()`);
+  } catch {
+    /* non-fatal */
+  }
+
+  return { auditDeleted, snbtDeleted, slowQueries };
 }
