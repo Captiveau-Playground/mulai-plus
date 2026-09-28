@@ -373,6 +373,11 @@ export function createApp(options: CreateAppOptions) {
     });
   }
 
+  // ── Health (DB-free) — di-letakkan SEBELUM app.use("/*") yang memanggil createContext/DB.
+  //    Smoke CI hanya cek respond cepat; jangan sampai kepaksa query DB (flaky saat DB/throttle).
+  app.get("/", (c) => c.text("OK"));
+  app.get("/health", (c) => c.json({ ok: true, service: "api" }));
+
   app.use("/rpc/*", (c, next) => kvRpcCache(c as any, next));
 
   app.use("/*", async (c, next) => {
@@ -400,9 +405,5 @@ export function createApp(options: CreateAppOptions) {
   });
 
   // Mount R2 upload routes
-  app.get("/", (c) => {
-    return c.text("OK");
-  });
-
   return app;
 }
