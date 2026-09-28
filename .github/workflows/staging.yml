@@ -351,6 +351,13 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          # Stub validasi createEnv (wrangler versions secret put membundel worker):
+          # nilai tidak di-tulis ke worker — hanya agar schema env lolos load lokal.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BETTER_AUTH_URL: https://api.staging.mulaiplus.id
+          CORS_ORIGIN: https://api.staging.mulaiplus.id
+          R2_BUCKET_NAME: mulai-plus-media-dev
+          R2_PUBLIC_URL: https://cdn-dev.mulaiplus.id
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           UNOSEND_API_KEY: ${{ secrets.UNOSEND_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
