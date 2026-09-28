@@ -78,7 +78,6 @@ const HighlightedPre = React.memo(async ({ children, language, ...props }: Highl
     defaultColor: false,
     themes: {
       light: "github-light",
-      dark: "github-dark",
     },
   });
 
@@ -92,11 +91,7 @@ const HighlightedPre = React.memo(async ({ children, language, ...props }: Highl
                 const style = typeof token.htmlStyle === "string" ? undefined : token.htmlStyle;
 
                 return (
-                  <span
-                    key={tokenIndex}
-                    className="bg-shiki-light-bg text-shiki-light dark:bg-shiki-dark-bg dark:text-shiki-dark"
-                    style={style}
-                  >
+                  <span key={tokenIndex} className="bg-shiki-light-bg text-shiki-light" style={style}>
                     {token.content}
                   </span>
                 );
