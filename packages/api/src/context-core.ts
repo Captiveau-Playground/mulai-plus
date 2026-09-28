@@ -16,6 +16,10 @@ export async function createContext({ context, auth }: { context: HonoContext; a
     headers: context.req.raw.headers,
     ip: context.req.header("x-forwarded-for") || context.req.header("x-real-ip"),
     userAgent: context.req.header("user-agent"),
+    /** Cloudflare Workers executionCtx — dipakai utk notifikasi fire-and-forget. */
+    executionCtx: (context as any).executionCtx as { waitUntil(p: Promise<unknown>): void } | undefined,
+    /** Env bindings — akses webhook dsb tanpa import env/server (pg-free). */
+    env: (context as any).env as Record<string, unknown> | undefined,
   };
 }
 

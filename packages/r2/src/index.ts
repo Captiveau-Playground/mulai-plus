@@ -4,6 +4,7 @@
  * Server-side exports
  */
 
+export { activeR2Context, type R2BindingLike, type R2RuntimeContext, runWithR2 } from "./runtime";
 export type { CleanupResult, R2ObjectMeta, UploadResult } from "./server";
 // Re-export server functions
 export {

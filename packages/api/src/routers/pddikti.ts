@@ -21,6 +21,30 @@ import {
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 
+/** Kolom sort yang diizinkan — cegah SQL injection via sql.raw & jaga index. */
+const UNI_SORT_COLS = {
+  name: universities.name,
+  code: universities.code,
+  short_name: universities.shortName,
+  province: universities.province,
+  regency: universities.regency,
+  type: universities.type,
+  accreditation: universities.accreditation,
+  status: universities.status,
+} as const;
+const SP_SORT_COLS = {
+  name: studyPrograms.name,
+  code: studyPrograms.code,
+  level: studyPrograms.level,
+  status: studyPrograms.status,
+  accreditation: studyPrograms.accreditation,
+} as const;
+const SNPMB_SORT_COLS = {
+  name: snpmbUniversities.name,
+  type: snpmbUniversities.type,
+  province: snpmbUniversities.province,
+} as const;
+
 /**
  * db.execute() mengembalikan bentuk BEDA tergantung driver:
  *  - pg (Bun/VPS)        → { rows: [...] }
@@ -67,12 +91,8 @@ export const pddiktiRouter = {
       if (input.status) conditions.push(eq(universities.status, input.status));
       const where = conditions.length > 0 ? and(...conditions) : undefined;
       const offset = (input.page - 1) * input.pageSize;
-      const orderBy =
-        input.sort && input.order
-          ? input.order === "desc"
-            ? desc(sql.raw(`"${input.sort}"`))
-            : asc(sql.raw(`"${input.sort}"`))
-          : asc(universities.name);
+      const sortable = input.sort && input.order ? UNI_SORT_COLS[input.sort as keyof typeof UNI_SORT_COLS] : undefined;
+      const orderBy = sortable ? (input.order === "desc" ? desc(sortable) : asc(sortable)) : asc(universities.name);
       const [data, totalResult] = await Promise.all([
         db
           .select()
@@ -147,37 +167,77 @@ export const pddiktiRouter = {
     result.graduationRates = grates;
     result.nameHistories = nhists;
 
-    // SNPMB data
+    // SNPMB data — batch (hindari N+1: mappings→uni→programs→histori)
     const mappings = await db.select().from(universityMappings).where(eq(universityMappings.idSp, input.id));
     if (mappings.length) {
-      for (const m of mappings) {
-        const snpmbUni = await db
+      const idPtns = [...new Set(mappings.map((m) => m.idPtn).filter((v): v is number => v != null))];
+      const backupIds = [-1];
+      const [unis, sbps, sbts] = await Promise.all([
+        db
           .select()
           .from(snpmbUniversities)
-          .where(eq(snpmbUniversities.idPtn, m.idPtn))
-          .limit(1)
-          .then((r) => r[0] ?? null);
-        if (snpmbUni) {
-          (m as any).snpmbUniversity = snpmbUni;
-          const sbp = await db.select().from(snbpPrograms).where(eq(snbpPrograms.idPtn, m.idPtn));
-          for (const p of sbp) {
-            (p as any).capacityHistory = await db
-              .select()
-              .from(snbpCapacityHistory)
-              .where(eq(snbpCapacityHistory.idProdi, p.idProdi))
-              .orderBy(asc(snbpCapacityHistory.year));
-          }
-          (snpmbUni as any).snbpPrograms = sbp;
-          const sbt = await db.select().from(snbtPrograms).where(eq(snbtPrograms.idPtn, m.idPtn));
-          for (const p of sbt) {
-            (p as any).capacityHistory = await db
-              .select()
-              .from(snbtCapacityHistory)
-              .where(eq(snbtCapacityHistory.idProdi, p.idProdi))
-              .orderBy(asc(snbtCapacityHistory.year));
-          }
-          (snpmbUni as any).snbtPrograms = sbt;
-        }
+          .where(inArray(snpmbUniversities.idPtn, idPtns.length ? idPtns : backupIds)),
+        db
+          .select()
+          .from(snbpPrograms)
+          .where(inArray(snbpPrograms.idPtn, idPtns.length ? idPtns : backupIds)),
+        db
+          .select()
+          .from(snbtPrograms)
+          .where(inArray(snbtPrograms.idPtn, idPtns.length ? idPtns : backupIds)),
+      ]);
+      const uniByPtn = new Map(unis.map((u) => [u.idPtn, u]));
+      const sbpByPtn = new Map<number, typeof sbps>();
+      const sbtByPtn = new Map<number, typeof sbts>();
+      const prodiIds = new Set<number>();
+      for (const pr of sbps) {
+        const arr = sbpByPtn.get(pr.idPtn) ?? [];
+        arr.push(pr);
+        sbpByPtn.set(pr.idPtn, arr);
+        if (pr.idProdi) prodiIds.add(pr.idProdi);
+      }
+      for (const pr of sbts) {
+        const arr = sbtByPtn.get(pr.idPtn) ?? [];
+        arr.push(pr);
+        sbtByPtn.set(pr.idPtn, arr);
+        if (pr.idProdi) prodiIds.add(pr.idProdi);
+      }
+      const [sbpHist, sbtHist] = await Promise.all([
+        db
+          .select()
+          .from(snbpCapacityHistory)
+          .where(inArray(snbpCapacityHistory.idProdi, prodiIds.size ? [...prodiIds] : backupIds))
+          .orderBy(asc(snbpCapacityHistory.year)),
+        db
+          .select()
+          .from(snbtCapacityHistory)
+          .where(inArray(snbtCapacityHistory.idProdi, prodiIds.size ? [...prodiIds] : backupIds))
+          .orderBy(asc(snbtCapacityHistory.year)),
+      ]);
+      const histByProdiSbp = new Map<number, typeof sbpHist>();
+      const histByProdiSbt = new Map<number, typeof sbtHist>();
+      for (const h of sbpHist) {
+        const arr = histByProdiSbp.get(h.idProdi) ?? [];
+        arr.push(h);
+        histByProdiSbp.set(h.idProdi, arr);
+      }
+      for (const h of sbtHist) {
+        const arr = histByProdiSbt.get(h.idProdi) ?? [];
+        arr.push(h);
+        histByProdiSbt.set(h.idProdi, arr);
+      }
+      for (const m of mappings) {
+        const snpmbUni = uniByPtn.get(m.idPtn) ?? null;
+        if (!snpmbUni) continue;
+        (m as any).snpmbUniversity = snpmbUni;
+        (snpmbUni as any).snbpPrograms = (sbpByPtn.get(m.idPtn) ?? []).map((pr) => ({
+          ...pr,
+          capacityHistory: histByProdiSbp.get(pr.idProdi) ?? [],
+        }));
+        (snpmbUni as any).snbtPrograms = (sbtByPtn.get(m.idPtn) ?? []).map((pr) => ({
+          ...pr,
+          capacityHistory: histByProdiSbt.get(pr.idProdi) ?? [],
+        }));
       }
     }
     result.universityMappings = mappings;
@@ -264,12 +324,8 @@ export const pddiktiRouter = {
       if (input.accreditation) conditions.push(eq(studyPrograms.accreditation, input.accreditation));
       const where = conditions.length > 0 ? and(...conditions) : undefined;
       const offset = (input.page - 1) * input.pageSize;
-      const orderBy =
-        input.sort && input.order
-          ? input.order === "desc"
-            ? desc(sql.raw(`"${input.sort}"`))
-            : asc(sql.raw(`"${input.sort}"`))
-          : asc(studyPrograms.name);
+      const sortable = input.sort && input.order ? SP_SORT_COLS[input.sort as keyof typeof SP_SORT_COLS] : undefined;
+      const orderBy = sortable ? (input.order === "desc" ? desc(sortable) : asc(sortable)) : asc(studyPrograms.name);
       const [data, totalResult] = await Promise.all([
         db
           .select()
@@ -315,12 +371,13 @@ export const pddiktiRouter = {
       if (input.province) conditions.push(eq(snpmbUniversities.province, input.province));
       const where = conditions.length > 0 ? and(...conditions) : undefined;
       const offset = (input.page - 1) * input.pageSize;
-      const orderBy =
-        input.sort && input.order
-          ? input.order === "desc"
-            ? desc(sql.raw(`"${input.sort}"`))
-            : asc(sql.raw(`"${input.sort}"`))
-          : asc(snpmbUniversities.name);
+      const sortable =
+        input.sort && input.order ? SNPMB_SORT_COLS[input.sort as keyof typeof SNPMB_SORT_COLS] : undefined;
+      const orderBy = sortable
+        ? input.order === "desc"
+          ? desc(sortable)
+          : asc(sortable)
+        : asc(snpmbUniversities.name);
       const [data, totalResult] = await Promise.all([
         db
           .select()
@@ -387,12 +444,8 @@ export const pddiktiRouter = {
       if (input.accreditation) conditions.push(eq(universities.accreditation, input.accreditation));
       const where = conditions.length > 0 ? and(...conditions) : undefined;
       const offset = (input.page - 1) * input.pageSize;
-      const orderBy =
-        input.sort && input.order
-          ? input.order === "desc"
-            ? desc(sql.raw(`"${input.sort}"`))
-            : asc(sql.raw(`"${input.sort}"`))
-          : asc(universities.name);
+      const sortable = input.sort && input.order ? UNI_SORT_COLS[input.sort as keyof typeof UNI_SORT_COLS] : undefined;
+      const orderBy = sortable ? (input.order === "desc" ? desc(sortable) : asc(sortable)) : asc(universities.name);
       const [data, totalResult] = await Promise.all([
         db
           .select({
@@ -799,7 +852,7 @@ export const pddiktiRouter = {
 
     let snpmbData = null;
     if (mappings.length) {
-      const m = mappings[0];
+      const m = mappings[0]!;
       // Look up SNBP
       const [sbp] = await db.select().from(snbpPrograms).where(eq(snbpPrograms.idProdi, m?.snpmbProgramId)).limit(1);
       const [sbt] = await db.select().from(snbtPrograms).where(eq(snbtPrograms.idProdi, m?.snpmbProgramId)).limit(1);
