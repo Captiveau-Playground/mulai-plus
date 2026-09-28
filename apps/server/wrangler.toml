@@ -21,7 +21,7 @@ head_sampling_rate = 1
 
 # Auto-publish scheduled articles (same 5-minute cadence as the Bun setInterval)
 [triggers]
-crons = ["*/1 * * * *"]
+crons = ["*/1 * * * *", "0 3 * * *"]
 
 # ──────────────────────────── STAGING ────────────────────────────
 # DUAL-DOMAIN: Workers live on api-staging-workers.mulaiplus.id while the
@@ -33,6 +33,7 @@ crons = ["*/1 * * * *"]
 # Deploy via workers.dev (NEXT_PUBLIC_SERVER_URL sudah mengarah ke sana).
 # Aktifkan kembali route ini setelah: token diberi Zone perms + DNS record dibuat.
 [env.staging]
+r2_buckets = [{ binding = "MEDIA_BUCKET", bucket_name = "mulai-plus-media-dev" }]
 workers_dev = true  # preview tetap aktif sementara — custom domain utama: api.staging.mulaiplus.id
 
 # Custom domain staging API → DNS record dibuat otomatis oleh CF
@@ -76,6 +77,7 @@ id = "5d214aea95a842069ee2a0bba93222c4"  # mulai-plus-staging-db-direct
 # VPS tetap melayani api-prod.mulaiplus.id sebagai rollback runtime;
 # trafik utama (api.mulaiplus.id) di-layani Workers via custom domain.
 [env.production]
+r2_buckets = [{ binding = "MEDIA_BUCKET", bucket_name = "mulai-plus-media" }]
 workers_dev = false  # production hanya via custom domain api.mulaiplus.id
 
 [[env.production.routes]]

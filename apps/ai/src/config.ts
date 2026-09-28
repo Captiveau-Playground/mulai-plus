@@ -24,6 +24,8 @@ export type Env = {
   HYPERDRIVE?: { connectionString: string };
   /** Fallback koneksi untuk dev lokal (tanpa Hyperdrive). */
   DATABASE_URL?: string;
+  /** Discord webhook untuk notifikasi event penting (feedback, quota). */
+  DISCORD_WEBHOOK_URL?: string;
 };
 
 export type AppContext = Context<{ Bindings: Env }>;

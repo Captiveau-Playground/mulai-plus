@@ -340,6 +340,7 @@ export const feedbackRouter = {
             fromUser: { columns: { id: true, name: true, email: true, image: true } },
           },
           orderBy: desc(feedbackResponse.createdAt),
+          limit: 500,
         });
 
         // Filter hanya response dari campaign dgn template type mentee_to_mentor
@@ -457,6 +458,7 @@ export const feedbackRouter = {
             toUser: { columns: { id: true, name: true } },
           },
           orderBy: asc(feedbackResponse.createdAt),
+          limit: 500,
         });
         return responses;
       }),

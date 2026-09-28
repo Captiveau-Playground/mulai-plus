@@ -290,16 +290,36 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Detect DB/schema changes (skip ddl kalau tak ada)
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            db:
+              - 'packages/db/**'
+              - 'apps/ai/src/db/**'
+              - '**/*.sql'
+              - '.github/workflows/production.yml'
+
+      - name: Cache Bun deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Push database schema
+        if: steps.changes.outputs.db == 'true'
         working-directory: packages/db
         run: bun run db:push -- --force
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: DB index optimization (pg_trgm/GIN — hemat Disk I/O)
+        if: steps.changes.outputs.db == 'true'
         working-directory: packages/db
         run: bun run optimize:io
         env:

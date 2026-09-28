@@ -35,14 +35,9 @@ function getDocumentTheme(): Theme | null {
   return null;
 }
 
-// Get system preference
-function getSystemTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
 function useResolvedTheme(themeProp?: "light" | "dark"): "light" | "dark" {
-  const [detectedTheme, setDetectedTheme] = useState<"light" | "dark">(() => getDocumentTheme() ?? getSystemTheme());
+  // Selalu light: tanpa next-themes, document tidak punya class dark.
+  const [detectedTheme, setDetectedTheme] = useState<"light" | "dark">(() => getDocumentTheme() ?? "light");
 
   useEffect(() => {
     if (themeProp) return; // Skip detection if theme is provided via prop

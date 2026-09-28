@@ -29,6 +29,7 @@ import { ensureAiTables } from "../db/schema-init";
 import { allowRequest } from "../do/access";
 import { dailyStub } from "../do/access-daily";
 import { type LlmMessage, llmChatJson, llmChatStream } from "../llm/client";
+import { notify } from "../notify";
 import { validateMessageInput } from "../policies/guardrails";
 import { quotaPolicy } from "../policies/quota";
 import { AUTH_RATE_LIMIT_PER_MIN, GUEST_RATE_LIMIT_PER_MIN } from "../policies/rate-limit";
@@ -250,6 +251,14 @@ streamRoute.post("/chat/stream", async (c) => {
     const reserved = await store.reserveMessageSlot(c, key, quotaPolicy(false).max).catch(() => 1);
     if (reserved === null) {
       await record(c, { sessionId: key, userId, event: "quota_exhausted" });
+      notify(c, {
+        event: "mulai_ai.quota_exhausted",
+        title: "⏳ Kuota harian habis",
+        description: "Pengguna mencapai batas pertanyaan harian di Mul.ai.",
+        fields: [{ name: "User", value: userId ?? "anonim", inline: true }],
+        throttleMs: 10 * 60_000,
+        color: 0xf59e0b,
+      });
       return c.json({ reply: quotaPolicy(false).exhaustedMessage, remaining: 0, requires_auth: true }, 403);
     }
     void reserved;

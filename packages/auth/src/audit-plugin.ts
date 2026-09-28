@@ -15,6 +15,8 @@ export const auditPlugin = (database: typeof db): BetterAuthPlugin => {
             return ["sign-in", "sign-up", "sign-out"].some((path) => context?.path?.endsWith(path));
           },
           handler: async (c) => {
+            // Dev lokal: boleh off memakai env AUDIT_LOG_DISABLED=true
+            if (process.env.AUDIT_LOG_DISABLED === "true") return;
             const ctx = c as any;
             try {
               const { path, request } = ctx;
@@ -42,17 +44,22 @@ export const auditPlugin = (database: typeof db): BetterAuthPlugin => {
               const ipAddress = request?.headers?.get("x-forwarded-for") || null;
 
               if (userId) {
-                await database.insert(auditLog).values({
-                  action: path.split("/").pop() || path,
-                  resource: "auth",
-                  userId: userId,
-                  details: {
-                    path,
-                    method: request?.method,
-                  },
-                  ipAddress: typeof ipAddress === "string" ? ipAddress : null,
-                  userAgent: userAgent,
-                });
+                // Fire-and-forget: jangan blok respon login/sign-out dgn write audit
+                // (disk I/O budget bisa throttle → login user nggak boleh nunggu).
+                void database
+                  .insert(auditLog)
+                  .values({
+                    action: path.split("/").pop() || path,
+                    resource: "auth",
+                    userId: userId,
+                    details: {
+                      path,
+                      method: request?.method,
+                    },
+                    ipAddress: typeof ipAddress === "string" ? ipAddress : null,
+                    userAgent: userAgent,
+                  })
+                  .catch((err) => console.error("Audit logging failed:", err));
               }
             } catch (error) {
               console.error("Audit logging failed:", error);

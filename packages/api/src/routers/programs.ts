@@ -294,6 +294,7 @@ export const programsRouter = {
           batch: true,
         },
         orderBy: [desc(programApplication.createdAt)],
+        limit: 200,
       });
 
       return applications;
@@ -758,10 +759,12 @@ export const programsRouter = {
             with: {
               user: true,
             },
+            limit: 500,
           });
 
           const attendance = await db.query.programAttendance.findMany({
             where: eq(programAttendance.batchId, input.batchId),
+            limit: 500,
             columns: {
               id: true,
               userId: true,
@@ -2063,6 +2066,7 @@ export const programsRouter = {
             items: { orderBy: asc(summaryReportItem.order) },
           },
           orderBy: desc(summaryReport.createdAt),
+          limit: 500,
         });
 
         return { data: reports };

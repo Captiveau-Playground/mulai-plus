@@ -2,6 +2,7 @@ import { createContext } from "@mulai-plus/api/context-core";
 import { appRouter } from "@mulai-plus/api/routers/index";
 import type { createAuth } from "@mulai-plus/auth/create-auth";
 import { env } from "@mulai-plus/env/server";
+import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { uploadRouter } from "@mulai-plus/r2";
 import { initR2Client } from "@mulai-plus/r2/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
@@ -74,7 +75,41 @@ export function createApp(options: CreateAppOptions) {
     }),
   );
 
-  app.on(["POST", "GET"], "/api/auth/*", (c) => authInstance.handler(c.req.raw));
+  app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+    const res = await authInstance.handler(c.req.raw);
+
+    // Notif Discord: user daftar (email sign-up sukses)
+    const path = c.req.path;
+    const isSignupPost = c.req.method === "POST" && (path.endsWith("/sign-up/email") || path.endsWith("/sign-up"));
+    if (isSignupPost && res.ok) {
+      const body = (await res
+        .json()
+        .then((b) => b as { user?: { id?: string; name?: string; email?: string } | undefined })
+        .catch(() => null)) as { user?: { id?: string; name?: string; email?: string } } | null;
+      const user = body?.user;
+      if (user?.id) {
+        const webhookUrl = (c.env as { DISCORD_WEBHOOK_URL?: string } | undefined)?.DISCORD_WEBHOOK_URL;
+        notifyDiscord({
+          webhookUrl,
+          event: "user.registered",
+          title: "👋 User baru terdaftar",
+          description: "Ada pendaftar baru di MULAI+.",
+          fields: [
+            { name: "Nama", value: user.name ?? "-", inline: true },
+            { name: "Email", value: user.email ?? "-", inline: true },
+            { name: "User ID", value: user.id, inline: false },
+          ],
+          throttleMs: 0,
+          waitUntil: (c as any).executionCtx?.waitUntil,
+        });
+        const headers = new Headers(res.headers);
+        headers.delete("content-length");
+        headers.set("content-type", "application/json");
+        return new Response(JSON.stringify(body), { status: res.status, headers });
+      }
+    }
+    return res;
+  });
 
   const apiHandler = new OpenAPIHandler(appRouter, {
     plugins: [
@@ -338,6 +373,11 @@ export function createApp(options: CreateAppOptions) {
     });
   }
 
+  // ── Health (DB-free) — di-letakkan SEBELUM app.use("/*") yang memanggil createContext/DB.
+  //    Smoke CI hanya cek respond cepat; jangan sampai kepaksa query DB (flaky saat DB/throttle).
+  app.get("/", (c) => c.text("OK"));
+  app.get("/health", (c) => c.json({ ok: true, service: "api" }));
+
   app.use("/rpc/*", (c, next) => kvRpcCache(c as any, next));
 
   app.use("/*", async (c, next) => {
@@ -365,9 +405,5 @@ export function createApp(options: CreateAppOptions) {
   });
 
   // Mount R2 upload routes
-  app.get("/", (c) => {
-    return c.text("OK");
-  });
-
   return app;
 }
