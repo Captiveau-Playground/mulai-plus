@@ -2,6 +2,7 @@ import { createWorkerAuth } from "@mulai-plus/auth/worker";
 import { db } from "@mulai-plus/db/db";
 import { dbStorage } from "@mulai-plus/db/provider";
 import { createWorkerDb, type WorkerDb } from "@mulai-plus/db/worker";
+import { runWithR2 } from "@mulai-plus/r2";
 import { createApp } from "./app";
 import { runAiHealthCheck, runAutoPublish, runMaintenance } from "./cron-core";
 
@@ -36,6 +37,11 @@ export interface Env {
   WEB_ORIGINS?: string;
   /** Discord webhook (maintenance/alert slow query). */
   DISCORD_WEBHOOK_URL?: string;
+  /** R2 binding — migrasi penuh ke akun deploy (novin@mulaiplus.id). */
+  MEDIA_BUCKET?: unknown;
+  /** Bucket & public URL (vars per env). */
+  R2_BUCKET_NAME?: string;
+  R2_PUBLIC_URL?: string;
 }
 
 let cached: { app: ReturnType<typeof createApp> } | null = null;
@@ -58,10 +64,19 @@ function withFreshDb<T>(env: Env, fn: () => Promise<T>): Promise<T> {
 
 export default {
   async fetch(request: Request, env: Env) {
-    return withFreshDb(env, async () => {
-      const { app } = await getRuntime();
-      return await app.fetch(request, env);
-    });
+    // R2 binding diprioritaskan (akun deploy), S3 env fallback utk local/Bun.
+    return runWithR2(
+      {
+        binding: env.MEDIA_BUCKET as never,
+        bucketName: env.R2_BUCKET_NAME,
+        publicUrl: env.R2_PUBLIC_URL,
+      },
+      () =>
+        withFreshDb(env, async () => {
+          const { app } = await getRuntime();
+          return await app.fetch(request, env);
+        }),
+    );
   },
   async scheduled(controller: unknown, env: Env) {
     // Kesehatan AI TIDAK butuh DB — jalankan duluan & independen (jangan ikut gagal kalau DB bermasalah).

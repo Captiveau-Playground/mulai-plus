@@ -14,6 +14,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { R2Config } from "@mulai-plus/env/server";
 import { getR2Config } from "@mulai-plus/env/server";
 import { nanoid } from "nanoid";
+import { activeR2Context } from "./runtime";
 
 export type { R2Config };
 
@@ -55,6 +56,17 @@ function getClient(): S3Client {
 }
 
 function getConfig(): R2Config {
+  // Worker: bucket & publicUrl dari runtime (binding context) — bukan secret lama.
+  const ctx = activeR2Context();
+  if (ctx?.bucketName && ctx.publicUrl) {
+    return {
+      accountId: ctx.bucketName, // tidak dipakai saat binding aktif
+      accessKeyId: "",
+      secretAccessKey: "",
+      bucketName: ctx.bucketName,
+      publicUrl: ctx.publicUrl,
+    };
+  }
   if (!r2Config) {
     initR2Client();
   }
@@ -86,20 +98,25 @@ export async function uploadToR2(
 ): Promise<UploadResult> {
   const client = getClient();
   const config = getConfig();
+  const binding = activeR2Context()?.binding;
 
   const key = generateFileName(options.filename, options.path);
   const size = file instanceof Buffer ? file.length : file.length;
 
-  const command = new PutObjectCommand({
-    Bucket: config.bucketName,
-    Key: key,
-    ContentType: options.mimeType,
-    ContentLength: size,
-    ACL: options.public !== false ? "public-read" : "private",
-    Body: file,
-  });
-
-  await client.send(command);
+  if (binding) {
+    const bytes = file instanceof Uint8Array ? file : new Uint8Array(file);
+    await binding.put(key, bytes, { httpMetadata: { contentType: options.mimeType } });
+  } else {
+    const command = new PutObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+      ContentType: options.mimeType,
+      ContentLength: size,
+      ACL: options.public !== false ? "public-read" : "private",
+      Body: file,
+    });
+    await client.send(command);
+  }
 
   return {
     url: `${config.publicUrl.replace(/\/$/, "")}/${key}`,
@@ -111,6 +128,12 @@ export async function uploadToR2(
 }
 
 export async function deleteFromR2(key: string): Promise<void> {
+  const binding = activeR2Context()?.binding;
+  if (binding) {
+    await binding.delete(key);
+    return;
+  }
+
   const client = getClient();
   const config = getConfig();
 
@@ -133,9 +156,20 @@ export async function getPresignedDownloadUrl(
     filename?: string;
   } = {},
 ): Promise<{ url: string; expiresAt: Date }> {
+  const expiresIn = options.expiresIn || 3600;
+
+  const binding = activeR2Context()?.binding;
+  if (binding && key) {
+    try {
+      const url = await binding.createSignedUrl(key, { expirySeconds: expiresIn });
+      return { url, expiresAt: new Date(Date.now() + expiresIn * 1000) };
+    } catch {
+      // fallback S3 di bawah
+    }
+  }
+
   const client = getClient();
   const config = getConfig();
-  const expiresIn = options.expiresIn || 3600;
 
   const command = new GetObjectCommand({
     Bucket: config.bucketName,
@@ -171,6 +205,12 @@ export function extractKeyFromUrl(url: string): string | null {
 }
 
 export async function listR2Objects(prefix = ""): Promise<string[]> {
+  const binding = activeR2Context()?.binding;
+  if (binding) {
+    const page = await binding.list({ prefix });
+    return page.objects.map((o) => o.key).filter((k): k is string => Boolean(k));
+  }
+
   const client = getClient();
   const config = getConfig();
 
@@ -257,17 +297,39 @@ function toCdnUrl(key: string, publicUrl: string): string {
  * Filters out folder placeholders (keys ending with / or zero-size).
  */
 export async function listR2ObjectsDetailed(prefix = ""): Promise<R2ObjectMeta[]> {
-  const client = getClient();
   const config = getConfig();
+  const baseUrl = config.publicUrl.replace(/\/$/, "");
+
+  const binding = activeR2Context()?.binding;
+  if (binding) {
+    const page = await binding.list({ prefix });
+    return page.objects
+      .filter((obj) => obj.key.length > 0 && !obj.key.endsWith("/") && obj.size > 0)
+      .map((obj) => {
+        const key = obj.key;
+        const filename = key.split("/").pop() || key;
+        const rawPublicUrl = `${baseUrl}/${key}`;
+        return {
+          key,
+          size: obj.size,
+          lastModified: obj.uploaded,
+          eTag: obj.httpEtag ?? undefined,
+          publicUrl: toCdnUrl(key, rawPublicUrl),
+          filename,
+          mimeType: obj.httpMetadata?.contentType ?? guessMimeType(key),
+        };
+      });
+  }
+
+  const client = getClient();
+  const config2 = config;
 
   const command = new ListObjectsV2Command({
-    Bucket: config.bucketName,
+    Bucket: config2.bucketName,
     Prefix: prefix,
   });
 
   const response = await client.send(command);
-
-  const baseUrl = config.publicUrl.replace(/\/$/, "");
 
   return (
     response.Contents?.filter((obj) => {
