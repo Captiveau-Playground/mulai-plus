@@ -1,6 +1,3 @@
-# Discord webhook (sekali diset via secret bulk / vars)
-DISCORD_WEBHOOK_URL = ""
-
 # Cloudflare Workers config — MULAI+ API (server)
 #
 # DUAL-DOMAIN (mirror Docker prod/staging):
