@@ -799,7 +799,7 @@ export const pddiktiRouter = {
 
     let snpmbData = null;
     if (mappings.length) {
-      const m = mappings[0];
+      const m = mappings[0]!;
       // Look up SNBP
       const [sbp] = await db.select().from(snbpPrograms).where(eq(snbpPrograms.idProdi, m?.snpmbProgramId)).limit(1);
       const [sbt] = await db.select().from(snbtPrograms).where(eq(snbtPrograms.idProdi, m?.snpmbProgramId)).limit(1);

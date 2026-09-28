@@ -26,6 +26,7 @@
     "apps/ai": {
       "name": "ai",
       "dependencies": {
+        "@mulai-plus/notify": "workspace:*",
         "hono": "catalog:",
         "postgres": "^3.4.5",
         "zod": "catalog:",
@@ -45,6 +46,7 @@
         "@mulai-plus/auth": "workspace:*",
         "@mulai-plus/db": "workspace:*",
         "@mulai-plus/env": "workspace:*",
+        "@mulai-plus/notify": "workspace:*",
         "@mulai-plus/r2": "workspace:*",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
@@ -188,6 +190,7 @@
         "@mulai-plus/auth": "workspace:*",
         "@mulai-plus/db": "workspace:*",
         "@mulai-plus/env": "workspace:*",
+        "@mulai-plus/notify": "workspace:*",
         "@mulai-plus/r2": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
@@ -250,6 +253,15 @@
         "dotenv": "catalog:",
         "zod": "catalog:",
       },
+      "devDependencies": {
+        "@mulai-plus/config": "workspace:*",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
+    "packages/notify": {
+      "name": "@mulai-plus/notify",
+      "version": "0.0.0",
       "devDependencies": {
         "@mulai-plus/config": "workspace:*",
         "@types/bun": "catalog:",
@@ -812,6 +824,8 @@
     "@mulai-plus/db": ["@mulai-plus/db@workspace:packages/db"],
 
     "@mulai-plus/env": ["@mulai-plus/env@workspace:packages/env"],
+
+    "@mulai-plus/notify": ["@mulai-plus/notify@workspace:packages/notify"],
 
     "@mulai-plus/r2": ["@mulai-plus/r2@workspace:packages/r2"],
 

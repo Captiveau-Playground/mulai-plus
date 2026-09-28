@@ -18,6 +18,7 @@ import {
   tmbTestCatalog,
   tmbUserStats,
 } from "@mulai-plus/db/schema/tmb";
+import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { z } from "zod";
 import { adminProcedure, protectedProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
@@ -692,6 +693,23 @@ export const tmbRouter = {
         .update(tmbBatchStudents)
         .set({ resultId, status: "completed" })
         .where(eq(tmbBatchStudents.userId, userId));
+
+      // Discord notif: kedua test selesai → hasil siap
+      const webhookUrl = (context.env as { DISCORD_WEBHOOK_URL?: string } | undefined)?.DISCORD_WEBHOOK_URL;
+      const u = context.session.user;
+      notifyDiscord({
+        webhookUrl,
+        event: "assessment.result_ready",
+        title: "📊 Hasil Tes Minat & Bakat siap",
+        description: `${u.name ?? "User"} menyelesaikan Tes Minat & Bakat dan hasil rekomendasinya sudah tersedia.`,
+        fields: [
+          { name: "Nama", value: u.name ?? "-", inline: true },
+          { name: "Email", value: u.email ?? "-", inline: true },
+          { name: "User ID", value: userId, inline: false },
+        ],
+        throttleMs: 0,
+        waitUntil: context.executionCtx?.waitUntil,
+      });
 
       return { resultId, alreadyCompleted: false, bothDone: true };
     }),
