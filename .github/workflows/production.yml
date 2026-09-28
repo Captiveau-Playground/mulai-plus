@@ -367,7 +367,7 @@ jobs:
             local name="$1"
             local value="${!name}"
             if [ -n "$value" ]; then
-              echo "$value" | ./node_modules/.bin/wrangler secret put "$name" --env production
+              echo "$value" | ./node_modules/.bin/wrangler versions secret put "$name" --env production
             else
               echo "Skip $name (kosong)"
             fi
