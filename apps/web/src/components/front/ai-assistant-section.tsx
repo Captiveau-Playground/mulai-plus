@@ -15,7 +15,7 @@ const fadeUp = {
 const FEATURES = [
   {
     icon: Building2,
-    color: "text-brand-navy bg-brand-navy/10",
+    color: "text-brand-orange bg-brand-orange/10",
     title: "Skill per kebutuhan",
     desc: "Universitas, Prodi & Jurusan, Passing Grade, atau Mentoring — AI fokus mengikuti pilihanmu.",
   },
@@ -27,7 +27,7 @@ const FEATURES = [
   },
   {
     icon: GraduationCap,
-    color: "text-brand-navy bg-brand-navy/10",
+    color: "text-brand-orange bg-brand-orange/10",
     title: "Mulai Cerdas · Pintar · Bijak",
     desc: "Pilih kecepatan vs kedalaman; kuota harian jelas di meter.",
   },

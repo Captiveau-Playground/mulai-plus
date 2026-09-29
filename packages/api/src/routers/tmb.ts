@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne } from "@mulai-plus/db/db";
+import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne, sql } from "@mulai-plus/db/db";
 import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
@@ -20,7 +20,7 @@ import {
 } from "@mulai-plus/db/schema/tmb";
 import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { z } from "zod";
-import { adminProcedure, protectedProcedure } from "../index";
+import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
 import { mail } from "../lib/mail";
 
@@ -464,6 +464,51 @@ export const tmbRouter = {
           .onConflictDoUpdate({ target: tmbProfiles.userId, set: { ...input, updatedAt: new Date() } });
         return { success: true };
       }),
+  },
+
+  leaderboard: {
+    /** Papan peringkat Test Bakat — publik; nama disensor (inisial + ***), email tak pernah dikirim.
+     *  Per user: attempt ability terbaik (skor = jawaban benar, tie-break waktu tercepat). */
+    ability: publicProcedure.handler(async ({ context }) => {
+      const viewerId = context.session?.user?.id ?? null;
+      const rows = (await db.execute(sql`
+        WITH sc AS (
+          SELECT a.user_id, a.id,
+            (SELECT count(*) FROM tmb_test_answers x
+              WHERE x.attempt_id = a.id AND x.is_correct = true)::int AS score,
+            (SELECT count(*) FROM tmb_test_answers x
+              WHERE x.attempt_id = a.id)::int AS total,
+            EXTRACT(EPOCH FROM (a.finished_at - a.started_at))::int AS dur
+          FROM tmb_test_attempts a
+          WHERE a.test_code = 'ability' AND a.status = 'completed'
+            AND a.finished_at IS NOT NULL AND a.started_at IS NOT NULL
+        ), best AS (
+          SELECT DISTINCT ON (user_id) user_id, score, total, dur, id
+          FROM sc ORDER BY user_id, score DESC, dur ASC
+        )
+        SELECT b.user_id, b.score, b.total, b.dur, u.name AS name
+        FROM best b
+        JOIN "user" u ON u.id = b.user_id
+        ORDER BY b.score DESC, b.dur ASC
+        LIMIT 50`)) as unknown as {
+        rows?: { user_id: string; score: number; total: number; dur: number; name: string }[];
+      };
+
+      const list = (rows.rows ?? []).map((r, i) => {
+        const name = (r.name ?? "Pengguna").trim();
+        const masked =
+          name.length > 1 ? `${name[0]}${"*".repeat(Math.min(3, Math.max(2, name.length - 1)))}` : `${name}**`;
+        return {
+          rank: i + 1,
+          masked,
+          score: Number(r.score ?? 0),
+          total: Number(r.total ?? 0),
+          durationSec: Number(r.dur ?? 0),
+          isSelf: !!viewerId && r.user_id === viewerId,
+        };
+      });
+      return { updatedAt: new Date().toISOString(), entries: list };
+    }),
   },
 
   assessment: {

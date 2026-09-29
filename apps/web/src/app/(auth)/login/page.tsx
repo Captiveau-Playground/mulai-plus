@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -59,41 +61,87 @@ function LoginContent() {
   }
 
   return (
-    <div className="relative flex min-h-screen">
-      {/* Left Side - Branding */}
-      <div className="hidden w-1/2 flex-col justify-between bg-[#1A1F6D] p-12 lg:flex">
+    <div className="relative flex min-h-screen overflow-hidden bg-bg-light">
+      {/* Left Side - Branding (desktop) */}
+      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-brand-navy p-12 lg:flex">
+        {/* pola grid halus */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+          }}
+        />
+        {/* orbs */}
+        <motion.div
+          className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-brand-orange/20 blur-3xl"
+          animate={{ y: [0, 18, 0] }}
+          transition={{ duration: 9, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="pointer-events-none absolute bottom-24 -left-16 h-64 w-64 rounded-full bg-[#7b5cff]/20 blur-3xl"
+          animate={{ y: [0, -14, 0] }}
+          transition={{ duration: 11, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        />
+
         {/* Logo */}
         <Link href="/" className="relative z-10 inline-block">
           <Image src="/light-type-logo.svg" alt="Mulai Plus" width={160} height={48} className="cursor-pointer" />
         </Link>
 
         {/* Content */}
-        <div className="relative z-10">
-          <h1 className="font-bold font-bricolage text-5xl text-white leading-tight lg:text-6xl">
-            Start where you are.
-            <br />
-            Grow from here.
+        <div className="relative z-10 max-w-lg">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/40 bg-brand-orange/15 px-3.5 py-1.5 font-manrope font-medium text-[11px] text-brand-orange tracking-wide">
+            <Sparkles className="size-3.5" /> Bimbingan Kuliah Indonesia
+          </span>
+          <h1 className="mt-5 font-bold font-bricolage text-4xl text-white leading-tight lg:text-[54px]">
+            Temukan jurusan yang <span className="text-brand-orange">sangat kamu</span> suka.
           </h1>
-          <p className="mt-6 font-manrope text-lg text-white/80 lg:text-xl">
-            MULAI+ membimbingmu memilih universitas dan jurusan yang tepat. Bersama mentor berpengalaman, temukan masa
-            depan yang sesuai dengan impianmu.
+          <p className="mt-5 font-manrope text-base text-white/75 lg:text-lg">
+            Muncul dari tes minat-bakat kamu hingga mentoring 1-on-1 — MULAI+ bantu memilih universitas & jurusan tanpa
+            tebak-tebakan.
           </p>
+
+          {/* Maskot + bubble */}
+          <div className="mt-8 flex items-center gap-4">
+            <motion.div
+              className="h-40 w-40 shrink-0 overflow-hidden rounded-[2rem] bg-white/10 shadow-2xl backdrop-blur-sm"
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+            >
+              <Image
+                src="/maskot/masko-hi.webp"
+                alt="Maskot MULAI+"
+                width={176}
+                height={176}
+                className="h-full w-full object-cover"
+              />
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="rounded-2xl rounded-bl-sm bg-white/10 px-4 py-3 font-manrope text-sm text-white/90 backdrop-blur-sm"
+            >
+              Hai! 👋 Siap mulai perjalanan kuliahmu?
+            </motion.p>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="relative z-10 flex gap-12">
-          <div className="text-center">
-            <span className="font-bold font-bricolage text-4xl text-white">10+</span>
-            <p className="font-manrope text-sm text-white/60">Mentor Aktif</p>
-          </div>
-          <div className="text-center">
-            <span className="font-bold font-bricolage text-4xl text-white">500+</span>
-            <p className="font-manrope text-sm text-white/60">Siswa Terbimbing</p>
-          </div>
-          <div className="text-center">
-            <span className="font-bold font-bricolage text-4xl text-white">6</span>
-            <p className="font-manrope text-sm text-white/60">Minggu Program</p>
-          </div>
+        <div className="relative z-10 flex items-center gap-6">
+          {[
+            ["10+", "Mentor Aktif"],
+            ["500+", "Siswa Terbimbing"],
+            ["10k+", "Prodi Didata"],
+            ["38", "Provinsi"],
+          ].map(([v, l], i) => (
+            <div key={l} className={i > 0 ? "border-white/10 border-l pl-6" : ""}>
+              <span className="font-bold font-bricolage text-2xl text-white">{v}</span>
+              <p className="mt-0.5 font-manrope text-[11px] text-white/55">{l}</p>
+            </div>
+          ))}
         </div>
       </div>
 

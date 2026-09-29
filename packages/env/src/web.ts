@@ -1,31 +1,79 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
-export const env = createEnv({
-  client: {
-    NEXT_PUBLIC_SERVER_URL: z.url(),
-    NEXT_PUBLIC_SUPABASE_URL: z.url(),
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: z.string(),
-    NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
-    NEXT_PUBLIC_GA_DEBUG_MODE: z
-      .string()
-      .optional()
-      .transform((v) => v === "true"),
-    NEXT_PUBLIC_CLARITY_ID: z.string().optional(),
-    NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().optional(),
-    NEXT_PUBLIC_APP_URL: z.string().url().optional(),
-    NEXT_PUBLIC_RELEASE_TAG: z.string().optional(),
-  },
-  runtimeEnv: {
-    NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY,
-    NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
-    NEXT_PUBLIC_GA_DEBUG_MODE: process.env.NEXT_PUBLIC_GA_DEBUG_MODE,
-    NEXT_PUBLIC_CLARITY_ID: process.env.NEXT_PUBLIC_CLARITY_ID,
-    NEXT_PUBLIC_AMPLITUDE_API_KEY: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-    NEXT_PUBLIC_RELEASE_TAG: process.env.NEXT_PUBLIC_RELEASE_TAG,
-  },
-  emptyStringAsUndefined: true,
-});
+/**
+ * Env web — tolerant terhadap env parsial (build/CI/preflight Cloudflare).
+ * Ketika semua var lengkap: validasi ketat. Kalau ada yang hilang (mis. preflight
+ * tanpa NEXT_PUBLIC_*), fallback ke skema optional tanpa crash di import-time.
+ */
+function createStrictWebEnv() {
+  return createEnv({
+    client: {
+      NEXT_PUBLIC_SERVER_URL: z.url(),
+      NEXT_PUBLIC_SUPABASE_URL: z.url(),
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: z.string(),
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
+      NEXT_PUBLIC_GA_DEBUG_MODE: z
+        .string()
+        .optional()
+        .transform((v) => v === "true"),
+      NEXT_PUBLIC_CLARITY_ID: z.string().optional(),
+      NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().optional(),
+      NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+      NEXT_PUBLIC_RELEASE_TAG: z.string().optional(),
+    },
+    runtimeEnv: {
+      NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY,
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+      NEXT_PUBLIC_GA_DEBUG_MODE: process.env.NEXT_PUBLIC_GA_DEBUG_MODE,
+      NEXT_PUBLIC_CLARITY_ID: process.env.NEXT_PUBLIC_CLARITY_ID,
+      NEXT_PUBLIC_AMPLITUDE_API_KEY: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+      NEXT_PUBLIC_RELEASE_TAG: process.env.NEXT_PUBLIC_RELEASE_TAG,
+    },
+    emptyStringAsUndefined: true,
+  });
+}
+
+type StrictWebEnv = ReturnType<typeof createStrictWebEnv>;
+
+function buildWebEnv(): StrictWebEnv {
+  try {
+    return createStrictWebEnv();
+  } catch (err) {
+    console.warn("[env/web] schema validation skipped (partial env):", (err as Error).message?.split("\n")[0] ?? err);
+    return createEnv({
+      client: {
+        NEXT_PUBLIC_SERVER_URL: z.string().url().optional(),
+        NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: z.string().optional(),
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
+        NEXT_PUBLIC_GA_DEBUG_MODE: z
+          .string()
+          .optional()
+          .transform((v) => v === "true"),
+        NEXT_PUBLIC_CLARITY_ID: z.string().optional(),
+        NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().optional(),
+        NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+        NEXT_PUBLIC_RELEASE_TAG: z.string().optional(),
+      },
+      runtimeEnv: {
+        NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY,
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+        NEXT_PUBLIC_GA_DEBUG_MODE: process.env.NEXT_PUBLIC_GA_DEBUG_MODE,
+        NEXT_PUBLIC_CLARITY_ID: process.env.NEXT_PUBLIC_CLARITY_ID,
+        NEXT_PUBLIC_AMPLITUDE_API_KEY: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+        NEXT_PUBLIC_RELEASE_TAG: process.env.NEXT_PUBLIC_RELEASE_TAG,
+      },
+      emptyStringAsUndefined: true,
+      skipValidation: true,
+    }) as StrictWebEnv;
+  }
+}
+
+export const env = buildWebEnv();

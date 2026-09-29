@@ -93,6 +93,7 @@ import type { UserContext } from "./types";
 
 const AI_BASE = (env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
 const SESSION_HEADER = "x-session-id";
+const ACTIVE_SESSION_KEY = "mulai-ai-active-session";
 
 const TIERS = [
   {
@@ -232,6 +233,177 @@ function fmtTime(iso: string | null): string {
 }
 
 /** Peta satu sesi percakapan (remount per sesi → riwayat termuat + bisa lanjut). */
+/** Skeleton percakapan — shimmer ala mesh chat (loading inisial & switch sesi). */
+function ChatSkeleton() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-4" aria-hidden>
+      {/* header palsu */}
+      <div className="flex items-center gap-2">
+        <div className="h-7 w-7 animate-pulse rounded-lg bg-brand-navy/10" />
+        <div className="h-3 w-40 animate-pulse rounded-full bg-brand-navy/10" />
+      </div>
+      {/* bubble user */}
+      <div className="ml-auto h-10 w-3/5 animate-pulse rounded-2xl rounded-tr-sm bg-brand-navy/10" />
+      {/* tool chip: spinner oranye + line */}
+      <div className="flex items-center gap-2">
+        <span className="size-3.5 animate-spin rounded-full border-2 border-brand-orange border-t-transparent" />
+        <div className="h-3 w-36 animate-pulse rounded-full bg-brand-navy/10" />
+      </div>
+      {/* jawaban AI 3 baris (semakin pendek) */}
+      <div className="mt-1 h-3 w-4/5 animate-pulse rounded-full bg-brand-navy/10" />
+      <div className="h-3 w-3/5 animate-pulse rounded-full bg-brand-navy/10" style={{ animationDelay: "120ms" }} />
+      <div className="h-3 w-2/5 animate-pulse rounded-full bg-brand-navy/10" style={{ animationDelay: "240ms" }} />
+      {/* pseudo composer */}
+      <div className="mt-auto flex items-center gap-2 rounded-2xl border border-gray-100 px-3 py-2.5">
+        <div className="h-3 flex-1 animate-pulse rounded-full bg-gray-100" />
+        <div className="h-7 w-7 animate-pulse rounded-full bg-brand-navy/15" />
+      </div>
+    </div>
+  );
+}
+
+/** Daftar percakapan terkelompok (Hari ini/Kemarin/… + pencarian). */
+function groupSessions(items: SessionItem[], q: string): { label: string; items: SessionItem[] }[] {
+  const query = q.trim().toLowerCase();
+  const list = query ? items.filter((s) => s.title.toLowerCase().includes(query)) : items;
+  const now = new Date();
+  const day = (ms: number) => {
+    if (!ms) return 4;
+    const d = new Date(ms).toDateString();
+    if (d === now.toDateString()) return 0;
+    if (d === new Date(now.getTime() - 864e5).toDateString()) return 1;
+    if (ms > now.getTime() - 7 * 864e5) return 2;
+    if (ms > now.getTime() - 30 * 864e5) return 3;
+    return 4;
+  };
+  const labels = ["Hari ini", "Kemarin", "7 hari terakhir", "30 hari terakhir", "Lainnya"];
+  const buckets: SessionItem[][] = [[], [], [], [], []];
+  for (const st of list) buckets[Math.min(day(st.lastActive ? new Date(st.lastActive).getTime() : 0), 4)].push(st);
+  const out: { label: string; items: SessionItem[] }[] = [];
+  for (let i = 0; i < 5; i++) if (buckets[i].length) out.push({ label: labels[i], items: buckets[i] });
+  return out;
+}
+
+function SessionGroupedList({
+  groups,
+  q,
+  activeId,
+  editingId,
+  draftTitle,
+  setDraftTitle,
+  saveRename,
+  setEditingId,
+  setDeleteTarget,
+  onOpen,
+}: {
+  groups: { label: string; items: SessionItem[] }[];
+  q: string;
+  activeId: string | null;
+  editingId: string | null;
+  draftTitle: string;
+  setDraftTitle: (v: string) => void;
+  saveRename: (id: string, title: string) => void;
+  setEditingId: (id: string | null) => void;
+  setDeleteTarget: (st: SessionItem | null) => void;
+  onOpen: (id: string) => void;
+}) {
+  if (groups.length === 0) {
+    return (
+      <p className="px-2 py-6 text-center font-manrope text-text-muted-custom/70 text-xs">
+        {q.trim() ? `Tidak ada hasil untuk "${q.trim()}"` : "Belum ada riwayat."}
+        <br />
+        Kirim pertanyaan pertama kamu.
+      </p>
+    );
+  }
+  return (
+    <>
+      {groups.map((g) => (
+        <div key={g.label}>
+          <p className="px-2 pt-2 pb-1 font-manrope font-semibold text-[9px] text-muted-foreground uppercase tracking-wider">
+            {g.label}
+          </p>
+          {g.items.map((st) => (
+            // biome-ignore lint/a11y/useSemanticElements: container klik utk row percakapan
+            <div
+              key={st.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpen(st.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpen(st.id);
+                }
+              }}
+              title={st.title}
+              className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg border-l-2 px-2 py-1.5 text-left transition-colors ${
+                st.id === activeId ? "border-brand-orange bg-brand-navy/10" : "border-transparent hover:bg-muted"
+              }`}
+            >
+              <span className="min-w-0 flex-1 overflow-hidden">
+                {editingId === st.id ? (
+                  <input
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={() => {
+                      void saveRename(st.id, draftTitle);
+                      setEditingId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        void saveRename(st.id, draftTitle);
+                        setEditingId(null);
+                      } else if (e.key === "Escape") {
+                        setEditingId(null);
+                      }
+                      e.stopPropagation();
+                    }}
+                    className="w-full rounded-md border border-border bg-card px-1.5 py-0.5 font-manrope text-xs outline-none focus:border-brand-orange/60"
+                  />
+                ) : (
+                  <span className="block truncate font-manrope font-medium text-text-main text-xs">{st.title}</span>
+                )}
+                <span className="block truncate font-manrope text-[10px] text-text-muted-custom">
+                  {fmtTime(st.lastActive)} · {st.messageCount} pesan
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-0.5">
+                {st.id === activeId && <CheckMark className="size-3.5 text-brand-orange" />}
+                <button
+                  type="button"
+                  aria-label="Ubah judul"
+                  title="Ubah judul"
+                  className="hidden shrink-0 rounded-md p-1 text-text-muted-custom hover:bg-muted hover:text-brand-navy group-hover:inline-flex"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDraftTitle(st.title);
+                    setEditingId(editingId === st.id ? null : st.id);
+                  }}
+                >
+                  <PencilIcon className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Hapus ${st.title}`}
+                  className="hidden shrink-0 rounded-md p-1 text-text-muted-custom transition-colors hover:bg-red-50 hover:text-red-500 group-hover:inline-flex"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(st);
+                  }}
+                >
+                  <Trash2Icon className="size-3.5" />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
 function ChatRuntime({
   sessionId,
   userId,
@@ -240,6 +412,7 @@ function ChatRuntime({
   ctx,
   dailyLeft,
   dailyLimit,
+  initialHasMore = false,
 }: {
   sessionId: string;
   userId: string | null;
@@ -248,6 +421,7 @@ function ChatRuntime({
   ctx: UserContext | null;
   dailyLeft: number | null;
   dailyLimit: number;
+  initialHasMore?: boolean;
 }) {
   const [text, setText] = useState("");
   const [skill, setSkill] = useState("general");
@@ -265,6 +439,61 @@ function ChatRuntime({
   const [branchState, setBranchState] = useState<Record<string, { active: number; versions: string[] }>>({});
   const sendGroups = useRef<Map<string, string>>(new Map());
   const pendingRegen = useRef<{ blockKey: string; group: string } | null>(null);
+
+  const [hasMoreMsg, setHasMoreMsg] = useState(initialHasMore);
+  const oldestIdRef = useRef<number | null>(null);
+  const loadingMoreRef = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  if (oldestIdRef.current === null) {
+    const nums = initialMessages
+      .map((ms: any) => /^m(\d+)$/.exec(String(ms?.id ?? "")))
+      .filter(Boolean)
+      .map((m: any) => Number(m[1]));
+    if (nums.length) oldestIdRef.current = Math.min(...nums);
+  }
+  const loadOlder = async () => {
+    if (loadingMoreRef.current || !hasMoreMsg || oldestIdRef.current === null) return;
+    const sStatus = (chatRef.current as any)?.status ?? chat.status;
+    if (sStatus === "submitted" || sStatus === "streaming") return;
+    loadingMoreRef.current = true;
+    try {
+      const r = await fetch(
+        `${AI_BASE}/ai/history?session_id=${encodeURIComponent(sessionId)}&limit=50&before_id=${oldestIdRef.current}`,
+      );
+      const d = r.ok ? ((await r.json()) as any) : null;
+      const rows = Array.isArray(d?.messages) ? d.messages : [];
+      if (rows.length) {
+        oldestIdRef.current = Math.min(oldestIdRef.current, ...rows.map((row: any) => Number(row.id)));
+        chat.setMessages((prev: any[]) => [
+          ...rows.map((row: any) => ({
+            id: row.id ? `m${row.id}` : crypto.randomUUID(),
+            role: row.role === "user" ? "user" : "assistant",
+            parts: [{ type: "text", text: row.content ?? "" }],
+          })),
+          ...prev,
+        ]);
+      }
+      setHasMoreMsg(!!d?.hasMore);
+    } catch {
+      /* nonblokir */
+    } finally {
+      loadingMoreRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void loadOlder();
+      },
+      { rootMargin: "120px 0px 0px 0px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+    // biome-ignore lint/correctness/useExhaustiveDependencies: observer sekali; dependensi pakai refs
+  }, [loadOlder]);
 
   const chat = useChat({
     transport: new DefaultChatTransport({
@@ -442,6 +671,11 @@ function ChatRuntime({
       {/* Percakapan */}
       <Conversation className="min-h-0 flex-1 rounded-none border-0 bg-card">
         <ConversationContent className="gap-3 px-3 py-3 sm:px-5 sm:py-4">
+          {hasMoreMsg && (
+            <div ref={sentinelRef} className="flex justify-center py-1">
+              <span className="h-2 w-8 animate-pulse rounded-full bg-gray-200" />
+            </div>
+          )}
           {messages.length === 0 && (
             <div className="flex min-h-[36vh] flex-col items-center justify-center px-4 pb-4 text-center sm:min-h-[52vh] sm:pb-6">
               <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-navy to-brand-navy-light font-bold font-bricolage text-sm text-white shadow-lg sm:size-12 sm:rounded-2xl sm:text-lg">
@@ -710,7 +944,7 @@ function ChatRuntime({
       {/* Suggestions selalu tampil (pola ref examples/chatbot) + konteks + composer */}
       <div className="shrink-0 border-border border-t">
         {!busy && (
-          <div className="flex flex-col gap-1.5 px-3 pt-2 pb-1">
+          <div className="flex flex-col gap-1 px-2 pt-1.5 pb-0.5">
             <div id="tour-skills" className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
               {SKILLS.map((sk) => (
                 <button
@@ -718,7 +952,7 @@ function ChatRuntime({
                   type="button"
                   onClick={() => setSkill(sk.id)}
                   title={sk.desc}
-                  className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 font-manrope text-[11px] transition-colors ${
+                  className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-manrope text-[10px] transition-colors ${
                     skill === sk.id
                       ? "border-brand-navy bg-brand-navy text-white"
                       : "border-border bg-card text-brand-navy hover:bg-muted"
@@ -748,7 +982,7 @@ function ChatRuntime({
           </div>
         )}
         {quotaOut && (
-          <div className="mx-1 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 sm:mx-3">
+          <div className="mx-1 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 sm:mx-3 sm:gap-3 sm:px-4 sm:py-3">
             <CircleAlert className="mt-0.5 size-4.5 shrink-0 text-red-500" />
             <div>
               <p className="font-manrope font-semibold text-red-600 text-sm">
@@ -762,12 +996,7 @@ function ChatRuntime({
           </div>
         )}
 
-        <PromptInput
-          id="tour-composer"
-          onSubmit={handleSubmit}
-          multiple
-          className="rounded-none border-0 bg-white px-3 pt-1 pb-3"
-        >
+        <PromptInput id="tour-composer" onSubmit={handleSubmit} multiple className="w-full px-1.5 pt-1 pb-1">
           <PromptInputBody>
             <PromptInputTextarea
               value={text}
@@ -785,7 +1014,7 @@ function ChatRuntime({
                     id="tour-model"
                     variant="ghost"
                     size="sm"
-                    className="gap-1.5 rounded-full border border-gray-200 px-3 text-xs"
+                    className="gap-1.5 rounded-full border border-gray-200 px-2.5 text-[11px] sm:px-3 sm:text-xs"
                   >
                     {current.icon}
                     {current.name}
@@ -854,7 +1083,17 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const { data: authSession } = authClient.useSession();
   const userId = (authSession?.user?.id as string | undefined) ?? null;
   const [sessions, setSessions] = useState<SessionItem[]>([]);
-  const [activeId, setActiveId] = useState<string>(initialSessionId ?? `s-${crypto.randomUUID().slice(0, 12)}`);
+  const [activeId, setActiveId] = useState<string>(
+    initialSessionId ??
+      (typeof window !== "undefined" ? window.localStorage.getItem(ACTIVE_SESSION_KEY) : null) ??
+      `s-${crypto.randomUUID().slice(0, 12)}`,
+  );
+  const [loadingSession, setLoadingSession] = useState(false);
+  const activeIdRef = useRef<string | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [q, setQ] = useState("");
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const groups = useMemo(() => groupSessions(sessions, q), [sessions, q]);
   const [history, setHistory] = useState<any[]>([]);
   const [ready, setReady] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -892,6 +1131,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const _loaded = useRef<string | null>(null);
 
   const refreshSessions = useCallback(async () => {
+    setSessionsLoading(true);
     try {
       const r = await fetch(`${AI_BASE}/ai/sessions`, {
         cache: "no-store",
@@ -902,6 +1142,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       setSessions(d.sessions ?? []);
     } catch {
       /* nonblokir */
+    } finally {
+      setSessionsLoading(false);
     }
   }, [userId]);
 
@@ -909,12 +1151,17 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const openSession = async (id: string) => {
     setActiveId(id);
     setHistory([]);
-    setReady(false);
+    setHistoryHasMore(false);
+    setLoadingSession(true);
     setMobileListOpen(false);
+    if (id !== activeIdRef.current) {
+      // ChatRuntime ganti key hanya setelah history siap → TIDAK blank.
+    }
     try {
       const r = await fetch(`${AI_BASE}/ai/history?session_id=${encodeURIComponent(id)}`);
       const d = r.ok ? ((await r.json()) as any) : null;
       const rows = Array.isArray(d?.messages) ? d.messages : [];
+      setHistoryHasMore(!!d?.hasMore);
       setHistory(
         rows.map((row: any) => ({
           id: row.id ? `m${row.id}` : crypto.randomUUID(),
@@ -925,7 +1172,9 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     } catch {
       /* ignore */
     }
+    setLoadingSession(false);
     setReady(true);
+    activeIdRef.current = id;
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: openSession dibuat ulang tiap render — cukup trigger param
@@ -936,6 +1185,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       void openSession(initialSessionId);
     } else if (process.env.NEXT_PUBLIC_CHAT_NO_REDIRECT !== "1") {
       const id = `s-${crypto.randomUUID().slice(0, 12)}`;
+      window.localStorage.setItem(ACTIVE_SESSION_KEY, id);
       (router.replace as any)(`/dashboard/student/assistant/chat/${id}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -956,6 +1206,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     }
     setActiveId(id);
     setHistory([]);
+    setHistoryHasMore(false);
     setReady(true);
     setShowSidebar(false);
     setMobileListOpen(false);
@@ -996,7 +1247,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     } catch {
       /* nonblokir */
     }
-  }, [activeId, userId]);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: kuota & profil PER-USER — tidak perlu refetch saat ganti chat
+  }, [userId, activeId]);
 
   // Gate kelengkapan profil — sekolah & jenjang wajib utk akses Mul.ai & tes
   const gateBlocked = ctx !== null && !(String(ctx.school || "").trim() && String(ctx.level || "").trim());
@@ -1037,7 +1289,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
 
   if (gateBlocked) {
     return (
-      <div className="flex h-full min-h-0 w-full gap-3 p-4">
+      <div className="flex h-full min-h-0 w-full gap-2 p-2">
         <section className="flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
           <header
             id="tour-header"
@@ -1057,7 +1309,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full gap-3 p-4 md:p-4 lg:p-4">
+    <div className="flex h-full min-h-0 w-full gap-2 p-2 md:p-3">
       {/* Tour first-visit Mul.ai */}
       {tourOpen && tourRect && (
         <div className="fixed inset-0 z-[90]" style={{ pointerEvents: "none" }}>
@@ -1150,88 +1402,46 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
-            {sessions.length === 0 ? (
+            {sessionsLoading ? (
+              <div className="space-y-2 p-2" aria-hidden>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-2">
+                    <div className="h-7 w-7 shrink-0 animate-pulse rounded-lg bg-brand-navy/10" />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="h-2.5 w-3/4 animate-pulse rounded-full bg-brand-navy/10" />
+                      <div className="h-2 w-1/2 animate-pulse rounded-full bg-brand-navy/10" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : sessions.length === 0 ? (
               <p className="px-2 py-6 text-center font-manrope text-text-muted-custom/70 text-xs">
                 Belum ada riwayat.
                 <br />
                 Kirim pertanyaan pertama kamu.
               </p>
             ) : (
-              sessions.map((s) => (
-                // biome-ignore lint/a11y/useSemanticElements: container klik utk row percakapan (bukan button nested)
-                <div
-                  key={s.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`);
-                    }
-                  }}
-                  title={s.title}
-                  className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg border-l-2 px-2 py-1.5 text-left transition-colors ${
-                    s.id === activeId ? "border-brand-orange bg-brand-navy/10" : "border-transparent hover:bg-muted"
-                  }`}
-                >
-                  <span className="min-w-0 flex-1 overflow-hidden">
-                    {editingId === s.id ? (
-                      <input
-                        value={draftTitle}
-                        onChange={(e) => setDraftTitle(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onBlur={() => {
-                          void saveRename(s.id, draftTitle);
-                          setEditingId(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            void saveRename(s.id, draftTitle);
-                            setEditingId(null);
-                          } else if (e.key === "Escape") {
-                            setEditingId(null);
-                          }
-                          e.stopPropagation();
-                        }}
-                        className="w-full rounded-md border border-border bg-card px-1.5 py-0.5 font-manrope text-xs outline-none focus:border-brand-orange/60"
-                      />
-                    ) : (
-                      <span className="block truncate font-manrope font-medium text-text-main text-xs">{s.title}</span>
-                    )}
-                    <span className="block truncate font-manrope text-[10px] text-text-muted-custom">
-                      {fmtTime(s.lastActive)} · {s.messageCount} pesan
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-0.5">
-                    {s.id === activeId && <CheckMark className="size-3.5 text-brand-orange" />}
-                    <button
-                      type="button"
-                      aria-label="Ubah judul"
-                      title="Ubah judul"
-                      className="hidden shrink-0 rounded-md p-1 text-text-muted-custom hover:bg-muted hover:text-brand-navy group-hover:inline-flex"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDraftTitle(s.title);
-                        setEditingId((cur) => (cur === s.id ? null : s.id));
-                      }}
-                    >
-                      <PencilIcon className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Hapus ${s.title}`}
-                      className="hidden shrink-0 rounded-md p-1 text-text-muted-custom transition-colors hover:bg-red-50 hover:text-red-500 group-hover:inline-flex"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(s);
-                      }}
-                    >
-                      <Trash2Icon className="size-3.5" />
-                    </button>
-                  </span>
-                </div>
-              ))
+              <>
+                <input
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Cari percakapan…"
+                  className="mx-2 mb-1 w-full rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 font-manrope text-xs outline-none placeholder:text-muted-foreground/50 focus:border-brand-orange/50"
+                />
+                <SessionGroupedList
+                  groups={groups}
+                  q={q}
+                  activeId={activeId}
+                  editingId={editingId}
+                  draftTitle={draftTitle}
+                  setDraftTitle={setDraftTitle}
+                  saveRename={saveRename}
+                  setEditingId={setEditingId}
+                  setDeleteTarget={setDeleteTarget}
+                  onOpen={(id: string) => (router.push as any)(`/dashboard/student/assistant/chat/${id}`)}
+                />
+              </>
             )}
           </div>
 
@@ -1341,88 +1551,46 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-6">
-            {sessions.length === 0 ? (
+            {sessionsLoading ? (
+              <div className="space-y-2 p-2" aria-hidden>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-2">
+                    <div className="h-7 w-7 shrink-0 animate-pulse rounded-lg bg-brand-navy/10" />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="h-2.5 w-3/4 animate-pulse rounded-full bg-brand-navy/10" />
+                      <div className="h-2 w-1/2 animate-pulse rounded-full bg-brand-navy/10" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : sessions.length === 0 ? (
               <p className="px-2 py-6 text-center font-manrope text-text-muted-custom/70 text-xs">
                 Belum ada riwayat.
                 <br />
                 Kirim pertanyaan pertama kamu.
               </p>
             ) : (
-              sessions.map((s) => (
-                // biome-ignore lint/a11y/useSemanticElements: container klik utk row percakapan (bukan button nested)
-                <div
-                  key={s.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`);
-                    }
-                  }}
-                  title={s.title}
-                  className={`group flex w-full cursor-pointer items-center gap-1.5 rounded-lg border-l-2 px-2 py-1.5 text-left transition-colors ${
-                    s.id === activeId ? "border-brand-orange bg-brand-navy/10" : "border-transparent hover:bg-muted"
-                  }`}
-                >
-                  <span className="min-w-0 flex-1 overflow-hidden">
-                    {editingId === s.id ? (
-                      <input
-                        value={draftTitle}
-                        onChange={(e) => setDraftTitle(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onBlur={() => {
-                          void saveRename(s.id, draftTitle);
-                          setEditingId(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            void saveRename(s.id, draftTitle);
-                            setEditingId(null);
-                          } else if (e.key === "Escape") {
-                            setEditingId(null);
-                          }
-                          e.stopPropagation();
-                        }}
-                        className="w-full rounded-md border border-border bg-card px-1.5 py-0.5 font-manrope text-xs outline-none focus:border-brand-orange/60"
-                      />
-                    ) : (
-                      <span className="block truncate font-manrope font-medium text-text-main text-xs">{s.title}</span>
-                    )}
-                    <span className="block truncate font-manrope text-[10px] text-text-muted-custom">
-                      {fmtTime(s.lastActive)} · {s.messageCount} pesan
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-0.5">
-                    {s.id === activeId && <CheckMark className="size-3.5 text-brand-orange" />}
-                    <button
-                      type="button"
-                      aria-label="Ubah judul"
-                      title="Ubah judul"
-                      className="hidden shrink-0 rounded-md p-1 text-text-muted-custom hover:bg-muted hover:text-brand-navy group-hover:inline-flex"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDraftTitle(s.title);
-                        setEditingId((cur) => (cur === s.id ? null : s.id));
-                      }}
-                    >
-                      <PencilIcon className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Hapus ${s.title}`}
-                      className="hidden shrink-0 rounded-md p-1 text-text-muted-custom transition-colors hover:bg-red-50 hover:text-red-500 group-hover:inline-flex"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(s);
-                      }}
-                    >
-                      <Trash2Icon className="size-3.5" />
-                    </button>
-                  </span>
-                </div>
-              ))
+              <>
+                <input
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Cari percakapan…"
+                  className="mx-2 mb-1 w-full rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 font-manrope text-xs outline-none placeholder:text-muted-foreground/50 focus:border-brand-orange/50"
+                />
+                <SessionGroupedList
+                  groups={groups}
+                  q={q}
+                  activeId={activeId}
+                  editingId={editingId}
+                  draftTitle={draftTitle}
+                  setDraftTitle={setDraftTitle}
+                  saveRename={saveRename}
+                  setEditingId={setEditingId}
+                  setDeleteTarget={setDeleteTarget}
+                  onOpen={(id: string) => (router.push as any)(`/dashboard/student/assistant/chat/${id}`)}
+                />
+              </>
             )}
           </div>
           <div className="border-border border-t px-3 py-2 font-manrope text-[10px] text-text-muted-custom">
@@ -1516,10 +1684,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
           </h1>
         </header>
 
-        {!ready ? (
-          <div className="flex flex-1 items-center justify-center">
-            <LoaderCircle className="size-5 text-brand-orange" />
-          </div>
+        {!ready || loadingSession ? (
+          <ChatSkeleton />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
             <ChatRuntime
@@ -1527,6 +1693,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
               sessionId={activeId}
               userId={userId}
               initialMessages={history}
+              initialHasMore={historyHasMore}
               ctx={ctx}
               dailyLeft={dailyLeft}
               dailyLimit={dailyLimit}
