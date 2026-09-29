@@ -343,6 +343,23 @@ jobs:
       # ---------- AI Worker (TS) ----------
       - name: Deploy API Worker (staging)
         working-directory: apps/server
+
+        env:
+          # Stub validasi — wrangler v4 menjalankan init bundle worker (createEnv
+          # baca process.env CI). Nilai tidak memengaruhi worker (dipakai cfg toml).
+          DATABASE_URL: hyperdrive://ci-placeholder
+          BETTER_AUTH_URL: https://api.staging.mulaiplus.id
+          CORS_ORIGIN: https://staging.mulaiplus.id
+          PAYMENT_API_URL: https://ci.invalid
+          PAYMENT_API_KEY: ci-stub
+          GOOGLE_CLIENT_ID: ci-stub
+          GOOGLE_CLIENT_SECRET: ci-stub
+          R2_ACCOUNT_ID: ci-stub
+          R2_ACCESS_KEY_ID: ci-stub
+          R2_SECRET_ACCESS_KEY: ci-stub
+          R2_BUCKET_NAME: mulai-plus-media-dev
+          R2_PUBLIC_URL: https://cdn-dev.mulaiplus.id
+          APP_URL: https://staging.mulaiplus.id
         run: ./node_modules/.bin/wrangler deploy --env staging
 
 
