@@ -31,6 +31,15 @@ const RANK_STYLE: Record<number, string> = {
 export function AbilityLeaderboard() {
   const { data, isLoading, isError } = useQuery(orpc.tmb.leaderboard.ability.queryOptions());
   const entries: Entry[] = (data?.entries ?? []).slice(0, 20);
+  const ctaHref =
+    buildUtmUrl("/login", {
+      source: "mulaiplus_web",
+      medium: "front",
+      campaign: "assessment",
+      content: "leaderboard-cta",
+    }) +
+    "&callbackUrl=" +
+    encodeURIComponent("/dashboard/student/assessment");
 
   return (
     <section className="bg-brand-navy/5 py-14 lg:py-20" id="leaderboard">
@@ -106,12 +115,7 @@ export function AbilityLeaderboard() {
         </div>
         <div className="mt-6 flex justify-center">
           <Link
-            href={`${buildUtmUrl("/login", {
-              source: "mulaiplus_web",
-              medium: "front",
-              campaign: "assessment",
-              content: "leaderboard-cta",
-            })}&callbackUrl=${encodeURIComponent("/dashboard/student/assessment")}`}
+            href={ctaHref}
             onClick={() =>
               trackEvent("assessment_cta_click", { type: "bakat", placement: "leaderboard", campaign: "assessment" })
             }
