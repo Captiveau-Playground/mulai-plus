@@ -478,10 +478,10 @@ export const tmbRouter = {
               WHERE x.attempt_id = a.id AND x.is_correct = true)::int AS score,
             (SELECT count(*) FROM tmb_test_answers x
               WHERE x.attempt_id = a.id)::int AS total,
-            EXTRACT(EPOCH FROM (a.finished_at - a.created_at))::int AS dur
+            EXTRACT(EPOCH FROM (a.finished_at - a.started_at))::int AS dur
           FROM tmb_test_attempts a
           WHERE a.test_code = 'ability' AND a.status = 'completed'
-            AND a.finished_at IS NOT NULL AND a.created_at IS NOT NULL
+            AND a.finished_at IS NOT NULL AND a.started_at IS NOT NULL
         ), best AS (
           SELECT DISTINCT ON (user_id) user_id, score, total, dur, id
           FROM sc ORDER BY user_id, score DESC, dur ASC
