@@ -143,8 +143,9 @@ export const appRouter = {
     // ── Insights dashboard ────────────────────────────────
     const [userReg, assess, aiRows] = await Promise.all([
       // User registrasi harian (30 hari)
-      db.execute(sql`SELECT to_char(created_at, 'YYYY-MM-DD') AS d, count(*) AS n
-                     FROM "user" WHERE created_at >= now() - interval '30 days'
+      db.execute(sql`SELECT to_char(d::date,'YYYY-MM-DD') AS d, count(u.id) AS n
+                     FROM generate_series(current_date - 29, current_date, interval '1 day') d
+                     LEFT JOIN "user" u ON u.created_at::date = d
                      GROUP BY 1 ORDER BY 1`) as unknown as Promise<{ rows?: { d: string; n: number }[] }>,
       // Assessment: attempt selesai & hasil (30 hari) + tren harian 14 hari
       (async () => {

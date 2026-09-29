@@ -21,14 +21,7 @@ export function AdminDashboardCharts({
   analytics: any;
   children?: React.ReactNode;
 }) {
-  const ROLE_COLORS = [
-    "hsl(var(--chart-1))",
-    "hsl(var(--chart-2))",
-    "hsl(var(--chart-3))",
-    "hsl(var(--chart-4))",
-    "hsl(var(--chart-5))",
-    "#94a3b8",
-  ];
+  const ROLE_COLORS = ["#6366f1", "#8b5cf6", "#f59e0b", "#10b981", "#ef4444", "#0ea5e9", "#94a3b8"];
   const roleData = (stats?.usersByRole || []).map((item: any, i: number) => ({
     role: item.role,
     users: item.count,
@@ -39,12 +32,15 @@ export function AdminDashboardCharts({
   } satisfies ChartConfig;
   const totalRoleUsers = roleData.reduce((a: number, r: any) => a + r.users, 0);
 
-  // User registrations — Area gradient
+  // User registrations — deret 30 hari penuh (nol sudah diisi di API)
   const regData = (stats?.userRegistrations || []).map((r: any) => ({ d: r.d, n: Number(r.n ?? 0) }));
   const regTotal = regData.reduce((a: number, r: any) => a + r.n, 0);
+  const regToday = regData.length ? Number(regData[regData.length - 1]?.n ?? 0) : 0;
+  const regLast7 = regData.slice(-7).reduce((a: number, r: any) => a + r.n, 0);
   const regConfig = {
-    n: { label: "Registered", color: "hsl(var(--chart-1))" },
+    n: { label: "Registered", color: "#6366f1" },
   } satisfies ChartConfig;
+  const REG_STROKE = "#6366f1"; // indigo vivid
 
   // AI daily + feedback
   const aiDaily = (stats?.ai?.daily || []).map((r: any) => ({ d: r.d, n: Number(r.n ?? 0) }));
@@ -92,24 +88,48 @@ export function AdminDashboardCharts({
               </span>
               <h3 className="font-bold font-bricolage text-brand-navy text-xs">User Registered</h3>
             </div>
-            <span className="font-manrope text-[10px] text-muted-foreground">
-              <b>{regTotal.toLocaleString()}</b> pendaftar · 30 hari
-            </span>
+            <div className="flex items-center gap-3 font-manrope text-[10px] text-muted-foreground">
+              <span>
+                <b className="font-bricolage text-brand-navy text-sm">{regTotal.toLocaleString()}</b> · 30 hari
+              </span>
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-600">
+                hari ini {regToday}
+              </span>
+              <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-600">
+                7 hari {regLast7}
+              </span>
+            </div>
           </div>
           <div className="p-4">
             <ChartContainer config={regConfig} className="h-[240px] w-full">
               <AreaChart data={regData} margin={{ left: -18 }}>
                 <defs>
                   <linearGradient id="fillReg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-n)" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="var(--color-n)" stopOpacity={0.02} />
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="d" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 10 }} />
+                <CartesianGrid vertical={false} stroke="#eef0f6" />
+                <XAxis
+                  dataKey="d"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v: string) => `${v.slice(8)}/${v.slice(5, 7)}`}
+                  minTickGap={24}
+                />
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10 }} allowDecimals={false} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                <Area dataKey="n" type="monotone" stroke="var(--color-n)" strokeWidth={2} fill="url(#fillReg)" />
+                <Area
+                  dataKey="n"
+                  type="monotone"
+                  stroke={REG_STROKE}
+                  strokeWidth={2.5}
+                  dot={{ r: 2.5, fill: REG_STROKE, strokeWidth: 0 }}
+                  activeDot={{ r: 4 }}
+                  fill="url(#fillReg)"
+                />
               </AreaChart>
             </ChartContainer>
           </div>
@@ -146,13 +166,17 @@ export function AdminDashboardCharts({
               </PieChart>
             </ChartContainer>
             <div className="min-w-0 space-y-1.5">
-              {roleData.map((r: any) => (
-                <div key={r.role} className="flex items-center gap-2 text-xs">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: r.fill }} />
-                  <span className="flex-1 truncate font-manrope text-text-main capitalize">{r.role}</span>
-                  <span className="font-manrope font-semibold text-text-main">{r.users}</span>
-                </div>
-              ))}
+              {roleData.map((r: any) => {
+                const pct = totalRoleUsers ? Math.round((r.users / totalRoleUsers) * 100) : 0;
+                return (
+                  <div key={r.role} className="flex items-center gap-2 text-xs">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: r.fill }} />
+                    <span className="flex-1 truncate font-manrope text-text-main capitalize">{r.role}</span>
+                    <span className="font-manrope text-[10px] text-muted-foreground">{pct}%</span>
+                    <span className="w-6 text-right font-manrope font-semibold text-text-main">{r.users}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
