@@ -10,6 +10,7 @@ import { FutureCareerMap } from "@/components/front/future-career-map";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
+import { client } from "@/lib/client";
 import { buildResultMindMap } from "@/lib/future-career";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -108,7 +109,7 @@ export default function TmbResultPage() {
     if (downloading) return;
     setDownloading(true);
     try {
-      const { pdf } = await orpc.tmb.report.pdf({
+      const { pdf } = await client.tmb.report.pdf({
         studentName: session?.user?.name ?? "",
         schoolName: data?.profile?.schoolName ?? null,
         hollandCode,
