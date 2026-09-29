@@ -5,6 +5,45 @@
     ".": {
       "default": "./src/index.ts"
     },
+    "./schema/pddikti": {
+      "default": "./src/schema/pddikti.ts"
+    },
+    "./schema/audit": {
+      "default": "./src/schema/audit.ts"
+    },
+    "./schema/programs": {
+      "default": "./src/schema/programs.ts"
+    },
+    "./schema/esign": {
+      "default": "./src/schema/esign.ts"
+    },
+    "./schema/auth": {
+      "default": "./src/schema/auth.ts"
+    },
+    "./schema/cms": {
+      "default": "./src/schema/cms.ts"
+    },
+    "./schema/feedback": {
+      "default": "./src/schema/feedback.ts"
+    },
+    "./schema/lms": {
+      "default": "./src/schema/lms.ts"
+    },
+    "./schema/settings": {
+      "default": "./src/schema/settings.ts"
+    },
+    "./schema/testimonials": {
+      "default": "./src/schema/testimonials.ts"
+    },
+    "./schema/notification": {
+      "default": "./src/schema/notification.ts"
+    },
+    "./schema/chatbot": {
+      "default": "./src/schema/chatbot.ts"
+    },
+    "./schema/newsletter": {
+      "default": "./src/schema/newsletter.ts"
+    },
     "./*": {
       "default": "./src/*.ts"
     }
@@ -14,17 +53,22 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "bun run scripts/seed-roles.ts"
+    "db:seed": "bun run scripts/seed-roles.ts",
+    "db:seed:tmb": "bun run scripts/seed-tmb.ts",
+    "optimize:io": "bun run src/optimize-io.ts",
+    "prune:io": "bun run src/prune-io.ts"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.8",
+    "@mulai-plus/config": "workspace:*",
+    "@orpc/server": "1.14.14",
     "@types/pg": "^8.15.6",
-    "typescript": "catalog:",
-    "@mulai-plus/config": "workspace:*"
+    "drizzle-kit": "^0.31.8",
+    "typescript": "catalog:"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",
     "pg": "^8.16.3",
+    "postgres": "^3.4.5",
     "dotenv": "catalog:",
     "zod": "catalog:",
     "@mulai-plus/env": "workspace:*"

@@ -1,13 +1,12 @@
 "use client";
 
-import { BookOpen, Calendar, ExternalLink, LayoutDashboard, Loader2, LogOut } from "lucide-react";
+import { BookOpen, Calendar, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Users } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type * as React from "react";
 import { useState } from "react";
-import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 function NavLink({ item, onNavigate }: { item: (typeof navItems)[number]; onNavigate?: () => void }) {
@@ -48,8 +48,9 @@ function NavLink({ item, onNavigate }: { item: (typeof navItems)[number]; onNavi
 const navItems = [
   { title: "Dashboard", url: "/mentor", icon: LayoutDashboard },
   { title: "My Sessions", url: "/mentor/sessions", icon: Calendar },
+  { title: "My Mentees", url: "/mentor/my-mentees", icon: Users },
   { title: "My Batches", url: "/mentor/batches", icon: BookOpen },
-  // { title: "Settings", url: "/mentor/settings", icon: Settings },
+  { title: "Feedback", url: "/mentor/feedback", icon: MessageSquare },
 ];
 
 export function MentorSidebar({
@@ -78,7 +79,7 @@ export function MentorSidebar({
       window.location.reload();
     } catch (error) {
       setIsLoggingOut(false);
-      toast.error("Failed to logout");
+      notify.error("Failed to logout");
       console.error(error);
     }
   };

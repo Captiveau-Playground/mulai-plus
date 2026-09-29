@@ -3,15 +3,12 @@
 import { env } from "@mulai-plus/env/web";
 import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
-import { Suspense } from "react";
+
+import { Suspense, useEffect } from "react";
 import { usePageViewTracking } from "@/lib/analytics";
 import { ClarityProvider } from "./clarity-provider";
 import { CookieConsentBanner, useConsent } from "./cookie-consent";
 
-/**
- * Separate component that accesses useSearchParams.
- * Must be wrapped in <Suspense> for Next.js static generation compat.
- */
 function PageViewTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -22,46 +19,55 @@ function PageViewTracker() {
   return null;
 }
 
-/**
- * Injects the GA4 script tag and tracks page views on route changes.
- * Only loads GA after user gives cookie consent.
- */
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const gaId = env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   const { consent, accept, reject } = useConsent();
 
-  const shouldLoadGa = gaId && consent === "accepted";
+  // GA4 Consent Mode v2 — script dimuat selalu, tapi default DENIED.
+  // `wait_for_update` memberi waktu sebelum event dikirim (halaman pertama).
+  const gaInitScript = `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied',
+      'analytics_storage': 'denied',
+      'wait_for_update': 500,
+    });
+    gtag('js', new Date());
+    gtag('config', '${gaId}', {
+      debug_mode: ${env.NEXT_PUBLIC_GA_DEBUG_MODE},
+    });
+  `;
+
+  // Terapkan pilihan user ke Consent Mode ketika berubah.
+  useEffect(() => {
+    if (typeof window.gtag !== "function") return;
+    const granted = "granted";
+    const denied = "denied";
+    const s = consent === "accepted" ? granted : denied;
+    window.gtag("consent", "update", {
+      ad_storage: s,
+      ad_user_data: s,
+      ad_personalization: s,
+      analytics_storage: s,
+    });
+  }, [consent]);
 
   return (
     <>
-      {/* Page view tracking — wrapped in Suspense for static generation safety */}
       <Suspense fallback={null}>
         <PageViewTracker />
       </Suspense>
 
-      {/* GA4 script — only loaded after consent */}
-      {shouldLoadGa && (
-        <>
-          <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
-          <Script id="ga-init" strategy="afterInteractive">
-            {`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${gaId}', {
-                debug_mode: ${env.NEXT_PUBLIC_GA_DEBUG_MODE},
-              });
-            `}
-          </Script>
-        </>
-      )}
-
       {children}
 
-      {/* Microsoft Clarity — only loaded after consent, front/student pages only */}
-      <ClarityProvider consent={consent} />
+      {/* GA4 — Consent Mode v2: script dimuat selalu; storage mengikuti pilihan user */}
+      <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
+      <Script id="ga4-init" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: gaInitScript }} />
 
-      {/* Consent banner — floating bottom bar */}
+      <ClarityProvider consent={consent} />
       <CookieConsentBanner consent={consent} onAccept={accept} onReject={reject} />
     </>
   );

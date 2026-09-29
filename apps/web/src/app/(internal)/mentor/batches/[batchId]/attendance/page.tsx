@@ -5,13 +5,13 @@ import { ArrowLeft, Check, Clock, Loader2, Save, StickyNote, User, X } from "luc
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import { MentorBatchTabs } from "@/components/mentor/mentor-batch-tabs";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageState } from "@/components/ui/page-state";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -42,7 +42,7 @@ export default function MentorBatchAttendancePage() {
 
   const updateMutation = useMutation(
     orpc.programActivities.mentor.updateBatchAttendance.mutationOptions({
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
@@ -115,14 +115,14 @@ export default function MentorBatchAttendancePage() {
       const path = orpc.programActivities.mentor.getBatchAttendance.key()[0];
       attendanceQueryClient.invalidateQueries({ queryKey: [path], refetchType: "all" });
       setUpdates({});
-      toast.success(`${succeeded} attendance record${succeeded > 1 ? "s" : ""} saved!`);
+      notify.success(`${succeeded} attendance record${succeeded > 1 ? "s" : ""} saved!`);
     } else if (succeeded > 0) {
       const path = orpc.programActivities.mentor.getBatchAttendance.key()[0];
       attendanceQueryClient.invalidateQueries({ queryKey: [path], refetchType: "all" });
       setUpdates({});
-      toast.warning(`${succeeded} saved, ${failed} failed.`);
+      notify.warn(`${succeeded} saved, ${failed} failed.`);
     } else {
-      toast.error("Failed to save. Please try again.");
+      notify.error("Failed to save. Please try again.");
     }
   };
 

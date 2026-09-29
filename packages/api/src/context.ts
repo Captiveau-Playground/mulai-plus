@@ -1,20 +1,15 @@
 import { auth } from "@mulai-plus/auth";
 import type { Context as HonoContext } from "hono";
+import { createContext as createContextCore } from "./context-core";
 
-export type CreateContextOptions = {
-  context: HonoContext;
-};
+export type { AuthInstance } from "./context-core";
 
-export async function createContext({ context }: CreateContextOptions) {
-  const session = await auth.api.getSession({
-    headers: context.req.raw.headers,
-  });
-  return {
-    session,
-    headers: context.req.raw.headers,
-    ip: context.req.header("x-forwarded-for") || context.req.header("x-real-ip"),
-    userAgent: context.req.header("user-agent"),
-  };
+/**
+ * Bun/VPS default — resolves the auth instance automatically.
+ * Workers use `@mulai-plus/api/context-core` with an explicit auth instance.
+ */
+export function createContext({ context }: { context: HonoContext }) {
+  return createContextCore({ context, auth });
 }
 
-export type Context = Awaited<ReturnType<typeof createContext>>;
+export type Context = Awaited<ReturnType<typeof createContextCore>>;

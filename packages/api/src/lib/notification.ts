@@ -1,4 +1,4 @@
-import { db } from "@mulai-plus/db";
+import { db } from "@mulai-plus/db/db";
 import { notification } from "@mulai-plus/db/schema/notification";
 import { nanoid } from "nanoid";
 

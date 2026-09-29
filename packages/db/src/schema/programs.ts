@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { check, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
 export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "absent", "excused"]);
@@ -92,6 +92,10 @@ export const programSyllabus = pgTable("program_syllabus", {
   week: integer("week").notNull(),
   title: text("title").notNull(),
   outcome: text("outcome"),
+  tujuan: text("tujuan"),
+  kegiatanUtama: text("kegiatan_utama"),
+  fokusUtama: text("fokus_utama"),
+  output: text("output"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -231,6 +235,85 @@ export const programBatchMentor = pgTable(
   }),
 );
 
+export const mentorMentee = pgTable(
+  "mentor_mentee",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => programBatch.id, { onDelete: "cascade" }),
+    mentorId: text("mentor_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    unq: { columns: [t.batchId, t.mentorId, t.studentId] },
+  }),
+);
+
+export const summaryReportStatusEnum = pgEnum("summary_report_status", ["draft", "submitted", "approved", "revision"]);
+
+export const summaryReport = pgTable("summary_report", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  mentorId: text("mentor_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  studentId: text("student_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  status: summaryReportStatusEnum("status").notNull().default("draft"),
+  mentorNotes: text("mentor_notes"),
+  reviewNotes: text("review_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const summaryReportItem = pgTable("summary_report_item", {
+  id: text("id").primaryKey(),
+  reportId: text("report_id")
+    .notNull()
+    .references(() => summaryReport.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const batchReportTemplateItem = pgTable("batch_report_template_item", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const batchReportTemplateItemRelations = relations(batchReportTemplateItem, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [batchReportTemplateItem.batchId],
+    references: [programBatch.id],
+  }),
+}));
+
 export const programAttendance = pgTable(
   "program_attendance",
   {
@@ -275,6 +358,7 @@ export const programBatchRelations = relations(programBatch, ({ one, many }) => 
   participants: many(programParticipant),
   sessions: many(programSession),
   mentors: many(programBatchMentor),
+  mentorMentees: many(mentorMentee),
   attendance: many(programAttendance),
   attachments: many(programAttachment),
   attachmentRequests: many(programAttachmentRequest),
@@ -309,6 +393,44 @@ export const programBatchMentorRelations = relations(programBatchMentor, ({ one 
   user: one(user, {
     fields: [programBatchMentor.userId],
     references: [user.id],
+  }),
+}));
+
+export const mentorMenteeRelations = relations(mentorMentee, ({ one }) => ({
+  batch: one(programBatch, {
+    fields: [mentorMentee.batchId],
+    references: [programBatch.id],
+  }),
+  mentor: one(user, {
+    fields: [mentorMentee.mentorId],
+    references: [user.id],
+  }),
+  student: one(user, {
+    fields: [mentorMentee.studentId],
+    references: [user.id],
+  }),
+}));
+
+export const summaryReportRelations = relations(summaryReport, ({ one, many }) => ({
+  batch: one(programBatch, {
+    fields: [summaryReport.batchId],
+    references: [programBatch.id],
+  }),
+  mentor: one(user, {
+    fields: [summaryReport.mentorId],
+    references: [user.id],
+  }),
+  student: one(user, {
+    fields: [summaryReport.studentId],
+    references: [user.id],
+  }),
+  items: many(summaryReportItem),
+}));
+
+export const summaryReportItemRelations = relations(summaryReportItem, ({ one }) => ({
+  report: one(summaryReport, {
+    fields: [summaryReportItem.reportId],
+    references: [summaryReport.id],
   }),
 }));
 
@@ -396,5 +518,138 @@ export const programAttachmentRequestRelations = relations(programAttachmentRequ
   reviewedBy: one(user, {
     fields: [programAttachmentRequest.reviewedBy],
     references: [user.id],
+  }),
+}));
+
+// ─── Feedback ───────────────────────────────────────────────
+
+export const feedbackTypeEnum = pgEnum("feedback_type", [
+  "mentee_to_mentor",
+  "mentee_to_platform",
+  "mentor_to_platform",
+]);
+
+export const feedbackCampaignStatusEnum = pgEnum("feedback_campaign_status", ["scheduled", "open", "closed"]);
+
+export const campaignTypeEnum = pgEnum("campaign_type", ["completion", "periodic"]);
+
+export const feedbackTemplate = pgTable("feedback_template", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  type: feedbackTypeEnum("type").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const feedbackQuestionEnum = pgEnum("feedback_question_type", ["text", "likert"]);
+
+export const feedbackQuestion = pgTable("feedback_question", {
+  id: text("id").primaryKey(),
+  templateId: text("template_id")
+    .notNull()
+    .references(() => feedbackTemplate.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  questionType: feedbackQuestionEnum("question_type").notNull().default("text"),
+  likertOptions: jsonb("likert_options"),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const feedbackCampaign = pgTable("feedback_campaign", {
+  id: text("id").primaryKey(),
+  templateId: text("template_id")
+    .notNull()
+    .references(() => feedbackTemplate.id, { onDelete: "cascade" }),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id, { onDelete: "cascade" }),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  campaignType: campaignTypeEnum("campaign_type").notNull().default("completion"),
+  status: feedbackCampaignStatusEnum("status").notNull().default("scheduled"),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const feedbackResponse = pgTable("feedback_response", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id")
+    .notNull()
+    .references(() => feedbackCampaign.id, { onDelete: "cascade" }),
+  questionId: text("question_id")
+    .notNull()
+    .references(() => feedbackQuestion.id, { onDelete: "cascade" }),
+  fromUserId: text("from_user_id")
+    .notNull()
+    .references(() => user.id),
+  toUserId: text("to_user_id").references(() => user.id),
+  batchId: text("batch_id")
+    .notNull()
+    .references(() => programBatch.id),
+  answer: text("answer").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─── Feedback Relations ─────────────────────────────────────
+
+export const feedbackTemplateRelations = relations(feedbackTemplate, ({ many }) => ({
+  questions: many(feedbackQuestion),
+  campaigns: many(feedbackCampaign),
+}));
+
+export const feedbackQuestionRelations = relations(feedbackQuestion, ({ one }) => ({
+  template: one(feedbackTemplate, {
+    fields: [feedbackQuestion.templateId],
+    references: [feedbackTemplate.id],
+  }),
+}));
+
+export const feedbackCampaignRelations = relations(feedbackCampaign, ({ one, many }) => ({
+  template: one(feedbackTemplate, {
+    fields: [feedbackCampaign.templateId],
+    references: [feedbackTemplate.id],
+  }),
+  batch: one(programBatch, {
+    fields: [feedbackCampaign.batchId],
+    references: [programBatch.id],
+  }),
+  responses: many(feedbackResponse),
+}));
+
+export const feedbackResponseRelations = relations(feedbackResponse, ({ one }) => ({
+  campaign: one(feedbackCampaign, {
+    fields: [feedbackResponse.campaignId],
+    references: [feedbackCampaign.id],
+  }),
+  question: one(feedbackQuestion, {
+    fields: [feedbackResponse.questionId],
+    references: [feedbackQuestion.id],
+  }),
+  fromUser: one(user, {
+    fields: [feedbackResponse.fromUserId],
+    references: [user.id],
+  }),
+  toUser: one(user, {
+    fields: [feedbackResponse.toUserId],
+    references: [user.id],
+  }),
+  batch: one(programBatch, {
+    fields: [feedbackResponse.batchId],
+    references: [programBatch.id],
   }),
 }));

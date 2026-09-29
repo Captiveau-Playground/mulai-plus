@@ -1,10 +1,9 @@
 import { useForm } from "@tanstack/react-form";
-import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import z from "zod";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 
 import Loader from "./loader";
 
@@ -37,7 +36,7 @@ export default function SignInForm({
             trackEvent("login", { method: "email", role: role || "unknown" });
 
             if (callbackUrl) {
-              router.push(decodeURIComponent(callbackUrl) as Route);
+              window.location.href = decodeURIComponent(callbackUrl);
             } else if (role === "admin") {
               router.push("/admin");
             } else if (role === "mentor") {
@@ -47,11 +46,11 @@ export default function SignInForm({
             } else {
               router.push("/dashboard/student");
             }
-            toast.success("Sign in successful");
+            notify.success("Sign in successful");
           },
           onError: (error) => {
             trackEvent("login_error", { method: "email", error_code: error.error.message });
-            toast.error(error.error.message || error.error.statusText);
+            notify.error(error.error.message || error.error.statusText);
           },
         },
       );
@@ -69,17 +68,15 @@ export default function SignInForm({
     await authClient.signIn.social(
       {
         provider: "google",
-        callbackURL: callbackUrl
-          ? `${window.location.origin}${decodeURIComponent(callbackUrl)}`
-          : `${window.location.origin}/dashboard`,
+        callbackURL: `${window.location.origin}/${callbackUrl ? decodeURIComponent(callbackUrl).replace(/^\//, "") : "dashboard"}`,
       },
       {
         onSuccess: () => {
-          toast.success("Sign in successful");
+          notify.success("Sign in successful");
         },
         onError: (error) => {
           trackEvent("login_error", { method: "google", error_code: error.error.message });
-          toast.error(error.error.message || error.error.statusText);
+          notify.error(error.error.message || error.error.statusText);
         },
       },
     );
@@ -194,7 +191,7 @@ export default function SignInForm({
         </div>
 
         <form.Subscribe>
-          {(state) => (
+          {(state: any) => (
             <button
               type="submit"
               disabled={!state.canSubmit || state.isSubmitting}

@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hash, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +25,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const tagSchema = z.object({
@@ -57,12 +57,12 @@ export function TagList() {
   const createMutation = useMutation(
     orpc.cms.tags.admin.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Tag created");
+        notify.success("Tag created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({ queryKey: orpc.cms.tags.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -70,12 +70,12 @@ export function TagList() {
   const updateMutation = useMutation(
     orpc.cms.tags.admin.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Tag updated");
+        notify.success("Tag updated");
         setEditingTag(null);
         queryClient.invalidateQueries({ queryKey: orpc.cms.tags.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -83,11 +83,11 @@ export function TagList() {
   const deleteMutation = useMutation(
     orpc.cms.tags.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Tag deleted");
+        notify.success("Tag deleted");
         queryClient.invalidateQueries({ queryKey: orpc.cms.tags.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -142,19 +142,20 @@ export function TagList() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Slug</TableHead>
+              <TableHead className="w-[80px] text-center">Articles</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : tags?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   No tags yet.
                 </TableCell>
               </TableRow>
@@ -169,6 +170,9 @@ export function TagList() {
                   </TableCell>
                   <TableCell>
                     <span className="text-muted-foreground text-xs">{tag.slug}</span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="font-medium text-muted-foreground text-sm">{tag.articleCount ?? 0}</span>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

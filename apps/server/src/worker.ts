@@ -1,0 +1,104 @@
+import { createWorkerAuth } from "@mulai-plus/auth/worker";
+import { db } from "@mulai-plus/db/db";
+import { dbStorage } from "@mulai-plus/db/provider";
+import { createWorkerDb, type WorkerDb } from "@mulai-plus/db/worker";
+import { runWithR2 } from "@mulai-plus/r2";
+import { createApp } from "./app";
+import { runAiHealthCheck, runAutoPublish, runMaintenance } from "./cron-core";
+
+/**
+ * Cloudflare Workers runtime entry.
+ *
+ * Each request/scheduled run gets a FRESH postgres-js client (via Hyperdrive),
+ * bound to the request's async context through AsyncLocalStorage (`dbStorage`).
+ * Required because:
+ *   1. A socket created in one request context cannot be used in another —
+ *      reusing a single client across requests triggers Cloudflare's
+ *      "Cannot perform I/O on behalf of a different request" error (verified).
+ *   2. A plain global `setDb` races when requests run concurrently in one
+ *      isolate — request A's queries could resolve to request B's client.
+ *
+ * ⚠️ The client is NOT closed explicitly (`end()` per request caused
+ * "write CONNECTION_CLOSED hyperdrive.local" under concurrency — connection
+ * churn). Instead `idle_timeout: 10` (see @mulai-plus/db/worker) auto-closes
+ * each client's idle connection ~10s after the request, keeping the
+ * Hyperdrive pool from exhausting without the churn.
+ *
+ * The app + auth are built once (cached), but every `db` query they issue goes
+ * through the provider proxy → resolves to the CURRENT request's client.
+ */
+
+export interface Env {
+  HYPERDRIVE: { connectionString: string };
+  KV_CACHE?: unknown;
+  AI_SERVICE?: { fetch(input: string | URL, init?: RequestInit): Promise<Response> };
+  AI_SERVICE_URL?: string;
+  /** Origin web yang dipercaya meneruskan x-user-id (daftar csv). */
+  WEB_ORIGINS?: string;
+  /** Discord webhook (maintenance/alert slow query). */
+  DISCORD_WEBHOOK_URL?: string;
+  /** R2 binding — migrasi penuh ke akun deploy (novin@mulaiplus.id). */
+  MEDIA_BUCKET?: unknown;
+  /** Bucket & public URL (vars per env). */
+  R2_BUCKET_NAME?: string;
+  R2_PUBLIC_URL?: string;
+}
+
+let cached: { app: ReturnType<typeof createApp> } | null = null;
+
+/** Build the app + auth once. Auth queries route through the db provider proxy. */
+async function getRuntime() {
+  if (!cached) {
+    const workerAuth = await createWorkerAuth(db as unknown as WorkerDb);
+    const app = createApp({ authInstance: workerAuth });
+    cached = { app };
+  }
+  return cached;
+}
+
+/** Run a handler with a fresh per-request client bound to its async context. */
+function withFreshDb<T>(env: Env, fn: () => Promise<T>): Promise<T> {
+  const dbInstance = createWorkerDb(env.HYPERDRIVE);
+  return dbStorage.run(dbInstance, fn);
+}
+
+export default {
+  async fetch(request: Request, env: Env) {
+    // R2 binding diprioritaskan (akun deploy), S3 env fallback utk local/Bun.
+    return runWithR2(
+      {
+        binding: env.MEDIA_BUCKET as never,
+        bucketName: env.R2_BUCKET_NAME,
+        publicUrl: env.R2_PUBLIC_URL,
+      },
+      () =>
+        withFreshDb(env, async () => {
+          const { app } = await getRuntime();
+          return await app.fetch(request, env);
+        }),
+    );
+  },
+  async scheduled(controller: unknown, env: Env) {
+    // Kesehatan AI TIDAK butuh DB — jalankan duluan & independen (jangan ikut gagal kalau DB bermasalah).
+    await runAiHealthCheck(env as Parameters<typeof runAiHealthCheck>[0]).catch(() => {});
+    const cron = (controller as { cron?: string } | undefined)?.cron ?? "";
+
+    // Maintenance harian (03:00) — prune audit/snbt + snapshot slow query → Discord
+    if (cron === "0 3 * * *") {
+      return withFreshDb(env, async () => {
+        await runMaintenance(db, { webhookUrl: env.DISCORD_WEBHOOK_URL }).catch((e: unknown) =>
+          console.error("[cron] maintenance:", (e as Error).message),
+        );
+      });
+    }
+
+    // Auto-publish artikel tiap menit (butuh DB).
+    return withFreshDb(env, async () => {
+      await getRuntime();
+      const minute = new Date().getUTCMinutes();
+      if (minute % 5 === 0) {
+        await runAutoPublish().catch((e: unknown) => console.error("[cron] autoPublish:", (e as Error).message));
+      }
+    });
+  },
+};

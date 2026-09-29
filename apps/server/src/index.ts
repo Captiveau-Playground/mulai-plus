@@ -1,43 +1,35 @@
+import * as Sentry from "@sentry/bun";
+
+Sentry.init({
+  dsn: "https://eec617f779cd9df7b34a8f9701d97e82@o4511585856258048.ingest.us.sentry.io/4511585880834048",
+  enableLogs: true,
+  tracesSampleRate: 1.0,
+});
+
 import { utimes } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { createContext } from "@mulai-plus/api/context";
-import { appRouter } from "@mulai-plus/api/routers/index";
 import { auth } from "@mulai-plus/auth";
 import { env } from "@mulai-plus/env/server";
-import { uploadRouter } from "@mulai-plus/r2";
-import { initR2Client } from "@mulai-plus/r2/server";
-import { OpenAPIHandler } from "@orpc/openapi/fetch";
-import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
-import { onError } from "@orpc/server";
-import { RPCHandler } from "@orpc/server/fetch";
-import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { createApp } from "./app";
+import { runAutoPublish } from "./cron";
 
-// Initialize R2 client
-initR2Client();
+/**
+ * Bun/VPS runtime entry.
+ *
+ * Runtime-specific bits live here (NOT in ./app):
+ * - Sentry (bun) init
+ * - `/api/system/restart` (touches the entry file → bun --watch reloads)
+ * - 5-minute cron via setInterval
+ * - Bun server export `{ port, fetch }`
+ *
+ * Cloudflare Workers uses ./worker.ts instead.
+ */
+const app = createApp({
+  captureError: (error) => Sentry.captureException(error),
+  authInstance: auth,
+});
 
-const app = new Hono();
-
-// Mount R2 upload routes FIRST (before middleware catches all)
-app.route("/api/upload", uploadRouter);
-
-// Force reload for api router changes
-app.use(logger());
-app.use(
-  "/*",
-  cors({
-    origin: env.CORS_ORIGIN,
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  }),
-);
-
-app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
-
-// System Restart Endpoint for Admins
+// System Restart Endpoint for Admins (Bun-only — touch entry file to reload)
 app.post("/api/system/restart", async (c) => {
   const session = await auth.api.getSession({
     headers: c.req.raw.headers,
@@ -47,8 +39,6 @@ app.post("/api/system/restart", async (c) => {
     return c.json({ success: false, message: "Unauthorized" }, 401);
   }
 
-  // Trigger restart by touching the entry file
-  // This triggers the file watcher (bun --hot or bun --watch) to reload the server
   try {
     const currentFile = fileURLToPath(import.meta.url);
     const now = new Date();
@@ -60,55 +50,13 @@ app.post("/api/system/restart", async (c) => {
   }
 });
 
-export const apiHandler = new OpenAPIHandler(appRouter, {
-  plugins: [
-    new OpenAPIReferencePlugin({
-      schemaConverters: [new ZodToJsonSchemaConverter()],
-    }),
-  ],
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
-});
-
-export const rpcHandler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
-});
-
-app.use("/*", async (c, next) => {
-  const context = await createContext({ context: c });
-
-  const rpcResult = await rpcHandler.handle(c.req.raw, {
-    prefix: "/rpc",
-    context: context,
-  });
-
-  if (rpcResult.matched) {
-    return c.newResponse(rpcResult.response.body, rpcResult.response);
-  }
-
-  const apiResult = await apiHandler.handle(c.req.raw, {
-    prefix: "/api-reference",
-    context: context,
-  });
-
-  if (apiResult.matched) {
-    return c.newResponse(apiResult.response.body, apiResult.response);
-  }
-
-  await next();
-});
-
-// Mount R2 upload routes
-app.get("/", (c) => {
-  return c.text("OK");
-});
+// ── Cron: Auto-publish scheduled articles every 5 minutes (Bun) ──
+setInterval(
+  () => {
+    runAutoPublish().catch((err) => console.error("[Cron] Fatal:", err));
+  },
+  5 * 60 * 1000,
+);
 
 export default {
   port: env.PORT,

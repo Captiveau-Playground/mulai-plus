@@ -16,7 +16,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -70,14 +70,14 @@ export default function AdminEmailPage() {
         setPreviewHtml(data.bodyContent);
         setShowPreview(true);
       },
-      onError: (err) => toast.error(`Preview gagal: ${err.message}`),
+      onError: (err) => notify.error(`Preview gagal: ${err.message}`),
     }),
   );
 
   const sendTemplate = useMutation(
     orpc.email.sendTemplate.mutationOptions({
-      onSuccess: (data) => toast.success(`Email berhasil dikirim ke ${data.sentTo}`),
-      onError: (err) => toast.error(`Gagal kirim: ${err.message}`),
+      onSuccess: (data) => notify.success(`Email berhasil dikirim ke ${data.sentTo}`),
+      onError: (err) => notify.error(`Gagal kirim: ${err.message}`),
     }),
   );
 
@@ -86,12 +86,12 @@ export default function AdminEmailPage() {
       onSuccess: (data) => {
         setBatchResults(data.results);
         if (data.failed === 0) {
-          toast.success(`${data.sent} email berhasil dikirim!`);
+          notify.success(`${data.sent} email berhasil dikirim!`);
         } else {
-          toast.warning(`${data.sent} terkirim, ${data.failed} gagal`);
+          notify.warn(`${data.sent} terkirim, ${data.failed} gagal`);
         }
       },
-      onError: (err) => toast.error(`Batch gagal: ${err.message}`),
+      onError: (err) => notify.error(`Batch gagal: ${err.message}`),
     }),
   );
 
@@ -132,7 +132,7 @@ export default function AdminEmailPage() {
 
   const handleBatchSend = useCallback(() => {
     if (!selectedTemplateId || !csvInput.trim()) {
-      toast.error("Masukkan data penerima terlebih dahulu");
+      notify.error("Masukkan data penerima terlebih dahulu");
       return;
     }
     setBatchResults(null);
@@ -354,7 +354,7 @@ export default function AdminEmailPage() {
                         <Button
                           onClick={() => {
                             if (!selectedTemplateId || !sendTo) {
-                              toast.error("Masukkan email penerima");
+                              notify.error("Masukkan email penerima");
                               return;
                             }
                             sendTemplate.mutate({
@@ -390,7 +390,7 @@ export default function AdminEmailPage() {
                             size="sm"
                             onClick={() => {
                               navigator.clipboard.writeText(renderPreview.data?.html ?? "");
-                              toast.success("HTML disalin ke clipboard");
+                              notify.success("HTML disalin ke clipboard");
                             }}
                             className="h-7 rounded-lg px-2 font-manrope text-[#888888] text-xs hover:text-[#1A1F6D]"
                           >

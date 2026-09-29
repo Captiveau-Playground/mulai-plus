@@ -53,3 +53,19 @@ temp
 docs/improvement-plan.md
 docs/security-checklist.md
 docs/*
+
+.pi-lens
+.agents/
+
+scripts
+!apps/ai/scripts/
+.dev.vars
+
+
+# 👉 .wrangler: state lokal dev (miniflare KV/DO SQLite) — jangan di-commit
+.wrangler
+
+
+# build artifacts OpenNext
+.next
+.open-next

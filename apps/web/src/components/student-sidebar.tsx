@@ -1,13 +1,27 @@
 "use client";
 
-import { Award, Calendar, ExternalLink, GraduationCap, LayoutDashboard, Loader2, LogOut, Settings } from "lucide-react";
-import type { Route } from "next";
+import {
+  Award,
+  Brain,
+  Calendar,
+  ExternalLink,
+  FileText,
+  GraduationCap,
+  History,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  type LucideIcon,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type * as React from "react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { CONTACT_CHANNELS } from "@/components/contact-support";
+import { NavMain } from "@/components/nav-main";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,60 +32,29 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
-function NavLink({ item, onNavigate }: { item: (typeof navItems)[number]; onNavigate?: () => void }) {
-  const pathname = usePathname();
-  const isExactMatch = pathname === item.url;
-  const isSubPath = pathname.startsWith(`${item.url}/`) && item.url !== "/dashboard/student";
-  const isCurrentPage = isExactMatch || isSubPath;
-  const Icon = item.icon;
-
-  return (
-    <Link
-      href={item.url as Route}
-      onClick={onNavigate}
-      className={cn(
-        "flex items-center gap-3 rounded-xl px-3 py-2.5 font-manrope font-medium text-sm transition-all duration-200",
-        isCurrentPage
-          ? "bg-brand-orange text-white shadow-sm"
-          : "text-white/70 hover:translate-x-0.5 hover:bg-white/15 hover:text-white",
-      )}
-      aria-current={isCurrentPage ? "page" : undefined}
-    >
-      <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-      <span className="whitespace-nowrap">{item.title}</span>
-    </Link>
-  );
-}
-
-const navItems = [
-  { title: "Dashboard", url: "/dashboard/student", icon: LayoutDashboard },
-  { title: "My Programs", url: "/dashboard/student/programs", icon: GraduationCap },
-  { title: "Schedule", url: "/dashboard/student/schedule", icon: Calendar },
-  // { title: "My Courses", url: "/dashboard/student/courses", icon: BookOpen },
-  // { title: "My Orders", url: "/dashboard/student/orders", icon: ShoppingCart },
-  { title: "Certificates", url: "/dashboard/student/certificates", icon: Award },
-  { title: "Settings", url: "/dashboard/student/settings", icon: Settings },
-];
+type NavEntry = {
+  title: string;
+  url: string;
+  icon?: LucideIcon;
+  isActive?: boolean;
+  items?: { title: string; url: string }[];
+};
 
 export function StudentSidebar({
   onNavigate,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { onNavigate?: () => void }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session } = authClient.useSession();
-  const [_isDropdownOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const user = session?.user
-    ? {
-        name: session.user.name,
-        email: session.user.email,
-        avatar: session.user.image || "",
-      }
+    ? { name: session.user.name, email: session.user.email, avatar: session.user.image || "" }
     : { name: "Student", email: "student@example.com", avatar: "" };
-
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -81,14 +64,54 @@ export function StudentSidebar({
       window.location.reload();
     } catch (error) {
       setIsLoggingOut(false);
-      toast.error("Failed to logout");
+      notify.error("Failed to logout");
       console.error(error);
     }
   };
 
+  const topItems: NavEntry[] = [
+    {
+      title: "Dashboard",
+      url: "/dashboard/student",
+      icon: LayoutDashboard,
+      isActive: pathname === "/dashboard/student",
+    },
+    {
+      title: "AI Assistant",
+      url: "/dashboard/student/assistant",
+      icon: Sparkles,
+      isActive: pathname.startsWith("/dashboard/student/assistant"),
+    },
+    {
+      title: "Settings",
+      url: "/dashboard/student/settings",
+      icon: Settings,
+      isActive: pathname === "/dashboard/student/settings",
+    },
+  ];
+
+  const programItems: NavEntry[] = [
+    { title: "My Programs", url: "/dashboard/student/programs", icon: GraduationCap },
+    { title: "Schedule", url: "/dashboard/student/schedule", icon: Calendar },
+    { title: "Summary Report", url: "/dashboard/student/summary-report", icon: Award },
+  ];
+
+  const assessmentItems: NavEntry[] = [
+    { title: "Test Minat Bakat", url: "/dashboard/student/assessment", icon: Brain },
+    { title: "Hasil", url: "/dashboard/student/assessment/result", icon: FileText },
+    { title: "History", url: "/dashboard/student/assessment/history", icon: History },
+  ];
+
+  const bantuanItems: NavEntry[] = CONTACT_CHANNELS.map((c) => ({
+    title: `${c.label} — ${c.description}`,
+    url: c.href,
+    icon: c.icon as unknown as LucideIcon,
+  }));
+
   return (
     <Sidebar
       id="tour-sidebar"
+      variant="inset"
       collapsible="icon"
       className={cn("border-r-0 bg-brand-navy pt-3 sm:pt-4")}
       style={
@@ -122,12 +145,11 @@ export function StudentSidebar({
 
       <Separator className="my-4 bg-white/10" />
 
-      <SidebarContent className="px-2 sm:px-3">
-        <nav className="space-y-1" aria-label="Student navigation">
-          {navItems.map((item) => (
-            <NavLink key={item.title} item={item} onNavigate={onNavigate} />
-          ))}
-        </nav>
+      <SidebarContent className="px-2">
+        <NavMain items={topItems} />
+        <NavMain label="Program" items={programItems} />
+        <NavMain label="Assessment" items={assessmentItems} />
+        <NavMain label="Bantuan" items={bantuanItems} />
 
         {/* Back to Site */}
         <div className="mt-2 border-white/10 border-t pt-3">
@@ -137,46 +159,44 @@ export function StudentSidebar({
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-manrope font-medium text-sm text-white/40 transition-all duration-200 hover:bg-white/10 hover:text-white"
           >
             <ExternalLink className="h-4 w-4 shrink-0" />
-            <span>Back to Site</span>
+            <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
           </Link>
         </div>
       </SidebarContent>
 
       <SidebarFooter className="border-white/10 border-t px-3 py-4">
         <DropdownMenu>
-          <DropdownMenuTrigger className="hidden w-full md:flex">
-            <button
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl bg-white/10 p-2.5 text-left transition-all hover:translate-y-[-1px] hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 active:translate-y-0 sm:p-3",
-              )}
-            >
-              {user.avatar ? (
-                <>
-                  <Image
-                    src={user.avatar}
-                    alt={user.name || ""}
-                    width={40}
-                    height={40}
-                    className="h-9 w-9 rounded-full object-cover ring-2 ring-white/20 sm:h-10 sm:w-10"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
-                    <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-orange ring-2 ring-white/20 sm:h-10 sm:w-10">
-                    <span className="font-semibold text-white">{user.name?.charAt(0) || "S"}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
-                    <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
-                  </div>
-                </>
-              )}
-            </button>
+          <DropdownMenuTrigger
+            className={cn(
+              "hidden w-full cursor-pointer rounded-xl bg-white/10 p-2.5 text-left transition-all hover:translate-y-[-1px] hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/20 active:translate-y-0 sm:p-3 md:flex",
+              "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2",
+            )}
+          >
+            {user.avatar ? (
+              <>
+                <Image
+                  src={user.avatar}
+                  alt={user.name || ""}
+                  width={40}
+                  height={40}
+                  className="h-9 w-9 rounded-full object-cover ring-2 ring-white/20 sm:h-10 sm:w-10"
+                />
+                <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                  <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
+                  <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-orange ring-2 ring-white/20 sm:h-10 sm:w-10">
+                  <span className="font-semibold text-white">{user.name?.charAt(0) || "S"}</span>
+                </div>
+                <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                  <p className="truncate font-manrope font-medium text-sm text-white">{user.name}</p>
+                  <p className="truncate font-manrope text-white/60 text-xs">{user.email}</p>
+                </div>
+              </>
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-56 rounded-xl border-0 bg-white shadow-lg"

@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { toast } from "sonner";
 import { DeleteUserDialog, EditUserRoleDialog, UserSessionsDialog } from "@/components/admin/user-actions-dialogs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +44,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
+import { toast } from "@/lib/toast-client";
 
 export type User = {
   id: string;
@@ -86,7 +87,7 @@ export function UserTable() {
           router.refresh();
           return "Impersonation started";
         },
-        error: (err) => `Failed to impersonate user: ${err.message}`,
+        error: (err: any) => `Failed to impersonate user: ${err.message}`,
       },
     );
   };
@@ -111,10 +112,10 @@ export function UserTable() {
           })),
         );
       } else if (error) {
-        toast.error(`Failed to fetch users: ${error.message}`);
+        notify.error(`Failed to fetch users: ${error.message}`);
       }
     } catch (_e) {
-      toast.error("An unexpected error occurred");
+      notify.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +142,7 @@ export function UserTable() {
           fetchUsers();
           return "Role updated successfully";
         },
-        error: (err) => `Failed to update role: ${err.message}`,
+        error: (err: any) => `Failed to update role: ${err.message}`,
       },
     );
   };
@@ -158,7 +159,7 @@ export function UserTable() {
           fetchUsers();
           return "User banned successfully";
         },
-        error: (err) => `Failed to ban user: ${err.message}`,
+        error: (err: any) => `Failed to ban user: ${err.message}`,
       },
     );
   };
@@ -174,7 +175,7 @@ export function UserTable() {
           fetchUsers();
           return "User unbanned successfully";
         },
-        error: (err) => `Failed to unban user: ${err.message}`,
+        error: (err: any) => `Failed to unban user: ${err.message}`,
       },
     );
   };
@@ -373,13 +374,28 @@ export function UserTable() {
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full items-center gap-2 sm:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Input
             placeholder="Filter users..."
             value={(table.getColumn("user")?.getFilterValue() as string) ?? ""}
             onChange={(event) => table.getColumn("user")?.setFilterValue(event.target.value)}
-            className="w-full max-w-sm"
+            className="w-full max-w-[220px]"
           />
+          <Select
+            value={(table.getColumn("role")?.getFilterValue() as string) ?? ""}
+            onValueChange={(val) => table.getColumn("role")?.setFilterValue(val === "all" ? "" : val)}
+          >
+            <SelectTrigger className="h-9 w-[160px] rounded-lg border-gray-200 bg-white text-xs">
+              <SelectValue placeholder="All Roles" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roles</SelectItem>
+              <SelectItem value="student">Student</SelectItem>
+              <SelectItem value="mentor">Mentor</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="program_manager">Program Manager</SelectItem>
+            </SelectContent>
+          </Select>
           {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
         <div className="flex items-center gap-2">

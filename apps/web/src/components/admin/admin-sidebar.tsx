@@ -2,14 +2,18 @@
 
 import {
   BookOpen,
+  Brain,
+  Building2,
   Computer,
   ExternalLink,
   FileText,
+  Fingerprint,
   Key,
   LayoutDashboard,
   Link as LinkIcon,
   Settings2,
   Shield,
+  Sparkles,
   Users,
 } from "lucide-react";
 import Image from "next/image";
@@ -44,6 +48,43 @@ const data = {
       title: "Dashboard",
       url: "/admin",
       icon: LayoutDashboard,
+    },
+  ],
+  navAssessment: [
+    {
+      title: "Assessment",
+      url: "/admin/assessment",
+      icon: Brain,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/admin/assessment",
+        },
+        {
+          title: "Sekolah & Batch",
+          url: "/admin/assessment/schools",
+        },
+        {
+          title: "B2C — Statistik",
+          url: "/admin/assessment/b2c",
+        },
+        {
+          title: "B2C — History",
+          url: "/admin/assessment/b2c/history",
+        },
+        {
+          title: "Konten Test",
+          url: "/admin/assessment/questions",
+        },
+        {
+          title: "Pola Jurusan",
+          url: "/admin/assessment/patterns",
+        },
+        {
+          title: "Mapping Karier",
+          url: "/admin/assessment/careers",
+        },
+      ],
     },
   ],
   navAuth: [
@@ -136,6 +177,10 @@ const data = {
           title: "Testimonials",
           url: "/admin/programs/testimonials",
         },
+        {
+          title: "Feedback",
+          url: "/admin/programs/feedback",
+        },
       ],
     },
   ],
@@ -148,6 +193,10 @@ const data = {
         {
           title: "Articles",
           url: "/admin/cms/articles",
+        },
+        {
+          title: "Authors",
+          url: "/admin/cms/authors",
         },
         {
           title: "Categories",
@@ -168,7 +217,55 @@ const data = {
       ],
     },
   ],
+  navAi: [
+    {
+      title: "AI Assistant",
+      url: "/admin/ai-assistant",
+      icon: Sparkles,
+      items: [
+        {
+          title: "Analytics",
+          url: "/admin/ai-assistant",
+        },
+        {
+          title: "Users",
+          url: "/admin/ai-assistant-users",
+        },
+      ],
+    },
+  ],
+  navPddikti: [
+    {
+      title: "Universities",
+      url: "/admin/pddikti/universities",
+      icon: Building2,
+      items: [{ title: "All Universities", url: "/admin/pddikti/universities" }],
+    },
+    {
+      title: "Study Programs",
+      url: "/admin/pddikti/study-programs",
+      icon: BookOpen,
+      items: [{ title: "All Programs", url: "/admin/pddikti/study-programs" }],
+    },
+    {
+      title: "SNPMB",
+      url: "/admin/pddikti/snpmb-universities",
+      icon: ExternalLink,
+      items: [{ title: "SNPMB Universities", url: "/admin/pddikti/snpmb-universities" }],
+    },
+  ],
   navSystem: [
+    {
+      title: "E-Sign",
+      url: "#",
+      icon: Fingerprint,
+      items: [
+        {
+          title: "E-Sign",
+          url: "admin/esign",
+        },
+      ],
+    },
     {
       title: "Audit",
       url: "#",
@@ -255,9 +352,12 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navGeneral} />
+        <NavMain label="Assessment" items={data.navAssessment} />
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
-        <NavMain label="CMS" items={data.navCms} />
+        <NavMain label="Content" items={data.navCms} />
+        <NavMain label="AI" items={data.navAi} />
+        <NavMain label="Education Data" items={data.navPddikti} />
         <NavMain label="Authentication" items={data.navAuth} />
         <NavMain label="System" items={data.navSystem} />
 

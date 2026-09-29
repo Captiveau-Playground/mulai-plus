@@ -27,25 +27,29 @@ RUN bun install --frozen-lockfile --no-progress
 # ─── Layer 2: Source code (invalidated on any source change) ───
 COPY . .
 
-# Ensure Next.js env file exists for build (no secrets)
-COPY apps/web/.env.example apps/web/.env.production
+# Ensure Next.js env file exists for build (empty — semua NEXT_PUBLIC_* dari build-args)
+RUN touch apps/web/.env.production
 
 # ─── Layer 3: Build ───
 WORKDIR /app/apps/web
 
 # Add build arguments for Next.js public variables
+ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_SERVER_URL
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
 ARG NEXT_PUBLIC_GA_MEASUREMENT_ID
 ARG NEXT_PUBLIC_CLARITY_ID
+ARG NEXT_PUBLIC_AMPLITUDE_API_KEY
 
 # Make them available during build
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_SERVER_URL=$NEXT_PUBLIC_SERVER_URL
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
 ENV NEXT_PUBLIC_GA_MEASUREMENT_ID=$NEXT_PUBLIC_GA_MEASUREMENT_ID
 ENV NEXT_PUBLIC_CLARITY_ID=$NEXT_PUBLIC_CLARITY_ID
+ENV NEXT_PUBLIC_AMPLITUDE_API_KEY=$NEXT_PUBLIC_AMPLITUDE_API_KEY
 
 RUN npm run build
 

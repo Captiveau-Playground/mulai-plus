@@ -1,4 +1,5 @@
-import { db, schema } from "@mulai-plus/db";
+import { db, schema } from "@mulai-plus/db/db";
+import { env } from "@mulai-plus/env/server";
 import { ORPCError, os } from "@orpc/server";
 
 import type { Context } from "./context";
@@ -7,17 +8,56 @@ export const o = os.$context<Context>();
 
 export const publicProcedure = o;
 
+/**
+ * Map the first segment of an action path to a human-readable resource name.
+ */
+function resolveResource(path: string[]): string {
+  const first = path[0];
+
+  // Direct resource mappings
+  const resourceMap: Record<string, string> = {
+    programs: "program",
+    feedback: "feedback",
+    tmb: "assessment",
+    users: "user",
+    user: "user",
+    role: "role",
+    permission: "permission",
+    lms: "lms",
+    cms: "cms",
+    settings: "settings",
+    audit: "audit",
+    email: "email",
+    payments: "payments",
+    notifications: "notification",
+    notification: "notification",
+    newsletter: "newsletter",
+    shortLinks: "short_link",
+    testimonials: "testimonial",
+    programActivities: "program",
+  };
+
+  if (first && resourceMap[first]) {
+    return resourceMap[first];
+  }
+
+  // Fallback: use first segment as resource
+  return first || "api";
+}
+
 const auditMiddleware = o.middleware(async ({ context, next, path, ...rest }) => {
   const result = await next({});
   const input = (rest as { input?: unknown }).input;
+  const pathArr = path as string[];
 
   try {
     await db.insert(schema.auditLog).values({
-      action: (path as string[]).join(".") || "unknown",
-      resource: "api",
+      action: pathArr.join(".") || "unknown",
+      resource: resolveResource(pathArr),
       userId: context.session?.user?.id || null,
       details: {
         input,
+        path: pathArr,
       },
       ipAddress: context.ip,
       userAgent: context.userAgent,
@@ -46,7 +86,7 @@ const requireRole = (allowedRoles: string[]) =>
       throw new ORPCError("UNAUTHORIZED");
     }
 
-    const userRole = context.session.user.role;
+    const userRole = (context.session.user as any).role;
     if (!userRole || !allowedRoles.includes(userRole)) {
       throw new ORPCError("FORBIDDEN", {
         message: `Role '${userRole || "unknown"}' is not allowed to access this resource. Required roles: ${allowedRoles.join(", ")}`,
@@ -69,6 +109,19 @@ export const programManagerProcedure = protectedProcedure.use(requireRole(["prog
 export const adminOrProgramManagerProcedure = protectedProcedure.use(
   requireRole(["admin", "program_manager", "mentor"]),
 );
+
+// ── Hermes Procedure (Machine-to-Machine via API Key) ─────────
+const requireHermesKey = o.middleware(async ({ context, next }) => {
+  const apiKey = (context.headers as Headers)?.get?.("x-api-key");
+  if (!apiKey || apiKey !== env.HERMES_API_KEY) {
+    throw new ORPCError("UNAUTHORIZED", {
+      message: "Invalid or missing x-api-key",
+    });
+  }
+  return next({});
+});
+
+export const hermesProcedure = publicProcedure.use(requireHermesKey).use(auditMiddleware);
 
 export * from "./lib/email-templates";
 export * from "./lib/mail";

@@ -105,13 +105,13 @@ export default function CourseDetailPage() {
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {Array.isArray(course.benefits) &&
-                course.benefits.map((b) => (
+                course.benefits.map((b: any) => (
                   <Badge key={b} variant="secondary">
                     {b}
                   </Badge>
                 ))}
               {Array.isArray(course.tags) &&
-                course.tags.map((t) => (
+                course.tags.map((t: any) => (
                   <Badge key={t.tagId} variant="outline" className="inline-flex items-center gap-1">
                     <Tag className="h-3 w-3" />
                     {t.tag?.name}
@@ -163,7 +163,7 @@ export default function CourseDetailPage() {
         <h2 className="mb-2 font-semibold text-xl">Syllabus</h2>
         <div className="space-y-3">
           {course.sections?.length ? (
-            course.sections.map((section) => (
+            course.sections.map((section: any) => (
               <Card key={section.id}>
                 <CardHeader>
                   <CardTitle className="text-base">{section.title}</CardTitle>
@@ -171,7 +171,7 @@ export default function CourseDetailPage() {
                 <CardContent>
                   {section.lessons?.length ? (
                     <ul className="space-y-2">
-                      {section.lessons.map((lesson) => (
+                      {section.lessons.map((lesson: any) => (
                         <li key={lesson.id} className="flex items-center justify-between rounded-md border p-2">
                           <span className="line-clamp-1">{lesson.title}</span>
                           <Badge variant="secondary">Lesson</Badge>
@@ -194,7 +194,7 @@ export default function CourseDetailPage() {
         <h2 className="mb-2 font-semibold text-xl">Course Terkait</h2>
         {relatedCourses.length ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {relatedCourses.map((c) => (
+            {relatedCourses.map((c: any) => (
               <Card key={c.id} className="overflow-hidden">
                 {c.thumbnailUrl ? (
                   <div className="relative aspect-video w-full bg-muted">
