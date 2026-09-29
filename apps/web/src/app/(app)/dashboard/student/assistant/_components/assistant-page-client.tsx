@@ -711,7 +711,7 @@ function ChatRuntime({
       {/* Suggestions selalu tampil (pola ref examples/chatbot) + konteks + composer */}
       <div className="shrink-0 border-border border-t">
         {!busy && (
-          <div className="flex flex-col gap-1.5 px-3 pt-2 pb-1">
+          <div className="flex flex-col gap-1 px-2 pt-1.5 pb-0.5">
             <div id="tour-skills" className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
               {SKILLS.map((sk) => (
                 <button
@@ -719,7 +719,7 @@ function ChatRuntime({
                   type="button"
                   onClick={() => setSkill(sk.id)}
                   title={sk.desc}
-                  className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 font-manrope text-[11px] transition-colors ${
+                  className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-manrope text-[10px] transition-colors ${
                     skill === sk.id
                       ? "border-brand-navy bg-brand-navy text-white"
                       : "border-border bg-card text-brand-navy hover:bg-muted"
@@ -749,7 +749,7 @@ function ChatRuntime({
           </div>
         )}
         {quotaOut && (
-          <div className="mx-1 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 sm:mx-3">
+          <div className="mx-1 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 sm:mx-3 sm:gap-3 sm:px-4 sm:py-3">
             <CircleAlert className="mt-0.5 size-4.5 shrink-0 text-red-500" />
             <div>
               <p className="font-manrope font-semibold text-red-600 text-sm">
@@ -763,12 +763,7 @@ function ChatRuntime({
           </div>
         )}
 
-        <PromptInput
-          id="tour-composer"
-          onSubmit={handleSubmit}
-          multiple
-          className="rounded-none border-0 bg-white px-3 pt-1 pb-3"
-        >
+        <PromptInput id="tour-composer" onSubmit={handleSubmit} multiple className="w-full px-1.5 pt-1 pb-1">
           <PromptInputBody>
             <PromptInputTextarea
               value={text}
@@ -786,7 +781,7 @@ function ChatRuntime({
                     id="tour-model"
                     variant="ghost"
                     size="sm"
-                    className="gap-1.5 rounded-full border border-gray-200 px-3 text-xs"
+                    className="gap-1.5 rounded-full border border-gray-200 px-2.5 text-[11px] sm:px-3 sm:text-xs"
                   >
                     {current.icon}
                     {current.name}
@@ -860,6 +855,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       (typeof window !== "undefined" ? window.localStorage.getItem(ACTIVE_SESSION_KEY) : null) ??
       `s-${crypto.randomUUID().slice(0, 12)}`,
   );
+  const [loadingSession, setLoadingSession] = useState(false);
+  const activeIdRef = useRef<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [ready, setReady] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -914,8 +911,11 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const openSession = async (id: string) => {
     setActiveId(id);
     setHistory([]);
-    setReady(false);
+    setLoadingSession(true);
     setMobileListOpen(false);
+    if (id !== activeIdRef.current) {
+      // ChatRuntime ganti key hanya setelah history siap → TIDAK blank.
+    }
     try {
       const r = await fetch(`${AI_BASE}/ai/history?session_id=${encodeURIComponent(id)}`);
       const d = r.ok ? ((await r.json()) as any) : null;
@@ -930,7 +930,9 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     } catch {
       /* ignore */
     }
+    setLoadingSession(false);
     setReady(true);
+    activeIdRef.current = id;
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: openSession dibuat ulang tiap render — cukup trigger param
@@ -1043,7 +1045,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
 
   if (gateBlocked) {
     return (
-      <div className="flex h-full min-h-0 w-full gap-3 p-4">
+      <div className="flex h-full min-h-0 w-full gap-2 p-2">
         <section className="flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
           <header
             id="tour-header"
@@ -1063,7 +1065,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full gap-3 p-4 md:p-4 lg:p-4">
+    <div className="flex h-full min-h-0 w-full gap-2 p-2 md:p-3">
       {/* Tour first-visit Mul.ai */}
       {tourOpen && tourRect && (
         <div className="fixed inset-0 z-[90]" style={{ pointerEvents: "none" }}>
@@ -1169,11 +1171,13 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
                   key={s.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`)}
+                  onClick={() => {
+                    if (s.id !== activeId) (router.push as any)(`/dashboard/student/assistant/chat/${s.id}`);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`);
+                      (router.push as any)(`/dashboard/student/assistant/chat/${s.id}`);
                     }
                   }}
                   title={s.title}
@@ -1360,11 +1364,13 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
                   key={s.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`)}
+                  onClick={() => {
+                    if (s.id !== activeId) (router.push as any)(`/dashboard/student/assistant/chat/${s.id}`);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      (router.replace as any)(`/dashboard/student/assistant/chat/${s.id}`);
+                      (router.push as any)(`/dashboard/student/assistant/chat/${s.id}`);
                     }
                   }}
                   title={s.title}
@@ -1527,7 +1533,13 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             <LoaderCircle className="size-5 text-brand-orange" />
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            {loadingSession && (
+              <div className="pointer-events-none absolute top-0 right-0 left-0 z-10 flex items-center gap-2 bg-white/95 px-4 py-2 backdrop-blur-sm">
+                <LoaderCircle className="size-3.5 animate-spin text-brand-orange" />
+                <span className="font-manrope text-[11px] text-muted-foreground">Memuat percakapan…</span>
+              </div>
+            )}
             <ChatRuntime
               key={activeId}
               sessionId={activeId}
