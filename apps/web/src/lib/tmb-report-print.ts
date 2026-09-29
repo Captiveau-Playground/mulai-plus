@@ -122,15 +122,17 @@ export function renderReportHtml(r: TmbReportData): string {
   return `
   <!doctype html><html lang="id"><head><meta charset="utf-8"/>
   <style>
-    @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
-    * { box-sizing: border-box; }
+    @page { size: A4; margin: 12mm 13mm 16mm 13mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sec, .head, table.majors, .closing { break-inside: avoid; page-break-inside: avoid; }
+    .pfoot { display: none; }
     body { margin:0; padding:0; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; color: ${S.ink}; font-size: 11.5px; line-height: 1.5; }
     .head { background: ${S.navy}; color:#fff; padding: 16px 22px 14px; border-radius: 10px; position:relative; }
     .head h1 { margin:0; font-size: 21px; }
     .head p { margin:3px 0 0; color:#D9DCEF; font-size:11px; }
     .head .meta { margin-top:7px; font-size:9px; color:#AEB2D6; }
     .logo { position:absolute; right:20px; top:16px; height:26px; }
-    .sec { margin-top: 26px; }
+    .sec { margin-top: 20px; }
     .sec h2 { font-size: 13.5px; color: ${S.navy}; margin:0 0 8px; padding-left: 8px; border-left: 4px solid ${S.orange}; }
     table.bars { width: 100%; border-collapse: collapse; }
     table.bars td { border-bottom: 1px solid #F3F4F8; }
@@ -183,10 +185,18 @@ export function renderReportHtml(r: TmbReportData): string {
 
     ${r.summary ? `<div class="sec"><h2>4. Ringkasan AI</h2><div>${r.summary.replace(/\*\*/g, "").replace(/#+\s*/g, "")}</div></div>` : ""}
 
-    <div class="footer-note">
-      Disclaimer: Laporan ini merupakan alat bantu eksplorasi minat-bakat non-klinis dan bukan pengganti asesmen psikologi profesional.
-      Hasil rekomendasi bersifat referensi berdasarkan data program studi di MULAI+. — Dibuat oleh Product by MULAI+ · mulaiplus.id
+    <div class="pfoot">Product by MULAI+ · mulaiplus.id · Laporan Test Minat Bakat</div>
+
+    <div class="closing" style="margin-top:20px;border:1px solid #E5E7EF;border-left:4px solid #FE9114;background:#FBFBFE;border-radius:8px;padding:10px 12px;font-size:9.5px;color:#5F6572;line-height:1.55;">
+      <b style="color:#1A1F6D;">Penutup</b><br/>
+      Tes dan laporan ini <b>hanya sebatas alat bantu eksplorasi</b> minat, bakat, dan preferensi — bersifat informatif,
+      <b>bukan penilaian psikologis atau penentu keputusan</b>. Hasil rekomendasi jurusan/karier tidak menjamin keberhasilan
+      atau kesesuaian mutlak; keputusan akhir sepenuhnya di tangan kamu bersama keluarga, guru BK, atau psikolog/ahli karier.
+      Data yang kami gunakan bersumber dari database program studi MULAI+ (PDDikti &amp; SNPMB) dan dipakai secara terbatas
+      untuk personalisasi. Jika kamu ragu, konsultasikan hasil ini sebelum mengambil keputusan besar.
     </div>
+
+    <div class="footer-note">Dokumen ini dibuat otomatis oleh Product by MULAI+ · mulaiplus.id · Diterbitkan ${issued}</div>
   </body></html>`;
 }
 
@@ -204,8 +214,12 @@ export async function printTmbReport(r: TmbReportData): Promise<void> {
   // sembunyikan konten lain saat print, tampilkan hanya frame
   const style = document.createElement("style");
   style.id = `${IF}-css`;
-  style.textContent =
-    "@media print { body *:not(#mulai-pdf-print-frame):not(#mulai-pdf-print-frame *) { visibility: hidden !important; } #mulai-pdf-print-frame { position: absolute !important; inset: 0; z-index: 9999; } }";
+  style.textContent = `@media print {
+      body *:not(#mulai-pdf-print-frame):not(#mulai-pdf-print-frame *) { visibility: hidden !important; }
+      #mulai-pdf-print-frame { position: absolute !important; inset: 0; z-index: 9999; }
+      #mulai-pdf-print-frame .pfoot { display: block !important; position: fixed !important; bottom: 4mm; left: 0; right: 0; text-align: center; font-size: 8px; color: #9AA0AC; }
+      #mulai-pdf-print-frame .footer-note { margin-bottom: 10mm; }
+    }`;
   document.head.appendChild(style);
 
   const cleanup = () => {
