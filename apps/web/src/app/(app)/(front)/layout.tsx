@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Footer } from "@/components/front/footer";
+import { FrontLinkTracker } from "@/components/front/front-link-tracker";
 import { Navbar } from "@/components/front/navbar";
 
 export const metadata: Metadata = {
@@ -48,6 +49,7 @@ export default function FrontLayout({
       <Navbar />
       {children}
       <Footer />
+      <FrontLinkTracker />
     </>
   );
 }
