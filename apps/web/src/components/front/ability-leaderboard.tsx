@@ -1,7 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Crown, Medal, Timer, Trophy } from "lucide-react";
+import { Crown, Medal, Play, Timer, Trophy } from "lucide-react";
+import Link from "next/link";
+import { trackEvent } from "@/lib/analytics";
+import { buildUtmUrl } from "@/lib/utm";
 import { orpc } from "@/utils/orpc";
 
 type Entry = {
@@ -100,6 +103,22 @@ export function AbilityLeaderboard() {
               </tbody>
             </table>
           )}
+        </div>
+        <div className="mt-6 flex justify-center">
+          <Link
+            href={`${buildUtmUrl("/login", {
+              source: "mulaiplus_web",
+              medium: "front",
+              campaign: "assessment",
+              content: "leaderboard-cta",
+            })}&callbackUrl=${encodeURIComponent("/dashboard/student/assessment")}`}
+            onClick={() =>
+              trackEvent("assessment_cta_click", { type: "bakat", placement: "leaderboard", campaign: "assessment" })
+            }
+            className="inline-flex items-center gap-2 rounded-full bg-brand-navy px-7 py-3.5 font-bold font-bricolage text-sm text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-brand-navy-light active:scale-[0.98]"
+          >
+            <Play className="h-4 w-4" /> Coba Tes Bakat &amp; Masuk Ranking!
+          </Link>
         </div>
         <p className="mt-3 text-center font-manrope text-[10px] text-muted-foreground">
           * Peringkat diperbarui berkala dari attempt resmi (ability). Skor & waktu palsu/demo tidak masuk.
