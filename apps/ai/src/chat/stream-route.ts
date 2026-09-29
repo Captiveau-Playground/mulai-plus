@@ -266,7 +266,7 @@ streamRoute.post("/chat/stream", async (c) => {
     void store.countMessages(c, key).catch(() => 0);
   }
 
-  const history = await store.getHistory(c, key, 6).catch(() => []);
+  const history = (await store.getHistory(c, key, 6).catch(() => ({ messages: [], hasMore: false }))).messages;
   const skillPrompt = skillPersona(skill);
   const skillTools = skillToolFilter(skill);
   const messages: LlmMessage[] = [

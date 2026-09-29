@@ -189,28 +189,38 @@ export async function supersedeBranch(
   );
 }
 
-export async function getHistory(c: AppContext, sessionId: string, limit = 6): Promise<ChatMessageRow[]> {
+export interface HistoryPage {
+  messages: ChatMessageRow[];
+  hasMore: boolean;
+}
+
+/** Ambil riwayat (window) — keyset pagination `before_id` (naik ke pesan lebih lama). */
+export async function getHistory(
+  c: AppContext,
+  sessionId: string,
+  limit = 50,
+  beforeId?: number | null,
+): Promise<HistoryPage> {
   const rows = await query(
     c,
     `SELECT id, role, content, feedback, created_at, branch_group, superseded
      FROM chatbot_messages
-     WHERE session_id = $1
+     WHERE session_id = $1 ${beforeId ? "AND id < $3" : ""}
      ORDER BY id DESC
      LIMIT $2`,
-    [sessionId, limit],
+    beforeId ? [sessionId, limit + 1, beforeId] : [sessionId, limit + 1],
   );
-  return (rows as Record<string, any>[])
-    .slice()
-    .reverse()
-    .map((m) => ({
-      id: Number(m.id),
-      role: m.role,
-      content: m.content,
-      feedback: m.feedback ?? null,
-      created_at: m.created_at ? String(m.created_at) : null,
-      branch_group: m.branch_group ? String(m.branch_group) : null,
-      superseded: !!m.superseded,
-    }));
+  const list = (rows as Record<string, any>[]).map((m) => ({
+    id: Number(m.id),
+    role: m.role,
+    content: m.content,
+    feedback: m.feedback ?? null,
+    created_at: m.created_at ? String(m.created_at) : null,
+    branch_group: m.branch_group ? String(m.branch_group) : null,
+    superseded: !!m.superseded,
+  }));
+  const hasMore = list.length > limit;
+  return { messages: list.slice(0, limit).reverse(), hasMore };
 }
 
 /** Hitung sisa kuota: limit efektif - pemakaian. */
