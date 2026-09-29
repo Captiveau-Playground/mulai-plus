@@ -214,7 +214,7 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
 
 export async function printTmbReport(r: TmbReportData): Promise<void> {
   const QR = await import("qrcode").then((m) => m.default).catch(() => null);
-  const _qrData =
+  const qrData =
     QR && typeof document !== "undefined"
       ? await QR.toDataURL(
           `https://mulaiplus.id/laporan-tmb?nama=${encodeURIComponent(r.studentName || "")}&tgl=${encodeURIComponent(new Date().toISOString().slice(0, 10))}`,
