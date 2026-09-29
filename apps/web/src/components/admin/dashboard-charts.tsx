@@ -143,11 +143,11 @@ export function AdminDashboardCharts({
             </span>
             <h3 className="font-bold font-bricolage text-brand-navy text-xs">Users by Role</h3>
           </div>
-          <div className="grid grid-cols-[auto_1fr] items-center gap-3 p-3.5">
-            <ChartContainer config={roleConfig} className="mx-auto aspect-square max-h-[180px] min-w-[130px]">
+          <div className="p-4">
+            <ChartContainer config={roleConfig} className="mx-auto aspect-square h-[230px]">
               <PieChart>
                 <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                <Pie data={roleData} dataKey="users" nameKey="role" innerRadius={50} strokeWidth={4}>
+                <Pie data={roleData} dataKey="users" nameKey="role" innerRadius={60} strokeWidth={4}>
                   <Label
                     content={({ viewBox }: any) =>
                       viewBox && "cx" in viewBox ? (
@@ -165,19 +165,6 @@ export function AdminDashboardCharts({
                 </Pie>
               </PieChart>
             </ChartContainer>
-            <div className="min-w-0 space-y-1.5">
-              {roleData.map((r: any) => {
-                const pct = totalRoleUsers ? Math.round((r.users / totalRoleUsers) * 100) : 0;
-                return (
-                  <div key={r.role} className="flex items-center gap-2 text-xs">
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: r.fill }} />
-                    <span className="flex-1 truncate font-manrope text-text-main capitalize">{r.role}</span>
-                    <span className="font-manrope text-[10px] text-muted-foreground">{pct}%</span>
-                    <span className="w-6 text-right font-manrope font-semibold text-text-main">{r.users}</span>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </div>
       </div>
