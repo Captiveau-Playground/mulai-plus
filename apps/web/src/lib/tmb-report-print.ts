@@ -1,3 +1,5 @@
+import { client } from "@/lib/client";
+
 /**
  * Laporan PDF via HTML → print (Save as PDF).
  * Layout & font DIDUKUNG browser (rapi, konsisten), link klikable — tanpa engine PDF.
@@ -67,6 +69,7 @@ function strongestAbility(scores: Record<string, { correct: number; total: numbe
 
 export interface TmbReportData {
   studentName: string;
+  studentId?: string | null;
   email?: string | null;
   schoolName?: string | null;
   hollandCode: string;
@@ -277,12 +280,31 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
 
 export async function printTmbReport(r: TmbReportData): Promise<void> {
   const QR = await import("qrcode").then((m) => m.default).catch(() => null);
+  // URL verifikasi dari modul esign (HMAC token) — kadar unik per siswa
+  let verifyUrl = "";
+  if (r.studentId) {
+    try {
+      const res = await client.esign.signTmbReport({
+        studentName: r.studentName || "-",
+        studentId: r.studentId,
+        documentDate: new Date().toISOString().slice(0, 10),
+      });
+      if (res?.url) verifyUrl = `https://mulaiplus.id${res.url}`;
+    } catch {
+      /* esign off — fallback */
+    }
+  }
+  const QR_TEXT =
+    verifyUrl ||
+    `https://mulaiplus.id/laporan-tmb?nama=${encodeURIComponent(r.studentName || "")}&tgl=${encodeURIComponent(new Date().toISOString().slice(0, 10))}`;
   const qrData =
     QR && typeof document !== "undefined"
-      ? await QR.toDataURL(
-          `https://mulaiplus.id/laporan-tmb?nama=${encodeURIComponent(r.studentName || "")}&tgl=${encodeURIComponent(new Date().toISOString().slice(0, 10))}`,
-          { margin: 2, width: 300, errorCorrectionLevel: "M", color: { dark: "#15205B" } },
-        ).catch(() => "")
+      ? await QR.toDataURL(QR_TEXT, {
+          margin: 2,
+          width: 300,
+          errorCorrectionLevel: "M",
+          color: { dark: "#15205B" },
+        }).catch(() => "")
       : "";
   const IF = "mulai-pdf-print-frame";
   const old = document.getElementById(IF);

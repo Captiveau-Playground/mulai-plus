@@ -111,6 +111,7 @@ export default function TmbResultPage() {
     try {
       await printTmbReport({
         studentName: session?.user?.name ?? "",
+        studentId: session?.user?.id ?? null,
         email: session?.user?.email ?? null,
         schoolName: data?.profile?.schoolName ?? null,
         hollandCode,
