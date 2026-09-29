@@ -233,6 +233,35 @@ function fmtTime(iso: string | null): string {
 }
 
 /** Peta satu sesi percakapan (remount per sesi → riwayat termuat + bisa lanjut). */
+/** Skeleton percakapan — shimmer ala mesh chat (loading inisial & switch sesi). */
+function ChatSkeleton() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-4" aria-hidden>
+      {/* header palsu */}
+      <div className="flex items-center gap-2">
+        <div className="h-7 w-7 animate-pulse rounded-lg bg-brand-navy/10" />
+        <div className="h-3 w-40 animate-pulse rounded-full bg-brand-navy/10" />
+      </div>
+      {/* bubble user */}
+      <div className="ml-auto h-10 w-3/5 animate-pulse rounded-2xl rounded-tr-sm bg-brand-navy/10" />
+      {/* tool chip: spinner oranye + line */}
+      <div className="flex items-center gap-2">
+        <span className="size-3.5 animate-spin rounded-full border-2 border-brand-orange border-t-transparent" />
+        <div className="h-3 w-36 animate-pulse rounded-full bg-brand-navy/10" />
+      </div>
+      {/* jawaban AI 3 baris (semakin pendek) */}
+      <div className="mt-1 h-3 w-4/5 animate-pulse rounded-full bg-brand-navy/10" />
+      <div className="h-3 w-3/5 animate-pulse rounded-full bg-brand-navy/10" style={{ animationDelay: "120ms" }} />
+      <div className="h-3 w-2/5 animate-pulse rounded-full bg-brand-navy/10" style={{ animationDelay: "240ms" }} />
+      {/* pseudo composer */}
+      <div className="mt-auto flex items-center gap-2 rounded-2xl border border-gray-100 px-3 py-2.5">
+        <div className="h-3 flex-1 animate-pulse rounded-full bg-gray-100" />
+        <div className="h-7 w-7 animate-pulse rounded-full bg-brand-navy/15" />
+      </div>
+    </div>
+  );
+}
+
 function ChatRuntime({
   sessionId,
   userId,
@@ -1528,18 +1557,10 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
           </h1>
         </header>
 
-        {!ready ? (
-          <div className="flex flex-1 items-center justify-center">
-            <LoaderCircle className="size-5 text-brand-orange" />
-          </div>
+        {!ready || loadingSession ? (
+          <ChatSkeleton />
         ) : (
-          <div className="relative flex min-h-0 flex-1 flex-col">
-            {loadingSession && (
-              <div className="pointer-events-none absolute top-0 right-0 left-0 z-10 flex items-center gap-2 bg-white/95 px-4 py-2 backdrop-blur-sm">
-                <LoaderCircle className="size-3.5 animate-spin text-brand-orange" />
-                <span className="font-manrope text-[11px] text-muted-foreground">Memuat percakapan…</span>
-              </div>
-            )}
+          <div className="flex min-h-0 flex-1 flex-col">
             <ChatRuntime
               key={activeId}
               sessionId={activeId}
