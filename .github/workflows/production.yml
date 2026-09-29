@@ -345,52 +345,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # ---------- API Worker ----------
-      - name: Set API Worker secrets (production)
-        working-directory: apps/server
-        env:
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          PAYMENT_API_URL: ${{ secrets.PAYMENT_API_URL }}
-          PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          # Stub validasi createEnv (wrangler versions secret put membundel worker):
-          # nilai tidak di-tulis ke worker — hanya agar schema env lolos load lokal.
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          BETTER_AUTH_URL: https://api.mulaiplus.id
-          CORS_ORIGIN: https://api.mulaiplus.id
-          R2_BUCKET_NAME: mulai-plus-media
-          R2_PUBLIC_URL: https://cdn.mulaiplus.id
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          UNOSEND_API_KEY: ${{ secrets.UNOSEND_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
-        run: |
-          set -euo pipefail
-          set_secret() {
-            local name="$1"
-            local value="${!name}"
-            if [ -n "$value" ]; then
-              echo "$value" | ./node_modules/.bin/wrangler versions secret put "$name" --env production
-            else
-              echo "Skip $name (kosong)"
-            fi
-          }
-          set_secret BETTER_AUTH_SECRET
-          set_secret GOOGLE_CLIENT_ID
-          set_secret GOOGLE_CLIENT_SECRET
-          set_secret PAYMENT_API_URL
-          set_secret PAYMENT_API_KEY
-          set_secret R2_ACCOUNT_ID
-          set_secret R2_ACCESS_KEY_ID
-          set_secret R2_SECRET_ACCESS_KEY
-          set_secret AI_API_KEY
-          set_secret UNOSEND_API_KEY
-          set_secret RESEND_API_KEY
-          set_secret HERMES_API_KEY
+
+
+      - name: Deploy AI Worker (production)
+        working-directory: apps/ai
+        run: ./node_modules/.bin/wrangler deploy --env production
 
       # ---------- AI Worker (TS) — deploy SEBELUM api (URL AI_SERVICE_URL sudah di-flip) ----------
       - name: Set AI Worker secrets (production)
@@ -404,11 +363,6 @@ jobs:
           # "put terpisah menghapus secret lain" yg bikin LLM putus tiap redeploy.
           secret_json=$(jq -n --arg a "$AI_API_KEY" --arg o "$OPENAI_API_KEY" '{AI_API_KEY:$a, OPENAI_API_KEY:$o}')
           printf '%s' "$secret_json" | ./node_modules/.bin/wrangler secret bulk --env production
-
-      - name: Deploy AI Worker (production)
-        working-directory: apps/ai
-        run: ./node_modules/.bin/wrangler deploy --env production
-
       - name: Smoke test AI — /health + chat (custom domain)
         run: |
           set -euo pipefail
@@ -432,6 +386,46 @@ jobs:
       - name: Deploy API Worker (production)
         working-directory: apps/server
         run: ./node_modules/.bin/wrangler deploy --env production
+
+
+      - name: Set API Worker secrets (production)
+        working-directory: apps/server
+        env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          PAYMENT_API_URL: ${{ secrets.PAYMENT_API_URL }}
+          PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          UNOSEND_API_KEY: ${{ secrets.UNOSEND_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
+        run: |
+          set -euo pipefail
+          set_secret() {
+            local name="$1"
+            local value="${!name}"
+            if [ -n "$value" ]; then
+              echo "$value" | ./node_modules/.bin/wrangler secret put "$name" --env production
+            else
+              echo "Skip $name (kosong)"
+            fi
+          }
+          set_secret BETTER_AUTH_SECRET
+          set_secret GOOGLE_CLIENT_ID
+          set_secret GOOGLE_CLIENT_SECRET
+          set_secret PAYMENT_API_URL
+          set_secret PAYMENT_API_KEY
+          set_secret R2_ACCOUNT_ID
+          set_secret R2_ACCESS_KEY_ID
+          set_secret R2_SECRET_ACCESS_KEY
+          set_secret AI_API_KEY
+          set_secret UNOSEND_API_KEY
+          set_secret RESEND_API_KEY
+          set_secret HERMES_API_KEY
 
       - name: Smoke test API — root / harus OK (workers.dev)
         run: |

@@ -339,7 +339,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # ---------- API Worker ----------
+
+      # ---------- AI Worker (TS) ----------
+      - name: Deploy API Worker (staging)
+        working-directory: apps/server
+        run: ./node_modules/.bin/wrangler deploy --env staging
+
+
       - name: Set API Worker secrets (staging)
         working-directory: apps/server
         env:
@@ -351,13 +357,6 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          # Stub validasi createEnv (wrangler versions secret put membundel worker):
-          # nilai tidak di-tulis ke worker — hanya agar schema env lolos load lokal.
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          BETTER_AUTH_URL: https://api.staging.mulaiplus.id
-          CORS_ORIGIN: https://api.staging.mulaiplus.id
-          R2_BUCKET_NAME: mulai-plus-media-dev
-          R2_PUBLIC_URL: https://cdn-dev.mulaiplus.id
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           UNOSEND_API_KEY: ${{ secrets.UNOSEND_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
@@ -368,7 +367,7 @@ jobs:
             local name="$1"
             local value="${!name}"
             if [ -n "$value" ]; then
-              echo "$value" | ./node_modules/.bin/wrangler versions secret put "$name" --env staging
+              echo "$value" | ./node_modules/.bin/wrangler secret put "$name" --env staging
             else
               echo "Skip $name (kosong)"
             fi
@@ -385,11 +384,6 @@ jobs:
           set_secret UNOSEND_API_KEY
           set_secret RESEND_API_KEY
           set_secret HERMES_API_KEY
-
-      # ---------- AI Worker (TS) ----------
-      - name: Deploy API Worker (staging)
-        working-directory: apps/server
-        run: ./node_modules/.bin/wrangler deploy --env staging
 
       - name: Smoke test API — root / harus OK (workers.dev)
         run: |
