@@ -19,6 +19,36 @@ const ABILITY_NAME: Record<string, string> = {
   clerical: "Ketelitian",
 };
 
+const HOLLAND_DESC: Record<string, string> = {
+  R: "Nyaman dengan kerja praktis, alat, dan aktivitas lapangan — suka menyelesaikan sesuatu dengan tangan. Relevan untuk Teknik, Pertanian, dan bidang operasional.",
+  I: "Analitis, suka riset, mengamati, dan memecahkan masalah abstrak. Relevan untuk Sains, Kedokteran, dan Teknologi.",
+  A: "Kreatif, ekspresif, dan bebas berimajinasi — menghindari rutinitas kaku. Relevan untuk Desain, Sastra, dan Seni.",
+  S: "Senang membantu, mengajar, dan berinteraksi dengan banyak orang. Relevan untuk Psikologi, Keperawatan, dan Keguruan.",
+  E: "Pemimpin, persuasif, dan berjiwa bisnis — nyaman mengambil inisiatif & risiko. Relevan untuk Manajemen, Marketing, dan Kewirausahaan.",
+  C: "Terstruktur, teliti, dan menyukai kerapian serta prosedur jelas. Relevan untuk Akuntansi, Administrasi, dan Analisis Data.",
+};
+const ABILITY_DESC: Record<string, string> = {
+  numerical: "Kecepatan & ketepatan bekerja dengan angka dan pola. Relevan untuk Teknik, Akuntansi, dan Statistik.",
+  verbal: "Pemahaman & penggunaan bahasa, makna kata, dan bacaan. Relevan untuk Hukum, Komunikasi, dan Jurnalistik.",
+  logical: "Penalaran berurutan, deduksi, dan hubungan antar konsep. Relevan untuk IT, Matematika, dan Hukum.",
+  spatial:
+    "Kemampuan membayangkan bentuk, orientasi, dan rotasi ruang. Relevan untuk Arsitektur, Teknik Sipil, dan Desain.",
+  clerical:
+    "Ketelitian, konsistensi, dan kecepatan tugas administratif. Relevan untuk Administrasi, Laboratorium, dan QA.",
+};
+function strongestHolland(code: string): string {
+  const letters = Array.from(new Set((code || "").toUpperCase().replace(/[^A-Z]/g, ""))).slice(0, 2);
+  if (!letters.length) return "";
+  return letters.map((L) => `${L} (${HOLLAND_NAME[L] ?? ""}) — ${HOLLAND_DESC[L] ?? ""}`).join(" ");
+}
+function strongestAbility(scores: Record<string, { correct: number; total: number }>): string {
+  const entries = Object.entries(scores).map(([k, v]) => ({ k, pct: v.total ? (v.correct / v.total) * 100 : 0 }));
+  entries.sort((a, b) => b.pct - a.pct);
+  const top = entries[0];
+  if (!top || top.pct <= 0) return "";
+  return `${ABILITY_NAME[top.k] ?? top.k} — ${ABILITY_DESC[top.k] ?? ""}`;
+}
+
 export interface TmbReportData {
   studentName: string;
   email?: string | null;
@@ -51,7 +81,7 @@ const S = {
   track: "#E8E9EE",
 };
 
-function bar(label: string, pct: number, color: string, right?: string) {
+function bar(label: string, pct: number, color: string, right?: string, _desc?: string) {
   const w = Math.max(Math.min(pct, 100), 0);
   return `
     <tr>
@@ -76,7 +106,7 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
       const score = Math.round((r.hollandScores?.[d] ?? 0) * 100);
       const pct = ((r.hollandScores?.[d] ?? 0) / max) * 100;
       const top = r.hollandCode?.includes(d);
-      return bar(`${d} · ${HOLLAND_NAME[d] ?? ""}`, pct, top ? S.teal : "#B0B1BA", `${score}%`);
+      return bar(`${d} · ${HOLLAND_NAME[d] ?? ""}`, pct, top ? S.teal : "#B0B1BA", `${score}%`, HOLLAND_DESC[d]);
     })
     .join("");
 
@@ -85,7 +115,7 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
       const s = r.abilityScores?.[k] ?? { correct: 0, total: 0 };
       const lv = r.abilityLevels?.[k] ?? "medium";
       const pct = s.total ? (s.correct / s.total) * 100 : 0;
-      return bar(label, pct, levelColor(lv), `${s.correct}/${s.total} · ${levelLabel(lv)}`);
+      return bar(label, pct, levelColor(lv), `${s.correct}/${s.total} · ${levelLabel(lv)}`, ABILITY_DESC[k]);
     })
     .join("");
 
@@ -169,11 +199,13 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
       <table class="bars"><tbody>${riasec}</tbody></table>
       <div style="margin-top:8px;font-size:11.5px;"><b style="color:${S.teal};">Kode Minat: ${r.hollandCode || "---"}</b>
         <span style="color:${S.gray};float:right;">Kejelasan: ${diff} · Confidence ${r.confidenceScore}%</span></div>
+      ${r.hollandCode ? `<div style="margin-top:6px;font-size:10px;color:#4A4F5C;background:#F4F6FB;border-left:3px solid ${S.orange};padding:7px 10px;border-radius:6px;"><b style="color:${S.navy};">Apa arti kode ini?</b><br/>${strongestHolland(r.hollandCode)}</div>` : ""}
     </div>
 
     <div class="sec">
       <h2>2. Profil Kemampuan</h2>
       <table class="bars"><tbody>${ability}</tbody></table>
+      ${r.abilityScores ? `<div style="margin-top:8px;font-size:10px;color:#4A4F5C;background:#F4F6FB;border-left:3px solid #0D9488;padding:7px 10px;border-radius:6px;"><b style="color:${S.navy};">Kekuatanmu kini:</b> ${strongestAbility(r.abilityScores)}</div>` : ""}
     </div>
 
     <div class="sec">
