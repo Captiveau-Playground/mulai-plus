@@ -113,13 +113,14 @@ export const esignRouter = {
     )
     .handler(async ({ input }) => {
       const documentId = `tmb-${input.studentId}`;
-      const payload = { n: input.studentName, r: "student", d: documentId, t: input.documentDate };
+      // Ditandatangani secara digital OLEH SISTEM (nama: Product, jabatan: System).
+      const payload = { n: "Product", r: "system", d: documentId, t: input.documentDate, for: input.studentName };
       const token = createSignedToken(payload);
 
       // Audit trail DB (stateless HMAC tetap deterministic)
       try {
         const existing = await db.query.esignSignature.findFirst({
-          where: and(eq(esignSignature.documentId, documentId), eq(esignSignature.signerRole, "student")),
+          where: and(eq(esignSignature.documentId, documentId), eq(esignSignature.signerRole, "system")),
         });
         if (!existing) {
           await db.insert(esignSignature).values({
@@ -127,8 +128,8 @@ export const esignRouter = {
             token,
             documentType: "tmb_report",
             documentId,
-            signerName: input.studentName,
-            signerRole: "student",
+            signerName: "Product",
+            signerRole: "system",
             documentHash: hmacSign(documentId),
           });
           await db.insert(auditLog).values({
