@@ -48,6 +48,12 @@ export default function TmbResultPage() {
   const [downloading, setDownloading] = useState(false);
   const { data: session } = authClient.useSession();
   const searchParams = useSearchParams();
+
+  // Preload pdfmake saat halaman terbuka — biar unduhan PDF tidak nunggu bundle besar saat klik.
+  useEffect(() => {
+    void import("pdfmake/build/pdfmake").catch(() => {});
+    void import("pdfmake/build/vfs_fonts").catch(() => {});
+  }, []);
   const resultId = searchParams.get("resultId") ?? undefined;
   const { data, isLoading } = useQuery({
     ...orpc.tmb.result.get.queryOptions({ input: { resultId } }),
