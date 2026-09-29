@@ -188,19 +188,39 @@ export function renderReportHtml(r: TmbReportData): string {
     <div class="pfoot">Product by MULAI+ · mulaiplus.id · Laporan Test Minat Bakat</div>
 
     <div class="closing" style="margin-top:20px;border:1px solid #E5E7EF;border-left:4px solid #FE9114;background:#FBFBFE;border-radius:8px;padding:10px 12px;font-size:9.5px;color:#5F6572;line-height:1.55;">
+      <div style="display:flex;gap:14px;align-items:flex-start;">
+        <div style="flex:1;">
       <b style="color:#1A1F6D;">Penutup</b><br/>
       Tes dan laporan ini <b>hanya sebatas alat bantu eksplorasi</b> minat, bakat, dan preferensi — bersifat informatif,
       <b>bukan penilaian psikologis atau penentu keputusan</b>. Hasil rekomendasi jurusan/karier tidak menjamin keberhasilan
       atau kesesuaian mutlak; keputusan akhir sepenuhnya di tangan kamu bersama keluarga, guru BK, atau psikolog/ahli karier.
       Data yang kami gunakan bersumber dari database program studi MULAI+ (PDDikti &amp; SNPMB) dan dipakai secara terbatas
       untuk personalisasi. Jika kamu ragu, konsultasikan hasil ini sebelum mengambil keputusan besar.
+        </div>
+        ${
+          qrData
+            ? `<div style="text-align:center;flex-shrink:0;">
+                <img src="${qrData}" alt="QR verifikasi MULAI+" style="width:58px;height:58px;"/>
+                <div style="margin-top:3px;font-size:7.5px;color:#9AA0AC;">Tanda tangan digital<br/>MULAI+ · verifikasi laporan</div>
+              </div>`
+            : ""
+        }
+      </div>
     </div>
 
-    <div class="footer-note">Dokumen ini dibuat otomatis oleh Product by MULAI+ · mulaiplus.id · Diterbitkan ${issued}</div>
+    <div class="footer-note">Dokumen ini dibuat otomatis oleh Product by MULAI+ · mulaiplus.id · Diterbitkan ${issued} · Ditandatangani digital dengan QR.</div>
   </body></html>`;
 }
 
 export async function printTmbReport(r: TmbReportData): Promise<void> {
+  const QR = await import("qrcode").then((m) => m.default).catch(() => null);
+  const _qrData =
+    QR && typeof document !== "undefined"
+      ? await QR.toDataURL(
+          `https://mulaiplus.id/laporan-tmb?nama=${encodeURIComponent(r.studentName || "")}&tgl=${encodeURIComponent(new Date().toISOString().slice(0, 10))}`,
+          { margin: 1, width: 220, color: { dark: "#1A1F6D" } },
+        ).catch(() => "")
+      : "";
   const IF = "mulai-pdf-print-frame";
   const old = document.getElementById(IF);
   if (old) old.remove();
@@ -208,15 +228,16 @@ export async function printTmbReport(r: TmbReportData): Promise<void> {
   const wrap = document.createElement("div");
   wrap.id = IF;
   wrap.innerHTML = renderReportHtml(r);
-  Object.assign(wrap.style, { position: "fixed", inset: "0", zIndex: "-1" });
+  Object.assign(wrap.style, { position: "absolute", left: "-9999px", top: "0" });
   document.body.appendChild(wrap);
 
   // sembunyikan konten lain saat print, tampilkan hanya frame
   const style = document.createElement("style");
   style.id = `${IF}-css`;
   style.textContent = `@media print {
-      body *:not(#mulai-pdf-print-frame):not(#mulai-pdf-print-frame *) { visibility: hidden !important; }
-      #mulai-pdf-print-frame { position: absolute !important; inset: 0; z-index: 9999; }
+      body > *:not(#mulai-pdf-print-frame) { display: none !important; }
+      body { margin: 0 !important; padding: 0 !important; }
+      #mulai-pdf-print-frame { display: block !important; position: static !important; }
       #mulai-pdf-print-frame .pfoot { display: block !important; position: fixed !important; bottom: 4mm; left: 0; right: 0; text-align: center; font-size: 8px; color: #9AA0AC; }
       #mulai-pdf-print-frame .footer-note { margin-bottom: 10mm; }
     }`;
