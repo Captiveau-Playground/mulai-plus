@@ -48,202 +48,208 @@ export function AdminDashboardCharts({
     banned: { label: "Banned", color: "hsl(var(--destructive))" },
   } satisfies ChartConfig;
 
-  return (
-    <div className="grid gap-4 lg:grid-cols-5">
-      {/* Users by Role */}
-      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xs lg:col-span-3">
+  const insightsBlock = stats?.userRegistrations?.length ? (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xs lg:col-span-2">
         <div className="border-gray-100 border-b px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
-              <Users className="h-3.5 w-3.5 text-blue-600" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50">
+              <TrendingUp className="h-3.5 w-3.5 text-brand-orange" />
             </div>
-            <h3 className="font-bold font-bricolage text-text-main text-xs">Users by Role</h3>
+            <h3 className="font-bold font-bricolage text-text-main text-xs">User Registered (30 hari)</h3>
           </div>
         </div>
-        <div className="p-4 pt-2">
-          <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-            <BarChart accessibilityLayer data={roleData}>
-              <CartesianGrid vertical={false} stroke="#f0f0f0" />
-              <XAxis
-                dataKey="role"
-                tickLine={false}
-                tickMargin={8}
-                axisLine={false}
-                tickFormatter={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+        <div className="p-4">
+          <ChartContainer config={chartConfig} className="min-h-[220px] w-full">
+            <LineChart data={stats.userRegistrations} margin={{ left: -18 }}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="d" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 10 }} />
+              <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10 }} allowDecimals={false} />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel indicator="line" />} />
+              <Line
+                dataKey="n"
+                name="Registered"
+                type="monotone"
+                stroke="var(--color-users)"
+                strokeWidth={2}
+                dot={false}
               />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-              <Bar dataKey="users" radius={[6, 6, 0, 0]} />
-            </BarChart>
+            </LineChart>
           </ChartContainer>
         </div>
       </div>
 
-      {/* User Status + Funnel */}
-      <div className="grid grid-cols-2 grid-rows-2 gap-4 lg:col-span-2">
-        {/* User Status Pie */}
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xs">
-          <div className="border-gray-100 border-b px-3.5 py-2.5">
-            <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-green-50">
-                <Activity className="h-3 w-3 text-green-600" />
-              </div>
-              <h3 className="font-bold font-bricolage text-[11px] text-text-main">User Status</h3>
+      <div className="grid grid-rows-2 gap-4">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xs">
+          <h3 className="font-bold font-bricolage text-brand-navy text-sm">Assessment (30 hari)</h3>
+          <div className="mt-3 flex items-baseline gap-3">
+            <div>
+              <p className="font-bold font-bricolage text-2xl text-brand-navy">{stats?.assessment?.attempts30d ?? 0}</p>
+              <p className="font-manrope text-[10px] text-muted-foreground">test selesai</p>
+            </div>
+            <div>
+              <p className="font-bold font-bricolage text-2xl text-brand-orange">
+                {stats?.assessment?.results30d ?? 0}
+              </p>
+              <p className="font-manrope text-[10px] text-muted-foreground">hasil (dua test)</p>
             </div>
           </div>
-          <div className="p-3">
-            <ChartContainer config={activeConfig} className="mx-auto aspect-square max-h-[170px]">
-              <PieChart>
+        </div>
+
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xs">
+          <h3 className="font-bold font-bricolage text-brand-navy text-sm">AI Assistant</h3>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="font-bold font-bricolage text-brand-navy text-xl">{stats?.ai?.sessions ?? 0}</p>
+              <p className="font-manrope text-[10px] text-muted-foreground">sessions</p>
+            </div>
+            <div className="text-emerald-600">
+              <p className="font-bold font-bricolage text-xl">{stats?.ai?.up ?? 0}</p>
+              <p className="font-manrope text-[10px]">👍</p>
+            </div>
+            <div className="text-red-500">
+              <p className="font-bold font-bricolage text-xl">{stats?.ai?.down ?? 0}</p>
+              <p className="font-manrope text-[10px]">👎</p>
+            </div>
+          </div>
+          {stats?.ai?.daily?.length > 0 && (
+            <p className="mt-2 font-manrope text-[10px] text-muted-foreground">
+              pesan 30d: {stats.ai.daily.reduce((a: number, r: any) => a + Number(r.n ?? 0), 0)}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-5">
+        {/* Users by Role */}
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xs lg:col-span-3">
+          <div className="border-gray-100 border-b px-4 py-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
+                <Users className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+              <h3 className="font-bold font-bricolage text-text-main text-xs">Users by Role</h3>
+            </div>
+          </div>
+          <div className="p-4 pt-2">
+            <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+              <BarChart accessibilityLayer data={roleData}>
+                <CartesianGrid vertical={false} stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="role"
+                  tickLine={false}
+                  tickMargin={8}
+                  axisLine={false}
+                  tickFormatter={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+                />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                <Pie data={activeData} dataKey="visitors" nameKey="browser" innerRadius={50} strokeWidth={4}>
-                  <Label
-                    content={({ viewBox }: any) => {
-                      if (viewBox && "cx" in viewBox) {
-                        return (
-                          <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                            <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground font-bold text-lg">
-                              {stats?.totalUsers?.toLocaleString()}
-                            </tspan>
-                            <tspan
-                              x={viewBox.cx}
-                              y={(viewBox.cy || 0) + 16}
-                              className="fill-muted-foreground text-[9px]"
-                            >
-                              Users
-                            </tspan>
-                          </text>
-                        );
-                      }
-                    }}
-                  />
-                </Pie>
-              </PieChart>
+                <Bar dataKey="users" radius={[6, 6, 0, 0]} />
+              </BarChart>
             </ChartContainer>
           </div>
         </div>
 
-        {/* Funnel compact */}
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xs">
-          <div className="border-gray-100 border-b px-3.5 py-2.5">
-            <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50">
-                <TrendingUp className="h-3 w-3 text-amber-600" />
+        {/* User Status + Funnel */}
+        <div className="grid grid-cols-2 grid-rows-2 gap-4 lg:col-span-2">
+          {/* User Status Pie */}
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xs">
+            <div className="border-gray-100 border-b px-3.5 py-2.5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-green-50">
+                  <Activity className="h-3 w-3 text-green-600" />
+                </div>
+                <h3 className="font-bold font-bricolage text-[11px] text-text-main">User Status</h3>
               </div>
-              <h3 className="font-bold font-bricolage text-[11px] text-text-main">Funnel</h3>
+            </div>
+            <div className="p-3">
+              <ChartContainer config={activeConfig} className="mx-auto aspect-square max-h-[170px]">
+                <PieChart>
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                  <Pie data={activeData} dataKey="visitors" nameKey="browser" innerRadius={50} strokeWidth={4}>
+                    <Label
+                      content={({ viewBox }: any) => {
+                        if (viewBox && "cx" in viewBox) {
+                          return (
+                            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                              <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground font-bold text-lg">
+                                {stats?.totalUsers?.toLocaleString()}
+                              </tspan>
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) + 16}
+                                className="fill-muted-foreground text-[9px]"
+                              >
+                                Users
+                              </tspan>
+                            </text>
+                          );
+                        }
+                      }}
+                    />
+                  </Pie>
+                </PieChart>
+              </ChartContainer>
             </div>
           </div>
-          <div className="space-y-2.5 p-3.5">
-            {[
-              {
-                label: "Applicants",
-                value: analytics?.totalApplicants || 0,
-                pct: 100,
-                bar: "bg-amber-500",
-              },
-              {
-                label: "Participants",
-                value: analytics?.totalParticipants || 0,
-                pct: analytics?.totalApplicants
-                  ? Math.round((analytics.totalParticipants / analytics.totalApplicants) * 100)
-                  : 0,
-                bar: "bg-emerald-500",
-              },
-              {
-                label: "Conversion",
-                value: `${analytics?.totalApplicants ? ((analytics.totalParticipants / analytics.totalApplicants) * 100).toFixed(1) : 0}%`,
-                pct: analytics?.totalApplicants
-                  ? Math.round((analytics.totalParticipants / analytics.totalApplicants) * 100)
-                  : 0,
-                bar: "bg-mentor-teal",
-              },
-            ].map((item) => (
-              <div key={item.label}>
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="font-manrope font-medium text-[10px] text-text-main">{item.label}</span>
-                  <span className="font-manrope text-[9px] text-text-muted-custom">{item.value}</span>
+
+          {/* Funnel compact */}
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xs">
+            <div className="border-gray-100 border-b px-3.5 py-2.5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50">
+                  <TrendingUp className="h-3 w-3 text-amber-600" />
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className={cn("h-full rounded-full transition-all", item.bar)}
-                    style={{ width: `${item.pct}%` }}
-                  />
-                </div>
+                <h3 className="font-bold font-bricolage text-[11px] text-text-main">Funnel</h3>
               </div>
-            ))}
+            </div>
+            <div className="space-y-2.5 p-3.5">
+              {[
+                {
+                  label: "Applicants",
+                  value: analytics?.totalApplicants || 0,
+                  pct: 100,
+                  bar: "bg-amber-500",
+                },
+                {
+                  label: "Participants",
+                  value: analytics?.totalParticipants || 0,
+                  pct: analytics?.totalApplicants
+                    ? Math.round((analytics.totalParticipants / analytics.totalApplicants) * 100)
+                    : 0,
+                  bar: "bg-emerald-500",
+                },
+                {
+                  label: "Conversion",
+                  value: `${analytics?.totalApplicants ? ((analytics.totalParticipants / analytics.totalApplicants) * 100).toFixed(1) : 0}%`,
+                  pct: analytics?.totalApplicants
+                    ? Math.round((analytics.totalParticipants / analytics.totalApplicants) * 100)
+                    : 0,
+                  bar: "bg-mentor-teal",
+                },
+              ].map((item) => (
+                <div key={item.label}>
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="font-manrope font-medium text-[10px] text-text-main">{item.label}</span>
+                    <span className="font-manrope text-[9px] text-text-muted-custom">{item.value}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className={cn("h-full rounded-full transition-all", item.bar)}
+                      style={{ width: `${item.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* ── Insight: User registrasi · Assessment · AI Assistant ── */}
-        {stats?.userRegistrations?.length ? (
-          <div className="mt-4 grid gap-4 lg:grid-cols-3">
-            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xs lg:col-span-2">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-bold font-bricolage text-brand-navy text-sm">User Registered (30 hari)</h3>
-                <TrendingUp className="h-4 w-4 text-brand-orange" />
-              </div>
-              <ChartContainer config={chartConfig} className="h-[220px] w-full">
-                <LineChart data={stats.userRegistrations} margin={{ left: -18 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="d" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 10 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10 }} allowDecimals={false} />
-                  <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel indicator="line" />} />
-                  <Line
-                    dataKey="n"
-                    name="Registered"
-                    type="monotone"
-                    stroke="var(--color-users)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ChartContainer>
-            </div>
-
-            <div className="grid grid-rows-2 gap-4">
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xs">
-                <h3 className="font-bold font-bricolage text-brand-navy text-sm">Assessment (30 hari)</h3>
-                <div className="mt-3 flex items-baseline gap-3">
-                  <div>
-                    <p className="font-bold font-bricolage text-2xl text-brand-navy">
-                      {stats?.assessment?.attempts30d ?? 0}
-                    </p>
-                    <p className="font-manrope text-[10px] text-muted-foreground">test selesai</p>
-                  </div>
-                  <div>
-                    <p className="font-bold font-bricolage text-2xl text-brand-orange">
-                      {stats?.assessment?.results30d ?? 0}
-                    </p>
-                    <p className="font-manrope text-[10px] text-muted-foreground">hasil (dua test)</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xs">
-                <h3 className="font-bold font-bricolage text-brand-navy text-sm">AI Assistant</h3>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="font-bold font-bricolage text-brand-navy text-xl">{stats?.ai?.sessions ?? 0}</p>
-                    <p className="font-manrope text-[10px] text-muted-foreground">sessions</p>
-                  </div>
-                  <div className="text-emerald-600">
-                    <p className="font-bold font-bricolage text-xl">{stats?.ai?.up ?? 0}</p>
-                    <p className="font-manrope text-[10px]">👍</p>
-                  </div>
-                  <div className="text-red-500">
-                    <p className="font-bold font-bricolage text-xl">{stats?.ai?.down ?? 0}</p>
-                    <p className="font-manrope text-[10px]">👎</p>
-                  </div>
-                </div>
-                {stats?.ai?.daily?.length > 0 && (
-                  <p className="mt-2 font-manrope text-[10px] text-muted-foreground">
-                    pesan 30d: {stats.ai.daily.reduce((a: number, r: any) => a + Number(r.n ?? 0), 0)}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {children}
+        {insightsBlock}
+        {children && <div className="grid gap-4 lg:grid-cols-2">{children}</div>}
       </div>
     </div>
   );
