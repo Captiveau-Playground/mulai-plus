@@ -93,6 +93,7 @@ import type { UserContext } from "./types";
 
 const AI_BASE = (env.NEXT_PUBLIC_SERVER_URL || "").replace(/\/$/, "");
 const SESSION_HEADER = "x-session-id";
+const ACTIVE_SESSION_KEY = "mulai-ai-active-session";
 
 const TIERS = [
   {
@@ -854,7 +855,11 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const { data: authSession } = authClient.useSession();
   const userId = (authSession?.user?.id as string | undefined) ?? null;
   const [sessions, setSessions] = useState<SessionItem[]>([]);
-  const [activeId, setActiveId] = useState<string>(initialSessionId ?? `s-${crypto.randomUUID().slice(0, 12)}`);
+  const [activeId, setActiveId] = useState<string>(
+    initialSessionId ??
+      (typeof window !== "undefined" ? window.localStorage.getItem(ACTIVE_SESSION_KEY) : null) ??
+      `s-${crypto.randomUUID().slice(0, 12)}`,
+  );
   const [history, setHistory] = useState<any[]>([]);
   const [ready, setReady] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -936,6 +941,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       void openSession(initialSessionId);
     } else if (process.env.NEXT_PUBLIC_CHAT_NO_REDIRECT !== "1") {
       const id = `s-${crypto.randomUUID().slice(0, 12)}`;
+      window.localStorage.setItem(ACTIVE_SESSION_KEY, id);
       (router.replace as any)(`/dashboard/student/assistant/chat/${id}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
