@@ -1,6 +1,8 @@
 import { createContext } from "@mulai-plus/api/context-core";
 import { appRouter } from "@mulai-plus/api/routers/index";
 import type { createAuth } from "@mulai-plus/auth/create-auth";
+import { db, eq } from "@mulai-plus/db/db";
+import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import { env } from "@mulai-plus/env/server";
 import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { uploadRouter } from "@mulai-plus/r2";
@@ -144,8 +146,23 @@ export function createApp(options: CreateAppOptions) {
         const session = await authInstance.api.getSession({
           headers: c.req.raw.headers,
         });
-        if (!session?.user || session.user.role !== "admin") {
-          return c.json({ error: "Forbidden. Admin access required." }, 403);
+        if (!session?.user?.id) {
+          return c.json({ error: "Unauthorized. Please log in." }, 401);
+        }
+        // Role SEGAR dari DB — jangan percaya JWT (bisa stale setelah role berubah).
+        try {
+          const [u] = await db
+            .select({ role: userSchema.role })
+            .from(userSchema)
+            .where(eq(userSchema.id, session.user.id));
+          if (!u || u.role !== "admin") {
+            return c.json({ error: "Forbidden. Admin access required." }, 403);
+          }
+        } catch {
+          // DB error → fallback ke role sesi (jangan blok admin kalau DB transient)
+          if (session.user.role !== "admin") {
+            return c.json({ error: "Forbidden. Admin access required." }, 403);
+          }
         }
       } catch {
         return c.json({ error: "Unauthorized. Please log in." }, 401);

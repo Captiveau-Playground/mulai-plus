@@ -1,8 +1,8 @@
 import { count, db, desc, eq, sql } from "@mulai-plus/db/db";
 import { permission, role, session, user } from "@mulai-plus/db/schema/auth";
 import { program, programApplication } from "@mulai-plus/db/schema/programs";
-
 import { systemSettings } from "@mulai-plus/db/schema/settings";
+import { tmbAssessmentResults, tmbTestAttempts } from "@mulai-plus/db/schema/tmb";
 import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
 import { aiRouter } from "./ai";
@@ -140,6 +140,47 @@ export const appRouter = {
       .orderBy(desc(programApplication.createdAt))
       .limit(5);
 
+    // ── Insights dashboard ────────────────────────────────
+    const [userReg, assess, aiRows] = await Promise.all([
+      // User registrasi harian (30 hari)
+      db.execute(sql`SELECT to_char(created_at, 'YYYY-MM-DD') AS d, count(*) AS n
+                     FROM "user" WHERE created_at >= now() - interval '30 days'
+                     GROUP BY 1 ORDER BY 1`) as unknown as Promise<{ rows?: { d: string; n: number }[] }>,
+      // Assessment: attempt selesai & hasil (30 hari)
+      (async () => {
+        const [c1, c2] = await Promise.all([
+          db
+            .select({ n: count() })
+            .from(tmbTestAttempts)
+            .where(sql`status = 'completed' AND finished_at >= now() - interval '30 days'`),
+          db.select({ n: count() }).from(tmbAssessmentResults).where(sql`created_at >= now() - interval '30 days'`),
+        ]);
+        return { attempts30d: c1[0]?.n ?? 0, results30d: c2[0]?.n ?? 0 };
+      })(),
+      // AI Assistant: pesan per hari, session aktif, feedback (30 hari)
+      (async () => {
+        try {
+          const daily = (await db.execute(sql`SELECT to_char(created_at,'YYYY-MM-DD') AS d, count(*) AS n
+                FROM chatbot_messages WHERE created_at >= now() - interval '30 days'
+                GROUP BY 1 ORDER BY 1`)) as unknown as { rows?: { d: string; n: number }[] };
+          const fb = (await db.execute(sql`SELECT count(*) filter (where feedback='up') AS up,
+                count(*) filter (where feedback='down') AS down,
+                count(distinct session_id) AS sessions
+                FROM chatbot_messages`)) as unknown as {
+            rows?: { up: number; down: number; sessions: number }[];
+          };
+          return {
+            daily: daily.rows ?? [],
+            up: fb.rows?.[0]?.up ?? 0,
+            down: fb.rows?.[0]?.down ?? 0,
+            sessions: fb.rows?.[0]?.sessions ?? 0,
+          };
+        } catch {
+          return { daily: [], up: 0, down: 0, sessions: 0 };
+        }
+      })(),
+    ]);
+
     return {
       totalUsers: totalUsers?.count ?? 0,
       activeSessions: activeSessions?.count ?? 0,
@@ -149,6 +190,9 @@ export const appRouter = {
       usersByRole,
       recentUsers,
       recentApplications,
+      userRegistrations: (userReg as any).rows ?? [],
+      assessment: assess,
+      ai: aiRows,
     };
   }),
   role: {

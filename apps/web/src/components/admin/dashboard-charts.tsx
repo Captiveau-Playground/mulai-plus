@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, TrendingUp, Users } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Label, Pie, PieChart, XAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Label, Line, LineChart, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 
@@ -171,6 +171,77 @@ export function AdminDashboardCharts({
             ))}
           </div>
         </div>
+
+        {/* ── Insight: User registrasi · Assessment · AI Assistant ── */}
+        {stats?.userRegistrations?.length ? (
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xs lg:col-span-2">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="font-bold font-bricolage text-brand-navy text-sm">User Registered (30 hari)</h3>
+                <TrendingUp className="h-4 w-4 text-brand-orange" />
+              </div>
+              <ChartContainer config={chartConfig} className="h-[220px] w-full">
+                <LineChart data={stats.userRegistrations} margin={{ left: -18 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="d" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 10 }} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel indicator="line" />} />
+                  <Line
+                    dataKey="n"
+                    name="Registered"
+                    type="monotone"
+                    stroke="var(--color-users)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ChartContainer>
+            </div>
+
+            <div className="grid grid-rows-2 gap-4">
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xs">
+                <h3 className="font-bold font-bricolage text-brand-navy text-sm">Assessment (30 hari)</h3>
+                <div className="mt-3 flex items-baseline gap-3">
+                  <div>
+                    <p className="font-bold font-bricolage text-2xl text-brand-navy">
+                      {stats?.assessment?.attempts30d ?? 0}
+                    </p>
+                    <p className="font-manrope text-[10px] text-muted-foreground">test selesai</p>
+                  </div>
+                  <div>
+                    <p className="font-bold font-bricolage text-2xl text-brand-orange">
+                      {stats?.assessment?.results30d ?? 0}
+                    </p>
+                    <p className="font-manrope text-[10px] text-muted-foreground">hasil (dua test)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xs">
+                <h3 className="font-bold font-bricolage text-brand-navy text-sm">AI Assistant</h3>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="font-bold font-bricolage text-brand-navy text-xl">{stats?.ai?.sessions ?? 0}</p>
+                    <p className="font-manrope text-[10px] text-muted-foreground">sessions</p>
+                  </div>
+                  <div className="text-emerald-600">
+                    <p className="font-bold font-bricolage text-xl">{stats?.ai?.up ?? 0}</p>
+                    <p className="font-manrope text-[10px]">👍</p>
+                  </div>
+                  <div className="text-red-500">
+                    <p className="font-bold font-bricolage text-xl">{stats?.ai?.down ?? 0}</p>
+                    <p className="font-manrope text-[10px]">👎</p>
+                  </div>
+                </div>
+                {stats?.ai?.daily?.length > 0 && (
+                  <p className="mt-2 font-manrope text-[10px] text-muted-foreground">
+                    pesan 30d: {stats.ai.daily.reduce((a: number, r: any) => a + Number(r.n ?? 0), 0)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {children}
       </div>
