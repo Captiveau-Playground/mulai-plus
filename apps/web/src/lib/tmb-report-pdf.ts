@@ -135,6 +135,9 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
     throw new Error("vfs_fonts gagal dimuat");
   }
   pdfMake.vfs = vfs;
+  if (!pdfMake.vfs || typeof pdfMake.vfs["Roboto-Regular.ttf"] !== "string") {
+    throw new Error("Font Roboto tidak ditemukan di vfs_fonts — coba hard refresh halaman");
+  }
   pdfMake.fonts = {
     Roboto: {
       normal: "Roboto-Regular.ttf",
@@ -299,9 +302,18 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
     ],
   };
 
-  return await new Promise<Blob>((resolve, _reject) => {
-    pdfMake.createPdf(docDefinition).getBlob((blob: Blob) => resolve(blob));
+  // Safety: jangan biarkan tombol terus berputar — timeout 30s bila pdfmake tersangkut.
+  const gen = new Promise<Blob>((resolve, reject) => {
+    try {
+      pdfMake.createPdf(docDefinition).getBlob((blob: Blob) => resolve(blob));
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error("Gagal menginisialisasi pdfmake"));
+    }
   });
+  const timer = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Timeout membuat PDF (30s) — muat ulang & coba lagi")), 30_000),
+  );
+  return await Promise.race([gen, timer]);
 }
 
 function section(title: string) {
