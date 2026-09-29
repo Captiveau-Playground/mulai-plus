@@ -23,6 +23,7 @@ import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
 import { mail } from "../lib/mail";
+import { generateTmbReportPdf } from "../lib/tmb-report-pdf";
 
 // ─── Konstanta ───────────────────────────────────────────
 
@@ -463,6 +464,36 @@ export const tmbRouter = {
           .values({ userId, ...input })
           .onConflictDoUpdate({ target: tmbProfiles.userId, set: { ...input, updatedAt: new Date() } });
         return { success: true };
+      }),
+  },
+
+  report: {
+    /** Generate PDF hasil test (server-side, font Roboto embedded). */
+    pdf: protectedProcedure
+      .input(
+        z.object({
+          studentName: z.string(),
+          schoolName: z.string().nullish(),
+          hollandCode: z.string(),
+          hollandScores: z.record(z.string(), z.number()),
+          abilityScores: z.record(z.string(), z.object({ correct: z.number(), total: z.number() })),
+          abilityLevels: z.record(z.string(), z.string()),
+          differentiation: z.string(),
+          confidenceScore: z.string(),
+          majors: z.array(
+            z.object({
+              itemName: z.string(),
+              confidence: z.string(),
+              prodiRefs: z.array(z.object({ prodi: z.string(), university: z.string() })).nullish(),
+            }),
+          ),
+          careers: z.array(z.string()),
+          summary: z.string().nullish(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const pdf = await generateTmbReportPdf(input as unknown as Parameters<typeof generateTmbReportPdf>[0]);
+        return { pdf, filename: `assessment-report-${input.hollandCode || "tmb"}.pdf` };
       }),
   },
 
