@@ -886,6 +886,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   );
   const [loadingSession, setLoadingSession] = useState(false);
   const activeIdRef = useRef<string | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [ready, setReady] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -923,6 +924,7 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
   const _loaded = useRef<string | null>(null);
 
   const refreshSessions = useCallback(async () => {
+    setSessionsLoading(true);
     try {
       const r = await fetch(`${AI_BASE}/ai/sessions`, {
         cache: "no-store",
@@ -933,6 +935,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
       setSessions(d.sessions ?? []);
     } catch {
       /* nonblokir */
+    } finally {
+      setSessionsLoading(false);
     }
   }, [userId]);
 
@@ -1033,7 +1037,8 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
     } catch {
       /* nonblokir */
     }
-  }, [activeId, userId]);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: kuota & profil PER-USER — tidak perlu refetch saat ganti chat
+  }, [userId, activeId]);
 
   // Gate kelengkapan profil — sekolah & jenjang wajib utk akses Mul.ai & tes
   const gateBlocked = ctx !== null && !(String(ctx.school || "").trim() && String(ctx.level || "").trim());
@@ -1187,7 +1192,19 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
-            {sessions.length === 0 ? (
+            {sessionsLoading ? (
+              <div className="space-y-2 p-2" aria-hidden>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-2">
+                    <div className="h-7 w-7 shrink-0 animate-pulse rounded-lg bg-brand-navy/10" />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="h-2.5 w-3/4 animate-pulse rounded-full bg-brand-navy/10" />
+                      <div className="h-2 w-1/2 animate-pulse rounded-full bg-brand-navy/10" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : sessions.length === 0 ? (
               <p className="px-2 py-6 text-center font-manrope text-text-muted-custom/70 text-xs">
                 Belum ada riwayat.
                 <br />
@@ -1380,7 +1397,19 @@ export function AssistantPageClient({ initialSessionId }: { initialSessionId?: s
             </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-6">
-            {sessions.length === 0 ? (
+            {sessionsLoading ? (
+              <div className="space-y-2 p-2" aria-hidden>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-2">
+                    <div className="h-7 w-7 shrink-0 animate-pulse rounded-lg bg-brand-navy/10" />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="h-2.5 w-3/4 animate-pulse rounded-full bg-brand-navy/10" />
+                      <div className="h-2 w-1/2 animate-pulse rounded-full bg-brand-navy/10" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : sessions.length === 0 ? (
               <p className="px-2 py-6 text-center font-manrope text-text-muted-custom/70 text-xs">
                 Belum ada riwayat.
                 <br />
