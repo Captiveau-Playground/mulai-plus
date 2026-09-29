@@ -15,6 +15,7 @@ const NAVY: [number, number, number] = [26, 31, 109];
 const TEAL: [number, number, number] = [13, 148, 136];
 const ORANGE: [number, number, number] = [254, 145, 20];
 const GRAY: [number, number, number] = [120, 120, 120];
+const FOAM: [number, number, number] = [244, 245, 249];
 const INK: [number, number, number] = [58, 58, 66];
 
 const PAGE_W = 210;
@@ -55,6 +56,24 @@ export interface TmbReportData {
   majors: { itemName: string; confidence: string; prodiRefs?: { prodi: string; university: string }[] }[];
   careers: string[];
   summary?: string | null;
+}
+
+/** Logo "MULAI+" via canvas → PNG utk header PDF (transparan, putih + aksen oranye). */
+function drawLogoWordmark(_doc: any): string {
+  if (typeof document === "undefined") return "";
+  const c = document.createElement("canvas");
+  c.width = 240;
+  c.height = 60;
+  const x = c.getContext("2d");
+  if (!x) return "";
+  x.clearRect(0, 0, c.width, c.height);
+  x.font = "700 40px 'Roboto', 'Segoe UI', system-ui, sans-serif";
+  x.textBaseline = "middle";
+  x.fillStyle = "#FFFFFF";
+  x.fillText("MULAI+", 4, 26);
+  x.fillStyle = "#FE9114";
+  x.fillRect(6, 42, 58, 6);
+  return c.toDataURL("image/png");
 }
 
 export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob> {
@@ -144,6 +163,13 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
       doc.setFont("Roboto", "bold");
       doc.setFontSize(FS.hero);
       doc.setTextColor(255, 255, 255);
+      try {
+        const lw = drawLogoWordmark(doc);
+        if (lw?.startsWith("data:image")) doc.addImage(lw, "PNG", PAGE_W - M - 30, 6.5, 30, 12);
+      } catch {
+        /* logo opsional */
+      }
+      // pindah title sedikit ke kiri biar logo nyaman (soal judul panjang)
       doc.text("Laporan Hasil Test Minat Bakat", M, 12);
       doc.setFont("Roboto", "normal");
       doc.setFontSize(10);
@@ -236,28 +262,76 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
   y += 3;
   rule();
 
-  // ── Rekomendasi ──
+  // ── Rekomendasi (tabel) ──
   sectionTitle("3. Rekomendasi Jurusan & Karier");
   y += 1;
-  report.majors.slice(0, 5).forEach((m, i) => {
-    breakIf(15);
-    put(`${i + 1}. ${m.itemName}`, { size: "body", color: NAVY, style: "bold", w: W - 34 });
-    doc.setFont("Roboto", "normal");
-    doc.setFontSize(8.4);
+  const COLS = [
+    { x: M, w: 7, h: "No" },
+    { x: M + 9, w: 82, h: "Jurusan" },
+    { x: M + 93, w: 24, h: "Kecocokan" },
+    { x: PAGE_W - M - 26, w: 24, h: "Contoh Prodi" },
+  ];
+  const rowH = 10;
+  // header tabel
+  breakIf(12);
+  doc.setFillColor(...FOAM);
+  doc.rect(M, y - 3.4, W, rowH - 3.4, "F");
+  COLS.forEach((c) => {
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(7.6);
     doc.setTextColor(...GRAY);
-    doc.text(`Kecocokan ${m.confidence}%`, M + W - 34, y - LEAD.body + 0.6, { align: "right" });
+    doc.text(c.h, c.x, y, { align: c.h === "No" || c.h === "Kecocokan" ? "left" : "left" });
+  });
+  y += rowH;
+  report.majors.slice(0, 5).forEach((m, i) => {
     const prodi = (m.prodiRefs ?? []).slice(0, 2);
-    if (prodi.length > 0) {
-      put(`Contoh: ${prodi.map((p) => `${p.prodi} — ${p.university}`).join("  |  ")}`, {
-        size: "cap",
-        color: [105, 105, 115],
-        x: M + 4,
-        w: W - 8,
-      });
-    }
-    y += 1.6;
+    // tinggi baris dari wrap jaringan
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(9.6);
+    const jLines = doc.splitTextToSize(m.itemName, COLS[1].w - 2) as string[];
+    doc.setFont("Roboto", "normal");
+    doc.setFontSize(8.2);
+    const pLines = doc.splitTextToSize(
+      prodi.map((p) => `${p.prodi} · ${p.university}`).join("  |  "),
+      COLS[3].w - 2,
+    ) as string[];
+    const rowHNow = Math.max(jLines.length, pLines.length, 1) * 4.0 + 2.2;
+    breakIf(rowHNow + 1);
+    // baris
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(9.6);
+    doc.setTextColor(...NAVY);
+    doc.text(String(i + 1), COLS[0].x, y);
+    jLines.forEach((l, li) => {
+      doc.text(l, COLS[1].x, y + li * 4.0);
+    });
+    doc.setFont("Roboto", "normal");
+    doc.setFontSize(8.6);
+    doc.setTextColor(...ORANGE);
+    doc.text(`${m.confidence}%`, COLS[2].x + COLS[2].w, y, { align: "right" });
+    doc.setFontSize(8.2);
+    doc.setTextColor(105, 105, 115);
+    pLines.forEach((l, li) => {
+      doc.text(l, COLS[3].x, y + li * 4.0);
+    });
+    y += rowHNow;
   });
   y += 2;
+
+  // link ke explore
+  {
+    const linkText = "Lihat semua jurusan & bandingkan passing grade di mulaiplus.id →";
+    breakIf(7);
+    doc.setFont("Roboto", "normal");
+    doc.setFontSize(8.6);
+    doc.setTextColor(...TEAL);
+    const tw = doc.getTextWidth(linkText);
+    doc.textWithLink(linkText, M, y, { url: "https://mulaiplus.id/explore" });
+    doc.setDrawColor(...TEAL);
+    doc.setLineWidth(0.2);
+    doc.line(M, y + 0.6, M + tw, y + 0.6);
+    y += 5;
+  }
 
   if (report.careers.length > 0) {
     put("Karier yang cocok:", { size: "sub", color: NAVY, style: "bold" });
