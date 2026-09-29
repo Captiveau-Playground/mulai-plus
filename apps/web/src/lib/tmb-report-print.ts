@@ -57,7 +57,7 @@ function bar(label: string, pct: number, color: string, right?: string) {
     <tr>
       <td style="width:30%;padding:3px 6px 3px 0;font-size:11px;color:${S.ink};vertical-align:middle;">${label}</td>
       <td style="width:60%;padding:3px 0;vertical-align:middle;">
-        <div style="position:relative;height:14px;border-radius:7px;background:${S.track};overflow:hidden">
+        <div style="position:relative;height:14px;border-radius:7px;background:#EEEFF4;overflow:hidden">
           <div style="height:100%;width:${w}%;border-radius:7px;background:${color}"></div>
         </div>
       </td>
@@ -89,6 +89,7 @@ export function renderReportHtml(r: TmbReportData): string {
     })
     .join("");
 
+  const majorsHead = `<thead><tr><th style="width:6%">No</th><th style="width:44%">Jurusan</th><th>Contoh Prodi</th></tr></thead>`;
   const majors = (r.majors ?? [])
     .slice(0, 5)
     .map(
@@ -97,7 +98,7 @@ export function renderReportHtml(r: TmbReportData): string {
         <td style="padding:7px 4px;font-size:11px;color:${S.gray};vertical-align:top;">${i + 1}</td>
         <td style="padding:7px 8px;vertical-align:top;">
           <div style="font-weight:700;font-size:12px;color:${S.navy};">${m.itemName}</div>
-          <div style="font-size:10px;color:${S.orange};margin-top:1px;">Kecocokan ${m.confidence}%</div>
+          <div style="font-size:10px;color:#C2540B;margin-top:1px;font-weight:600;">Kecocokan ${m.confidence}%</div>
         </td>
         <td style="padding:7px 4px 7px 8px;vertical-align:top;font-size:10.5px;">
           ${
@@ -132,7 +133,12 @@ export function renderReportHtml(r: TmbReportData): string {
     .sec { margin-top: 26px; }
     .sec h2 { font-size: 13.5px; color: ${S.navy}; margin:0 0 8px; padding-left: 8px; border-left: 4px solid ${S.orange}; }
     table.bars { width: 100%; border-collapse: collapse; }
+    table.bars td { border-bottom: 1px solid #F3F4F8; }
     table.majors { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    table.majors thead th { background: #F2F3F7; color: #5F6572; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; text-align: left; padding: 6px 8px; border-bottom: 1px solid #E6E8EF; }
+    table.majors tbody tr { border-bottom: 1px solid #F3F4F8; }
+    table.majors tbody tr:nth-child(even) { background: #FBFCFE; }
+    table.majors td { font-size: 10.5px; }
     .footer-note { margin-top: 30px; border-top: 1px solid ${S.foam}; padding-top: 10px; font-size: 9px; color: ${S.gray}; }
     .link-explore { font-size: 10.5px; color: ${S.teal}; margin-top: 12px; }
     .ident { display:grid; grid-template-columns: 1fr 1fr; gap: 4px 22px; font-size: 11.5px; }
@@ -170,7 +176,7 @@ export function renderReportHtml(r: TmbReportData): string {
 
     <div class="sec">
       <h2>3. Rekomendasi Jurusan &amp; Karier</h2>
-      <table class="majors"><tbody>${majors}</tbody></table>
+      <table class="majors">${majorsHead}<tbody>${majors}</tbody></table>
       ${r.careers?.length ? `<div style="margin-top:10px;font-size:11.5px;"><b style="color:${S.navy};">Karier yang cocok:</b> ${r.careers.slice(0, 6).join(" • ")}</div>` : ""}
       <div class="link-explore">📚 Lihat semua jurusan &amp; bandingkan passing grade di <a href="https://mulaiplus.id/explore" style="color:${S.teal};">mulaiplus.id/explore</a></div>
     </div>
