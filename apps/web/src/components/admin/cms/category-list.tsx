@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, GripVertical, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const categorySchema = z.object({
@@ -49,6 +49,7 @@ type CategoryWithChildren = {
   parentId?: string | null;
   sortOrder: number;
   isActive: boolean;
+  articleCount?: number;
   children?: CategoryWithChildren[];
 };
 
@@ -77,6 +78,7 @@ function CategoryItem({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <span className="font-medium text-muted-foreground text-xs">{category.articleCount ?? 0} articles</span>
           {hasChildren && (
             <span className="text-muted-foreground text-xs">{category.children?.length} subcategories</span>
           )}
@@ -127,12 +129,12 @@ export function CategoryList() {
   const createMutation = useMutation(
     orpc.cms.categories.admin.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Category created");
+        notify.success("Category created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({ queryKey: orpc.cms.categories.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -140,12 +142,12 @@ export function CategoryList() {
   const updateMutation = useMutation(
     orpc.cms.categories.admin.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Category updated");
+        notify.success("Category updated");
         setEditingCategory(null);
         queryClient.invalidateQueries({ queryKey: orpc.cms.categories.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -153,16 +155,17 @@ export function CategoryList() {
   const deleteMutation = useMutation(
     orpc.cms.categories.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Category deleted");
+        notify.success("Category deleted");
         queryClient.invalidateQueries({ queryKey: orpc.cms.categories.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
 
   const form = useForm<CategoryFormValues>({
+    // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch between zod v4 and hookform
     resolver: standardSchemaResolver(categorySchema) as any,
     defaultValues: {
       name: "",
@@ -310,7 +313,12 @@ export function CategoryList() {
                     <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="None (top-level)" />
+                          <SelectValue placeholder="None (top-level)">
+                            {field.value && flatCategories.length > 0
+                              ? (flatCategories.find((c: CategoryWithChildren) => c.id === field.value)?.name ??
+                                field.value)
+                              : "None (top-level)"}
+                          </SelectValue>
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>

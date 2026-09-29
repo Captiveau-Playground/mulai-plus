@@ -1,16 +1,14 @@
 "use client";
 
-import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { toast } from "sonner";
 import Loader from "@/components/loader";
-
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 
 function LoginContent() {
   const router = useRouter();
@@ -22,15 +20,16 @@ function LoginContent() {
 
   useEffect(() => {
     if (error) {
-      toast.error(`Authentication failed: ${error}`);
+      notify.error(`Authentication failed: ${error}`);
     }
   }, [error]);
 
   useEffect(() => {
     if (!isPending && session?.user) {
-      // If there's a callbackUrl, redirect there first (e.g., program registration)
+      // Priority: callbackUrl from URL > role-based
+      // localStorage redirect ditangani oleh RedirectHandler di root layout
       if (callbackUrl) {
-        router.push(decodeURIComponent(callbackUrl) as Route);
+        window.location.href = decodeURIComponent(callbackUrl);
         return;
       }
 

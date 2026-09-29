@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient, isAdmin } from "@/lib/auth-client";
+import { formatWIB } from "@/lib/date-wib";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -381,7 +382,7 @@ export function MentorDetail({ mentorId }: { mentorId: string }) {
                                 Week {session.week} - {session.type === "one_on_one" ? "1-on-1" : "Group"}
                               </p>
                               <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-manrope text-text-muted-custom text-xs">
-                                <span>{format(sessionDate, "MMM d, yyyy • HH:mm")}</span>
+                                <span>{formatWIB(sessionDate, "MMM d, yyyy • HH:mm")}</span>
                                 <span>({session.durationMinutes}m)</span>
                               </div>
                               <p className="font-manrope text-text-muted-custom text-xs">
@@ -464,7 +465,7 @@ export function MentorDetail({ mentorId }: { mentorId: string }) {
                             </p>
                             <div className="flex flex-wrap gap-x-3 font-manrope text-sm text-text-muted-custom">
                               <span>
-                                Week {session.week} • {format(sessionDate, "MMM d, yyyy • HH:mm")}
+                                Week {session.week} • {formatWIB(sessionDate, "MMM d, yyyy • HH:mm")}
                               </span>
                             </div>
                             <p className="font-manrope text-text-muted-custom text-xs">

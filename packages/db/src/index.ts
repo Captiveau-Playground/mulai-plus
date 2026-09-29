@@ -1,7 +1,7 @@
 import { env } from "@mulai-plus/env/server";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-
+import { setDb } from "./provider";
 import * as schema from "./schema";
 
 const { Pool } = pg;
@@ -27,5 +27,9 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const db = drizzle(pool, { schema });
+
+// Register as the active instance for the runtime-swappable proxy (@mulai-plus/db/db)
+setDb(db);
+
 export * from "drizzle-orm";
 export { schema };

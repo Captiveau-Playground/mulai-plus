@@ -1,0 +1,350 @@
+/**
+ * Routes chatbot — user + policy guard (guardrail → ban → rate limit → quota → cache → agent).
+ *
+ * Header dari apps/server proxy: Authorization (Bearer), x-session-id, x-user-id (null=guest).
+ */
+import { Hono } from "hono";
+import { z } from "zod";
+import { resolveDailyQuota } from "../admin/quota-settings";
+import { buildUserContext } from "../agent/user-context";
+import { record } from "../analytics/events";
+import type { Env } from "../config";
+import * as store from "../db/chat-store";
+import { unsafe } from "../db/db";
+import { ensureAiTables } from "../db/schema-init";
+import { dailyStub } from "../do/access-daily";
+import { notify } from "../notify";
+import { validateMessageInput } from "../policies/guardrails";
+import { quotaPolicy } from "../policies/quota";
+import { stripTools } from "./clean";
+
+/** Buang blok <tools>...</tools> (LLM legacy kadang menulis spec tool ke dalam jawaban). */
+const TIER_PREMIUM_LIMIT = Number(process.env.QUOTA_PREMIUM ?? 5);
+
+/** Scope cache legacy: tier + profil siswa (dedupe personalisasi, bukan jawaban bulan). */
+async function legacyCacheScope(c: any): Promise<string> {
+  const uid = c.req.header("x-user-id") ?? null;
+  const tier = c.req.query("model") ?? "smart";
+  const ctx = uid ? await buildUserContext(c, uid).catch(() => null) : null;
+  return [
+    tier,
+    ctx?.riasecPrimary ?? "",
+    ctx?.riasecCode ?? "",
+    ctx?.school ?? "",
+    ctx?.level ?? "",
+    (ctx?.goals ?? []).join(","),
+    JSON.stringify((ctx?.prefs as { targetMajor?: string[] } | undefined)?.targetMajor ?? []),
+  ].join("|");
+}
+
+import { AUTH_RATE_LIMIT_PER_MIN, acquireRateLimitSlot, GUEST_RATE_LIMIT_PER_MIN } from "../policies/rate-limit";
+import { exactCacheGet, exactCachePut } from "./cache";
+import { generateChatReply } from "./responder";
+
+const chatRoute = new Hono<{ Bindings: Env }>();
+
+const ChatBody = z.object({ message: z.string().min(1).max(4000), session_id: z.string().optional() });
+const FeedbackBody = z.object({ message_id: z.number(), feedback: z.enum(["up", "down", "none"]).nullable() });
+
+function sse(event: Record<string, unknown>): Response {
+  return new Response(`data: ${JSON.stringify(event)}\n\n`, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    },
+  });
+}
+
+chatRoute.post("/chat", async (c) => {
+  const parsed = ChatBody.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid request" }, 400);
+  const message = parsed.data.message;
+
+  const userId = c.req.header("x-user-id") ?? null;
+  const isAuth = userId !== null;
+  const key = c.req.header("x-session-id") || parsed.data.session_id || `anon-${crypto.randomUUID().slice(0, 12)}`;
+
+  await ensureAiTables(c).catch(() => {});
+
+  // 1. Guardrail input
+  const g = validateMessageInput(message);
+  if (!g.ok) {
+    await record(c, { sessionId: key, userId, event: "guardrail_blocked", data: { reason: g.reason } });
+    return c.json({ error: `Input ditolak (${g.reason})` }, 400);
+  }
+
+  // 2. Session + ban (session & by-user)
+  const session = await store.getOrCreateSession(c, key, userId).catch(() => null);
+  const banned = session?.banned || (userId ? await store.isUserBanned(c, userId).catch(() => false) : false);
+  if (banned) {
+    await record(c, { sessionId: key, userId, event: "guardrail_blocked", data: { reason: "banned" } });
+    return c.json(
+      { reply: "Akun ini telah dibatasi. Hubungi admin untuk info lebih lanjut.", remaining: 0, requires_auth: false },
+      403,
+    );
+  }
+
+  // 3b. Kuota harian 40 (auth)
+  const dailyLimit = await resolveDailyQuota(c);
+  if (isAuth && userId && dailyLimit > 0 && dailyStub) {
+    const ds = dailyStub(c, `u:${userId}`);
+    if (ds) {
+      let ok = true;
+      try {
+        ok = await ds.checkDaily("chat", dailyLimit);
+      } catch {
+        ok = true;
+      }
+      if (!ok)
+        return c.json(
+          {
+            error: `Kamu sudah memakai ${dailyLimit} pertanyaan hari ini. Besok di-reset otomatis.`,
+            daily_quota: true,
+          },
+          429,
+        );
+    }
+  }
+
+  // 3. Rate limit: auth 15/mnt/user, guest 5/mnt/session
+  const rlOk = await acquireRateLimitSlot(
+    c,
+    isAuth ? `u:${userId}` : `s:${key}`,
+    isAuth ? AUTH_RATE_LIMIT_PER_MIN : GUEST_RATE_LIMIT_PER_MIN,
+  );
+  if (!rlOk) {
+    await record(c, { sessionId: key, userId, event: "rate_limited", data: { is_auth: isAuth } });
+    return c.json({ error: "Terlalu banyak permintaan. Coba lagi dalam 1 menit.", rate_limited: true }, 429);
+  }
+
+  // 4. Cache exact (skip quota, hemat token)
+  const cached = await exactCacheGet(c, message, await legacyCacheScope(c)).catch(() => null);
+  if (cached?.answer) {
+    await record(c, { sessionId: key, userId, event: "cache_hit" });
+    await store.saveMessage(c, key, "user", message).catch(() => {});
+    const m = await store.saveMessage(c, key, "assistant", cached.answer).catch(() => null);
+    const used = await store.countMessages(c, key).catch(() => 0);
+    return sse({
+      session_id: key,
+      message_id: m?.id ?? undefined,
+      remaining: isAuth ? undefined : Math.max(0, quotaPolicy(false).max - used),
+      requires_auth: false,
+      full_reply: stripTools(cached.answer),
+    });
+  }
+  record(c, { sessionId: key, userId, event: "cache_miss" });
+
+  // 5. Quota: guest dibatasi 3, auth unlimited (rate limit di atas yang jaga)
+  let usedCount = 0;
+  if (!isAuth) {
+    const reserved = await store.reserveMessageSlot(c, key, quotaPolicy(false).max).catch(() => 1);
+    if (reserved === null) {
+      await record(c, { sessionId: key, userId, event: "quota_exhausted" });
+      notify(c, {
+        event: "mulai_ai.quota_exhausted",
+        title: "⏳ Kuota harian habis",
+        description: "Pengguna mencapai batas pertanyaan harian di Mul.ai.",
+        fields: [{ name: "User", value: userId ?? "anonim", inline: true }],
+        throttleMs: 10 * 60_000,
+        color: 0xf59e0b,
+      });
+      return c.json(
+        {
+          reply: quotaPolicy(false).exhaustedMessage,
+          remaining: 0,
+          requires_auth: true,
+          redirect_url: "/login?from=chat",
+        },
+        403,
+      );
+    }
+    usedCount = reserved;
+  } else {
+    usedCount = await store.countMessages(c, key).catch(() => 0);
+  }
+
+  // 6. Agent (history + LLM + tools)
+  const history = await store.getHistory(c, key, 6).catch(() => []);
+  const result = await generateChatReply(c, {
+    message,
+    history: history.map((m) => ({ role: m.role, content: m.content })),
+    sessionId: key,
+    userId,
+  });
+
+  // 7. Persist + cache + analytics
+  await store.saveMessage(c, key, "user", message).catch(() => {});
+  const assistant = await store
+    .saveMessage(c, key, "assistant", result.reply, {
+      prompt: result.promptTokens,
+      completion: result.completionTokens,
+      cost: result.cost,
+    })
+    .catch(() => null);
+
+  record(c, {
+    sessionId: key,
+    userId,
+    event: result.toolsUsed.length ? "reply_ok" : "reply_ok",
+    data: { tools: result.toolsUsed },
+  });
+  for (const tool of result.toolsUsed) {
+    await record(c, { sessionId: key, userId, event: "tool_called", data: { tool } });
+  }
+  if (result.reply) {
+    const scope = await legacyCacheScope(c).catch(() => "");
+    await exactCachePut(
+      c,
+      message,
+      result.reply,
+      result.suggested,
+      {
+        prompt: result.promptTokens,
+        completion: result.completionTokens,
+      },
+      scope,
+    ).catch(() => {});
+  }
+
+  return sse({
+    session_id: key,
+    message_id: assistant?.id ?? undefined,
+    remaining: isAuth ? undefined : Math.max(0, quotaPolicy(false).max - usedCount),
+    requires_auth: false,
+    full_reply: result.reply,
+    suggested_questions: result.suggested,
+    _debug: result.chatDebug,
+  });
+});
+
+// ── quota / history / feedback / track ────────────────────────────
+chatRoute.get("/context", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  const ctx = await buildUserContext(c, userId).catch(() => null);
+  return c.json({ profile: ctx, enrolled: !!userId });
+});
+
+// ── Session management (sidebar ChatGPT-like + checkpoint restore) ──
+chatRoute.get("/sessions", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required", sessions: [] }, 401);
+  const sessions = await store.listSessions(c, userId).catch(() => []);
+  return c.json({ sessions });
+});
+
+chatRoute.post("/sessions", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required", id: null }, 401);
+  const body = (await c.req.json().catch(() => ({}))) as { id?: string };
+  const id = body.id && body.id.length <= 64 ? body.id : `s-${crypto.randomUUID().slice(0, 12)}`;
+  await store.getOrCreateSession(c, id, userId).catch(() => null);
+  return c.json({ id });
+});
+
+chatRoute.post("/sessions/truncate", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const body = (await c.req.json().catch(() => ({}))) as { session_id?: string; keep?: number };
+  if (!body.session_id) return c.json({ error: "missing session_id" }, 400);
+  const keep = Math.max(1, Math.min(200, Number(body.keep) || 1));
+  const removed = await store.truncateSessionMessages(c, body.session_id, keep).catch(() => 0);
+  return c.json({ removed });
+});
+
+chatRoute.patch("/sessions/:sessionId", async (c) => {
+  await ensureAiTables(c).catch(() => {});
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const b = (await c.req.json().catch(() => ({}))) as { title?: string };
+  const title = (b.title ?? "").toString().trim().slice(0, 60);
+  if (!title) return c.json({ error: "title kosong" }, 400);
+  const ok = await store.renameSession(c, userId, c.req.param("sessionId"), title).catch(() => false);
+  return c.json({ ok });
+});
+
+chatRoute.delete("/sessions/:sessionId", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!userId) return c.json({ error: "auth required" }, 401);
+  const ok = await store.deleteSession(c, userId, c.req.param("sessionId")).catch(() => false);
+  return c.json({ ok });
+});
+
+chatRoute.get("/quota", async (c) => {
+  const userId = c.req.header("x-user-id") ?? null;
+  const isAuth = userId !== null;
+  const key = c.req.header("x-session-id") ?? c.req.query("session_id") ?? "";
+  if (!key) return c.json({ error: "missing session" }, 400);
+  const used = await store.countMessages(c, key).catch(() => 0);
+  const guest = {
+    remaining: Math.max(0, quotaPolicy(false).max - used),
+    limit: quotaPolicy(false).max,
+    requires_auth: !isAuth,
+  };
+  if (!isAuth) return c.json({ ...guest });
+  const dailyLimit = Number((c.env as Record<string, string | undefined>).QUOTA_DAILY ?? 40);
+  // Tier model (auth): simple unlimited; smart unlimited; premium berkuota.
+  const tiers: Record<string, { remaining: number | null; limit: number }> = {
+    simple: { remaining: null, limit: -1 },
+    smart: { remaining: null, limit: -1 },
+    premium: { remaining: null, limit: TIER_PREMIUM_LIMIT },
+  };
+  if (TIER_PREMIUM_LIMIT > 0 && userId) {
+    const stub = dailyStub(c, `u:${userId}`);
+    if (stub) {
+      const usedToday = await stub.peekDaily("premium").catch(() => 0);
+      tiers.premium = { remaining: Math.max(0, TIER_PREMIUM_LIMIT - usedToday), limit: TIER_PREMIUM_LIMIT };
+    }
+  }
+  let daily = { limit: dailyLimit, remaining: -1 };
+  if (dailyLimit > 0 && userId) {
+    const ds = dailyStub(c, `u:${userId}`);
+    if (ds) {
+      const used = await ds.peekDaily("chat").catch(() => 0);
+      daily = { limit: dailyLimit, remaining: Math.max(0, dailyLimit - used) };
+    }
+  }
+  return c.json({ remaining: null, limit: "unlimited", requires_auth: false, tiers, daily });
+});
+
+chatRoute.get("/history", async (c) => {
+  const key = c.req.header("x-session-id") ?? c.req.query("session_id") ?? "";
+  if (!key) return c.json({ error: "missing session" }, 400);
+  const messages = await store.getHistory(c, key, 50).catch(() => []);
+  return c.json({ messages, total: messages.length });
+});
+
+chatRoute.post("/feedback", async (c) => {
+  const b = FeedbackBody.safeParse(await c.req.json().catch(() => null));
+  if (!b.success) return c.json({ error: "invalid body" }, 400);
+  const { message_id, feedback } = b.data;
+  const key = c.req.header("x-session-id") ?? "";
+  const userId = c.req.header("x-user-id") ?? null;
+  await store.setFeedback(c, message_id, feedback === "none" ? null : feedback).catch(() => {});
+  record(c, { sessionId: key, userId, event: "feedback", data: { message_id, feedback } });
+  if (feedback === "down") {
+    notify(c, {
+      event: "mulai_ai.feedback_negative",
+      title: "👎 Feedback negatif — Mul.ai",
+      description: "Seseorang memberi rating tidak puas pada jawaban asisten.",
+      fields: [
+        { name: "User", value: userId ?? "anonim", inline: true },
+        { name: "Message", value: String(message_id ?? "-"), inline: true },
+      ],
+      throttleMs: 5 * 60_000,
+      color: 0xea4b4b,
+    });
+  }
+  return c.json({ ok: true });
+});
+
+chatRoute.post("/track/login-click", async (c) => {
+  const key = c.req.header("x-session-id") ?? "";
+  const userId = c.req.header("x-user-id") ?? null;
+  if (!key) return c.json({ error: "missing session" }, 400);
+  await unsafe(c, "UPDATE chatbot_sessions SET clicked_login = TRUE WHERE id = $1", [key]).catch(() => {});
+  record(c, { sessionId: key, userId, event: "login_click" });
+  return c.json({ ok: true });
+});
+
+export { chatRoute };

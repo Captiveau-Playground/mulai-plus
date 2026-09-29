@@ -56,6 +56,10 @@ const data = {
           title: "Testimonial",
           url: "/program-manager/programs/testimonials",
         },
+        {
+          title: "Feedback",
+          url: "/program-manager/programs/feedback",
+        },
       ],
     },
   ],

@@ -27,7 +27,10 @@ export function NotificationBell() {
 
   const { data: unreadCountData } = useQuery({
     ...orpc.notification.getUnreadCount.queryOptions(),
-    refetchInterval: 30000, // Poll every 30s
+    staleTime: 1000 * 60 * 2, // Consider data fresh for 2 minutes
+    refetchInterval: 1000 * 60 * 2, // Poll every 2 minutes instead of 30s
+    refetchOnWindowFocus: false, // Don't refetch when tab regains focus
+    refetchOnReconnect: false, // Don't refetch on network reconnect
     enabled: !!session,
   });
 
@@ -35,6 +38,8 @@ export function NotificationBell() {
     ...orpc.notification.list.queryOptions({
       input: { limit: 10 },
     }),
+    staleTime: 1000 * 60 * 1, // 1 minute fresh
+    refetchOnWindowFocus: false,
     enabled: isOpen && !!session,
   });
 
@@ -86,13 +91,15 @@ export function NotificationBell() {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuGroup>
-        <DropdownMenuTrigger>
-          <Button variant="ghost" size="icon" className="relative text-gray-700 hover:bg-gray-100">
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500" />}
-            <span className="sr-only">Notifications</span>
-          </Button>
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger
+          render={
+            <Button variant="ghost" size="icon" className="relative text-gray-700 hover:bg-gray-100">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500" />}
+              <span className="sr-only">Notifications</span>
+            </Button>
+          }
+        />
         <DropdownMenuContent align="end" className="w-80 rounded-xl border-0 bg-white shadow-lg">
           <div className="flex items-center justify-between px-4 py-3">
             <DropdownMenuLabel className="font-bold font-bricolage text-base text-brand-navy">
@@ -110,7 +117,7 @@ export function NotificationBell() {
             )}
           </div>
           <DropdownMenuSeparator />
-          <ScrollArea className="h-[300px]">
+          <ScrollArea className="h-75">
             {notificationsData?.length === 0 ? (
               <div className="flex h-20 items-center justify-center text-gray-400 text-sm">No notifications</div>
             ) : (

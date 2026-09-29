@@ -4,8 +4,8 @@ import { env } from "@mulai-plus/env/web";
 import { Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 const UPLOAD_ENDPOINT = `${env.NEXT_PUBLIC_SERVER_URL}/api/upload`;
@@ -25,6 +25,7 @@ export function FileUpload({
   value,
   onChange,
   onRemove,
+  bucket,
   path = "media",
   className,
   disabled,
@@ -43,8 +44,9 @@ export function FileUpload({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      if (path) {
-        formData.append("key", path);
+      const uploadKey = bucket ? `${bucket}/${path}` : path;
+      if (uploadKey) {
+        formData.append("key", uploadKey);
       }
 
       const response = await fetch(UPLOAD_ENDPOINT, {
@@ -59,7 +61,7 @@ export function FileUpload({
 
       const result = await response.json();
       onChange(result.url);
-      toast.success("File uploaded successfully");
+      notify.success("File uploaded successfully");
     } catch (err: unknown) {
       console.error("Upload error:", err);
       let message = "Failed to upload file";
@@ -71,7 +73,7 @@ export function FileUpload({
         message = "Server error: Invalid response";
       }
       setError(message);
-      toast.error(message);
+      notify.error(message);
     } finally {
       setIsUploading(false);
       e.target.value = "";

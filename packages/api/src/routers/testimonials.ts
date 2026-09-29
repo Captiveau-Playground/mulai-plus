@@ -1,4 +1,4 @@
-import { db, desc, eq } from "@mulai-plus/db";
+import { db, desc, eq } from "@mulai-plus/db/db";
 import { testimonial } from "@mulai-plus/db/schema/testimonials";
 import { z } from "zod";
 import { adminOrProgramManagerProcedure, protectedProcedure, publicProcedure } from "../index";

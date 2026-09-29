@@ -2,11 +2,20 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash, User } from "lucide-react";
+import { Loader2, MoreHorizontal, Pencil, Plus, Trash, TriangleAlert, User } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +29,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -31,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const testimonialSchema = z.object({
@@ -46,6 +55,7 @@ type TestimonialFormValues = z.infer<typeof testimonialSchema>;
 
 export function TestimonialList() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingTestimonial, setEditingTestimonial] = useState<{
     id: string;
     userId: string;
@@ -61,22 +71,25 @@ export function TestimonialList() {
     ...orpc.testimonials.list.queryOptions(),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+  const [studentSearch, setStudentSearch] = useState("");
   const { data: students } = useQuery({
-    ...orpc.user.listStudents.queryOptions(),
+    ...orpc.user.listStudents.queryOptions({
+      input: { search: studentSearch.trim() || undefined, limit: 200 },
+    }),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   const createMutation = useMutation(
     orpc.testimonials.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Testimonial created");
+        notify.success("Testimonial created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.testimonials.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -84,14 +97,14 @@ export function TestimonialList() {
   const updateMutation = useMutation(
     orpc.testimonials.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Testimonial updated");
+        notify.success("Testimonial updated");
         setEditingTestimonial(null);
         queryClient.invalidateQueries({
           queryKey: orpc.testimonials.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -99,13 +112,13 @@ export function TestimonialList() {
   const deleteMutation = useMutation(
     orpc.testimonials.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Testimonial deleted");
+        notify.success("Testimonial deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.testimonials.list.key(),
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -122,10 +135,13 @@ export function TestimonialList() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-bold text-2xl tracking-tight">Testimonials</h2>
-          <p className="text-muted-foreground">Manage student testimonials.</p>
+          <h2 className="font-bold font-bricolage text-2xl text-brand-navy tracking-tight">Testimonials</h2>
+          <p className="font-manrope text-text-muted-custom">Manage student testimonials.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add Testimonial
         </Button>
@@ -172,43 +188,34 @@ export function TestimonialList() {
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
-                    <DropdownMenuGroup>
-                      <DropdownMenuTrigger>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setEditingTestimonial({
-                              id: item.id,
-                              userId: item.userId,
-                              content: item.content,
-                              education: item.education,
-                              programName: item.programName,
-                              rating: item.rating,
-                              isVisible: item.isVisible,
-                            })
-                          }
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => {
-                            if (confirm("Are you sure?")) {
-                              deleteMutation.mutate({ id: item.id });
-                            }
-                          }}
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenuGroup>
+                    <DropdownMenuTrigger>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          setEditingTestimonial({
+                            id: item.id,
+                            userId: item.userId,
+                            content: item.content,
+                            education: item.education,
+                            programName: item.programName,
+                            rating: item.rating,
+                            isVisible: item.isVisible,
+                          })
+                        }
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirmId(item.id)}>
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
@@ -233,6 +240,8 @@ export function TestimonialList() {
           </DialogHeader>
           <TestimonialForm
             students={students || []}
+            studentSearch={studentSearch}
+            onStudentSearchChange={setStudentSearch}
             onSubmit={(values) => createMutation.mutate(values)}
             isSubmitting={createMutation.isPending}
             defaultValues={{
@@ -253,6 +262,8 @@ export function TestimonialList() {
           {editingTestimonial && (
             <TestimonialForm
               students={students || []}
+              studentSearch={studentSearch}
+              onStudentSearchChange={setStudentSearch}
               onSubmit={(values) =>
                 updateMutation.mutate({
                   id: editingTestimonial.id,
@@ -272,19 +283,53 @@ export function TestimonialList() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-red-100">
+              <TriangleAlert className="h-5 w-5 text-red-600" />
+            </div>
+            <AlertDialogTitle>Delete Testimonial</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this testimonial? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
+                setDeleteConfirmId(null);
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 function TestimonialForm({
   students,
+  studentSearch,
+  onStudentSearchChange,
   onSubmit,
   isSubmitting,
+  onCancel,
   defaultValues,
 }: {
   students: { id: string; name: string; email: string; image: string | null }[];
+  studentSearch: string;
+  onStudentSearchChange: (v: string) => void;
   onSubmit: (values: TestimonialFormValues) => void;
   isSubmitting: boolean;
+  onCancel?: () => void;
   defaultValues?: Partial<TestimonialFormValues>;
 }) {
   const form = useForm<TestimonialFormValues>({
@@ -307,8 +352,15 @@ function TestimonialForm({
           control={form.control}
           name="userId"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="pb-4">
               <FormLabel>Student</FormLabel>
+              <input
+                type="search"
+                value={studentSearch}
+                onChange={(e) => onStudentSearchChange(e.target.value)}
+                placeholder="Cari siswa (nama/email)…"
+                className="mb-2 w-full rounded-lg border border-input bg-background px-3 py-1.5 font-manrope text-xs outline-none placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-brand-orange/40"
+              />
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -316,6 +368,11 @@ function TestimonialForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  {students.length === 0 && (
+                    <div className="px-3 py-2 font-manrope text-muted-foreground text-xs">
+                      Tidak ada siswa ditemukan
+                    </div>
+                  )}
                   {students.map((student) => (
                     <SelectItem key={student.id} value={student.id}>
                       {student.name} ({student.email})
@@ -331,7 +388,7 @@ function TestimonialForm({
           control={form.control}
           name="content"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="pb-4">
               <FormLabel>Testimonial Content</FormLabel>
               <FormControl>
                 <Textarea placeholder="Enter the testimonial..." className="min-h-[100px]" {...field} />
@@ -409,10 +466,19 @@ function TestimonialForm({
           />
         </div>
         <DialogFooter>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onCancel} className="rounded-full">
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="!rounded-full !bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !border-0"
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </div>
         </DialogFooter>
       </form>
     </Form>

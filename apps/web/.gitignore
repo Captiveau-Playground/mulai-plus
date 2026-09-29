@@ -58,3 +58,7 @@ dev-dist
 .dev.vars*
 
 .open-next
+
+# Playwright
+playwright-report/
+test-results/

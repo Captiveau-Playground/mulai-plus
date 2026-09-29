@@ -3,13 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link as LinkIcon, Loader2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageState } from "@/components/ui/page-state";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 export default function AdminLinksPage() {
@@ -30,14 +30,14 @@ export default function AdminLinksPage() {
     orpc.shortLinks.update.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: orpc.shortLinks.getAll.key() });
-        toast.success("Link saved");
+        notify.success("Link saved");
         setSlug("");
         setTo("/");
         setUtmSource("");
         setUtmMedium("");
         setUtmCampaign("");
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
@@ -45,9 +45,9 @@ export default function AdminLinksPage() {
     orpc.shortLinks.delete.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: orpc.shortLinks.getAll.key() });
-        toast.success("Link deleted");
+        notify.success("Link deleted");
       },
-      onError: (err) => toast.error(err.message),
+      onError: (err) => notify.error(err.message),
     }),
   );
 
@@ -56,7 +56,7 @@ export default function AdminLinksPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!slug) {
-      toast.error("Slug is required");
+      notify.error("Slug is required");
       return;
     }
     updateLink.mutate({

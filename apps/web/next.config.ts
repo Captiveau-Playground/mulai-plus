@@ -1,4 +1,5 @@
 import "@mulai-plus/env/web";
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -27,4 +28,30 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const sentryConfig = {
+  ...nextConfig,
+  async redirects() {
+    return [
+      { source: "/universities/:path*", destination: "/explore/universities/:path*", permanent: true },
+      { source: "/study-programs/:path*", destination: "/explore/study-programs/:path*", permanent: true },
+      { source: "/explore/universities/:slug/prodi", destination: "/explore/universities/:slug", permanent: true },
+      { source: "/explore/universities/:slug/prodi/", destination: "/explore/universities/:slug", permanent: true },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/ai/:path*",
+        destination: `${process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000"}/ai/:path*`,
+      },
+    ];
+  },
+};
+
+export default withSentryConfig(sentryConfig, {
+  silent: true,
+  widenClientFileUpload: true,
+  reactComponentAnnotation: { enabled: true },
+  disableLogger: true,
+  automaticVercelMonitors: false,
+});

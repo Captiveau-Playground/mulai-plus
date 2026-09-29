@@ -3,10 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Eye, FileText, Globe, Loader2, MoreHorizontal, Pencil, Plus, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 type CmsArticleStatus = "draft" | "scheduled" | "published" | "archived";
@@ -30,33 +31,66 @@ export function ArticleList() {
     type?: CmsArticleType;
     status?: CmsArticleStatus;
     search?: string;
+    authorId?: string;
+    categoryId?: string;
   }>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const pageSize = 20;
 
   const { data, isLoading } = useQuery({
     ...orpc.cms.articles.admin.list.queryOptions({
-      type: filters.type,
-      status: filters.status,
-      search: filters.search,
-      limit: pageSize,
-      offset: page * pageSize,
+      input: {
+        type: filters.type,
+        status: filters.status,
+        search: filters.search,
+        authorId: filters.authorId,
+        categoryId: filters.categoryId,
+        limit: pageSize,
+        offset: page * pageSize,
+      },
     }),
     staleTime: 1000 * 60 * 2,
   });
 
+  // Fetch categories & authors for filter dropdowns
+  const { data: categories } = useQuery(orpc.cms.categories.admin.list.queryOptions());
+  const { data: authors } = useQuery(orpc.cms.authors.admin.list.queryOptions({ input: { roles: [] } }));
+
   const articles = data?.data || [];
   const total = data?.pagination?.total || 0;
+
+  const allOnPageSelected = articles.length > 0 && articles.every((a) => selected.has(a.id));
+
+  const toggleSelectAll = useCallback(() => {
+    if (allOnPageSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(articles.map((a) => a.id)));
+    }
+  }, [allOnPageSelected, articles]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
 
   const deleteMutation = useMutation(
     orpc.cms.articles.admin.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Article deleted");
+        notify.success("Article deleted");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -64,11 +98,11 @@ export function ArticleList() {
   const publishMutation = useMutation(
     orpc.cms.articles.admin.publish.mutationOptions({
       onSuccess: () => {
-        toast.success("Article published");
+        notify.success("Article published");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -76,11 +110,37 @@ export function ArticleList() {
   const unpublishMutation = useMutation(
     orpc.cms.articles.admin.unpublish.mutationOptions({
       onSuccess: () => {
-        toast.success("Article unpublished");
+        notify.success("Article unpublished");
         queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
+      },
+    }),
+  );
+
+  const bulkPublishMutation = useMutation(
+    orpc.cms.articles.admin.bulkPublish.mutationOptions({
+      onSuccess: () => {
+        notify.success("Articles published");
+        setSelected(new Set());
+        queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
+      },
+      onError: (error) => {
+        notify.error(error.message);
+      },
+    }),
+  );
+
+  const bulkDeleteMutation = useMutation(
+    orpc.cms.articles.admin.bulkDelete.mutationOptions({
+      onSuccess: () => {
+        notify.success("Articles deleted");
+        setSelected(new Set());
+        queryClient.invalidateQueries({ queryKey: orpc.cms.articles.admin.list.key() });
+      },
+      onError: (error) => {
+        notify.error(error.message);
       },
     }),
   );
@@ -123,7 +183,9 @@ export function ArticleList() {
       <div className="flex flex-wrap items-center gap-3">
         <Select
           value={filters.type || "all"}
-          onValueChange={(v) => setFilters((f) => ({ ...f, type: v === "all" ? undefined : (v as CmsArticleType) }))}
+          onValueChange={(v) =>
+            setFilters((f) => ({ ...f, type: !v || v === "all" ? undefined : (v as CmsArticleType) }))
+          }
         >
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Type" />
@@ -138,7 +200,7 @@ export function ArticleList() {
         <Select
           value={filters.status || "all"}
           onValueChange={(v) =>
-            setFilters((f) => ({ ...f, status: v === "all" ? undefined : (v as CmsArticleStatus) }))
+            setFilters((f) => ({ ...f, status: !v || v === "all" ? undefined : (v as CmsArticleStatus) }))
           }
         >
           <SelectTrigger className="w-[140px]">
@@ -153,6 +215,42 @@ export function ArticleList() {
           </SelectContent>
         </Select>
 
+        <Select
+          value={filters.authorId || "all"}
+          onValueChange={(v) => setFilters((f) => ({ ...f, authorId: !v || v === "all" ? undefined : v }))}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Author" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Authors</SelectItem>
+            {authors?.map((author: any) => (
+              <SelectItem key={author.id} value={author.id}>
+                {author.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filters.categoryId || "all"}
+          onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: !v || v === "all" ? undefined : v }))}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories
+              ?.flatMap((cat: any) => [cat, ...(cat.children || [])])
+              ?.map((cat: any) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+
         <Input
           placeholder="Search title..."
           className="w-[200px]"
@@ -161,12 +259,52 @@ export function ArticleList() {
         />
       </div>
 
+      {/* Batch Action Bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3">
+          <span className="font-medium text-primary text-sm">{selected.size} selected</span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-green-200 text-green-700 hover:bg-green-50"
+              onClick={() => bulkPublishMutation.mutate({ ids: Array.from(selected) })}
+              disabled={bulkPublishMutation.isPending}
+            >
+              <Globe className="mr-1.5 h-3.5 w-3.5" />
+              Publish All
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50"
+              onClick={() => {
+                if (confirm(`Delete ${selected.size} articles? This cannot be undone.`)) {
+                  bulkDeleteMutation.mutate({ ids: Array.from(selected) });
+                }
+              }}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              <Trash className="mr-1.5 h-3.5 w-3.5" />
+              Delete All
+            </Button>
+          </div>
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox checked={allOnPageSelected} onCheckedChange={toggleSelectAll} />
+              </TableHead>
               <TableHead>Title</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Author</TableHead>
@@ -177,13 +315,13 @@ export function ArticleList() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : articles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   No articles found.{" "}
                   <Button variant="link" className="text-primary" onClick={() => setIsCreateOpen(true)}>
                     Create your first article
@@ -192,17 +330,24 @@ export function ArticleList() {
               </TableRow>
             ) : (
               articles.map((article) => (
-                <TableRow key={article.id}>
+                <TableRow key={article.id} className={selected.has(article.id) ? "bg-primary/5" : undefined}>
+                  <TableCell>
+                    <Checkbox checked={selected.has(article.id)} onCheckedChange={() => toggleSelect(article.id)} />
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
-                      <a
-                        href={`/admin/cms/articles/${article.id}`}
-                        className="font-medium hover:text-primary hover:underline"
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/admin/cms/articles/${article.id}`)}
+                        className="text-left font-medium hover:text-primary hover:underline"
                       >
                         {article.title}
-                      </a>
+                      </button>
                       <span className="text-muted-foreground text-xs">{article.slug}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-muted-foreground text-xs">{article.categoryName || "-"}</span>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
@@ -297,7 +442,7 @@ export function ArticleList() {
               className="h-auto justify-start py-4 text-left"
               onClick={() => {
                 setIsCreateOpen(false);
-                window.location.href = "/admin/cms/articles/new?type=article";
+                router.push("/admin/cms/articles/new?type=article");
               }}
             >
               <FileText className="mr-3 h-5 w-5 text-primary" />
@@ -313,7 +458,7 @@ export function ArticleList() {
               className="h-auto justify-start py-4 text-left"
               onClick={() => {
                 setIsCreateOpen(false);
-                window.location.href = "/admin/cms/articles/new?type=news";
+                router.push("/admin/cms/articles/new?type=news");
               }}
             >
               <FileText className="mr-3 h-5 w-5 text-primary" />

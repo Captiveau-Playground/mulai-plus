@@ -1,0 +1,77 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "mulai-plus-web",
+	"workers_dev": true,
+	"compatibility_date": "2026-08-14",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	// NOTE 2026-09-23: custom domain aktif via env block di bawah —
+	//   staging → staging.mulaiplus.id | production → mulaiplus.id
+	// Custom domain (custom_domain:true) → DNS record dibuat otomatis CF saat deploy.
+	// Prasyarat: CI token punya Zone:Workers Custom Domains permission.
+	// (env default / top-level di atas tetap dipakai worker tanpa --env).
+	"services": [
+		{
+			// Self-reference service binding, the service name must match the worker name
+			// see https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "mulai-plus-web"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "NEXT_INC_CACHE_R2_BUCKET",
+			"bucket_name": "mulai-plus-web-opennext-cache"
+		}
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	// Env-scoped config: `wrangler deploy --env staging` → worker
+	// mulai-plus-web-staging (identik dengan api-staging naming convention).
+	"env": {
+		"staging": {
+			"workers_dev": true,
+			"r2_buckets": [
+				{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "mulai-plus-web-opennext-cache-staging" }
+			],
+			"services": [
+				{
+					"binding": "WORKER_SELF_REFERENCE",
+					"service": "mulai-plus-web-staging"
+				}
+			],
+			"routes": [
+				{
+					"pattern": "staging.mulaiplus.id",
+					"zone_name": "mulaiplus.id",
+					"custom_domain": true
+				}
+			]
+		},
+		"production": {
+			"workers_dev": false,
+			"r2_buckets": [
+				{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "mulai-plus-web-opennext-cache" }
+			],
+			"services": [
+				{
+					"binding": "WORKER_SELF_REFERENCE",
+					"service": "mulai-plus-web-production"
+				}
+			],
+			"routes": [
+				{
+					"pattern": "mulaiplus.id",
+					"zone_name": "mulaiplus.id",
+					"custom_domain": true
+				}
+			]
+		}
+	}
+}

@@ -8,6 +8,7 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    APP_URL: z.string().url().default("https://mulaiplus.id"),
     PAYMENT_API_URL: z.string().min(1),
     PAYMENT_API_KEY: z.string().min(1),
     UNOSEND_API_KEY: z.string().min(1).optional(),
@@ -23,6 +24,19 @@ export const env = createEnv({
     R2_SECRET_ACCESS_KEY: z.string().min(1),
     R2_BUCKET_NAME: z.string().min(1),
     R2_PUBLIC_URL: z.string().min(1),
+    // AI Service
+    AI_SERVICE_URL: z.string().url().optional(),
+    // Origin web yang dipercaya meneruskan x-user-id (csv, opsional)
+    WEB_ORIGINS: z.string().optional(),
+    AI_API_KEY: z.string().optional(),
+    // Hermes Agent API Key
+    HERMES_API_KEY: z.string().min(16).optional(),
+    // Cookie domain untuk session (subdomain sharing)
+    COOKIE_DOMAIN: z.string().optional(),
+    // E-Sign
+    ESIGN_SECRET: z.string().min(16).default("mulai-plus-esign-secret-change-in-production"),
+    // Discord webhook (notifikasi event penting). Kosong → tidak ada notif.
+    DISCORD_WEBHOOK_URL: z.string().url().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

@@ -3,14 +3,24 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Calendar, Clock, File, Loader2, MoreHorizontal, Pencil, Plus, Trash, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowRight, Layers, Loader2, MoreHorizontal, Pencil, Plus, Trash, TriangleAlert } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -31,391 +41,21 @@ import {
 import { FileUpload } from "@/components/ui/file-upload";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
+import { authClient, isAdmin } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
-
 import { BatchAttachmentsDialog } from "./batch-attachments";
 import { BatchSessionsDialog } from "./batch-sessions";
-
-function BatchAttendanceDialog({
-  batch,
-  open,
-  onOpenChange,
-}: {
-  batch: { id: string; durationWeeks: number; name: string };
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { data, isLoading } = useQuery({
-    ...orpc.programs.admin.batches.attendance.list.queryOptions({
-      input: { batchId: batch.id },
-    }),
-    staleTime: 1000 * 60 * 1, // 1 minute
-  });
-
-  const attendanceQueryClient = useQueryClient();
-
-  const [updates, setUpdates] = useState<
-    Record<string, { status: "present" | "absent" | "excused"; notes?: string; progressNote?: string }>
-  >({});
-
-  const mutation = useMutation(
-    orpc.programs.admin.batches.attendance.update.mutationOptions({
-      onSuccess: () => {
-        toast.success("Attendance updated");
-        const path = orpc.programs.admin.batches.attendance.list.key()[0];
-        attendanceQueryClient.invalidateQueries({ queryKey: [path], refetchType: "all" });
-        onOpenChange(false);
-        setUpdates({});
-      },
-      onError: (err) => toast.error(err.message),
-    }),
-  );
-
-  const handleSave = () => {
-    const updateList = Object.entries(updates).map(([key, value]) => {
-      const [userId, weekStr] = key.split("-");
-      return {
-        userId,
-        week: Number.parseInt(weekStr, 10),
-        status: value.status,
-        notes: value.notes,
-        progressNote: value.progressNote,
-      };
-    });
-    mutation.mutate({ batchId: batch.id, updates: updateList });
-  };
-
-  const getStatus = (userId: string, week: number) => {
-    if (updates[`${userId}-${week}`]) {
-      return updates[`${userId}-${week}`].status;
-    }
-    const existing = data?.attendance.find((a) => a.userId === userId && a.week === week);
-    return existing?.status || "";
-  };
-
-  const getProgressNote = (userId: string, week: number) => {
-    if (updates[`${userId}-${week}`]?.progressNote !== undefined) {
-      return updates[`${userId}-${week}`].progressNote;
-    }
-    const existing = data?.attendance.find((a) => a.userId === userId && a.week === week);
-    return existing?.progressNote || "";
-  };
-
-  const weeks = Array.from({ length: batch.durationWeeks }, (_, i) => i + 1);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-7xl">
-        <DialogHeader>
-          <DialogTitle>Batch Attendance: {batch.name}</DialogTitle>
-          <DialogDescription>
-            Track weekly attendance for accepted participants ({batch.durationWeeks} weeks).
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4">
-          {isLoading ? (
-            <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-          ) : (
-            <ScrollArea className="h-[500px] rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="sticky left-0 z-10 w-[200px] min-w-[200px] bg-white">Student</TableHead>
-                    {weeks.map((week) => (
-                      <TableHead key={week} className="min-w-[120px]">
-                        Week {week}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.participants.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={weeks.length + 1} className="h-24 text-center">
-                        No accepted participants found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    data?.participants.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="sticky left-0 z-10 bg-white font-medium">{student.name}</TableCell>
-                        {weeks.map((week) => (
-                          <TableCell key={week}>
-                            <div className="flex flex-col gap-1">
-                              <Select
-                                value={getStatus(student.id, week)}
-                                onValueChange={(val) => {
-                                  setUpdates((prev) => ({
-                                    ...prev,
-                                    [`${student.id}-${week}`]: {
-                                      ...prev[`${student.id}-${week}`],
-                                      status: val as "present" | "absent" | "excused",
-                                    },
-                                  }));
-                                }}
-                              >
-                                <SelectTrigger className="h-8 w-[100px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="present">Present</SelectItem>
-                                  <SelectItem value="absent">Absent</SelectItem>
-                                  <SelectItem value="excused">Excused</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Popover>
-                                <PopoverTrigger>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-[100px] text-muted-foreground text-xs hover:text-primary"
-                                  >
-                                    {(() => {
-                                      const note = getProgressNote(student.id, week);
-                                      return note ? `📝 ${note.slice(0, 12)}...` : "+ Progress note";
-                                    })()}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-64" align="start">
-                                  <div className="grid gap-2">
-                                    <p className="font-medium text-sm">Weekly Progress Note</p>
-                                    <Textarea
-                                      placeholder="E.g., Student shows good understanding..."
-                                      value={getProgressNote(student.id, week)}
-                                      onChange={(e) => {
-                                        setUpdates((prev) => ({
-                                          ...prev,
-                                          [`${student.id}-${week}`]: {
-                                            ...prev[`${student.id}-${week}`],
-                                            progressNote: e.target.value,
-                                          },
-                                        }));
-                                      }}
-                                      rows={3}
-                                    />
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={mutation.isPending}>
-            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function BatchMentorsDialog({
-  batchId,
-  open,
-  onOpenChange,
-}: {
-  batchId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const _queryClient = useQueryClient();
-  const { data: allMentors } = useQuery(orpc.lms.mentors.list.queryOptions());
-  const { data: batchMentors, isLoading } = useQuery(
-    orpc.programs.admin.batches.getMentors.queryOptions({ input: { batchId } }),
-  );
-
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (batchMentors) {
-      setSelectedIds(batchMentors.map((m) => m.id));
-    }
-  }, [batchMentors]);
-
-  const mutation = useMutation(
-    orpc.programs.admin.batches.assignMentors.mutationOptions({
-      onSuccess: () => {
-        toast.success("Mentors updated");
-        onOpenChange(false);
-      },
-      onError: (err) => toast.error(err.message),
-    }),
-  );
-
-  const handleSave = () => {
-    mutation.mutate({ batchId, userIds: selectedIds });
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Manage Batch Mentors</DialogTitle>
-          <DialogDescription>Select mentors for this batch.</DialogDescription>
-        </DialogHeader>
-        <div className="py-4">
-          {isLoading ? (
-            <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-          ) : (
-            <ScrollArea className="h-[300px] rounded-md border p-4">
-              <div className="space-y-4">
-                {allMentors?.map((mentor) => (
-                  <div key={mentor.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={mentor.id}
-                      checked={selectedIds.includes(mentor.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) setSelectedIds([...selectedIds, mentor.id]);
-                        else setSelectedIds(selectedIds.filter((id) => id !== mentor.id));
-                      }}
-                    />
-                    <Label htmlFor={mentor.id} className="flex cursor-pointer flex-col">
-                      <span className="font-medium">{mentor.name}</span>
-                      <span className="text-muted-foreground text-xs">{mentor.email}</span>
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={mutation.isPending}>
-            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function BatchTimelineDialog({
-  batch,
-  open,
-  onOpenChange,
-}: {
-  batch: {
-    name: string;
-    startDate: Date | string;
-    endDate: Date | string;
-    registrationStartDate: Date | string;
-    registrationEndDate: Date | string;
-    verificationStartDate?: Date | string | null;
-    verificationEndDate?: Date | string | null;
-    assessmentStartDate?: Date | string | null;
-    assessmentEndDate?: Date | string | null;
-    announcementDate?: Date | string | null;
-    onboardingDate?: Date | string | null;
-  };
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const events = [
-    {
-      label: "Registration Start",
-      date: batch.registrationStartDate,
-      color: "bg-blue-500",
-    },
-    {
-      label: "Registration End",
-      date: batch.registrationEndDate,
-      color: "bg-blue-500",
-    },
-    {
-      label: "Verification Start",
-      date: batch.verificationStartDate,
-      color: "bg-yellow-500",
-    },
-    {
-      label: "Verification End",
-      date: batch.verificationEndDate,
-      color: "bg-yellow-500",
-    },
-    {
-      label: "Assessment Start",
-      date: batch.assessmentStartDate,
-      color: "bg-orange-500",
-    },
-    {
-      label: "Assessment End",
-      date: batch.assessmentEndDate,
-      color: "bg-orange-500",
-    },
-    {
-      label: "Announcement",
-      date: batch.announcementDate,
-      color: "bg-green-500",
-    },
-    {
-      label: "Onboarding",
-      date: batch.onboardingDate,
-      color: "bg-purple-500",
-    },
-    {
-      label: "Program Start",
-      date: batch.startDate,
-      color: "bg-emerald-500",
-    },
-    {
-      label: "Program End",
-      date: batch.endDate,
-      color: "bg-emerald-500",
-    },
-  ]
-    .filter((e) => e.date)
-    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime());
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Timeline: {batch.name}</DialogTitle>
-          <DialogDescription>Chronological sequence of events for this batch.</DialogDescription>
-        </DialogHeader>
-        <div className="relative ml-4 space-y-6 border-muted border-l py-4 pl-6">
-          {events.map((event, index) => (
-            <div key={index} className="relative">
-              <span
-                className={`absolute -left-[31px] flex h-4 w-4 rounded-full ${event.color} ring-4 ring-background`}
-              />
-              <div className="flex flex-col">
-                <span className="font-medium text-sm">{event.label}</span>
-                <span className="text-muted-foreground text-sm">
-                  {format(new Date(event.date!), "EEEE, MMMM d, yyyy")}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { BatchAttendanceDialog } from "./dialogs/batch-attendance";
+import { BatchMentorsDialog } from "./dialogs/batch-mentors";
+import { BatchReportTemplateDialog } from "./dialogs/batch-report-template";
+import { BatchTimelineDialog } from "./dialogs/batch-timeline";
+import { EditBatchDialog } from "./dialogs/edit-batch";
+import { MentorMenteeAssignDialog } from "./mentor-mentee-assign";
+import { SummaryReportsReview } from "./summary-reports-review";
 
 const batchSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -439,6 +79,30 @@ const batchSchema = z.object({
 type BatchFormValues = z.infer<typeof batchSchema>;
 
 export function ProgramBatches({ programId }: { programId: string }) {
+  return (
+    <Card className="mentor-card">
+      <CardHeader className="bg-white">
+        <div className="flex items-center gap-3">
+          <div className="icon-box-light">
+            <Layers className="h-5 w-5 text-brand-navy" />
+          </div>
+          <div>
+            <CardTitle className="font-bricolage text-lg text-text-main">Batches</CardTitle>
+            <CardDescription className="font-manrope text-text-muted-custom">
+              Manage batches for this program.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="bg-white px-4">
+        <ProgramBatchesInner programId={programId} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProgramBatchesInner({ programId }: { programId: string }) {
+  const { data: session } = authClient.useSession();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState<{
     id: string;
@@ -459,6 +123,19 @@ export function ProgramBatches({ programId }: { programId: string }) {
     status: "upcoming" | "open" | "closed" | "running" | "completed";
   } | null>(null);
   const [mentorBatchId, setMentorBatchId] = useState<string | null>(null);
+  const [menteeAssignBatch, setMenteeAssignBatch] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [reportTemplateBatch, setReportTemplateBatch] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [summaryReportsBatch, setSummaryReportsBatch] = useState<{
+    id: string;
+    name: string;
+    programId: string;
+  } | null>(null);
   const [attendanceBatch, setAttendanceBatch] = useState<{
     id: string;
     name: string;
@@ -487,6 +164,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
     name: string;
     durationWeeks: number;
   } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(orpc.programs.admin.batches.list.queryOptions({ input: { programId } }));
@@ -495,7 +173,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
   const createMutation = useMutation(
     orpc.programs.admin.batches.create.mutationOptions({
       onSuccess: () => {
-        toast.success("Batch created");
+        notify.success("Batch created");
         setIsCreateOpen(false);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.batches.list.key({
@@ -504,7 +182,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -512,7 +190,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
   const updateMutation = useMutation(
     orpc.programs.admin.batches.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Batch updated");
+        notify.success("Batch updated");
         setEditingBatch(null);
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.batches.list.key({
@@ -521,7 +199,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -529,7 +207,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
   const deleteMutation = useMutation(
     orpc.programs.admin.batches.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Batch deleted");
+        notify.success("Batch deleted");
         queryClient.invalidateQueries({
           queryKey: orpc.programs.admin.batches.list.key({
             input: { programId },
@@ -537,7 +215,7 @@ export function ProgramBatches({ programId }: { programId: string }) {
         });
       },
       onError: (error) => {
-        toast.error(error.message);
+        notify.error(error.message);
       },
     }),
   );
@@ -575,18 +253,17 @@ export function ProgramBatches({ programId }: { programId: string }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="font-medium text-lg">Batches</h3>
-          <p className="text-muted-foreground text-sm">Manage batches for this program.</p>
-        </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+    <div>
+      <div className="flex justify-end px-4 pt-3 pb-2">
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+        >
           <Plus className="mr-2 h-4 w-4" /> Create Batch
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-md border bg-card">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -603,13 +280,16 @@ export function ProgramBatches({ programId }: { programId: string }) {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-mentor-teal" />
                 </TableCell>
               </TableRow>
             ) : batches.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  No batches found.
+                <TableCell colSpan={7} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Layers className="h-8 w-8 text-text-muted-custom/50" />
+                    <p className="font-manrope text-text-muted-custom">No batches found.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -638,89 +318,72 @@ export function ProgramBatches({ programId }: { programId: string }) {
                     <Badge variant={batch.status === "open" ? "default" : "secondary"}>{batch.status}</Badge>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuGroup>
-                        <DropdownMenuTrigger>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setSessionsBatch(batch)}>
-                            <Calendar className="mr-2 h-4 w-4" /> Manage Sessions
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setAttachmentsBatch(batch)}>
-                            <File className="mr-2 h-4 w-4" /> Manage Attachments
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setMentorBatchId(batch.id)}>
-                            <Users className="mr-2 h-4 w-4" /> Manage Mentors
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setAttendanceBatch({
-                                id: batch.id,
-                                name: batch.name,
-                                durationWeeks: batch.durationWeeks,
-                              })
-                            }
-                          >
-                            <Calendar className="mr-2 h-4 w-4" /> Attendance
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setTimelineBatch(batch)}>
-                            <Clock className="mr-2 h-4 w-4" /> Timeline
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setEditingBatch({
-                                id: batch.id,
-                                name: batch.name,
-                                startDate: new Date(batch.startDate).toISOString().split("T")[0],
-                                endDate: new Date(batch.endDate).toISOString().split("T")[0],
-                                registrationStartDate: new Date(batch.registrationStartDate)
-                                  .toISOString()
-                                  .split("T")[0],
-                                registrationEndDate: new Date(batch.registrationEndDate).toISOString().split("T")[0],
-                                verificationStartDate: batch.verificationStartDate
-                                  ? new Date(batch.verificationStartDate).toISOString().split("T")[0]
-                                  : "",
-                                verificationEndDate: batch.verificationEndDate
-                                  ? new Date(batch.verificationEndDate).toISOString().split("T")[0]
-                                  : "",
-                                assessmentStartDate: batch.assessmentStartDate
-                                  ? new Date(batch.assessmentStartDate).toISOString().split("T")[0]
-                                  : "",
-                                assessmentEndDate: batch.assessmentEndDate
-                                  ? new Date(batch.assessmentEndDate).toISOString().split("T")[0]
-                                  : "",
-                                announcementDate: batch.announcementDate
-                                  ? new Date(batch.announcementDate).toISOString().split("T")[0]
-                                  : "",
-                                onboardingDate: batch.onboardingDate
-                                  ? new Date(batch.onboardingDate).toISOString().split("T")[0]
-                                  : "",
-                                quota: batch.quota,
-                                durationWeeks: batch.durationWeeks,
-                                bannerUrl: batch.bannerUrl,
-                                status: batch.status as "upcoming" | "open" | "closed" | "running" | "completed",
-                              })
-                            }
-                          >
-                            <Pencil className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => {
-                              if (confirm("Are you sure?")) {
-                                deleteMutation.mutate({ id: batch.id });
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={
+                          (isAdmin(session)
+                            ? `/admin/programs/${programId}/batches/${batch.id}`
+                            : `/program-manager/programs/${programId}/batches/${batch.id}`) as any
+                        }
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-full text-xs")}
+                      >
+                        Manage
+                        <ArrowRight className="ml-1 h-3 w-3" />
+                      </Link>
+                      <DropdownMenu>
+                        <DropdownMenuGroup>
+                          <DropdownMenuTrigger>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setEditingBatch({
+                                  id: batch.id,
+                                  name: batch.name,
+                                  startDate: new Date(batch.startDate).toISOString().split("T")[0],
+                                  endDate: new Date(batch.endDate).toISOString().split("T")[0],
+                                  registrationStartDate: new Date(batch.registrationStartDate)
+                                    .toISOString()
+                                    .split("T")[0],
+                                  registrationEndDate: new Date(batch.registrationEndDate).toISOString().split("T")[0],
+                                  verificationStartDate: batch.verificationStartDate
+                                    ? new Date(batch.verificationStartDate).toISOString().split("T")[0]
+                                    : "",
+                                  verificationEndDate: batch.verificationEndDate
+                                    ? new Date(batch.verificationEndDate).toISOString().split("T")[0]
+                                    : "",
+                                  assessmentStartDate: batch.assessmentStartDate
+                                    ? new Date(batch.assessmentStartDate).toISOString().split("T")[0]
+                                    : "",
+                                  assessmentEndDate: batch.assessmentEndDate
+                                    ? new Date(batch.assessmentEndDate).toISOString().split("T")[0]
+                                    : "",
+                                  announcementDate: batch.announcementDate
+                                    ? new Date(batch.announcementDate).toISOString().split("T")[0]
+                                    : "",
+                                  onboardingDate: batch.onboardingDate
+                                    ? new Date(batch.onboardingDate).toISOString().split("T")[0]
+                                    : "",
+                                  quota: batch.quota,
+                                  durationWeeks: batch.durationWeeks,
+                                  bannerUrl: batch.bannerUrl,
+                                  status: batch.status as "upcoming" | "open" | "closed" | "running" | "completed",
+                                })
                               }
-                            }}
-                          >
-                            <Trash className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenuGroup>
-                    </DropdownMenu>
+                            >
+                              <Pencil className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => setDeleteConfirmId(batch.id)}>
+                              <Trash className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenuGroup>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -1006,7 +669,11 @@ export function ProgramBatches({ programId }: { programId: string }) {
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="!bg-mentor-teal !text-white hover:!bg-mentor-teal-dark !rounded-full !border-0"
+                  disabled={createMutation.isPending}
+                >
                   {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create
                 </Button>
@@ -1046,6 +713,28 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setTimelineBatch(null)}
         />
       )}
+      {menteeAssignBatch && (
+        <MentorMenteeAssignDialog
+          batch={menteeAssignBatch}
+          programId={programId}
+          open={!!menteeAssignBatch}
+          onOpenChange={(open) => !open && setMenteeAssignBatch(null)}
+        />
+      )}
+      {reportTemplateBatch && (
+        <BatchReportTemplateDialog
+          batch={reportTemplateBatch}
+          open={!!reportTemplateBatch}
+          onOpenChange={(open) => !open && setReportTemplateBatch(null)}
+        />
+      )}
+      {summaryReportsBatch && (
+        <SummaryReportsReview
+          batch={summaryReportsBatch}
+          open={!!summaryReportsBatch}
+          onOpenChange={(open) => !open && setSummaryReportsBatch(null)}
+        />
+      )}
       {sessionsBatch && (
         <BatchSessionsDialog
           batch={sessionsBatch}
@@ -1060,349 +749,34 @@ export function ProgramBatches({ programId }: { programId: string }) {
           onOpenChange={(open) => !open && setAttachmentsBatch(null)}
         />
       )}
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-red-100">
+              <TriangleAlert className="h-5 w-5 text-red-600" />
+            </div>
+            <AlertDialogTitle>Delete Batch</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this batch? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId) deleteMutation.mutate({ id: deleteConfirmId });
+                setDeleteConfirmId(null);
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  );
-}
-
-function EditBatchDialog({
-  batch,
-  open,
-  onOpenChange,
-  onSubmit,
-  isPending,
-}: {
-  batch: {
-    id: string;
-    name: string;
-    startDate: string;
-    endDate: string;
-    registrationStartDate: string;
-    registrationEndDate: string;
-    verificationStartDate?: string | null;
-    verificationEndDate?: string | null;
-    assessmentStartDate?: string | null;
-    assessmentEndDate?: string | null;
-    announcementDate?: string | null;
-    onboardingDate?: string | null;
-    quota: number;
-    durationWeeks: number;
-    bannerUrl?: string | null;
-    communityLink?: string | null;
-    status: "upcoming" | "open" | "closed" | "running" | "completed";
-  };
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (values: BatchFormValues) => void;
-  isPending: boolean;
-}) {
-  const form = useForm<BatchFormValues>({
-    // biome-ignore lint/suspicious/noExplicitAny: resolver type mismatch
-    resolver: standardSchemaResolver(batchSchema) as any,
-    defaultValues: {
-      name: batch.name,
-      startDate: batch.startDate,
-      endDate: batch.endDate,
-      registrationStartDate: batch.registrationStartDate,
-      registrationEndDate: batch.registrationEndDate,
-      verificationStartDate: batch.verificationStartDate ?? undefined,
-      verificationEndDate: batch.verificationEndDate ?? undefined,
-      assessmentStartDate: batch.assessmentStartDate ?? undefined,
-      assessmentEndDate: batch.assessmentEndDate ?? undefined,
-      announcementDate: batch.announcementDate ?? undefined,
-      onboardingDate: batch.onboardingDate ?? undefined,
-      quota: batch.quota,
-      durationWeeks: batch.durationWeeks,
-      bannerUrl: batch.bannerUrl || "",
-      communityLink: batch.communityLink || "",
-      status: batch.status,
-    },
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Edit Batch</DialogTitle>
-          <DialogDescription>Edit batch details.</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Batch Name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="registrationStartDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Reg. Start</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="registrationEndDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Reg. End</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="verificationStartDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Verif. Start</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="verificationEndDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Verif. End</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="assessmentStartDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Assess. Start</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="assessmentEndDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Assess. End</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="announcementDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Announcement</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="onboardingDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Onboarding</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value ? new Date(field.value) : undefined}
-                        setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="quota"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quota</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="durationWeeks"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duration (Weeks)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              <FormField
-                control={form.control}
-                name="bannerUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Banner Image</FormLabel>
-                    <FormControl>
-                      <FileUpload value={field.value} onChange={field.onChange} bucket="test" path="public" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="communityLink"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Community Link (WhatsApp)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://chat.whatsapp.com/..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="upcoming">Upcoming</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                        <SelectItem value="running">Running</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
   );
 }

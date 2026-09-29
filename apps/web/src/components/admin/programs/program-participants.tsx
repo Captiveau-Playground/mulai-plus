@@ -30,7 +30,7 @@ export function ProgramParticipants({ programId }: { programId: string }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="bg-white p-0">
+      <CardContent className="bg-white px-4">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

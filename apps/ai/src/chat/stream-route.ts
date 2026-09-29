@@ -1,0 +1,447 @@
+/**
+ * Trial Phase 1 — streaming dengan protokol AI SDK 5 (parts).
+ * Endpoint: POST /api/chat/stream (dipakai useChat di halaman trial /trial/chat)
+ *
+ * Wire format (SSE, satu object JSON per baris `data:`; protokol UIMessage v4 @ai-sdk/react):
+ *   {"type":"tool-input-start",     "toolCallId":...,"toolName":...}                    (jika ada)
+ *   {"type":"tool-input-delta",     "toolCallId":...,"inputTextDelta":"{...}"}
+ *   {"type":"tool-input-available", "toolCallId":...,"toolName":...,"input":{...}}
+ *   {"type":"tool-output-available","toolCallId":...,"output":...}
+ *   {"type":"text-start","id":...}
+ *   {"type":"text-delta","id":...,"delta":"..."}
+ *   {"type":"text-end","id":...}
+ *   {"type":"finish","id":...,"finishReason":"stop"}
+ *
+ * Alur: guardrail/quota/cache sama; call-1 (tools, non-stream) → tool parts,
+ * call-2 STREAM → text deltas → finish. Persist & cache setelah selesai.
+ */
+import { Hono } from "hono";
+import { z } from "zod";
+import { resolveDailyQuota } from "../admin/quota-settings";
+import { type AgentContext, dispatchTool, toolDefinitions } from "../agent/registry";
+import { skillPersona, skillToolFilter } from "../agent/skills";
+import { buildUserContext, contextPrompt } from "../agent/user-context";
+import { record } from "../analytics/events";
+import type { AppContext, Env } from "../config";
+import { DEFAULT_FAST_MODEL, DEFAULT_MODEL, fastModel } from "../config";
+import * as store from "../db/chat-store";
+import { ensureAiTables } from "../db/schema-init";
+import { allowRequest } from "../do/access";
+import { dailyStub } from "../do/access-daily";
+import { type LlmMessage, llmChatJson, llmChatStream } from "../llm/client";
+import { notify } from "../notify";
+import { validateMessageInput } from "../policies/guardrails";
+import { quotaPolicy } from "../policies/quota";
+import { AUTH_RATE_LIMIT_PER_MIN, GUEST_RATE_LIMIT_PER_MIN } from "../policies/rate-limit";
+import { exactCacheGet, exactCachePut } from "./cache";
+import { stripTools } from "./clean";
+import { extractTopics, SYSTEM_PROMPT } from "./prompt";
+
+const streamRoute = new Hono<{ Bindings: Env }>();
+const MsgItem = z.object({
+  role: z.string(),
+  content: z.string().nullable().optional(),
+  text: z.string().optional(),
+  parts: z.array(z.unknown()).optional(),
+});
+// Terima body useChat v4 ({id, messages:[...]}) maupun legacy {message}
+const Body = z
+  .object({
+    message: z.string().max(4000).optional(),
+    messages: z.array(MsgItem).optional(),
+    session_id: z.string().optional(),
+    // Tier model tersamar (dari UI): cepat | seimbang | maksimal
+    model: z.enum(["simple", "smart", "premium"]).optional(),
+    // Branch / regenerate: regenerate=true → jangan simpan pesan user baru; jawaban baru
+    // masuk branch_group yang sama & versi lama di-supersede (dapat ditampilkan lagi).
+    regenerate: z.boolean().optional(),
+    branch_group: z.string().max(64).optional(),
+    skill: z.string().max(32).optional(),
+  })
+  .transform((d) => {
+    let msg = d.message?.trim() ?? "";
+    if (!msg && Array.isArray(d.messages)) {
+      for (const m of [...d.messages].reverse()) {
+        if (m.role !== "user") continue;
+        if (typeof m.content === "string" && m.content.trim()) {
+          msg = m.content.trim();
+          break;
+        }
+        const parts = (m.parts ?? []) as { kind?: string; type?: string; text?: string }[];
+        const t = parts
+          .filter((p) => (p.kind ?? p.type) === "text")
+          .map((p) => p.text ?? "")
+          .join("")
+          .trim();
+        if (t) {
+          msg = t;
+          break;
+        }
+        if (m.text?.trim()) {
+          msg = m.text.trim();
+          break;
+        }
+      }
+    }
+    return {
+      message: msg,
+      session_id: d.session_id,
+      model: d.model,
+      regenerate: d.regenerate === true,
+      branch_group: d.branch_group,
+      skill: d.skill,
+    };
+  })
+  .refine((d) => d.message.length >= 1 && d.message.length <= 4000, { message: "message wajib 1..4000 char" });
+const TIER_MODELS: Record<string, string> = {
+  simple: DEFAULT_FAST_MODEL, // glm-4.7-flash
+  smart: DEFAULT_MODEL, // qwen3-30b
+  premium: "@cf/openai/gpt-oss-120b", // gpt-oss-120b
+};
+// Kuota harian per tier (per user): -1 = unlimited. Preview env overridable.
+const TIER_QUOTA: Record<string, number> = {
+  simple: Number(process.env.QUOTA_SIMPLE ?? -1),
+  smart: Number(process.env.QUOTA_SMART ?? -1),
+  premium: Number(process.env.QUOTA_PREMIUM ?? 5),
+};
+const part = (o: Record<string, unknown>) => `data: ${JSON.stringify(o)}\n\n`;
+
+/** Ringkas pesan pertama → judul chat (via model cepat; tidak boleh melempar error). */
+async function summarizeTitle(c: AppContext, text: string): Promise<string> {
+  try {
+    const resp = await llmChatJson(
+      c,
+      [
+        {
+          role: "user",
+          content: `Buat judul chat yang singkat (maks 6 kata, bahasa Indonesia, tanpa tanda kutip/emoji) untuk pesan ini: ${text.slice(0, 240)}. Jawab HANYA judulnya.`,
+        },
+      ],
+      { model: fastModel(c) },
+    );
+    const title = resp.data?.choices?.[0]?.message?.content?.trim?.().slice(0, 60);
+    return title || text.trim().slice(0, 40);
+  } catch {
+    return text.trim().slice(0, 40);
+  }
+}
+
+streamRoute.post("/chat/stream", async (c) => {
+  const parsed = Body.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid request" }, 400);
+  const { message, regenerate = false, branch_group, skill } = parsed.data;
+
+  const userId = c.req.header("x-user-id") ?? null;
+  const isAuth = userId !== null;
+  const key = c.req.header("x-session-id") || parsed.data.session_id || `anon-${crypto.randomUUID().slice(0, 12)}`;
+  // UI kirim tier via query ?model= (aman lewat transport)
+  const tier = parsed.data.model ?? c.req.query("model") ?? "smart";
+  await ensureAiTables(c).catch(() => {});
+
+  const modelOverride = TIER_MODELS[tier] ?? DEFAULT_MODEL;
+  // Konteks siswa (profil + hasil tes) — disuntik ke prompt & dipakai sbg scope cache
+  const userCtx = await buildUserContext(c, userId).catch(() => null);
+  const userCtxPrompt = contextPrompt(userCtx);
+  const cacheScope = [
+    tier,
+    userCtx?.riasecPrimary ?? "",
+    userCtx?.riasecCode ?? "",
+    userCtx?.school ?? "",
+    userCtx?.level ?? "",
+    (userCtx?.goals ?? []).join(","),
+    JSON.stringify((userCtx?.prefs as { targetMajor?: string[] } | undefined)?.targetMajor ?? []),
+  ].join("|");
+
+  const g = validateMessageInput(message);
+  if (!g.ok) return c.json({ error: `Input ditolak (${g.reason})` }, 400);
+
+  const session = await store.getOrCreateSession(c, key, userId).catch(() => null);
+  if (session?.banned || (userId ? await store.isUserBanned(c, userId).catch(() => false) : false)) {
+    return c.json({ reply: "Akun ini telah dibatasi. Hubungi admin.", remaining: 0 }, 403);
+  }
+
+  // Kuota harian 40 pertanyaan/user (reset 24 jam via DATE key) — ala ChatGPT.
+  const dailyLimit = await resolveDailyQuota(c);
+  if (isAuth && userId && dailyLimit > 0) {
+    const ds = dailyStub(c, `u:${userId}`);
+    let ok = true;
+    if (ds) {
+      try {
+        ok = await ds.checkDaily("chat", dailyLimit);
+      } catch {
+        ok = true;
+      }
+    }
+    if (!ok) {
+      return c.json(
+        {
+          error: `Kamu sudah memakai ${dailyLimit} pertanyaan hari ini. Kuota di-reset otomatis besok — semangat, lanjut lagi yaa!`,
+          daily_quota: true,
+        },
+        429,
+      );
+    }
+  }
+
+  let rlOk = true;
+  try {
+    rlOk = await allowRequest(
+      c,
+      isAuth ? `u:${userId}` : `s:${key}`,
+      isAuth ? AUTH_RATE_LIMIT_PER_MIN : GUEST_RATE_LIMIT_PER_MIN,
+      isAuth ? `u:${userId}` : `s:${key}`,
+    );
+  } catch {
+    rlOk = false;
+  }
+  if (!rlOk) return c.json({ error: "Terlalu banyak permintaan. Coba lagi dalam 1 menit.", rate_limited: true }, 429);
+
+  // Cache hit → text part tunggal (cepat)
+  const cached = await exactCacheGet(c, message, cacheScope).catch(() => null);
+  if (cached?.answer) {
+    await record(c, { sessionId: key, userId, event: "cache_hit" });
+    await store.saveMessage(c, key, "user", message).catch(() => {});
+    await store.saveMessage(c, key, "assistant", cached.answer).catch(() => {});
+    const id = `msg-${Date.now()}`;
+    const enc = new TextEncoder();
+    return new Response(
+      new ReadableStream({
+        start(ct) {
+          ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));
+          ct.enqueue(enc.encode(part({ type: "text-delta", id, delta: cached.answer })));
+          ct.enqueue(enc.encode(part({ type: "text-end", id })));
+          ct.enqueue(enc.encode(part({ type: "finish", id, finishReason: "stop" })));
+          ct.close();
+        },
+      }),
+      { headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache" } },
+    );
+  }
+  record(c, { sessionId: key, userId, event: "cache_miss" });
+
+  // Quota harian per tier model (auth; kala DO tersedia)
+  if (isAuth && userId) {
+    const limit = TIER_QUOTA[tier] ?? -1;
+    if (limit > 0) {
+      const stub = dailyStub(c, `u:${userId}`);
+      let allowed = true;
+      if (stub) {
+        try {
+          allowed = await stub.checkDaily(tier, limit);
+        } catch {
+          allowed = true;
+        }
+      }
+      if (!allowed) {
+        return c.json(
+          {
+            error: `Kuota model "${tier}" hari ini habis (${limit} pesan). Ganti ke model lain ya.`,
+            quota_exhausted: true,
+            model: tier,
+            reply: `Kuota model "${tier}" hari ini habis (${limit} pesan). Ganti ke model lain ya.`,
+          },
+          429,
+        );
+      }
+    }
+  }
+
+  // Quota guest
+  if (!isAuth) {
+    const reserved = await store.reserveMessageSlot(c, key, quotaPolicy(false).max).catch(() => 1);
+    if (reserved === null) {
+      await record(c, { sessionId: key, userId, event: "quota_exhausted" });
+      notify(c, {
+        event: "mulai_ai.quota_exhausted",
+        title: "⏳ Kuota harian habis",
+        description: "Pengguna mencapai batas pertanyaan harian di Mul.ai.",
+        fields: [{ name: "User", value: userId ?? "anonim", inline: true }],
+        throttleMs: 10 * 60_000,
+        color: 0xf59e0b,
+      });
+      return c.json({ reply: quotaPolicy(false).exhaustedMessage, remaining: 0, requires_auth: true }, 403);
+    }
+    void reserved;
+  } else {
+    void store.countMessages(c, key).catch(() => 0);
+  }
+
+  const history = await store.getHistory(c, key, 6).catch(() => []);
+  const skillPrompt = skillPersona(skill);
+  const skillTools = skillToolFilter(skill);
+  const messages: LlmMessage[] = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...(skillPrompt ? [{ role: "system" as const, content: skillPrompt }] : []),
+    ...(userCtxPrompt ? [{ role: "system" as const, content: userCtxPrompt }] : []),
+    ...history
+      .filter((h) => (h.role === "user" || h.role === "assistant") && typeof h.content === "string")
+      .map((h) => ({ role: h.role as LlmMessage["role"], content: h.content })),
+    { role: "user", content: message },
+  ];
+  const ctx: AgentContext = { c, sessionId: key, userId };
+  const id = `msg-${Date.now()}`;
+
+  // Call-1: tools (non-stream) → bangun toolParts + messages
+  let toolParts = "";
+  let llmError = "";
+  try {
+    const resp1 = await llmChatJson(c, messages, {
+      tools: toolDefinitions(skillTools ?? undefined),
+      model: modelOverride,
+    });
+    if (resp1.status !== 200) throw new Error(`LLM HTTP ${resp1.status}`);
+    const msg = resp1.data?.choices?.[0]?.message;
+    if (msg?.tool_calls?.length) {
+      messages.push({
+        role: "assistant",
+        content: msg.content ?? "",
+        tool_calls: msg.tool_calls.map((tc: any) => ({
+          id: tc.id,
+          type: "function",
+          function: { name: tc.function.name, arguments: tc.function.arguments },
+        })),
+      });
+      let buf = "";
+      for (const tc of msg.tool_calls) {
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(tc.function.arguments ?? "{}");
+        } catch {
+          /* noop */
+        }
+        const toolCallId = tc.id ?? `call_${Math.random().toString(36).slice(2, 10)}`;
+        buf += part({ type: "tool-input-start", toolCallId, toolName: tc.function.name });
+        buf += part({ type: "tool-input-delta", toolCallId, inputTextDelta: tc.function.arguments ?? "{}" });
+        buf += part({ type: "tool-input-available", toolCallId, toolName: tc.function.name, input: args });
+        const result = await dispatchTool(ctx, tc.function.name, args);
+        buf += part({ type: "tool-output-available", toolCallId, output: { text: result } });
+        messages.push({ role: "tool", tool_call_id: toolCallId, content: result });
+        await record(c, { sessionId: key, userId, event: "tool_called", data: { tool: tc.function.name } });
+      }
+      toolParts = buf;
+      await record(c, { sessionId: key, userId, event: "reply_ok" });
+    }
+  } catch (err) {
+    llmError = "Maaf, layanan sedang sibuk. Coba tanya lagi nanti ya! 🙏";
+    console.error("[chat/stream] LLM error:", (err as Error).message);
+  }
+
+  // Stream final (call-2) — toolParts dikirim lebih dulu (id sama dgn tool parts)
+  const enc = new TextEncoder();
+  return new Response(
+    new ReadableStream({
+      async start(ct) {
+        let finalText = llmError;
+        try {
+          if (toolParts) ct.enqueue(enc.encode(toolParts));
+
+          if (!finalText) {
+            ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));
+            const body = await llmChatStream(c, messages, { model: modelOverride });
+            let reasoningStarted = false;
+            const reader = body?.getReader();
+            const decoder = new TextDecoder();
+            let buf = "";
+            while (reader) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buf += decoder.decode(value, { stream: true });
+              const lines = buf.split("\n");
+              buf = lines.pop() ?? "";
+              for (const line of lines) {
+                const s = line.trim();
+                if (!s.startsWith("data:")) continue;
+                const raw = s.slice(5).trim();
+                if (raw === "[DONE]") continue;
+                try {
+                  const j = JSON.parse(raw);
+                  // Workers AI kadang kirim delta.content sebagai ANGKA (protokol quirk)
+                  const rawC = j?.choices?.[0]?.delta?.content;
+                  const piece = rawC == null ? "" : typeof rawC === "string" ? rawC : String(rawC);
+                  if (piece) {
+                    if (reasoningStarted) {
+                      ct.enqueue(enc.encode(part({ type: "reasoning-end", id })));
+                      reasoningStarted = false;
+                    }
+                    finalText += piece;
+                    ct.enqueue(enc.encode(part({ type: "text-delta", id, delta: piece })));
+                    continue;
+                  }
+                  // Reasoning (thinking) streaming — protokol reasoning-start/delta/end
+                  const rawR = j?.choices?.[0]?.delta?.reasoning_content ?? j?.choices?.[0]?.delta?.reasoning;
+                  const rPiece = rawR == null ? "" : typeof rawR === "string" ? rawR : String(rawR);
+                  if (rPiece) {
+                    if (!reasoningStarted) {
+                      ct.enqueue(enc.encode(part({ type: "reasoning-start", id })));
+                      reasoningStarted = true;
+                    }
+                    ct.enqueue(enc.encode(part({ type: "reasoning-delta", id, delta: rPiece })));
+                  }
+                } catch {
+                  /* skip */
+                }
+              }
+            }
+            if (reasoningStarted) ct.enqueue(enc.encode(part({ type: "reasoning-end", id })));
+            ct.enqueue(enc.encode(part({ type: "text-end", id })));
+          } else {
+            ct.enqueue(enc.encode(part({ type: "text-start", id, role: "assistant" })));
+            ct.enqueue(enc.encode(part({ type: "text-delta", id, delta: finalText })));
+            ct.enqueue(enc.encode(part({ type: "text-end", id })));
+          }
+
+          ct.enqueue(enc.encode(part({ type: "finish", id, finishReason: "stop" })));
+          ct.close();
+
+          // persist + cache — via waitUntil supaya TETAP jalan setelah response streaming selesai
+          // (tanpa ini, workerd mematikan konteks request begitu body close → pesan tidak tersimpan).
+          const execCtx2 = (c as unknown as { executionCtx?: { waitUntil: (p: Promise<unknown>) => void } })
+            .executionCtx;
+          const finalTextSnap = finalText || "…";
+          const persist = async () => {
+            if (!regenerate)
+              await store.saveMessage(c, key, "user", message, { branchGroup: branch_group ?? null }).catch(() => null);
+            // Auto-summary judul (sekali per sesi, via model cepat; fallback potongan teks)
+            if (!regenerate) {
+              const trow = await store.getSessionTitle(c, key).catch(() => null);
+              if (!trow?.title) {
+                const title = await summarizeTitle(c, message).catch(() => message.trim().slice(0, 40));
+                await store.setSessionTitle(c, key, title).catch(() => undefined);
+              }
+            }
+            const saved = await store
+              .saveMessage(c, key, "assistant", stripTools(finalTextSnap), { branchGroup: branch_group ?? null })
+              .catch(() => null);
+            if (branch_group && saved?.id)
+              await store.supersedeBranch(c, key, branch_group, saved.id).catch(() => undefined);
+            const cleanText = stripTools(finalText);
+            if (cleanText && !llmError)
+              await exactCachePut(c, message, cleanText, extractTopics(cleanText), {}, cacheScope).catch(() => {});
+          };
+          if (execCtx2) execCtx2.waitUntil(persist());
+          else void persist();
+        } catch (err) {
+          console.error("[chat/stream] stream err:", (err as Error).message);
+          // Persist jawaban PARSIAL + pesan user walau stream error (jangan sampai hilang).
+          const execCtx3 = (c as unknown as { executionCtx?: { waitUntil: (p: Promise<unknown>) => void } })
+            .executionCtx;
+          const persistPartial = async () => {
+            if (!regenerate)
+              await store.saveMessage(c, key, "user", message, { branchGroup: branch_group ?? null }).catch(() => null);
+            if (finalText)
+              await store
+                .saveMessage(c, key, "assistant", finalText, { branchGroup: branch_group ?? null })
+                .catch(() => null);
+          };
+          if (execCtx3) execCtx3.waitUntil(persistPartial());
+          else void persistPartial();
+          ct.enqueue(enc.encode(part({ type: "error", id, error: "stream error" })));
+          ct.close();
+        }
+      },
+    }),
+    { headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache" } },
+  );
+});
+
+export { streamRoute };

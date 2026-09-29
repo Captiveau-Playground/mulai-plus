@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { db, eq } from "@mulai-plus/db";
+import { and, asc, db, eq, sql } from "@mulai-plus/db/db";
 import { role, studentDetail, user } from "@mulai-plus/db/schema/auth";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
@@ -79,21 +79,38 @@ export const userRouter = {
 
   myPermissions: protectedProcedure.handler(async ({ context }) => {
     if (!context.session?.user) return [];
-    const userRole = context.session.user.role || "student";
+    const userRole = (context.session.user as any).role || "student";
     const [roleData] = await db.select().from(role).where(eq(role.id, userRole));
     return roleData?.permissions || [];
   }),
 
-  listStudents: protectedProcedure.handler(async () => {
-    const students = await db.query.user.findMany({
-      where: eq(user.role, "student"),
-      columns: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-      },
-    });
-    return students;
-  }),
+  listStudents: protectedProcedure
+    .input(
+      z
+        .object({
+          search: z.string().max(80).optional(),
+          limit: z.number().int().min(1).max(500).optional(),
+        })
+        .optional(),
+    )
+    .handler(async ({ input }) => {
+      // Batas wajib: default 200 (tanpa search tetap aman utk payload besar).
+      const conditions = [eq(user.role, "student")];
+      if (input?.search?.trim()) {
+        const q = `%${input.search.trim()}%`;
+        conditions.push(sql`(${user.name} ILIKE ${q} OR ${user.email} ILIKE ${q})`);
+      }
+      const students = await db.query.user.findMany({
+        where: and(...conditions),
+        columns: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+        orderBy: asc(user.name),
+        limit: input?.limit ?? 200,
+      });
+      return students;
+    }),
 };

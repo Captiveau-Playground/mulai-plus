@@ -21,7 +21,6 @@ import {
   Users,
 } from "lucide-react";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -118,19 +118,19 @@ function BroadcastsTab() {
   const deleteBroadcast = useMutation(
     orpc.newsletter.broadcasts.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Broadcast dihapus");
+        notify.success("Broadcast dihapus");
         refetch();
       },
-      onError: (err) => toast.error(`Gagal hapus: ${err.message}`),
+      onError: (err) => notify.error(`Gagal hapus: ${err.message}`),
     }),
   );
   const sendBroadcast = useMutation(
     orpc.newsletter.broadcasts.send.mutationOptions({
       onSuccess: () => {
-        toast.success("Broadcast dikirim!");
+        notify.success("Broadcast dikirim!");
         refetch();
       },
-      onError: (err) => toast.error(`Gagal kirim: ${err.message}`),
+      onError: (err) => notify.error(`Gagal kirim: ${err.message}`),
     }),
   );
 
@@ -269,34 +269,34 @@ function ComposeTab() {
   const sendNow = useMutation(
     orpc.newsletter.sendNow.mutationOptions({
       onSuccess: (data) => {
-        toast.success(`Broadcast terkirim! ID: ${data.broadcastId}`);
+        notify.success(`Broadcast terkirim! ID: ${data.broadcastId}`);
         resetForm();
       },
-      onError: (err) => toast.error(`Gagal kirim: ${err.message}`),
+      onError: (err) => notify.error(`Gagal kirim: ${err.message}`),
     }),
   );
   const createDraft = useMutation(
     orpc.newsletter.broadcasts.create.mutationOptions({
       onSuccess: (data) => {
-        toast.success(`Draft disimpan! ID: ${data.broadcastId}`);
+        notify.success(`Draft disimpan! ID: ${data.broadcastId}`);
         resetForm();
       },
-      onError: (err) => toast.error(`Gagal simpan: ${err.message}`),
+      onError: (err) => notify.error(`Gagal simpan: ${err.message}`),
     }),
   );
   const schedule = useMutation(
     orpc.newsletter.schedule.mutationOptions({
       onSuccess: (data) => {
-        toast.success(`Broadcast dijadwalkan! ID: ${data.broadcastId}`);
+        notify.success(`Broadcast dijadwalkan! ID: ${data.broadcastId}`);
         resetForm();
       },
-      onError: (err) => toast.error(`Gagal jadwalkan: ${err.message}`),
+      onError: (err) => notify.error(`Gagal jadwalkan: ${err.message}`),
     }),
   );
   const sendTest = useMutation(
     orpc.newsletter.sendTest.mutationOptions({
-      onSuccess: () => toast.success("Test email terkirim!"),
-      onError: (err) => toast.error(`Gagal: ${err.message}`),
+      onSuccess: () => notify.success("Test email terkirim!"),
+      onError: (err) => notify.error(`Gagal: ${err.message}`),
     }),
   );
 
@@ -312,7 +312,7 @@ function ComposeTab() {
 
   const handleSubmit = useCallback(() => {
     if (!name || !subject || !html) {
-      toast.error("Nama, subject, dan konten HTML wajib diisi");
+      notify.error("Nama, subject, dan konten HTML wajib diisi");
       return;
     }
     const payload = { name, subject, html, text: text || undefined };
@@ -325,7 +325,7 @@ function ComposeTab() {
         break;
       case "schedule":
         if (!scheduledAt) {
-          toast.error("Isi jadwal pengiriman");
+          notify.error("Isi jadwal pengiriman");
           return;
         }
         schedule.mutate({ ...payload, scheduledAt });
@@ -384,7 +384,7 @@ function ComposeTab() {
                   if (!name) setName(`${tpl.label} — ${new Date().toLocaleDateString("id-ID")}`);
                   if (!subject) setSubject(tpl.label);
                 } catch {
-                  toast.error("Gagal load template");
+                  notify.error("Gagal load template");
                 }
               }}
             >
@@ -549,7 +549,7 @@ function ComposeTab() {
                 className="h-8 rounded-xl bg-[#1A1F6D] font-manrope text-white text-xs hover:bg-[#1A1F6D]/90"
                 onClick={() => {
                   if (!testEmail || !subject || !html) {
-                    toast.error("Isi email, subject, dan konten HTML");
+                    notify.error("Isi email, subject, dan konten HTML");
                     return;
                   }
                   sendTest.mutate({ to: testEmail, subject, html });
@@ -585,16 +585,16 @@ function SubscribersTab() {
   const syncContacts = useMutation(
     orpc.newsletter.contacts.sync.mutationOptions({
       onSuccess: (data) =>
-        toast.success(`${data.synced} subscriber disinkronkan, ${data.skipped} sudah ada, ${data.failed} gagal`),
-      onError: (err) => toast.error(`Sync gagal: ${err.message}`),
+        notify.success(`${data.synced} subscriber disinkronkan, ${data.skipped} sudah ada, ${data.failed} gagal`),
+      onError: (err) => notify.error(`Sync gagal: ${err.message}`),
     }),
   );
 
   const syncAllUsers = useMutation(
     orpc.newsletter.contacts.syncAllUsers.mutationOptions({
       onSuccess: (data) =>
-        toast.success(`${data.synced} user disinkronkan, ${data.skipped} sudah ada, ${data.failed} gagal`),
-      onError: (err) => toast.error(`Sync semua user gagal: ${err.message}`),
+        notify.success(`${data.synced} user disinkronkan, ${data.skipped} sudah ada, ${data.failed} gagal`),
+      onError: (err) => notify.error(`Sync semua user gagal: ${err.message}`),
     }),
   );
 
@@ -749,22 +749,22 @@ function SettingsTab() {
   const ensureSegment = useMutation(
     orpc.newsletter.segment.ensure.mutationOptions({
       onSuccess: (data) => {
-        toast.success(`Segment siap: ${data.segmentId}`);
+        notify.success(`Segment siap: ${data.segmentId}`);
         refetchStats();
         refetchSegs();
       },
-      onError: (err) => toast.error(`Gagal: ${err.message}`),
+      onError: (err) => notify.error(`Gagal: ${err.message}`),
     }),
   );
 
   const deleteSegment = useMutation(
     orpc.newsletter.segment.delete.mutationOptions({
       onSuccess: () => {
-        toast.success("Segment dihapus");
+        notify.success("Segment dihapus");
         refetchSegs();
         refetchStats();
       },
-      onError: (err) => toast.error(`Gagal hapus: ${err.message}`),
+      onError: (err) => notify.error(`Gagal hapus: ${err.message}`),
     }),
   );
 

@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
 export default function Header() {
@@ -34,7 +33,7 @@ export default function Header() {
   return (
     <div>
       {isImpersonating && (
-        <div className="flex items-center justify-center gap-4 border-yellow-500/20 border-b bg-yellow-500/10 px-4 py-2 text-center text-sm text-yellow-600 dark:text-yellow-400">
+        <div className="flex items-center justify-center gap-4 border-yellow-500/20 border-b bg-yellow-500/10 px-4 py-2 text-center text-sm text-yellow-600">
           <span className="flex items-center gap-2">
             <VenetianMask className="h-4 w-4" />
             You are impersonating <strong>{session?.user.name}</strong>
@@ -64,7 +63,6 @@ export default function Header() {
             Dashboard
           </Link>
           {session && <NotificationBell />}
-          <ModeToggle />
           <UserMenu />
         </div>
       </div>

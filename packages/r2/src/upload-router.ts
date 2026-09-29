@@ -57,15 +57,11 @@ upload.post("/", async (c) => {
     const result = await uploadToR2(buffer, {
       filename: file.name,
       mimeType: file.type,
-      path: key ? key.split("/").slice(0, -1).join("/") : undefined,
+      path: key || undefined,
     });
 
-    // Replace r2.dev URL with custom CDN domain for development
-    let finalUrl = result.url;
-    if (result.url.includes(".r2.dev")) {
-      const keyPart = result.url.split(".r2.dev/")[1] || result.key;
-      finalUrl = `https://cdn.mulaiplus.id/${keyPart}`;
-    }
+    // Gunakan public URL dari env (otomatis CDN untuk production, r2.dev untuk staging/dev)
+    const finalUrl = result.url;
 
     return c.json({
       success: true,

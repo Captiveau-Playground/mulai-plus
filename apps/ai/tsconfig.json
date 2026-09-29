@@ -1,0 +1,12 @@
+{
+  "extends": "@mulai-plus/config/tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types", "@types/bun"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "noEmit": true
+  },
+  "include": ["src", "tests"]
+}

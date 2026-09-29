@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, isNull, sum } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, isNull, sum } from "@mulai-plus/db/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   category,
@@ -13,6 +13,7 @@ import {
 } from "@mulai-plus/db/schema/lms";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure } from "../index";
+import { conflict } from "../lib/errors";
 
 export const lmsRouter = {
   admin: {
@@ -178,7 +179,7 @@ export const lmsRouter = {
             .limit(1);
 
           if (existing.length > 0) {
-            throw new Error("User already enrolled in this course");
+            conflict("User already enrolled in this course");
           }
 
           const id = randomUUID();
@@ -214,6 +215,7 @@ export const lmsRouter = {
             category: true,
           },
           orderBy: desc(course.createdAt),
+          limit: 50,
         });
         return result;
       }),
@@ -334,6 +336,7 @@ export const lmsRouter = {
           },
         },
         orderBy: desc(course.createdAt),
+        limit: 200,
       });
     }),
     get: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {

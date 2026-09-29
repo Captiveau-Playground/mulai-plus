@@ -1,8 +1,8 @@
 "use client";
 
+import { Check, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 const CONSENT_KEY = "mulaiplus_ga_consent";
 
@@ -26,6 +26,9 @@ export function useConsent() {
 
   useEffect(() => {
     setConsent(getStoredConsent());
+    const onReset = () => setConsent("undecided");
+    window.addEventListener("mulaiplus-consent-reset", onReset);
+    return () => window.removeEventListener("mulaiplus-consent-reset", onReset);
   }, []);
 
   const accept = () => {
@@ -42,8 +45,8 @@ export function useConsent() {
 }
 
 /**
- * Floating bottom banner asking for analytics consent.
- * Only shows when user hasn't decided yet.
+ * Modal consent cookie — tengah layar, gaya profesional (satu keputusan: setuju/tolak).
+ * Hanya tampil saat user belum memutuskan.
  */
 export function CookieConsentBanner({
   consent,
@@ -58,41 +61,83 @@ export function CookieConsentBanner({
 
   return (
     <div
-      className={cn(
-        "fixed right-0 bottom-0 left-0 z-[100]",
-        "border-gray-200 border-t bg-white/95 shadow-lg backdrop-blur-md",
-        "fade-in slide-in-from-bottom-4 animate-in duration-300",
-      )}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Persetujuan cookie"
+      className="fade-in fixed inset-0 z-[100] flex animate-in items-center justify-center bg-brand-navy/40 px-4 backdrop-blur-sm duration-300"
     >
-      <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-4 sm:flex-row sm:px-6 sm:py-3">
-        <p className="flex-1 text-center font-manrope text-sm text-text-main sm:text-left">
-          Kami menggunakan cookie dari Google Analytics dan Microsoft Clarity untuk memahami cara Anda meningkatkan
-          pengalaman Anda.{" "}
+      <div className="fade-in zoom-in-95 w-full max-w-md animate-in rounded-2xl border border-gray-100 bg-white shadow-2xl duration-300">
+        {/* header */}
+        <div className="p-6 pb-4">
+          <span className="flex size-10 items-center justify-center rounded-full bg-brand-orange/10">
+            <ShieldCheck className="size-5 text-brand-orange" />
+          </span>
+          <h2 className="mt-3 font-bold font-bricolage text-brand-navy text-lg">Kami menghargai privasi Anda</h2>
+          <p className="mt-1.5 font-manrope text-[13px] text-muted-foreground leading-relaxed">
+            Kami menggunakan cookie untuk keperluan analitik dan peningkatan pengalaman — supaya MULAI+ terasa lebih
+            baik untuk Anda. Tidak ada data pribadi yang dibagikan ke pihak lain.
+          </p>
+
+          {/* reassurance */}
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              ["anonim", "Data anonim"],
+              ["niet-verkocht", "Tidak dijual"],
+              ["edit", "Bisa diubah"],
+            ].map(([k, label]) => (
+              <div key={k} className="flex items-center justify-center gap-1 rounded-lg bg-gray-50 px-2 py-1.5">
+                <span className="flex size-3.5 items-center justify-center rounded-full bg-emerald-100">
+                  <Check className="size-2.5 text-emerald-600" />
+                </span>
+                <span className="font-manrope font-medium text-[10px] text-muted-foreground">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* actions — accept dominan */}
+        <div className="px-6 pb-2">
+          <Button
+            onClick={onAccept}
+            className="h-12 w-full rounded-xl bg-brand-navy font-manrope font-semibold text-sm text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:bg-brand-navy/90 active:scale-[0.99]"
+          >
+            Ya, saya setuju
+          </Button>
+          <p className="mt-1.5 text-center font-manrope text-[10px] text-muted-foreground/70">
+            Lanjut menikmati fitur MULAI+ tanpa gangguan.
+          </p>
+        </div>
+
+        {/* reject — sekunder tapi jujur & mudah diakses */}
+        <div className="px-6 py-3">
+          <button
+            type="button"
+            onClick={onReject}
+            className="w-full cursor-pointer py-1 text-center font-manrope text-[11px] text-muted-foreground underline underline-offset-2 transition-colors hover:text-brand-navy"
+          >
+            Hanya cookie yang wajib (tanpa analitik)
+          </button>
+        </div>
+
+        {/* footer links */}
+        <div className="flex items-center justify-center gap-4 border-gray-100 border-t px-6 py-3">
           <a
             href="/privacy"
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium text-brand-navy underline hover:text-brand-orange"
+            className="font-manrope text-[11px] text-muted-foreground underline underline-offset-2 hover:text-brand-navy"
           >
             Kebijakan Privasi
           </a>
-        </p>
-        <div className="flex shrink-0 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReject}
-            className="rounded-full border-gray-300 font-manrope text-text-muted-custom text-xs hover:bg-gray-100"
+          <span className="size-1 rounded-full bg-gray-300" />
+          <a
+            href="/privacy#assessment"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-manrope text-[11px] text-muted-foreground underline underline-offset-2 hover:text-brand-navy"
           >
-            Tolak
-          </Button>
-          <Button
-            size="sm"
-            onClick={onAccept}
-            className="rounded-full bg-brand-navy font-manrope text-white text-xs hover:bg-brand-navy/90"
-          >
-            Terima
-          </Button>
+            Cara kami memproses data
+          </a>
         </div>
       </div>
     </div>

@@ -14,7 +14,7 @@ export const SITE = {
   lang: "id",
   locale: "id_ID",
   logo: "/letter-icon-logo.svg",
-  ogImage: "/og-image.jpg",
+  ogImage: "/og-image.png",
 } as const;
 
 // ─── Contact ─────────────────────────────────────────────
@@ -22,14 +22,16 @@ export const CONTACT = {
   email: "hello@mulaiplus.id",
   phone: "+62 85730367310",
   phoneDisplay: "+62 85730367310",
-  location: "Jakarta, Indonesia",
+  location: "Techno Park UPN Veteran Jawa Timur, Surabaya",
+  locationDetail: "Techno Park UPN Veteran Jawa Timur, Jl. Taman Gianyar I, Gunung Anyar, Surabaya, Jawa Timur 60294",
+  mapsUrl: "https://maps.google.com/?q=Techno+Park+UPN+Veteran+Jawa+Timur",
 } as const;
 
 // ─── Social Media ────────────────────────────────────────
 export const SOCIAL = {
   instagram: { label: "Instagram", url: "https://instagram.com/mulaiplus.id" },
   linkedin: { label: "LinkedIn", url: "https://linkedin.com/company/mulai-plus" },
-  youtube: { label: "YouTube", url: "https://youtube.com/@mulaiplus" },
+  facebook: { label: "Facebook", url: "https://www.facebook.com/share/1JScon8NNn/?mibextid=wwXIfr" },
 } as const;
 
 export const SOCIAL_LINKS = Object.values(SOCIAL);
@@ -42,15 +44,36 @@ export interface NavLink {
 
 export const NAV_LINKS: NavLink[] = [
   { label: "About Us", href: "/#about" },
-  { label: "Featured Programs", href: "/#featured-programs" },
-  { label: "Meet The Mentors", href: "/#mentors" },
+  { label: "Programs", href: "/programs" },
+  { label: "Mentors", href: "/#mentors" },
   { label: "FAQ", href: "/#faq" },
 ];
 
 export const PROGRAM_LINKS: NavLink[] = [
-  { label: "Lihat Semua Program", href: "/programs" },
-  { label: "Info Beasiswa", href: "/programs" },
-  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Program", href: "/programs" },
+  { label: "Beasiswa", href: "/programs/beasiswa-mentoring" },
+  { label: "Reguler", href: "/programs/reguler-mentoring" },
+];
+
+// ─── Blog Links ────────────────────────────────────────────
+export const EXPLORE_LINKS: NavLink[] = [
+  { label: "Semua Data", href: "/explore" },
+  { label: "Universities", href: "/explore/universities" },
+  { label: "Program Studi", href: "/explore/study-programs" },
+  { label: "Passing Grade", href: "/explore/passing-grade" },
+  { label: "Bandingkan", href: "/explore/compare" },
+  { label: "AI Assistant", href: "/explore/ai-assistant" },
+];
+
+export const BLOG_LINKS: NavLink[] = [
+  { label: "Blog", href: "/blog" },
+  { label: "Artikel", href: "/blog/articles" },
+  { label: "News", href: "/blog/news" },
+];
+
+export const OTHER_LINKS: NavLink[] = [
+  { label: "Privacy & Policy", href: "/privacy" },
+  { label: "Syarat & Ketentuan", href: "/terms" },
 ];
 
 // ─── FAQ (used in both component & JSON-LD) ──────────────

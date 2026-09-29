@@ -1,0 +1,3 @@
+{
+  "extends": "@mulai-plus/config/tsconfig.base.json"
+}

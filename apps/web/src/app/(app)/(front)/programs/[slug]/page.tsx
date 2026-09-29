@@ -4,8 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import Script from "next/script";
-
 import { HeaderDetailsProgram } from "@/components/front/details-program/header-details-program";
 import { ProgramAbout } from "@/components/front/details-program/program-about";
 import { ProgramNavigation } from "@/components/front/details-program/program-navigation";
@@ -14,6 +12,14 @@ import { ProgramTimeline } from "@/components/front/details-program/program-time
 import { ProgramWhatYouWillGet } from "@/components/front/details-program/program-what-you-will-get";
 import { RegistrationCTA } from "@/components/front/details-program/registration-cta";
 import { FAQSection } from "@/components/front/faq-section";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { orpc } from "@/utils/orpc";
 
 export default function ProgramDetailPage() {
@@ -153,9 +159,31 @@ export default function ProgramDetailPage() {
 
   return (
     <div className="bg-white">
-      <Script id={`jsonld-program-${slug}`} type="application/ld+json">
-        {JSON.stringify(jsonLd)}
-      </Script>
+      <script
+        id={`jsonld-program-${slug}`}
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      {/* Visible breadcrumb for SEO & UX */}
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/">Home</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/programs">Programs</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{program.name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
       <HeaderDetailsProgram
         title={`${program.name} Program ${batch ? new Date(batch.startDate).getFullYear() : ""}`}
         batch={

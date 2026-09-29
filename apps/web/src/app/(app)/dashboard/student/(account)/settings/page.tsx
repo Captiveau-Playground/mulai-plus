@@ -1,0 +1,451 @@
+"use client";
+
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { CheckCircle2, Globe, Loader2, MapPin, Phone, School, User } from "lucide-react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { useSchoolSearch } from "@/components/student/school-search";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { PageState } from "@/components/ui/page-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { notify } from "@/lib/toast";
+import { orpc } from "@/utils/orpc";
+
+const profileFormSchema = z
+  .object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    email: z.string().optional(), // autofill dari akun (readonly)
+    address: z.string().optional(),
+    phoneNumber: z.string().optional(),
+    school: z.string().optional(), // jenjang otomatis diambil dari pilihan sekolah
+    educationLevel: z.string().optional(),
+    socialMedia: z
+      .object({
+        instagram: z.string().optional(),
+        tiktok: z.string().optional(),
+        threads: z.string().optional(),
+        linkedin: z.string().optional(),
+      })
+      .optional(),
+  })
+  .superRefine((val, ctx) => {
+    const sm = val.socialMedia;
+    if (sm && !(sm.instagram || sm.tiktok || sm.threads || sm.linkedin)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["socialMedia"],
+        message: "Minimal lengkapi 1 sosial media (Instagram/TikTok/Threads/LinkedIn).",
+      });
+    }
+  });
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
+
+export default function StudentSettingsPage() {
+  const { data: user, isLoading, refetch } = useQuery(orpc.user.getProfile.queryOptions());
+  const updateProfile = useMutation(orpc.user.updateProfile.mutationOptions());
+
+  // Autocomplete sekolah — hook bersama (API Sekolah Mandiri, filter provinsi/jenjang SMP ke atas)
+  const sch = useSchoolSearch();
+
+  const form = useForm<ProfileFormValues>({
+    resolver: standardSchemaResolver(profileFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      address: "",
+      phoneNumber: "",
+      school: "",
+      educationLevel: "",
+      socialMedia: {
+        instagram: "",
+        tiktok: "",
+        threads: "",
+        linkedin: "",
+      },
+    },
+  });
+
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        name: user.name || "",
+        email: user.email || "",
+        address: user.address || "",
+        phoneNumber: user.phoneNumber || "",
+        school: user.school || "",
+        educationLevel: user.educationLevel || "",
+        socialMedia: {
+          instagram: user.socialMedia?.instagram || "",
+          tiktok: user.socialMedia?.tiktok || "",
+          threads: user.socialMedia?.threads || "",
+          linkedin: user.socialMedia?.linkedin || "",
+        },
+      });
+    }
+  }, [user, form]);
+
+  async function onSubmit(data: ProfileFormValues) {
+    try {
+      await updateProfile.mutateAsync(data);
+      notify.updateDone("Profil diperbarui", { description: "Perubahan langsung aktif." });
+      refetch();
+    } catch (error) {
+      notify.error("Gagal simpan profil", {
+        description: "Periksa koneksi lalu coba lagi.",
+      });
+      console.error(error);
+    }
+  }
+
+  return (
+    <PageState isLoading={isLoading}>
+      <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
+        {/* Header */}
+        <div className="flex flex-col gap-2">
+          <h1 className="font-bold font-bricolage text-3xl text-brand-navy md:text-4xl lg:text-5xl">Settings</h1>
+          <p className="font-manrope text-base text-text-muted-custom md:text-lg">
+            Manage your personal information and preferences
+          </p>
+        </div>
+
+        {/* Akses & Kelengkapan */}
+        <Card className="student-card">
+          <CardContent className="bg-white pt-4 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10">
+                <CheckCircle2 className="size-4.5 text-brand-orange" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold font-bricolage text-brand-navy text-sm">Akses &amp; Kelengkapan Profil</h3>
+                <p className="mt-0.5 font-manrope text-muted-foreground text-xs">
+                  Isi di bawah untuk membuka <b>Tes Minat &amp; Bakat</b> dan <b>Asisten AI (Mul.ai)</b>:
+                </p>
+                <ul className="mt-2 space-y-1 font-manrope text-xs">
+                  <li className={user?.school ? "text-emerald-600" : "text-amber-600"}>
+                    {user?.school ? "✓" : "•"} Sekolah / Instansi {!user?.school && <b>— wajib</b>}
+                  </li>
+                  <li className={user?.educationLevel ? "text-emerald-600" : "text-amber-600"}>
+                    {user?.educationLevel ? "✓" : "•"} Jenjang saat ini {!user?.educationLevel && <b>— wajib</b>}
+                  </li>
+                  <li className="text-muted-foreground">
+                    • Nomor HP, alamat &amp; sosial media — opsional (untuk konseling &amp; komunitas)
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="student-card">
+          <CardHeader className="bg-white">
+            <div className="flex items-center gap-3">
+              <div className="icon-box-navy">
+                <User className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="font-bricolage text-lg text-text-main">Profile Settings</CardTitle>
+                <CardDescription className="font-manrope text-sm text-text-muted-custom">
+                  Manage your personal information and social media handles.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="bg-white pt-0">
+            <Separator className="mb-6" />
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                {/* Personal Information */}
+                <div className="space-y-4">
+                  <h4 className="flex items-center gap-2 font-inter font-semibold text-sm text-text-main">
+                    <User className="h-4 w-4 text-brand-navy" />
+                    Personal Information
+                  </h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-manrope text-sm text-text-main">
+                            Full Name (Nama Lengkap)
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="John Doe" className="bg-white font-manrope" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="phoneNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1 font-manrope text-sm text-text-main">
+                            <Phone className="h-3 w-3 text-text-muted-custom" />
+                            WhatsApp Number
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="08123456789" className="bg-white font-manrope" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel className="font-manrope text-sm text-text-main">Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            value={user?.email ?? ""}
+                            readOnly
+                            disabled
+                            className="bg-gray-50 font-manrope text-muted-foreground"
+                          />
+                        </FormControl>
+                        <p className="font-manrope text-[10px] text-muted-foreground">
+                          Autofill dari akun — tidak dapat diubah di sini.
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1 font-manrope text-sm text-text-main">
+                          <MapPin className="h-3 w-3 text-text-muted-custom" />
+                          Address (Alamat)
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="Jl. Sudirman No. 1" className="bg-white font-manrope" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <Separator />
+
+                {/* Education */}
+                <div className="space-y-4">
+                  <h4 className="flex items-center gap-2 font-inter font-semibold text-sm text-text-main">
+                    <School className="h-4 w-4 text-brand-navy" />
+                    Education
+                  </h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="school"
+                      render={({ field }) => (
+                        <FormItem className="relative">
+                          <FormLabel className="flex items-center gap-1 font-manrope text-sm text-text-main">
+                            School (Sekolah) <span className="text-brand-orange">*</span>
+                          </FormLabel>
+                          <p className="mb-1 font-manrope text-[10px] text-muted-foreground">
+                            Pilih sekolah → jenjang (SMA/SMK/SMP) terisi otomatis. Ketik minimal 3 huruf.
+                          </p>
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <Select
+                              value={sch.provSel}
+                              onValueChange={(v) => {
+                                if (v != null) sch.setProvSel(v);
+                              }}
+                            >
+                              <SelectTrigger className="w-40 bg-white font-manrope text-xs">
+                                <SelectValue placeholder="Provinsi (opsional)" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-64">
+                                {sch.provList.map((pv: string) => (
+                                  <SelectItem key={pv} value={pv}>
+                                    {pv.replace("PROV. ", "")}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={sch.bentukSel}
+                              onValueChange={(v) => {
+                                if (v != null) sch.setBentukSel(v);
+                              }}
+                            >
+                              <SelectTrigger className="w-36 bg-white font-manrope text-xs">
+                                <SelectValue placeholder="Jenjang (SMP ke atas)" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["SMP", "MTS", "SMA", "MA", "SMK"].map((b) => (
+                                  <SelectItem key={b} value={b}>
+                                    {b}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <FormControl>
+                            <Input
+                              placeholder="ketik nama sekolah (min. 3 huruf)"
+                              className="bg-white font-manrope"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                sch.setQ(e.target.value);
+                                sch.setOpen(true);
+                              }}
+                              onFocus={() => sch.setOpen(true)}
+                              onBlur={() => setTimeout(() => sch.setOpen(false), 200)}
+                            />
+                          </FormControl>
+                          {sch.open && sch.sug.length > 0 && (
+                            <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-lg">
+                              {sch.sug.map((sk: any, i: number) => (
+                                <button
+                                  key={`${sk.npsn}-${i}`}
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    field.onChange(sk.nama);
+                                    const j = sk.jenjang.toUpperCase();
+                                    form.setValue(
+                                      "educationLevel",
+                                      /SMK/.test(j)
+                                        ? "SMK"
+                                        : /SMA|MA/.test(j)
+                                          ? "SMA"
+                                          : /SMP|MTS/.test(j)
+                                            ? "SMP"
+                                            : "SMA",
+                                    );
+                                    sch.setQ("");
+                                    sch.setQ("");
+                                    sch.setOpen(false);
+                                  }}
+                                  className="flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-muted"
+                                >
+                                  <School className="mt-0.5 size-3.5 shrink-0 text-brand-navy" />
+                                  <span className="min-w-0">
+                                    <span className="block truncate font-manrope font-medium text-text-main text-xs">
+                                      {sk.nama}
+                                    </span>
+                                    <span className="block truncate font-manrope text-[10px] text-muted-foreground">
+                                      {sk.jenjang} · {sk.kab} · {sk.kec} · {sk.prov}
+                                    </span>
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Jenjang otomatis dari pilihan sekolah — tidak perlu diisi manual */}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Social Media */}
+                <div className="space-y-4">
+                  <h4 className="flex items-center gap-2 font-inter font-semibold text-sm text-text-main">
+                    <Globe className="h-4 w-4 text-brand-navy" />
+                    Social Media <span className="text-brand-orange">*</span>
+                    {form.formState.errors.socialMedia && (
+                      <span className="ml-1 font-manrope font-normal text-[11px] text-red-500">
+                        {form.formState.errors.socialMedia.message}
+                      </span>
+                    )}
+                  </h4>
+                  <p className="font-manrope text-[10px] text-muted-foreground">
+                    Wajib minimal 1 platform (untuk konseling &amp; komunitas).
+                  </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="socialMedia.instagram"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-manrope text-sm text-text-main">Instagram</FormLabel>
+                          <FormControl>
+                            <Input placeholder="@username" className="bg-white font-manrope" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="socialMedia.tiktok"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-manrope text-sm text-text-main">TikTok</FormLabel>
+                          <FormControl>
+                            <Input placeholder="@username" className="bg-white font-manrope" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="socialMedia.threads"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-manrope text-sm text-text-main">Threads</FormLabel>
+                          <FormControl>
+                            <Input placeholder="@username" className="bg-white font-manrope" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="socialMedia.linkedin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-manrope text-sm text-text-main">LinkedIn</FormLabel>
+                          <FormControl>
+                            <Input placeholder="@username" className="bg-white font-manrope" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 pt-4">
+                  <Button type="submit" disabled={updateProfile.isPending} className="btn-brand-navy rounded-full">
+                    {updateProfile.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+    </PageState>
+  );
+}

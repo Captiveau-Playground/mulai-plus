@@ -7,26 +7,36 @@
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap ./src/index.ts --outfile server",
     "dev": "bun run --hot src/index.ts",
-    "start": "bun run dist/index.js"
+    "start": "bun run dist/index.mjs",
+    "worker:dev": "wrangler dev --env staging",
+    "worker:deploy:staging": "wrangler deploy --env staging",
+    "worker:deploy:production": "wrangler deploy --env production",
+    "worker:tail": "wrangler tail"
   },
   "dependencies": {
-    "hono": "catalog:",
-    "@orpc/server": "catalog:",
-    "@orpc/openapi": "catalog:",
-    "@orpc/zod": "catalog:",
-    "better-auth": "catalog:",
-    "dotenv": "catalog:",
-    "zod": "catalog:",
-    "@mulai-plus/env": "workspace:*",
     "@mulai-plus/api": "workspace:*",
     "@mulai-plus/auth": "workspace:*",
     "@mulai-plus/db": "workspace:*",
-    "@mulai-plus/r2": "workspace:*"
+    "@mulai-plus/env": "workspace:*",
+    "@mulai-plus/r2": "workspace:*",
+    "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/zod": "catalog:",
+    "@sentry/bun": "^10.58.0",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.1",
+    "hono": "catalog:",
+    "hono-rate-limiter": "^0.5.3",
+    "zod": "catalog:",
+    "@mulai-plus/notify": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
     "typescript": "catalog:",
     "tsdown": "^0.16.5",
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^4.20250601.0",
     "@mulai-plus/config": "workspace:*"
   }
 }

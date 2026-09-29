@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNull, like, ne, or } from "@mulai-plus/db";
+import { and, asc, count, db, desc, eq, inArray, isNotNull, isNull, like, ne, or } from "@mulai-plus/db/db";
 import { role as roleTable, user } from "@mulai-plus/db/schema/auth";
 import {
   cmsArticle,
@@ -11,8 +11,11 @@ import {
   cmsTag,
   newsletterSubscriber,
 } from "@mulai-plus/db/schema/cms";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
+import { badRequest } from "../lib/errors";
+import { newsletter } from "../lib/newsletter";
 
 function slugify(text: string) {
   return text
@@ -69,6 +72,17 @@ export const articlesRouter = {
           conditions.push(eq(cmsArticle.featured, true));
         }
 
+        // Filter by category slug
+        if (input?.categorySlug) {
+          const cat = await db.query.cmsCategory.findFirst({
+            where: eq(cmsCategory.slug, input.categorySlug),
+            columns: { id: true },
+          });
+          if (cat) {
+            conditions.push(eq(cmsArticle.categoryId, cat.id));
+          }
+        }
+
         const whereClause = and(...conditions);
 
         const items = await db.query.cmsArticle.findMany({
@@ -99,27 +113,31 @@ export const articlesRouter = {
         };
       }),
 
-    get: publicProcedure.input(z.object({ slug: z.string() })).handler(async ({ input }) => {
-      const item = await db.query.cmsArticle.findFirst({
-        where: and(eq(cmsArticle.slug, input.slug), eq(cmsArticle.status, "published")),
-        with: {
-          author: true,
-          category: true,
-          tags: {
-            with: {
-              tag: true,
+    get: publicProcedure
+      .input(z.object({ slug: z.string(), type: z.enum(["news", "article"]).optional() }))
+      .handler(async ({ input }) => {
+        const conditions = [eq(cmsArticle.slug, input.slug), eq(cmsArticle.status, "published")];
+        if (input.type) conditions.push(eq(cmsArticle.type, input.type));
+        const item = await db.query.cmsArticle.findFirst({
+          where: and(...conditions),
+          with: {
+            author: true,
+            category: true,
+            tags: {
+              with: {
+                tag: true,
+              },
             },
+            seo: true,
           },
-          seo: true,
-        },
-      });
+        });
 
-      if (!item) {
-        throw new Error("Article not found");
-      }
+        if (!item) {
+          throw new ORPCError("NOT_FOUND", { message: "Article not found" });
+        }
 
-      return item;
-    }),
+        return item;
+      }),
 
     getRelated: publicProcedure
       .input(
@@ -142,7 +160,7 @@ export const articlesRouter = {
         });
 
         if (!article) {
-          throw new Error("Article not found");
+          throw new ORPCError("NOT_FOUND", { message: "Article not found" });
         }
 
         // Get articles from same category, excluding current
@@ -207,7 +225,7 @@ export const articlesRouter = {
 
         if (input?.search) {
           conditions.push(
-            // Simple search on title - could enhance with full-text search
+            or(like(cmsArticle.title, `%${input.search}%`), like(cmsArticle.excerpt, `%${input.search}%`)),
           );
         }
 
@@ -249,7 +267,7 @@ export const articlesRouter = {
         };
       }),
 
-    get: adminProcedure.input(z.object({ id: z.coerce.string() })).handler(async ({ input, context }) => {
+    get: adminProcedure.input(z.object({ id: z.coerce.string() })).handler(async ({ input }) => {
       console.log("[article.get] input:", input, "id type:", typeof input.id);
       const item = await db.query.cmsArticle.findFirst({
         where: eq(cmsArticle.id, input.id),
@@ -266,7 +284,7 @@ export const articlesRouter = {
       });
 
       if (!item) {
-        throw new Error("Article not found");
+        throw new ORPCError("NOT_FOUND", { message: "Article not found" });
       }
 
       return item;
@@ -352,7 +370,7 @@ export const articlesRouter = {
         }
 
         if (!resolvedAuthorId) {
-          throw new Error("Author is required");
+          badRequest("Author is required");
         }
 
         // Start transaction
@@ -542,6 +560,54 @@ export const articlesRouter = {
           }
         });
 
+        // Auto-send newsletter when article is published via update
+        if (data.status === "published") {
+          try {
+            const fullArticle = await db.query.cmsArticle.findFirst({
+              where: eq(cmsArticle.id, id),
+              with: { author: true },
+            });
+            if (fullArticle) {
+              const typeLabel = fullArticle.type === "news" ? "News" : "Artikel";
+              const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
+              const articleUrl = `${siteUrl}/blog/${fullArticle.type === "news" ? "news" : "articles"}/${fullArticle.slug}`;
+              const coverImage = fullArticle.coverImageUrl
+                ? `<img src="${fullArticle.coverImageUrl}" alt="${fullArticle.title}" style="width:100%;max-width:600px;border-radius:12px;margin:16px 0" />`
+                : "";
+
+              const name1 = `${typeLabel} Baru: ${fullArticle.title}`.substring(0, 70);
+              await newsletter.sendBroadcastNow({
+                name: name1,
+                subject: `${typeLabel} Baru — ${fullArticle.title}`,
+                html: `
+                  <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+                    <div style="text-align:center;padding:16px 0;border-bottom:2px solid #1A1F6D">
+                      <h1 style="color:#1A1F6D;font-size:24px;margin:0">MULAI+</h1>
+                      <p style="color:#888;font-size:12px">Bimbingan Universitas, Jurusan & Beasiswa</p>
+                    </div>
+                    ${coverImage}
+                    <h2 style="color:#1A1F6D;font-size:20px;margin:16px 0 8px">${fullArticle.title}</h2>
+                    ${fullArticle.excerpt ? `<p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 16px">${fullArticle.excerpt}</p>` : ""}
+                    ${fullArticle.author?.name ? `<p style="color:#888;font-size:12px">Oleh: ${fullArticle.author.name}</p>` : ""}
+                    <div style="margin:24px 0;text-align:center">
+                      <a href="${articleUrl}" style="display:inline-block;background:#1A1F6D;color:#fff;padding:12px 32px;border-radius:999px;text-decoration:none;font-size:14px">
+                        Baca ${typeLabel} Lengkap →
+                      </a>
+                    </div>
+                    <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#aaa">
+                      <p>Dikirim oleh MULAI+ — ${siteUrl}</p>
+                      <p><a href="{{{{RESEND_UNSUBSCRIBE_URL}}}}" style="color:#888">Berhenti berlangganan</a></p>
+                    </div>
+                  </div>
+                `,
+                articleId: fullArticle.id,
+              });
+            }
+          } catch (err) {
+            console.error("Failed to send newsletter for updated/published article:", err);
+          }
+        }
+
         return { success: true };
       }),
 
@@ -555,6 +621,11 @@ export const articlesRouter = {
       .input(z.object({ id: z.string(), scheduledAt: z.string().optional() }))
       .handler(async ({ input }) => {
         const now = new Date();
+        const article = await db.query.cmsArticle.findFirst({
+          where: eq(cmsArticle.id, input.id),
+          with: { author: true },
+        });
+
         await db
           .update(cmsArticle)
           .set({
@@ -563,6 +634,52 @@ export const articlesRouter = {
             scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : undefined,
           })
           .where(eq(cmsArticle.id, input.id));
+
+        // Auto-send newsletter for published articles/news
+        if (article) {
+          try {
+            const typeLabel = article.type === "news" ? "News" : "Artikel";
+            const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
+            const articleUrl = `${siteUrl}/blog/${article.type === "news" ? "news" : "articles"}/${article.slug}`;
+            const coverImage = article.coverImageUrl
+              ? `<img src="${article.coverImageUrl}" alt="${article.title}" style="width:100%;max-width:600px;border-radius:12px;margin:16px 0" />`
+              : "";
+
+            const name2 = `${typeLabel} Baru: ${article.title}`.substring(0, 70);
+            await newsletter.sendBroadcastNow({
+              name: name2,
+              subject: `${typeLabel} Baru — ${article.title}`,
+              html: `
+                <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+                  <div style="text-align:center;padding:16px 0;border-bottom:2px solid #1A1F6D">
+                    <h1 style="color:#1A1F6D;font-size:24px;margin:0">MULAI+</h1>
+                    <p style="color:#888;font-size:12px">Bimbingan Universitas, Jurusan & Beasiswa</p>
+                  </div>
+                  ${coverImage}
+                  <h2 style="color:#1A1F6D;font-size:20px;margin:16px 0 8px">${article.title}</h2>
+                  ${article.excerpt ? `<p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 16px">${article.excerpt}</p>` : ""}
+                  ${article.author?.name ? `<p style="color:#888;font-size:12px">Oleh: ${article.author.name}</p>` : ""}
+                  <div style="margin:24px 0;text-align:center">
+                    <a href="${articleUrl}" style="display:inline-block;background:#1A1F6D;color:#fff;padding:12px 32px;border-radius:999px;text-decoration:none;font-size:14px">
+                      Baca ${typeLabel} Lengkap →
+                    </a>
+                  </div>
+                  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#aaa">
+                    <p>Dikirim oleh MULAI+ — ${siteUrl}</p>
+                    <p><a href="{{{{{RESEND_UNSUBSCRIBE_URL}}}}}" style="color:#888">Berhenti berlangganan</a></p>
+                  </div>
+                </div>
+              `,
+              articleId: article.id,
+            });
+
+            // Newsletter sukses — tandai
+            await db.update(cmsArticle).set({ newsletterSent: true }).where(eq(cmsArticle.id, article.id));
+          } catch (err) {
+            console.error("Failed to send newsletter for published article:", err);
+          }
+        }
+
         return { success: true };
       }),
 
@@ -638,7 +755,7 @@ export const categoriesRouter = {
 
   admin: {
     list: adminProcedure.handler(async () => {
-      return await db.query.cmsCategory.findMany({
+      const categories = await db.query.cmsCategory.findMany({
         orderBy: [asc(cmsCategory.sortOrder), asc(cmsCategory.name)],
         with: {
           children: {
@@ -646,6 +763,25 @@ export const categoriesRouter = {
           },
         },
       });
+
+      // Get article counts per category
+      const counts = await db
+        .select({ categoryId: cmsArticle.categoryId, count: count() })
+        .from(cmsArticle)
+        .where(and(isNull(cmsArticle.deletedAt), isNotNull(cmsArticle.categoryId)))
+        .groupBy(cmsArticle.categoryId);
+
+      const countMap = new Map(counts.filter((c) => c.categoryId).map((c) => [c.categoryId!, c.count]));
+
+      // Attach counts to categories and their children
+      const attachCounts = (cats: any[]): any[] =>
+        cats.map((cat) => ({
+          ...cat,
+          articleCount: countMap.get(cat.id) ?? 0,
+          children: cat.children ? attachCounts(cat.children) : [],
+        }));
+
+      return attachCounts(categories);
     }),
 
     get: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
@@ -727,7 +863,7 @@ export const categoriesRouter = {
 
         // Prevent circular reference
         if (data.parentId === id) {
-          throw new Error("Category cannot be its own parent");
+          badRequest("Category cannot be its own parent");
         }
 
         await db.update(cmsCategory).set(data).where(eq(cmsCategory.id, id));
@@ -771,7 +907,7 @@ export const tagsRouter = {
 
     search: publicProcedure.input(z.object({ query: z.string() })).handler(async ({ input }) => {
       const results = await db.query.cmsTag.findMany({
-        where: `${cmsTag.name} ILIKE ${`%${input.query}%`}` as any, // Simple like search
+        where: like(cmsTag.name, `%${input.query}%`),
         orderBy: [asc(cmsTag.name)],
         limit: 10,
       });
@@ -781,9 +917,24 @@ export const tagsRouter = {
 
   admin: {
     list: adminProcedure.handler(async () => {
-      return await db.query.cmsTag.findMany({
+      const tags = await db.query.cmsTag.findMany({
         orderBy: [asc(cmsTag.name)],
       });
+
+      // Get article counts per tag
+      const counts = await db
+        .select({ tagId: cmsArticleTag.tagId, count: count() })
+        .from(cmsArticleTag)
+        .innerJoin(cmsArticle, eq(cmsArticleTag.articleId, cmsArticle.id))
+        .where(isNull(cmsArticle.deletedAt))
+        .groupBy(cmsArticleTag.tagId);
+
+      const countMap = new Map(counts.map((c) => [c.tagId, c.count]));
+
+      return tags.map((tag) => ({
+        ...tag,
+        articleCount: countMap.get(tag.id) ?? 0,
+      }));
     }),
 
     create: adminProcedure
@@ -905,6 +1056,13 @@ export const authorsRouter = {
           .where(conditions.length > 0 ? and(...conditions) : undefined)
           .orderBy(asc(user.name));
       }),
+
+    // List cmsAuthor records (for admin author management page)
+    listAuthors: adminProcedure.handler(async () => {
+      return await db.query.cmsAuthor.findMany({
+        orderBy: [asc(cmsAuthor.name)],
+      });
+    }),
 
     create: adminProcedure
       .input(
