@@ -65,7 +65,7 @@ function bar(label: string, pct: number, color: string, right?: string) {
     </tr>`;
 }
 
-export function renderReportHtml(r: TmbReportData): string {
+export function renderReportHtml(r: TmbReportData, qrData = ""): string {
   const dims = ["R", "I", "A", "S", "E", "C"];
   const max = Math.max(...dims.map((d) => r.hollandScores?.[d] ?? 0), 0.1);
   const diff =
@@ -227,7 +227,7 @@ export async function printTmbReport(r: TmbReportData): Promise<void> {
 
   const wrap = document.createElement("div");
   wrap.id = IF;
-  wrap.innerHTML = renderReportHtml(r);
+  wrap.innerHTML = renderReportHtml(r, qrData);
   Object.assign(wrap.style, { position: "absolute", left: "-9999px", top: "0" });
   document.body.appendChild(wrap);
 
