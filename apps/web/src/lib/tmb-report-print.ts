@@ -36,6 +36,22 @@ const ABILITY_DESC: Record<string, string> = {
   clerical:
     "Ketelitian, konsistensi, dan kecepatan tugas administratif. Relevan untuk Administrasi, Laboratorium, dan QA.",
 };
+const HOLLAND_CAREERS: Record<string, string> = {
+  R: "Teknik Mesin, Pertanian, Perhotelan, Arsitektur",
+  I: "Kedokteran, Matematika, Farmasi, Data Science",
+  A: "DKV, Sastra, Musik, Desain Interior",
+  S: "Psikologi, Keperawatan, Keguruan, Ilmu Komunikasi",
+  E: "Manajemen, Marketing, Hukum Bisnis, Kewirausahaan",
+  C: "Akuntansi, Administrasi, Statistik, Manajemen Operasional",
+};
+const ABILITY_CAREERS: Record<string, string> = {
+  numerical: "Teknik, Akuntansi, Statistik",
+  verbal: "Hukum, Komunikasi, Jurnalistik",
+  logical: "IT, Matematika, Hukum",
+  spatial: "Arsitektur, Teknik Sipil, Desain",
+  clerical: "Administrasi, Laboratorium, QA",
+};
+
 function strongestHolland(code: string): string {
   const letters = Array.from(new Set((code || "").toUpperCase().replace(/[^A-Z]/g, ""))).slice(0, 2);
   if (!letters.length) return "";
@@ -81,12 +97,15 @@ const S = {
   track: "#E8E9EE",
 };
 
-function bar(label: string, pct: number, color: string, right?: string, _desc?: string) {
+function bar(label: string, pct: number, color: string, right?: string, desc?: string) {
   const w = Math.max(Math.min(pct, 100), 0);
   return `
     <tr>
-      <td style="width:30%;padding:3px 6px 3px 0;font-size:11px;color:${S.ink};vertical-align:middle;">${label}</td>
-      <td style="width:60%;padding:3px 0;vertical-align:middle;">
+      <td style="width:37%;padding:3px 6px 3px 0;font-size:11px;color:${S.ink};vertical-align:middle;">
+        ${label}
+        ${desc ? `<div style="font-size:8.6px;color:#5F6572;line-height:1.4;margin-top:1px;">${desc}</div>` : ""}
+      </td>
+      <td style="width:53%;padding:3px 0;vertical-align:middle;">
         <div style="position:relative;height:14px;border-radius:7px;background:#EEEFF4;overflow:hidden">
           <div style="height:100%;width:${w}%;border-radius:7px;background:${color}"></div>
         </div>
@@ -106,7 +125,13 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
       const score = Math.round((r.hollandScores?.[d] ?? 0) * 100);
       const pct = ((r.hollandScores?.[d] ?? 0) / max) * 100;
       const top = r.hollandCode?.includes(d);
-      return bar(`${d} · ${HOLLAND_NAME[d] ?? ""}`, pct, top ? S.teal : "#B0B1BA", `${score}%`, HOLLAND_DESC[d]);
+      return bar(
+        `${d} · ${HOLLAND_NAME[d] ?? ""}`,
+        pct,
+        top ? S.teal : "#B0B1BA",
+        `${score}%`,
+        `${HOLLAND_DESC[d]} <b>Karier:</b> ${HOLLAND_CAREERS[d]}`,
+      );
     })
     .join("");
 
@@ -115,7 +140,13 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
       const s = r.abilityScores?.[k] ?? { correct: 0, total: 0 };
       const lv = r.abilityLevels?.[k] ?? "medium";
       const pct = s.total ? (s.correct / s.total) * 100 : 0;
-      return bar(label, pct, levelColor(lv), `${s.correct}/${s.total} · ${levelLabel(lv)}`, ABILITY_DESC[k]);
+      return bar(
+        label,
+        pct,
+        levelColor(lv),
+        `${s.correct}/${s.total} · ${levelLabel(lv)}`,
+        `${ABILITY_DESC[k]} <b>Cocok untuk:</b> ${ABILITY_CAREERS[k]}`,
+      );
     })
     .join("");
 
