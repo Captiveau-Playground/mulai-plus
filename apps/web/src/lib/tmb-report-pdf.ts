@@ -59,26 +59,36 @@ export interface TmbReportData {
   summary?: string | null;
 }
 
-/** Logo "MULAI+" via canvas → PNG utk header PDF (transparan, putih + aksen oranye). */
-function drawLogoWordmark(_doc: any): string {
+/** Logo "MULAI+" — ambil asset /light-type-logo.svg lalu rasterisasi canvas → PNG. */
+async function loadLogoPng(): Promise<string> {
   if (typeof document === "undefined") return "";
-  const c = document.createElement("canvas");
-  c.width = 240;
-  c.height = 60;
-  const x = c.getContext("2d");
-  if (!x) return "";
-  x.clearRect(0, 0, c.width, c.height);
-  x.font = "700 40px 'Roboto', 'Segoe UI', system-ui, sans-serif";
-  x.textBaseline = "middle";
-  x.fillStyle = "#FFFFFF";
-  x.fillText("MULAI+", 4, 26);
-  x.fillStyle = "#FE9114";
-  x.fillRect(6, 42, 58, 6);
-  return c.toDataURL("image/png");
+  try {
+    const res = await fetch("/light-type-logo.svg", { cache: "force-cache" });
+    if (!res.ok) return "";
+    const svg = await res.text();
+    const img = new Image();
+    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("svg load fail"));
+      img.src = url;
+    });
+    const c = document.createElement("canvas");
+    c.width = 320;
+    c.height = 80;
+    const x = c.getContext("2d");
+    if (!x) return "";
+    x.clearRect(0, 0, c.width, c.height);
+    x.drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    return c.toDataURL("image/png");
+  } catch {
+    return "";
+  }
 }
 
 export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob> {
-  const _logoPng = await loadLogoPng();
+  const logoPng = await loadLogoPng();
   const { default: JsPDF } = await import("jspdf");
   const { ROBOTO_REGULAR, ROBOTO_MEDIUM } = await import("@/lib/pdf-fonts");
   const doc = new JsPDF({ unit: "mm", format: "a4" });
@@ -166,8 +176,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
       doc.setFontSize(FS.hero);
       doc.setTextColor(255, 255, 255);
       try {
-        const lw = drawLogoWordmark(doc);
-        if (lw?.startsWith("data:image")) doc.addImage(lw, "PNG", PAGE_W - M - 30, 6.5, 30, 12);
+        if (logoPng?.startsWith("data:image")) doc.addImage(logoPng, "PNG", PAGE_W - M - 32, 6.2, 32, 13);
       } catch {
         /* logo opsional */
       }
