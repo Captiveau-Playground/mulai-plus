@@ -272,6 +272,15 @@ export default function AssessmentHomePage() {
             );
           })}
         </div>
+
+        <p className="mt-2 text-center">
+          <Link
+            href="/dashboard/student/assessment/take/minat?demo=1&type=interest"
+            className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/50 border-dashed px-4 py-2 font-manrope font-semibold text-brand-orange text-xs transition-colors hover:bg-brand-orange/5"
+          >
+            ⚡ Coba Simulasi Test (2 minat + 2 bakat) — tanpa disimpan
+          </Link>
+        </p>
       </div>
 
       {/* Progres */}

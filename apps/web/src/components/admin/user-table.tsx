@@ -94,25 +94,35 @@ export function UserTable() {
 
   const fetchUsers = React.useCallback(async () => {
     setIsLoading(true);
+    const all: any[] = [];
     try {
-      const { data, error } = await authClient.admin.listUsers({
-        query: {
-          limit: 100, // Fetch up to 100 users for now
-        },
-      });
-      if (data) {
+      // better-auth caps 100/request → loop offset sampai habis, biar SEMUA user kebawa.
+      let offset = 0;
+      for (;;) {
+        const { data, error } = await authClient.admin.listUsers({
+          query: { limit: 100, offset },
+        });
+        if (data?.users?.length) {
+          all.push(...data.users);
+          offset += data.users.length;
+          if (data.users.length < 100) break;
+          if (offset >= 5_000) break; // pengaman — jangan loop tak hingga
+        } else {
+          if (error) notify.error(`Failed to fetch users: ${error.message}`);
+          break;
+        }
+      }
+      if (all.length) {
         setUsers(
-          data.users.map((u) => ({
+          all.map((u: any) => ({
             ...u,
             banned: u.banned ?? false,
             banReason: u.banReason ?? null,
             banExpires: u.banExpires ? new Date(u.banExpires) : null,
             createdAt: new Date(u.createdAt),
             updatedAt: new Date(u.updatedAt),
-          })),
+          })) as any,
         );
-      } else if (error) {
-        notify.error(`Failed to fetch users: ${error.message}`);
       }
     } catch (_e) {
       notify.error("An unexpected error occurred");

@@ -11,7 +11,7 @@ import {
   ShieldAlert,
   UserCheck,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -212,6 +212,16 @@ export default function AiAssistantUsersPage() {
     }
   };
 
+  // Grup session per user (admin): user dengan banyak session → 1 header + sub-sessions
+  const groupedSessions = useMemo(() => {
+    const map = new Map<string, { user: (typeof sessions)[number]; rows: (typeof sessions)[number][] }>();
+    for (const s of sessions) {
+      const key = s.is_auth && s.user_id ? `u:${s.user_id}` : `g:${s.id}`;
+      if (!map.has(key)) map.set(key, { user: s, rows: [] });
+      map.get(key)?.rows.push(s);
+    }
+    return [...map.values()];
+  }, [sessions]);
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
@@ -298,113 +308,130 @@ export default function AiAssistantUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {sessions.map((s) => (
-                  <tr key={s.id} className="font-manrope text-sm transition-colors hover:bg-gray-50/50">
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => openDetail(s.id)}
-                        className="text-left hover:text-brand-orange"
-                      >
-                        {s.is_auth && s.user_name ? (
-                          <>
-                            <p className="font-medium text-brand-navy">
-                              {s.user_name}
-                              {s.user_email ? (
-                                <span className="font-normal text-gray-400 text-xs"> · {s.user_email}</span>
-                              ) : null}
-                            </p>
-                            <p className="text-[10px] text-gray-400">Authenticated · {s.user_id}</p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-medium text-brand-navy">{s.user_id || `${s.id.slice(0, 12)}...`}</p>
-                            <p className="text-[10px] text-gray-400">Guest · {s.id.slice(0, 16)}...</p>
-                          </>
-                        )}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      {s.banned ? (
-                        <Badge className="bg-red-100 font-manrope text-[10px] text-red-700">
-                          <Ban className="mr-1 h-3 w-3" /> Banned
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-green-100 font-manrope text-[10px] text-green-700">
-                          <CheckCircle2 className="mr-1 h-3 w-3" /> Active
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">{s.total_messages}</td>
-                    <td className="px-4 py-3 text-center">
-                      {s.credit_limit !== null ? (
-                        <Badge className="bg-amber-100 font-manrope text-[10px] text-amber-700">
-                          {s.credit_limit === -1 ? "∞" : s.credit_limit}
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-gray-100 font-manrope text-[10px] text-gray-500">
-                          {s.is_auth ? 5 : 1}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {s.remaining === null ? (
-                        <Badge className="bg-purple-100 font-manrope text-[10px] text-purple-700">∞</Badge>
-                      ) : s.remaining > 0 ? (
-                        <Badge className="bg-green-100 font-manrope text-[10px] text-green-700">{s.remaining}</Badge>
-                      ) : (
-                        <Badge className="bg-red-100 font-manrope text-[10px] text-red-700">0</Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center font-mono text-xs">${(s.total_cost ?? 0).toFixed(4)}</td>
-                    <td className="px-4 py-3 text-right text-gray-400 text-xs">{formatDate(s.last_active)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openAction(s, "credit")}
-                          className="h-8 rounded-lg px-2 font-manrope text-[10px]"
-                        >
-                          Credit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openAction(s, "ban")}
-                          className="h-8 rounded-lg px-2 font-manrope text-[10px]"
-                        >
-                          {s.banned ? "Unban" : "Ban"}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openAction(s, "notes")}
-                          className="h-8 rounded-lg px-2 font-manrope text-[10px]"
-                        >
-                          Notes
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={async () => {
-                            if (window.confirm(`Reset usage untuk session ini? (${s.message_count} → 0)`)) {
-                              setActionLoading(true);
-                              try {
-                                await client.ai.admin.sessions.resetUsage({ session_id: s.id });
-                                await fetchSessions(page, search, bannedOnly);
-                              } catch {}
-                              setActionLoading(false);
-                            }
-                          }}
-                          disabled={actionLoading}
-                          className="h-8 rounded-lg px-2 font-manrope text-[10px] text-red-500 hover:text-red-700"
-                        >
-                          Reset
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                {groupedSessions.map((g) => (
+                  <Fragment key={g.user.id || g.user.user_id || g.user.id}>
+                    {g.rows.length > 1 && (
+                      <tr className="bg-brand-navy/[0.03]">
+                        <td colSpan={8} className="px-4 py-2">
+                          <span className="font-manrope font-semibold text-[11px] text-brand-navy">
+                            {g.user.is_auth && g.user.user_name
+                              ? `${g.user.user_name} — ${g.rows.length} sessions (user ${g.user.user_id})`
+                              : `${g.user.id.slice(0, 14)}… — guest sub-sessions`}{" "}
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                    {g.rows.map((s) => (
+                      <tr key={s.id} className="font-manrope text-sm transition-colors hover:bg-gray-50/50">
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => openDetail(s.id)}
+                            className="text-left hover:text-brand-orange"
+                          >
+                            {s.is_auth && s.user_name ? (
+                              <>
+                                <p className="font-medium text-brand-navy">
+                                  {s.user_name}
+                                  {s.user_email ? (
+                                    <span className="font-normal text-gray-400 text-xs"> · {s.user_email}</span>
+                                  ) : null}
+                                </p>
+                                <p className="text-[10px] text-gray-400">Authenticated · {s.user_id}</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-medium text-brand-navy">{s.user_id || `${s.id.slice(0, 12)}...`}</p>
+                                <p className="text-[10px] text-gray-400">Guest · {s.id.slice(0, 16)}...</p>
+                              </>
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          {s.banned ? (
+                            <Badge className="bg-red-100 font-manrope text-[10px] text-red-700">
+                              <Ban className="mr-1 h-3 w-3" /> Banned
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-green-100 font-manrope text-[10px] text-green-700">
+                              <CheckCircle2 className="mr-1 h-3 w-3" /> Active
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">{s.total_messages}</td>
+                        <td className="px-4 py-3 text-center">
+                          {s.credit_limit !== null ? (
+                            <Badge className="bg-amber-100 font-manrope text-[10px] text-amber-700">
+                              {s.credit_limit === -1 ? "∞" : s.credit_limit}
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-gray-100 font-manrope text-[10px] text-gray-500">
+                              {s.is_auth ? 5 : 1}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {s.remaining === null ? (
+                            <Badge className="bg-purple-100 font-manrope text-[10px] text-purple-700">∞</Badge>
+                          ) : s.remaining > 0 ? (
+                            <Badge className="bg-green-100 font-manrope text-[10px] text-green-700">
+                              {s.remaining}
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-red-100 font-manrope text-[10px] text-red-700">0</Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono text-xs">${(s.total_cost ?? 0).toFixed(4)}</td>
+                        <td className="px-4 py-3 text-right text-gray-400 text-xs">{formatDate(s.last_active)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openAction(s, "credit")}
+                              className="h-8 rounded-lg px-2 font-manrope text-[10px]"
+                            >
+                              Credit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openAction(s, "ban")}
+                              className="h-8 rounded-lg px-2 font-manrope text-[10px]"
+                            >
+                              {s.banned ? "Unban" : "Ban"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openAction(s, "notes")}
+                              className="h-8 rounded-lg px-2 font-manrope text-[10px]"
+                            >
+                              Notes
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                if (window.confirm(`Reset usage untuk session ini? (${s.message_count} → 0)`)) {
+                                  setActionLoading(true);
+                                  try {
+                                    await client.ai.admin.sessions.resetUsage({ session_id: s.id });
+                                    await fetchSessions(page, search, bannedOnly);
+                                  } catch {}
+                                  setActionLoading(false);
+                                }
+                              }}
+                              disabled={actionLoading}
+                              className="h-8 rounded-lg px-2 font-manrope text-[10px] text-red-500 hover:text-red-700"
+                            >
+                              Reset
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
