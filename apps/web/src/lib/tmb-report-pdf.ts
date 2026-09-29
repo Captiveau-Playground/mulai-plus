@@ -300,7 +300,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
   };
 
   return await new Promise<Blob>((resolve, _reject) => {
-    pdfMake.createPdf(docDefinition).getBlob((blob) => resolve(blob));
+    pdfMake.createPdf(docDefinition).getBlob((blob: Blob) => resolve(blob));
   });
 }
 
