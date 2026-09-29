@@ -36,8 +36,7 @@
     "hono": "catalog:",
     "nanoid": "^5.1.6",
     "zod": "catalog:",
-    "@mulai-plus/notify": "workspace:*",
-    "jspdf": "^2.5.2"
+    "@mulai-plus/notify": "workspace:*"
   },
   "devDependencies": {
     "@mulai-plus/config": "workspace:*",

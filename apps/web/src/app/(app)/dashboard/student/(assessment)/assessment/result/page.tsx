@@ -10,8 +10,8 @@ import { FutureCareerMap } from "@/components/front/future-career-map";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
-import { client } from "@/lib/client";
 import { buildResultMindMap } from "@/lib/future-career";
+import { generateTmbReportPdf } from "@/lib/tmb-report-pdf";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -109,7 +109,7 @@ export default function TmbResultPage() {
     if (downloading) return;
     setDownloading(true);
     try {
-      const { pdf } = await client.tmb.report.pdf({
+      const blob = await generateTmbReportPdf({
         studentName: session?.user?.name ?? "",
         schoolName: data?.profile?.schoolName ?? null,
         hollandCode,
@@ -126,10 +126,6 @@ export default function TmbResultPage() {
         careers: careers.map((c: any) => c.itemName),
         summary: data?.summary ?? null,
       });
-      const bin = atob(pdf);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const blob = new Blob([bytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

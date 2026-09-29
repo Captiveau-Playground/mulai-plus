@@ -59,7 +59,12 @@ export interface TmbReportData {
 
 export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob> {
   const { default: JsPDF } = await import("jspdf");
+  const { ROBOTO_REGULAR, ROBOTO_MEDIUM } = await import("@/lib/pdf-fonts");
   const doc = new JsPDF({ unit: "mm", format: "a4" });
+  doc.addFileToVFS("Roboto-Regular.ttf", ROBOTO_REGULAR);
+  doc.addFileToVFS("Roboto-Medium.ttf", ROBOTO_MEDIUM);
+  doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+  doc.addFont("Roboto-Medium.ttf", "Roboto", "bold");
   const pageCount = () => doc.getNumberOfPages();
   let y = 0;
 
@@ -93,7 +98,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
     const width = opts.w ?? W;
     const style = opts.style ?? "normal";
     const align = opts.align ?? "left";
-    doc.setFont("helvetica", style);
+    doc.setFont("Roboto", style);
     doc.setFontSize(fs);
     doc.setTextColor(...color);
     const lines = doc.splitTextToSize(txt.replace(/\*\*/g, "").replace(/#+\s*/g, ""), width) as string[];
@@ -111,7 +116,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
     breakIf(8 + leadOf("section"));
     doc.setFillColor(...ORANGE);
     doc.rect(M, y - 4.2, 1.4, 4.6, "F");
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Roboto", "bold");
     doc.setFontSize(FS.section);
     doc.setTextColor(...NAVY);
     doc.text(t, M + 3.5, y);
@@ -136,11 +141,11 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
       doc.rect(0, 0, PAGE_W, 26, "F");
       doc.setFillColor(...ORANGE);
       doc.rect(0, 26, PAGE_W, 1.6, "F");
-      doc.setFont("helvetica", "bold");
+      doc.setFont("Roboto", "bold");
       doc.setFontSize(FS.hero);
       doc.setTextColor(255, 255, 255);
       doc.text("Laporan Hasil Test Minat Bakat", M, 12);
-      doc.setFont("helvetica", "normal");
+      doc.setFont("Roboto", "normal");
       doc.setFontSize(10);
       doc.setTextColor(225, 225, 235);
       doc.text("Test by MULAI+ — Kenali Minat & Bakatmu", M, 18.5);
@@ -171,7 +176,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
     const score = report.hollandScores?.[d] ?? 0;
     const w = barW * (score / maxScore);
     const isTop = code.includes(d);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Roboto", "bold");
     doc.setFontSize(9);
     doc.setTextColor(...NAVY);
     doc.text(`${d} · ${HOLLAND_NAME[d] ?? ""}`, M, y + 3.4);
@@ -180,7 +185,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
     doc.setFillColor(...(isTop ? TEAL : ([176, 177, 186] as [number, number, number])));
     if (w > 1) doc.roundedRect(M + 32, y, Math.max(w, 2.2), 4.4, 1.1, 1.1, "F");
     // label % — selalu di dalam lebar bar (tidak meluber)
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Roboto", "normal");
     doc.setFontSize(7.6);
     doc.setTextColor(...GRAY);
     const pct = `${Math.round(score * 100)}%`;
@@ -209,7 +214,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
     const level = report.abilityLevels?.[key] ?? "medium";
     const pct = s.total ? (s.correct / s.total) * 100 : 0;
     const w = (W - 42) * (pct / 100);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Roboto", "normal");
     doc.setFontSize(9.3);
     doc.setTextColor(...INK);
     doc.text(`${label}`, M, y + 3.2);
@@ -222,7 +227,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
       doc.roundedRect(M + 33, y, Math.max(w, 2), 3.8, 0.9, 0.9, "F");
     }
     const levelLabel = level === "high" ? "Tinggi" : level === "medium" ? "Sedang" : "Perlu Pengembangan";
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Roboto", "normal");
     doc.setFontSize(7.6);
     doc.setTextColor(...GRAY);
     doc.text(`${s.correct}/${s.total} · ${levelLabel}`, M + 33 + Math.min(w + 2, W - 14), y + 2.9);
@@ -237,7 +242,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
   report.majors.slice(0, 5).forEach((m, i) => {
     breakIf(15);
     put(`${i + 1}. ${m.itemName}`, { size: "body", color: NAVY, style: "bold", w: W - 34 });
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Roboto", "normal");
     doc.setFontSize(8.4);
     doc.setTextColor(...GRAY);
     doc.text(`Kecocokan ${m.confidence}%`, M + W - 34, y - LEAD.body + 0.6, { align: "right" });
@@ -281,7 +286,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
   const pages = pageCount();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Roboto", "normal");
     doc.setFontSize(7.4);
     doc.setTextColor(...GRAY);
     doc.text("Test by MULAI+ · mulaiplus.id", M, 291);
