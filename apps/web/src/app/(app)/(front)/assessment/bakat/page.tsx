@@ -15,6 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import { AbilityLeaderboard } from "@/components/front/ability-leaderboard";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
@@ -117,6 +118,7 @@ export default function AssessmentBakatPage() {
 
       {/* USP */}
       <UspStrip />
+      <AbilityLeaderboard />
 
       {/* 5 KEMAMPUAN */}
       <section className="border-gray-100 border-t">

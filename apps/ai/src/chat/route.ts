@@ -165,7 +165,7 @@ chatRoute.post("/chat", async (c) => {
   }
 
   // 6. Agent (history + LLM + tools)
-  const history = await store.getHistory(c, key, 6).catch(() => []);
+  const history = (await store.getHistory(c, key, 6).catch(() => ({ messages: [], hasMore: false }))).messages;
   const result = await generateChatReply(c, {
     message,
     history: history.map((m) => ({ role: m.role, content: m.content })),
@@ -310,8 +310,10 @@ chatRoute.get("/quota", async (c) => {
 chatRoute.get("/history", async (c) => {
   const key = c.req.header("x-session-id") ?? c.req.query("session_id") ?? "";
   if (!key) return c.json({ error: "missing session" }, 400);
-  const messages = await store.getHistory(c, key, 50).catch(() => []);
-  return c.json({ messages, total: messages.length });
+  const limit = Math.min(Number(c.req.query("limit") ?? 50) || 50, 100);
+  const beforeId = c.req.query("before_id") ? Number(c.req.query("before_id")) : null;
+  const page = await store.getHistory(c, key, limit, beforeId).catch(() => ({ messages: [], hasMore: false }));
+  return c.json({ messages: page.messages, hasMore: page.hasMore, total: page.messages.length });
 });
 
 chatRoute.post("/feedback", async (c) => {
