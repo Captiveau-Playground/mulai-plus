@@ -11,7 +11,7 @@ import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { buildResultMindMap } from "@/lib/future-career";
-import { generateTmbReportPdf } from "@/lib/tmb-report-pdf";
+import { printTmbReport } from "@/lib/tmb-report-print";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -109,7 +109,7 @@ export default function TmbResultPage() {
     if (downloading) return;
     setDownloading(true);
     try {
-      const blob = await generateTmbReportPdf({
+      await printTmbReport({
         studentName: session?.user?.name ?? "",
         email: session?.user?.email ?? null,
         schoolName: data?.profile?.schoolName ?? null,
@@ -127,15 +127,7 @@ export default function TmbResultPage() {
         careers: careers.map((c: any) => c.itemName),
         summary: data?.summary ?? null,
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `assessment-report-${hollandCode}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      notify.create("Laporan PDF siap", { description: "Cek folder unduhan kamu." });
+      notify.create("Cetak / Unduh PDF", { description: "Pilih 'Simpan sebagai PDF' di dialog printer." });
     } catch (e) {
       console.error("[report-pdf]", e);
       notify.error("Gagal membuat PDF 🙈", {
