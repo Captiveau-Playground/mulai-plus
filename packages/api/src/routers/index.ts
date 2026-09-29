@@ -146,16 +146,23 @@ export const appRouter = {
       db.execute(sql`SELECT to_char(created_at, 'YYYY-MM-DD') AS d, count(*) AS n
                      FROM "user" WHERE created_at >= now() - interval '30 days'
                      GROUP BY 1 ORDER BY 1`) as unknown as Promise<{ rows?: { d: string; n: number }[] }>,
-      // Assessment: attempt selesai & hasil (30 hari)
+      // Assessment: attempt selesai & hasil (30 hari) + tren harian 14 hari
       (async () => {
-        const [c1, c2] = await Promise.all([
+        const [c1, c2, daily] = await Promise.all([
           db
             .select({ n: count() })
             .from(tmbTestAttempts)
             .where(sql`status = 'completed' AND finished_at >= now() - interval '30 days'`),
           db.select({ n: count() }).from(tmbAssessmentResults).where(sql`created_at >= now() - interval '30 days'`),
+          db.execute(sql`SELECT to_char(finished_at,'YYYY-MM-DD') AS d, count(*) AS n
+                          FROM tmb_test_attempts WHERE status='completed' AND finished_at >= now() - interval '14 days'
+                          GROUP BY 1 ORDER BY 1`),
         ]);
-        return { attempts30d: c1[0]?.n ?? 0, results30d: c2[0]?.n ?? 0 };
+        return {
+          attempts30d: c1[0]?.n ?? 0,
+          results30d: c2[0]?.n ?? 0,
+          daily: ((daily as any)?.rows ?? []) as { d: string; n: number }[],
+        };
       })(),
       // AI Assistant: pesan per hari, session aktif, feedback (30 hari)
       (async () => {
