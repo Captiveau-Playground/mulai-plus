@@ -263,8 +263,8 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
         ${
           qrData
             ? `<div style="text-align:center;flex-shrink:0;">
-                <img src="${qrData}" alt="QR verifikasi MULAI+" style="width:58px;height:58px;"/>
-                <div style="margin-top:3px;font-size:7.5px;color:#9AA0AC;">Tanda tangan digital<br/>MULAI+ · verifikasi laporan</div>
+                <img src="${qrData}" alt="QR verifikasi MULAI+" style="width:80px;height:80px;display:block;margin:0 auto 5px;"/>
+                <div style="font-size:8px;color:#9AA0AC;line-height:1.35;">Tanda tangan digital<br/>MULAI+ · verifikasi laporan</div>
               </div>`
             : ""
         }
@@ -281,7 +281,7 @@ export async function printTmbReport(r: TmbReportData): Promise<void> {
     QR && typeof document !== "undefined"
       ? await QR.toDataURL(
           `https://mulaiplus.id/laporan-tmb?nama=${encodeURIComponent(r.studentName || "")}&tgl=${encodeURIComponent(new Date().toISOString().slice(0, 10))}`,
-          { margin: 1, width: 220, color: { dark: "#1A1F6D" } },
+          { margin: 2, width: 300, errorCorrectionLevel: "M", color: { dark: "#15205B" } },
         ).catch(() => "")
       : "";
   const IF = "mulai-pdf-print-frame";
