@@ -111,6 +111,7 @@ export default function TmbResultPage() {
     try {
       const blob = await generateTmbReportPdf({
         studentName: session?.user?.name ?? "",
+        email: session?.user?.email ?? null,
         schoolName: data?.profile?.schoolName ?? null,
         hollandCode,
         hollandScores,

@@ -46,6 +46,7 @@ const ABILITY_NAME: Record<string, string> = {
 
 export interface TmbReportData {
   studentName: string;
+  email?: string | null;
   schoolName?: string | null;
   hollandCode: string;
   hollandScores: Record<string, number>;
@@ -77,6 +78,7 @@ function drawLogoWordmark(_doc: any): string {
 }
 
 export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob> {
+  const _logoPng = await loadLogoPng();
   const { default: JsPDF } = await import("jspdf");
   const { ROBOTO_REGULAR, ROBOTO_MEDIUM } = await import("@/lib/pdf-fonts");
   const doc = new JsPDF({ unit: "mm", format: "a4" });
@@ -186,7 +188,8 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
   // ── Identitas ──
   sectionTitle("Identitas Peserta");
   put(`Nama: ${report.studentName || "-"}`, { size: "body", color: INK });
-  put(`Sekolah: ${report.schoolName || "-"}`, { size: "body", color: INK, gap: 0.6 });
+  put(`Email: ${report.email || "-"}`, { size: "body", color: INK, gap: 0.4 });
+  put(`Sekolah: ${report.schoolName || "-"}`, { size: "body", color: INK, gap: 0.4 });
   y += 2.5;
 
   // ── RIASEC ──
@@ -232,6 +235,7 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
   y += 3;
 
   // ── Ability ──
+  y += 4.5;
   sectionTitle("2. Profil Kemampuan");
   y += 1;
   Object.entries(ABILITY_NAME).forEach(([key, label]) => {
@@ -266,10 +270,10 @@ export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob>
   sectionTitle("3. Rekomendasi Jurusan & Karier");
   y += 1;
   const COLS = [
-    { x: M, w: 7, h: "No" },
-    { x: M + 9, w: 82, h: "Jurusan" },
-    { x: M + 93, w: 24, h: "Kecocokan" },
-    { x: PAGE_W - M - 26, w: 24, h: "Contoh Prodi" },
+    { x: M, w: 6, h: "No" },
+    { x: M + 8, w: 56, h: "Jurusan" },
+    { x: M + 66, w: 16, h: "Kecocokan" },
+    { x: M + 84, w: W - 84, h: "Contoh Prodi" },
   ];
   const rowH = 10;
   // header tabel
