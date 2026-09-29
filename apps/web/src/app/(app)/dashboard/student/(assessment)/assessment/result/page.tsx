@@ -134,8 +134,11 @@ export default function TmbResultPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       notify.create("Laporan PDF siap", { description: "Cek folder unduhan kamu." });
-    } catch (_e) {
-      notify.error("Gagal membuat PDF 🙈", { description: "Coba sekali lagi ya." });
+    } catch (e) {
+      console.error("[report-pdf]", e);
+      notify.error("Gagal membuat PDF 🙈", {
+        description: (e as Error)?.message ? `Coba lagi ya — ${(e as Error)?.message}` : "Coba sekali lagi ya.",
+      });
     } finally {
       setDownloading(false);
     }

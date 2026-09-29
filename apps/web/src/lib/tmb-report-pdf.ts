@@ -122,12 +122,20 @@ function abilityBarRows(report: TmbReportData) {
 }
 
 export async function generateTmbReportPdf(report: TmbReportData): Promise<Blob> {
-  const { default: pdfMake } = await import("pdfmake/build/pdfmake");
-  const { default: pdfFonts } = await import("pdfmake/build/vfs_fonts");
-  // Bentuk ekspor berbeda antara bundler browser ({pdfMake:{vfs}}) vs Bun/Node (vfs langsung).
-  const vfs = (pdfFonts as any)?.pdfMake?.vfs ?? (pdfFonts as any);
-  (pdfMake as any).vfs = vfs;
-  (pdfMake as any).fonts = {
+  // Bentuk ekspor UMD berbeda-beda (Next/Webpack: module.exports; ESM default; Bun: default objek).
+  const pdfmod: any = await import("pdfmake/build/pdfmake");
+  const pdfMake: any = pdfmod.default ?? pdfmod;
+  if (!pdfMake || typeof pdfMake.createPdf !== "function") {
+    throw new Error("pdfmake gagal dimuat (createPdf tidak tersedia)");
+  }
+  const fontmod: any = await import("pdfmake/build/vfs_fonts");
+  const fnt: any = fontmod.default ?? fontmod;
+  const vfs = fnt?.pdfMake?.vfs ?? fnt;
+  if (!vfs || typeof vfs !== "object") {
+    throw new Error("vfs_fonts gagal dimuat");
+  }
+  pdfMake.vfs = vfs;
+  pdfMake.fonts = {
     Roboto: {
       normal: "Roboto-Regular.ttf",
       bold: "Roboto-Medium.ttf",
