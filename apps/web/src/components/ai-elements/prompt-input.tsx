@@ -815,7 +815,9 @@ export const PromptInput = ({
         type="file"
       />
       <form className={cn("w-full", className)} onSubmit={handleSubmit} ref={formRef} {...props}>
-        <InputGroup className="overflow-hidden">{children}</InputGroup>
+        <InputGroup className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          {children}
+        </InputGroup>
       </form>
     </>
   );
@@ -934,7 +936,10 @@ export const PromptInputTextarea = ({
 
   return (
     <InputGroupTextarea
-      className={cn("field-sizing-content max-h-48 min-h-16", className)}
+      className={cn(
+        "field-sizing-content max-h-32 min-h-9 px-2.5 py-1 text-[15px] leading-snug sm:max-h-44 sm:min-h-14 sm:px-3 sm:py-1.5 sm:text-base",
+        className,
+      )}
       name="message"
       onCompositionEnd={handleCompositionEnd}
       onCompositionStart={handleCompositionStart}
@@ -950,13 +955,13 @@ export const PromptInputTextarea = ({
 export type PromptInputHeaderProps = Omit<ComponentProps<typeof InputGroupAddon>, "align">;
 
 export const PromptInputHeader = ({ className, ...props }: PromptInputHeaderProps) => (
-  <InputGroupAddon align="block-end" className={cn("order-first flex-wrap gap-1", className)} {...props} />
+  <InputGroupAddon align="block-end" className={cn("order-first flex-wrap gap-0.5", className)} {...props} />
 );
 
 export type PromptInputFooterProps = Omit<ComponentProps<typeof InputGroupAddon>, "align">;
 
 export const PromptInputFooter = ({ className, ...props }: PromptInputFooterProps) => (
-  <InputGroupAddon align="block-end" className={cn("justify-between gap-1", className)} {...props} />
+  <InputGroupAddon align="block-end" className={cn("justify-between gap-1 py-1", className)} {...props} />
 );
 
 export type PromptInputToolsProps = HTMLAttributes<HTMLDivElement>;

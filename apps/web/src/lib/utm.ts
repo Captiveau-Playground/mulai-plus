@@ -128,3 +128,26 @@ export const MULAI_AI_UTM = {
 export function mulaiAiUrl(path: string, content: string): string {
   return buildUtmUrl(path, { ...MULAI_AI_UTM, content });
 }
+
+/**
+ * Pastikan href punya UTM tracking (source=mulaiplus_web, medium=front).
+ * - Skip hash/mailto/tel/javascript/data.
+ * - Tidak mengubah URL yang sudah punya utm_source.
+ * - campaign default = segmen halaman saat ini; content default = teks/posisi.
+ */
+export function ensureUtm(href: string, content = "front-link"): string {
+  if (!href || /^(#|mailto:|tel:|javascript:|data:)/i.test(href)) return href;
+  try {
+    const base = typeof window !== "undefined" ? window.location.origin : "https://mulaiplus.id";
+    const u = new URL(href, base);
+    if (u.searchParams.has("utm_source")) return href;
+    u.searchParams.set("utm_source", "mulaiplus_web");
+    u.searchParams.set("utm_medium", "front");
+    const seg = (u.pathname || "/").split("/").filter(Boolean).pop() || "home";
+    u.searchParams.set("utm_campaign", seg);
+    u.searchParams.set("utm_content", String(content || "link").slice(0, 64));
+    return u.toString();
+  } catch {
+    return href;
+  }
+}

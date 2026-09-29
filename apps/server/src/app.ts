@@ -1,6 +1,8 @@
 import { createContext } from "@mulai-plus/api/context-core";
 import { appRouter } from "@mulai-plus/api/routers/index";
 import type { createAuth } from "@mulai-plus/auth/create-auth";
+import { db, eq } from "@mulai-plus/db/db";
+import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import { env } from "@mulai-plus/env/server";
 import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { uploadRouter } from "@mulai-plus/r2";
@@ -38,6 +40,18 @@ export type CreateAppOptions = {
  * - Sentry init / restart endpoint / setInterval cron / server export → index.ts (Bun)
  * - Cron Trigger `scheduled` / Workers export / Hyperdrive → worker.ts
  */
+/**
+ * `c.executionCtx` getter THROWS ("This context has no ExecutionContext") di
+ * beberapa konteks Cloudflare Workers — akses harus di-guard, bukan optional-chain.
+ */
+function safeWaitUntil(c: unknown): ((p: Promise<unknown>) => void) | undefined {
+  try {
+    return (c as { executionCtx?: { waitUntil(p: Promise<unknown>): void } }).executionCtx?.waitUntil;
+  } catch {
+    return undefined;
+  }
+}
+
 export function createApp(options: CreateAppOptions) {
   const captureError = options.captureError ?? ((error: unknown) => console.error(error));
   const authInstance = options.authInstance;
@@ -80,13 +94,23 @@ export function createApp(options: CreateAppOptions) {
 
     // Notif Discord: user daftar (email sign-up sukses)
     const path = c.req.path;
-    const isSignupPost = c.req.method === "POST" && (path.endsWith("/sign-up/email") || path.endsWith("/sign-up"));
+    // Email sign-up + SSO sign-up (Google dsb). Callback OAuth tak punya body JSON,
+    // jadi baru bisa di-notify lewat jalur /sign-up/* (social/email/phone).
+    const isSignupPost =
+      c.req.method === "POST" &&
+      (path.endsWith("/sign-up") ||
+        path.endsWith("/sign-up/email") ||
+        path.endsWith("/sign-up/social") ||
+        path.endsWith("/sign-up/phone"));
     if (isSignupPost && res.ok) {
       const body = (await res
         .json()
         .then((b) => b as { user?: { id?: string; name?: string; email?: string } | undefined })
         .catch(() => null)) as { user?: { id?: string; name?: string; email?: string } } | null;
       const user = body?.user;
+      if (user?.id) {
+        console.log("[discord] user.registered →", user.email);
+      }
       if (user?.id) {
         const webhookUrl = (c.env as { DISCORD_WEBHOOK_URL?: string } | undefined)?.DISCORD_WEBHOOK_URL;
         notifyDiscord({
@@ -100,7 +124,7 @@ export function createApp(options: CreateAppOptions) {
             { name: "User ID", value: user.id, inline: false },
           ],
           throttleMs: 0,
-          waitUntil: (c as any).executionCtx?.waitUntil,
+          waitUntil: safeWaitUntil(c),
         });
         const headers = new Headers(res.headers);
         headers.delete("content-length");
@@ -144,8 +168,23 @@ export function createApp(options: CreateAppOptions) {
         const session = await authInstance.api.getSession({
           headers: c.req.raw.headers,
         });
-        if (!session?.user || session.user.role !== "admin") {
-          return c.json({ error: "Forbidden. Admin access required." }, 403);
+        if (!session?.user?.id) {
+          return c.json({ error: "Unauthorized. Please log in." }, 401);
+        }
+        // Role SEGAR dari DB — jangan percaya JWT (bisa stale setelah role berubah).
+        try {
+          const [u] = await db
+            .select({ role: userSchema.role })
+            .from(userSchema)
+            .where(eq(userSchema.id, session.user.id));
+          if (!u || u.role !== "admin") {
+            return c.json({ error: "Forbidden. Admin access required." }, 403);
+          }
+        } catch {
+          // DB error → fallback ke role sesi (jangan blok admin kalau DB transient)
+          if (session.user.role !== "admin") {
+            return c.json({ error: "Forbidden. Admin access required." }, 403);
+          }
         }
       } catch {
         return c.json({ error: "Unauthorized. Please log in." }, 401);
