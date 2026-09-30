@@ -48,6 +48,9 @@ export function useConsent() {
  * Modal consent cookie — tengah layar, gaya profesional (satu keputusan: setuju/tolak).
  * Hanya tampil saat user belum memutuskan.
  */
+const SHOW_DELAY_MS = 1100; // biar halaman seimbang dulu, baru muncul
+const SESSION_KEY = "mcc-last-shown";
+
 export function CookieConsentBanner({
   consent,
   onAccept,
@@ -57,7 +60,33 @@ export function CookieConsentBanner({
   onAccept: () => void;
   onReject: () => void;
 }) {
-  if (consent !== "undecided") return null;
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (consent !== "undecided") {
+      setVisible(false);
+      return;
+    }
+    // Jangan ganggu sebelum halaman stabil, dan minimal 45 dtk sejak terakhir tampil
+    let alive = true;
+    const t = setTimeout(() => {
+      try {
+        const last = Number(sessionStorage.getItem(SESSION_KEY) ?? 0);
+        if (!alive) return;
+        if (last && Date.now() - last < 45_000) return;
+        sessionStorage.setItem(SESSION_KEY, String(Date.now()));
+        setVisible(true);
+      } catch {
+        setVisible(true);
+      }
+    }, SHOW_DELAY_MS);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [consent]);
+
+  if (!visible) return null;
 
   return (
     <div
