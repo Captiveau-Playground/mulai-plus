@@ -424,22 +424,29 @@ function RelatedArticleCard({ article }: { article: any }) {
   return (
     <Link
       href={`/blog/articles/${article.slug}`}
-      className="group flex gap-4 rounded-xl border p-3 transition-all hover:border-brand-orange/30 hover:shadow-sm"
+      className="group flex flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:-translate-y-0.5 hover:border-brand-orange/40 hover:shadow-md"
     >
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
         {article.coverImageUrl ? (
-          <Image src={article.coverImageUrl} alt="" fill className="object-cover" sizes="80px" unoptimized />
+          <Image
+            src={article.coverImageUrl}
+            alt={article.title || "Artikel terkait"}
+            fill
+            className="object-cover transition duration-300 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, 320px"
+            unoptimized
+          />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <BookOpen className="h-5 w-5 text-brand-navy/30" />
+            <BookOpen className="h-10 w-10 text-brand-navy/20" />
           </div>
         )}
       </div>
-      <div className="min-w-0 flex-1">
-        <h4 className="line-clamp-2 font-bold font-bricolage text-brand-navy text-sm leading-snug transition-colors group-hover:text-brand-orange">
+      <div className="flex flex-1 flex-col p-4">
+        <h4 className="line-clamp-2 font-bold font-bricolage text-[15px] text-brand-navy leading-snug transition-colors group-hover:text-brand-orange">
           {article.title}
         </h4>
-        <p className="mt-1 font-manrope text-[11px] text-gray-400">
+        <p className="mt-2 mt-auto pt-2 font-manrope text-[11px] text-gray-400">
           {article.publishedAt && formatDate(article.publishedAt)}
           {article.author && ` · ${article.author.name.split(" ")[0]}`}
         </p>
@@ -449,49 +456,57 @@ function RelatedArticleCard({ article }: { article: any }) {
 }
 
 function SidebarPrograms() {
-  const { data: result } = useQuery(orpc.programs.public.list.queryOptions({ input: { limit: 3 } }));
-  const programs = (result?.data ?? []).slice(0, 3);
-  if (programs.length === 0) return null;
+  const services = [
+    {
+      href: "/assessment",
+      icon: "🧭",
+      title: "Tes Minat & Bakat",
+      desc: "Kenali jurusan & karier yang cocok.",
+      ctaAction: "Mulai Tes",
+    },
+    {
+      href: "/explore/ai-assistant",
+      icon: "🤖",
+      title: "AI Assistant Mul.ai",
+      desc: "Tanya apa saja seputar kuliahmu.",
+      ctaAction: "Tanya Mul.ai",
+    },
+  ];
   return (
     <div className="overflow-hidden rounded-xl bg-gradient-to-br from-brand-navy to-brand-navy/90 shadow-sm">
       <div className="border-white/10 border-b px-4 py-3">
         <h3 className="flex items-center gap-2 font-bold font-bricolage text-sm text-white">
-          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/20 text-xs">🎯</span>
-          Program Mentoring
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/20 text-xs">⚡</span>
+          Coba Layanan MULAI+
         </h3>
       </div>
       <div className="divide-y divide-white/10">
-        {programs.map((p: any) => (
+        {services.map((sv) => (
           <Link
-            key={p.id}
-            href={`/programs/${p.slug}`}
-            className="group flex items-start gap-3 px-4 py-3 no-underline transition-all hover:bg-white/5"
+            key={sv.title}
+            href={sv.href as any}
+            className="group flex items-center gap-3 px-4 py-3.5 no-underline transition-all hover:bg-white/5"
           >
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/10 ring-1 ring-white/10">
-              {p.bannerUrl ? (
-                <Image src={p.bannerUrl} alt="" fill className="object-cover" sizes="56px" unoptimized />
-              ) : (
-                <div className="flex h-full items-center justify-center">
-                  <BookOpen className="h-5 w-5 text-white/30" />
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1 pt-0.5">
-              <h4 className="line-clamp-2 font-bold font-bricolage text-white/90 text-xs leading-snug group-hover:text-white">
-                {p.name}
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-lg">
+              {sv.icon}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h4 className="line-clamp-1 font-bold font-bricolage text-white/95 text-xs leading-snug group-hover:text-white">
+                {sv.title}
               </h4>
-              {p.description && (
-                <p className="mt-0.5 line-clamp-1 font-manrope text-[10px] text-white/50">{p.description}</p>
-              )}
+              <p className="mt-0.5 line-clamp-1 font-manrope text-[10px] text-white/55">{sv.desc}</p>
             </div>
+            <span className="shrink-0 rounded-full bg-brand-orange px-2.5 py-1 font-manrope font-semibold text-[10px] text-white">
+              {sv.ctaAction}
+            </span>
           </Link>
         ))}
       </div>
       <Link
-        href="/programs"
+        href="/explore/ai-assistant"
         className="flex items-center justify-center gap-1 border-white/10 border-t py-2.5 font-manrope font-semibold text-[11px] text-brand-orange no-underline transition-all hover:bg-white/5"
       >
-        Lihat semua program<span>→</span>
+        Eksplor layanan kami<span>→</span>
       </Link>
     </div>
   );
