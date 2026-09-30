@@ -31,14 +31,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const dynamicPages: MetadataRoute.Sitemap = [];
 
-  // ── Landing provinsi (38 halaman statis) ───────────────────────────
-  try {
-    const { PROVINCES } = await import("@/lib/provinces");
-    for (const p of PROVINCES) {
-      dynamicPages.push({ url: `${baseUrl}/universitas/${p.slug}`, changeFrequency: "monthly", priority: 0.6 });
-    }
-  } catch {}
-
   try {
     const { client } = await import("@/lib/client");
 
