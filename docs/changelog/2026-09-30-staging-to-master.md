@@ -1,23 +1,19 @@
-# Release — Mul.ai, Laporan PDF & Perbaikan Kinerja DB
+# Yang baru di MULAI+
 
-> Dari branch staging → master (31 komit). Bersiap untuk rilis produksi.
+Hi! Terima kasih sudah pakai MULAI+. Ini yang baru di versi kali ini:
 
-## ✨ Baru
-- **Laporan PDF Test Minat & Bakat dirombak total** — kini di-render sebagai dokumen HTML yang rapi lalu di-export via *Print → Save as PDF* (font & layout asli browser, teks bisa dicopy, link aktif):
-  - Header dengan **logo MULAI+**, identitas (nama, email, sekolah), bar RIASEC & Bakat dengan **penjelasan per baris** (deskripsi tiap huruf RIASEC & tiap dimensi bakat + contoh karier/jurusan).
-  - Rekomendasi dalam **tabel** (No · Jurusan · Kecocokan · Contoh Prodi) — prodi bisa **klik** langsung ke halaman explore terkait.
-  - **QR tanda tangan digital** terhubung modul E-Sign (ditandatangani oleh **System — Product**; token HMAC per siswa; muncul di Admin E-Sign), footer + nomor halaman, kotak **Penutup** (batas laporan non-psikologis), ukuran kompak (~2 halaman).
-- Prosedur baru **`esign.signTmbReport`** — audit trail otomatis di modul e-sign untuk laporan siswa.
+## 📄 Laporan Hasil Tes Minat & Bakat — sekarang jauh lebih rapi & lengkap
+- Laporan tampil lebih rapi dengan **logo MULAI+**, nama, email, dan sekolah kamu.
+- Grafik minat & bakat kini **dijelaskan satu-satu** — setiap huruf (R, I, A, S, E, C) dan tiap kemampuan punya deskripsi singkat plus contoh karier/jurusannya.
+- Rekomendasi jurusan dibuat dalam **tabel yang jelas**, dan nama prodi **bisa diklik** untuk langsung lihat detailnya di Explore.
+- Ada **tanda tangan digital (QR)** di laporan — scan untuk verifikasi keaslian dokumen.
+- Laporan jadi lebih ringkas — umumnya cukup **2 halaman**, dan ada *Penutup* yang menjelaskan batas-batas informasi tes.
 
-## ⚡ Perbaikan Kinerja (Batch 1 — database)
-- **Session lookup tidak lagi menyentuh DB** saat tidak ada cookie auth — route publik jadi tanpa beban koneksi.
-- **Cache** untuk `features.get`, Admin Stats, & Leaderboard Ability (TTL 60 dtk) — mengurangi puluhan-ratusan query berulang (termasuk `count(*)` yang 22 detik & `system_settings` yang 222×).
-- **Index baru**: `lower(name)+status` untuk pencarian/grouping program studi & universitas (query explore 24–38s), `session(token)`.
-- **Cron worker API 1 mnt → 5 mnt** — mengurangi handshake koneksi ke database (beban CPU/IO).
+## 🚀 Website lebih cepat
+- Halaman publik (beranda, explore, ranking) sekarang **jauh lebih ringan** — tidak menunggu proses di belakang layar, jadi lebih responsif.
+- Halaman admin & dashboard juga lebih ringan saat dimuat.
 
-## 🛠 Perbaikan & build
-- Kembalikan dependency `jspdf` untuk laporan mentoring (`summary-report-pdf`) — OpenNext/CI build hijau kembali.
-- Berbagai perbaikan kecil pada render laporan (warna kontras, spacing antar section, QR lebih besar & scanable).
+## 🛠 Perbaikan
+- Perbaikan berbagai hal kecil biar pengalaman pakai MULAI+ makin nyaman.
 
-## ⚠️ Catatan produksi
-- Sebelum/bersamaan rilis: pastikan **index baru di-apply ke DB** (CI menjalankan `optimize:io`) dan pertimbangkan **upgrade plan database** mengingat CPU/IO 100% di instance saat ini.
+**Selamat mengeksplorasi masa depanmu!** 💙
