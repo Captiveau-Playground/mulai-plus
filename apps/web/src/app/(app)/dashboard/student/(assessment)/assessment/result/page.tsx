@@ -11,7 +11,7 @@ import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { buildResultMindMap } from "@/lib/future-career";
-import { generateTmbReportPdf } from "@/lib/tmb-report-pdf";
+import { printTmbReport } from "@/lib/tmb-report-print";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -48,6 +48,7 @@ export default function TmbResultPage() {
   const [downloading, setDownloading] = useState(false);
   const { data: session } = authClient.useSession();
   const searchParams = useSearchParams();
+
   const resultId = searchParams.get("resultId") ?? undefined;
   const { data, isLoading } = useQuery({
     ...orpc.tmb.result.get.queryOptions({ input: { resultId } }),
@@ -108,8 +109,10 @@ export default function TmbResultPage() {
     if (downloading) return;
     setDownloading(true);
     try {
-      const blob = await generateTmbReportPdf({
+      await printTmbReport({
         studentName: session?.user?.name ?? "",
+        studentId: session?.user?.id ?? null,
+        email: session?.user?.email ?? null,
         schoolName: data?.profile?.schoolName ?? null,
         hollandCode,
         hollandScores,
@@ -120,22 +123,17 @@ export default function TmbResultPage() {
         majors: majors.map((m: any) => ({
           itemName: m.itemName,
           confidence: m.confidence,
-          prodiRefs: m.prodiRefs,
+          prodiRefs: m.prodiRefs ?? [],
         })),
         careers: careers.map((c: any) => c.itemName),
-        summary: data?.summary,
+        summary: data?.summary ?? null,
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `assessment-report-${hollandCode}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      notify.create("Laporan PDF siap", { description: "Cek folder unduhan kamu." });
-    } catch (_e) {
-      notify.error("Gagal membuat PDF 🙈", { description: "Coba sekali lagi ya." });
+      notify.create("Cetak / Unduh PDF", { description: "Pilih 'Simpan sebagai PDF' di dialog printer." });
+    } catch (e) {
+      console.error("[report-pdf]", e);
+      notify.error("Gagal membuat PDF 🙈", {
+        description: (e as Error)?.message ? `Coba lagi ya — ${(e as Error)?.message}` : "Coba sekali lagi ya.",
+      });
     } finally {
       setDownloading(false);
     }

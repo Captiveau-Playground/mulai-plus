@@ -31,9 +31,14 @@ function safeEnv(context: unknown): Record<string, unknown> | undefined {
  * The auth instance is always injected explicitly.
  */
 export async function createContext({ context, auth }: { context: HonoContext; auth: AuthInstance }) {
-  const session = await auth.api.getSession({
-    headers: context.req.raw.headers,
-  });
+  // HEMAT DB: tanpa cookie session tidak perlu query better-auth (churn koneksi/CPU).
+  let session: Awaited<ReturnType<AuthInstance["api"]["getSession"]>> | null = null;
+  const cookieHeader = context.req.raw.headers.get("cookie") ?? "";
+  if (cookieHeader.includes("session_token")) {
+    session = await auth.api.getSession({
+      headers: context.req.raw.headers,
+    });
+  }
   return {
     session,
     headers: context.req.raw.headers,

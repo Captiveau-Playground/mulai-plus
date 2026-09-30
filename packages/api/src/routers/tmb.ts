@@ -436,6 +436,9 @@ async function syncCatalogTotal(testCode: "interest" | "ability") {
 
 // ─── Router ──────────────────────────────────────────────
 
+let lbCache: any = null;
+let lbCacheTs = 0;
+
 export const tmbRouter = {
   profile: {
     get: protectedProcedure.handler(async ({ context }) => {
@@ -470,7 +473,9 @@ export const tmbRouter = {
     /** Papan peringkat Test Bakat — publik; nama disensor (inisial + ***), email tak pernah dikirim.
      *  Per user: attempt ability terbaik (skor = jawaban benar, tie-break waktu tercepat). */
     ability: publicProcedure.handler(async ({ context }) => {
-      const viewerId = context.session?.user?.id ?? null;
+      const nowMs = Date.now();
+      if (lbCacheTs > nowMs) return lbCache;
+      const viewerId = (context as any)?.session?.user?.id ?? null;
       const rows = (await db.execute(sql`
         WITH sc AS (
           SELECT a.user_id, a.id,
@@ -507,7 +512,9 @@ export const tmbRouter = {
           isSelf: !!viewerId && r.user_id === viewerId,
         };
       });
-      return { updatedAt: new Date().toISOString(), entries: list };
+      lbCache = { updatedAt: new Date().toISOString(), entries: list };
+      lbCacheTs = Date.now() + 60_000;
+      return lbCache;
     }),
   },
 
