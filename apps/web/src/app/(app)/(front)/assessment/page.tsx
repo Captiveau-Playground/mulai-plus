@@ -4,10 +4,8 @@ import {
   CheckCircle2,
   Compass,
   FileText,
-  FlaskConical,
   Map as MapIcon,
   MessageCircle,
-  Palette,
   Quote,
   Sparkles,
   Target,
@@ -17,6 +15,7 @@ import {
 import Link from "next/link";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
+import { AssessmentMock } from "@/components/front/assessment-mock";
 import { AssessmentEngineSection } from "@/components/front/assessment-usp";
 
 const WA_LINK =
@@ -121,62 +120,7 @@ export default function AssessmentLandingPage() {
 
             {/* Mockup */}
             <Reveal delay={0.15} className="relative mx-auto w-full max-w-lg lg:max-w-none">
-              <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-2xl shadow-brand-navy/10">
-                <div className="flex items-center gap-1.5 border-gray-100 border-b bg-gray-50/80 px-4 py-3">
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-                  <div className="mx-auto flex items-center gap-1.5 rounded-md bg-white px-3 py-1 font-manrope text-[10px] text-gray-400">
-                    <span className="h-2 w-2 rounded-full bg-teal-500" /> assessment
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
-                      <div className="h-full w-[60%] rounded-full bg-teal-500" />
-                    </div>
-                    <span className="font-manrope font-semibold text-gray-400 text-xs">6/10</span>
-                  </div>
-
-                  <p className="mt-5 font-manrope font-semibold text-teal-600 text-xs uppercase tracking-wide">
-                    Tes Minat
-                  </p>
-                  <h3 className="mt-1 font-bold font-bricolage text-gray-900 text-lg">
-                    Kamu lebih suka bekerja dengan…
-                  </h3>
-
-                  <div className="mt-4 space-y-2.5">
-                    <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-3.5 transition-colors hover:border-teal-500/50">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                        <FlaskConical className="h-4 w-4" />
-                      </span>
-                      <span className="font-manrope text-gray-700 text-sm">Data dan eksperimen ilmiah</span>
-                    </div>
-                    <div className="flex items-center gap-3 rounded-xl border-2 border-teal-500 bg-teal-500/5 p-3.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-white">
-                        <Palette className="h-4 w-4" />
-                      </span>
-                      <span className="font-manrope font-medium text-gray-800 text-sm">Ide kreatif dan visual</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between rounded-xl bg-gray-50 p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white font-bold text-[10px] text-gray-500">
-                        I
-                      </span>
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white font-bold text-[10px] text-gray-500">
-                        A
-                      </span>
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white font-bold text-[10px] text-gray-500">
-                        S
-                      </span>
-                    </div>
-                    <span className="font-manrope text-[10px] text-gray-400">Kode minatmu</span>
-                  </div>
-                </div>
-              </div>
+              <AssessmentMock />
             </Reveal>
           </div>
         </div>
