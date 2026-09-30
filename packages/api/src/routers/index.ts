@@ -25,6 +25,11 @@ import { testimonialsRouter } from "./testimonials";
 import { tmbAdminRouter, tmbRouter } from "./tmb";
 import { userRouter } from "./user";
 
+let featuresCache: { chatbot_enabled: boolean } = { chatbot_enabled: false };
+let featuresCacheTs = 0;
+let adminStatsCache: any = null;
+let adminStatsCacheTs = 0;
+
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
@@ -33,6 +38,8 @@ export const appRouter = {
   settings: settingsRouter,
   features: {
     get: publicProcedure.handler(async () => {
+      const nowMs = Date.now();
+      if (featuresCacheTs > nowMs) return featuresCache;
       try {
         const setting = await db.query.systemSettings.findFirst({
           where: eq(systemSettings.key, "feature_flags"),
@@ -43,7 +50,9 @@ export const appRouter = {
       } catch {
         // DB unavailable
       }
-      return { chatbot_enabled: process.env.CHATBOT_ENABLED === "true" };
+      featuresCache = { chatbot_enabled: process.env.CHATBOT_ENABLED === "true" };
+      featuresCacheTs = nowMs;
+      return featuresCache;
     }),
     set: adminProcedure
       .input(
@@ -104,6 +113,8 @@ export const appRouter = {
     };
   }),
   getAdminStats: protectedProcedure.handler(async () => {
+    const nowMs = Date.now();
+    if (adminStatsCacheTs > nowMs) return adminStatsCache;
     const [totalUsers] = await db.select({ count: count() }).from(user);
     const [activeSessions] = await db.select({ count: count() }).from(session);
     const [bannedUsers] = await db.select({ count: count() }).from(user).where(eq(user.banned, true));
@@ -189,7 +200,7 @@ export const appRouter = {
       })(),
     ]);
 
-    return {
+    const out = {
       totalUsers: totalUsers?.count ?? 0,
       activeSessions: activeSessions?.count ?? 0,
       bannedUsers: bannedUsers?.count ?? 0,
@@ -202,6 +213,9 @@ export const appRouter = {
       assessment: assess,
       ai: aiRows,
     };
+    adminStatsCache = out;
+    adminStatsCacheTs = Date.now() + 60_000;
+    return out;
   }),
   role: {
     list: protectedProcedure.handler(async () => {
