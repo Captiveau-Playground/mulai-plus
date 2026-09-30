@@ -521,6 +521,17 @@ body {
   60% { transform: scale(1.15); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+@keyframes mindmap-pop {
+  0% { opacity: 0; transform: translateX(-8px) scale(0.92); }
+  70% { opacity: 1; transform: translateX(2px) scale(1.02); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes mindmap-flow {
+  0% { left: 0; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: 96%; opacity: 0; }
+}
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-5px); }

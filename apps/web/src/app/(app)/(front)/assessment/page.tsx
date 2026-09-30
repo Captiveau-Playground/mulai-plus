@@ -16,7 +16,9 @@ import Link from "next/link";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentMock } from "@/components/front/assessment-mock";
+import { AssessmentReportPreview } from "@/components/front/assessment-report-preview";
 import { AssessmentEngineSection } from "@/components/front/assessment-usp";
+import { CareerPathMap } from "@/components/front/career-path-map";
 
 const WA_LINK =
   "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20jadwalkan%20demo%20Test%20Minat%20Bakat%20untuk%20sekolah%20kami";
@@ -326,7 +328,7 @@ export default function AssessmentLandingPage() {
                   <p className="font-manrope text-[11px] text-gray-400">Permintaan</p>
                   <p className="font-manrope font-semibold text-gray-800 text-sm">"aku mau jadi game developer"</p>
                 </div>
-                <MiniMindMap />
+                <CareerPathMap />
               </div>
             </Reveal>
           </div>
@@ -357,6 +359,51 @@ export default function AssessmentLandingPage() {
             </StaggerItem>
           ))}
         </StaggerGroup>
+      </section>
+
+      {/* ── PREVIEW LAPORAN ── */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <Reveal>
+              <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">Hasilnya</p>
+              <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight md:text-4xl">
+                Langsung Dapat{" "}
+                <span className="relative">
+                  <span className="relative z-10">Laporan Lengkap</span>
+                  <span className="absolute inset-x-0 bottom-1 z-0 h-3 rounded-sm bg-teal-500/20" aria-hidden />
+                </span>
+              </h2>
+              <p className="mt-4 font-manrope text-gray-500">
+                Begitu selesai, laporanmu langsung tersusun: kode Holland (RIASEC), skor bakat, daftar jurusan &amp;
+                kampus yang paling cocok — semua dalam satu halaman PDF yang bisa kamu simpan dan tunjukkan ke orang tua
+                atau guru BK.
+              </p>
+              <ul className="mt-5 space-y-2">
+                {[
+                  "Kode minat 3 huruf + penjelasan per tipe",
+                  "Skor bakat & analisis singkat",
+                  "Rekomendasi jurusan + link explore",
+                  "Tanda tangan elektronik & QR verifikasi",
+                ].map((t) => (
+                  <li key={t} className="flex items-center gap-2.5 font-manrope text-gray-600 text-sm">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-mentor-teal" /> {t}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
+                className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-navy px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-navy/15 shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
+              >
+                Cobain Sekarang
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+            </Reveal>
+            <Reveal delay={0.15} className="mx-auto w-full max-w-lg lg:max-w-none">
+              <AssessmentReportPreview />
+            </Reveal>
+          </div>
+        </div>
       </section>
 
       {/* ── TESTIMONIAL ── */}
@@ -492,59 +539,6 @@ export default function AssessmentLandingPage() {
           </Reveal>
         </div>
       </section>
-    </div>
-  );
-}
-function MiniMindMap() {
-  const branch = (x: number, y: number, color: string, label: string, sub: string) => (
-    <g>
-      <path
-        d={`M 36 62 C ${x - 60} 62, ${x - 24} ${y + 20}, ${x} ${y + 20}`}
-        stroke={color}
-        strokeWidth="2"
-        fill="none"
-        strokeOpacity="0.45"
-      />
-      <rect x={x} y={y} width={126} height={40} rx="8" fill="white" stroke={color} strokeWidth="1.4" />
-      <text x={x + 10} y={y + 17} fontSize="11" fontWeight="700" fill="#1a1f6d" fontFamily="Manrope, sans-serif">
-        {label}
-      </text>
-      <text x={x + 10} y={y + 32} fontSize="9" fill="#6b7280" fontFamily="Manrope, sans-serif">
-        {sub}
-      </text>
-    </g>
-  );
-
-  return (
-    <div className="mt-3 rounded-xl border border-gray-100 p-2">
-      <svg viewBox="0 0 330 150" className="h-auto w-full" aria-label="Contoh peta jalur karir">
-        <rect x="0" y="38" width="72" height="48" rx="10" fill="#1a1f6d" />
-        <text
-          x="36"
-          y="58"
-          textAnchor="middle"
-          fontSize="10"
-          fontWeight="700"
-          fill="#fff"
-          fontFamily="Manrope, sans-serif"
-        >
-          Game
-        </text>
-        <text
-          x="36"
-          y="72"
-          textAnchor="middle"
-          fontSize="9"
-          fontWeight="600"
-          fill="#fe9114"
-          fontFamily="Manrope, sans-serif"
-        >
-          Developer
-        </text>
-        {branch(104, 14, "#1a1f6d", "Teknik Informatika", "3 prodi · 5 kampus")}
-        {branch(104, 96, "#0d9488", "Desain & DKV", "4 prodi · 6 kampus")}
-        {branch(196, 55, "#7c3aed", "Ilmu Komunikasi", "2 prodi · 4 kampus")}
-      </svg>
     </div>
   );
 }

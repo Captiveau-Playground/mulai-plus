@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
+import { CareerPathMap } from "@/components/front/career-path-map";
 import { trackEvent } from "@/lib/analytics";
 
 const STEPS = [
@@ -55,92 +56,6 @@ const REASONS = [
     desc: "Coba berbagai karir impian sebanyak yang kamu mau — kapan saja.",
   },
 ];
-
-function MindMapMock() {
-  const branch = (x: number, y: number, w: number, h: number, color: string, label: string, sub: string) => (
-    <g>
-      <path
-        d={`M 42 96 C ${x - 70} 96, ${x - 30} ${y + h / 2}, ${x} ${y + h / 2}`}
-        stroke={color}
-        strokeWidth="2"
-        fill="none"
-        strokeOpacity="0.5"
-      />
-      <rect x={x} y={y} width={w} height={h} rx="10" fill="white" stroke={color} strokeWidth="1.5" />
-      <text x={x + 12} y={y + 22} fontSize="13" fontWeight="700" fill="#1a1f6d" fontFamily="Manrope, sans-serif">
-        {label}
-      </text>
-      <text x={x + 12} y={y + 40} fontSize="10.5" fill="#6b7280" fontFamily="Manrope, sans-serif">
-        {sub}
-      </text>
-    </g>
-  );
-
-  return (
-    <svg viewBox="0 0 640 192" className="h-auto w-full" aria-label="Contoh peta jalur karir">
-      <rect x="0" y="66" width="84" height="60" rx="14" fill="#1a1f6d" />
-      <text
-        x="42"
-        y="96"
-        textAnchor="middle"
-        fontSize="12"
-        fontWeight="700"
-        fill="#fff"
-        fontFamily="Manrope, sans-serif"
-      >
-        Game
-      </text>
-      <text
-        x="42"
-        y="112"
-        textAnchor="middle"
-        fontSize="10"
-        fontWeight="600"
-        fill="#fe9114"
-        fontFamily="Manrope, sans-serif"
-      >
-        Developer
-      </text>
-
-      {branch(120, 14, 150, 52, "#1a1f6d", "Teknik Informatika", "3 prodi · 5 kampus")}
-      {branch(120, 126, 150, 52, "#0d9488", "Desain & DKV", "4 prodi · 6 kampus")}
-
-      <g>
-        <path
-          d={`M 42 96 C 300 96, 330 ${14 + 26}, 360 ${14 + 26}`}
-          stroke="#7c3aed"
-          strokeWidth="2"
-          fill="none"
-          strokeOpacity="0.5"
-        />
-        <rect x={360} y={14} width={150} height={52} rx="10" fill="white" stroke="#7c3aed" strokeWidth="1.5" />
-        <text x={372} y={36} fontSize="13" fontWeight="700" fill="#1a1f6d" fontFamily="Manrope, sans-serif">
-          Ilmu Komunikasi
-        </text>
-        <text x={372} y={54} fontSize="10.5" fill="#6b7280" fontFamily="Manrope, sans-serif">
-          2 prodi · 4 kampus
-        </text>
-      </g>
-
-      <g>
-        <path
-          d={`M 270 ${14 + 26} C 420 ${14 + 26}, 440 ${146}, 500 ${146}`}
-          stroke="#fe9114"
-          strokeWidth="1.5"
-          fill="none"
-          strokeOpacity="0.45"
-        />
-        <rect x={500} y={122} width={120} height={48} rx="10" fill="#fff8f0" stroke="#fe9114" strokeWidth="1.2" />
-        <text x={512} y={143} fontSize="11.5" fontWeight="700" fill="#1a1f6d" fontFamily="Manrope, sans-serif">
-          Software Engineer
-        </text>
-        <text x={512} y={160} fontSize="10" fill="#6b7280" fontFamily="Manrope, sans-serif">
-          jalur paling dekat
-        </text>
-      </g>
-    </svg>
-  );
-}
 
 export default function FutureCareerLandingPage() {
   return (
@@ -222,7 +137,7 @@ export default function FutureCareerLandingPage() {
                   <p className="font-manrope font-semibold text-gray-800 text-sm">"aku mau jadi game developer"</p>
                 </div>
                 <div className="mt-3">
-                  <MindMapMock />
+                  <CareerPathMap />
                 </div>
                 <div className="mt-3 flex items-start gap-2 rounded-xl border border-teal-100 bg-teal-50/60 p-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
