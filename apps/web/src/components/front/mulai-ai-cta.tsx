@@ -37,6 +37,7 @@ export function MulAiCta({
     <Link href={mulaiAiUrl(to, content) as any}>
       <button
         type="button"
+        data-tracked="1"
         onClick={() =>
           trackEvent("mul_ai_cta_click", {
             campaign: "mulaiai_launch",
