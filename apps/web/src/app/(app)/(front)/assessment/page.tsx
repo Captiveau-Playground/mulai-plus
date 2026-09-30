@@ -4,10 +4,8 @@ import {
   CheckCircle2,
   Compass,
   FileText,
-  FlaskConical,
   Map as MapIcon,
   MessageCircle,
-  Palette,
   Quote,
   Sparkles,
   Target,
@@ -17,7 +15,11 @@ import {
 import Link from "next/link";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
+import { AssessmentMock } from "@/components/front/assessment-mock";
+import { TestimonialCarousel } from "@/components/front/testimonial-carousel";
+import { AssessmentReportPreview } from "@/components/front/assessment-report-preview";
 import { AssessmentEngineSection } from "@/components/front/assessment-usp";
+import { CareerPathMap } from "@/components/front/career-path-map";
 
 const WA_LINK =
   "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20jadwalkan%20demo%20Test%20Minat%20Bakat%20untuk%20sekolah%20kami";
@@ -121,62 +123,7 @@ export default function AssessmentLandingPage() {
 
             {/* Mockup */}
             <Reveal delay={0.15} className="relative mx-auto w-full max-w-lg lg:max-w-none">
-              <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-2xl shadow-brand-navy/10">
-                <div className="flex items-center gap-1.5 border-gray-100 border-b bg-gray-50/80 px-4 py-3">
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
-                  <div className="mx-auto flex items-center gap-1.5 rounded-md bg-white px-3 py-1 font-manrope text-[10px] text-gray-400">
-                    <span className="h-2 w-2 rounded-full bg-teal-500" /> assessment
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
-                      <div className="h-full w-[60%] rounded-full bg-teal-500" />
-                    </div>
-                    <span className="font-manrope font-semibold text-gray-400 text-xs">6/10</span>
-                  </div>
-
-                  <p className="mt-5 font-manrope font-semibold text-teal-600 text-xs uppercase tracking-wide">
-                    Tes Minat
-                  </p>
-                  <h3 className="mt-1 font-bold font-bricolage text-gray-900 text-lg">
-                    Kamu lebih suka bekerja dengan…
-                  </h3>
-
-                  <div className="mt-4 space-y-2.5">
-                    <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-3.5 transition-colors hover:border-teal-500/50">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                        <FlaskConical className="h-4 w-4" />
-                      </span>
-                      <span className="font-manrope text-gray-700 text-sm">Data dan eksperimen ilmiah</span>
-                    </div>
-                    <div className="flex items-center gap-3 rounded-xl border-2 border-teal-500 bg-teal-500/5 p-3.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-white">
-                        <Palette className="h-4 w-4" />
-                      </span>
-                      <span className="font-manrope font-medium text-gray-800 text-sm">Ide kreatif dan visual</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between rounded-xl bg-gray-50 p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white font-bold text-[10px] text-gray-500">
-                        I
-                      </span>
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white font-bold text-[10px] text-gray-500">
-                        A
-                      </span>
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white font-bold text-[10px] text-gray-500">
-                        S
-                      </span>
-                    </div>
-                    <span className="font-manrope text-[10px] text-gray-400">Kode minatmu</span>
-                  </div>
-                </div>
-              </div>
+              <AssessmentMock />
             </Reveal>
           </div>
         </div>
@@ -255,7 +202,7 @@ export default function AssessmentLandingPage() {
                   aria-hidden
                 />
                 <div className="relative">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 transition-transform group-hover:animate-[icon-wiggle_0.5s_ease]">
                     <Compass className="h-5 w-5" />
                   </div>
                   <h3 className="mt-5 font-bold font-bricolage text-gray-900 text-xl">Tes Minat</h3>
@@ -263,10 +210,11 @@ export default function AssessmentLandingPage() {
                     Model Holland RIASEC — 10 soal untuk menemukan 6 tipe minat yang membentuk arah jurusanmu.
                   </p>
                   <div className="mt-5 flex items-center gap-1.5">
-                    {["R", "I", "A", "S", "E", "C"].map((c) => (
+                    {["R", "I", "A", "S", "E", "C"].map((c, ci) => (
                       <span
                         key={c}
                         className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 font-bold font-bricolage text-gray-500 text-xs"
+                        style={{ animation: `chip-pop 0.35s ease both ${ci * 0.07}s` }}
                       >
                         {c}
                       </span>
@@ -382,7 +330,7 @@ export default function AssessmentLandingPage() {
                   <p className="font-manrope text-[11px] text-gray-400">Permintaan</p>
                   <p className="font-manrope font-semibold text-gray-800 text-sm">"aku mau jadi game developer"</p>
                 </div>
-                <MiniMindMap />
+                <CareerPathMap />
               </div>
             </Reveal>
           </div>
@@ -399,12 +347,17 @@ export default function AssessmentLandingPage() {
         </Reveal>
 
         <StaggerGroup className="relative mt-12 grid gap-8 md:grid-cols-3">
-          <div className="absolute top-6 right-[16%] left-[16%] hidden h-px bg-gray-200 md:block" aria-hidden />
+          <div className="absolute top-6 right-[16%] left-[16%] hidden h-px bg-gray-200 md:block" aria-hidden>
+            <span
+              className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-teal-500"
+              style={{ animation: "dot-flow 3s linear infinite" }}
+            />
+          </div>
           {STEPS.map((s, i) => (
-            <StaggerItem key={s.title} className="relative text-center">
-              <div className="relative mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm">
+            <StaggerItem key={s.title} className="group relative text-center">
+              <div className="relative mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm transition-transform group-hover:animate-[icon-wiggle_0.5s_ease]">
                 <s.icon className="h-5 w-5" />
-                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-navy font-bold font-manrope text-[10px] text-white">
+                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-navy font-bold font-manrope text-[10px] text-white transition-transform group-hover:scale-125">
                   {i + 1}
                 </span>
               </div>
@@ -415,23 +368,55 @@ export default function AssessmentLandingPage() {
         </StaggerGroup>
       </section>
 
+      {/* ── PREVIEW LAPORAN ── */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <Reveal>
+              <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">Hasilnya</p>
+              <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight md:text-4xl">
+                Langsung Dapat{" "}
+                <span className="relative">
+                  <span className="relative z-10">Laporan Lengkap</span>
+                  <span className="absolute inset-x-0 bottom-1 z-0 h-3 rounded-sm bg-teal-500/20" aria-hidden />
+                </span>
+              </h2>
+              <p className="mt-4 font-manrope text-gray-500">
+                Begitu selesai, laporanmu langsung tersusun: kode Holland (RIASEC), skor bakat, daftar jurusan &amp;
+                kampus yang paling cocok — semua dalam satu halaman PDF yang bisa kamu simpan dan tunjukkan ke orang tua
+                atau guru BK.
+              </p>
+              <ul className="mt-5 space-y-2">
+                {[
+                  "Kode minat 3 huruf + penjelasan per tipe",
+                  "Skor bakat & analisis singkat",
+                  "Rekomendasi jurusan + link explore",
+                  "Tanda tangan elektronik & QR verifikasi",
+                ].map((t) => (
+                  <li key={t} className="flex items-center gap-2.5 font-manrope text-gray-600 text-sm">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-mentor-teal" /> {t}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
+                className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-navy px-7 py-4 font-bold font-bricolage text-base text-white shadow-brand-navy/15 shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98]"
+              >
+                Cobain Sekarang
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+            </Reveal>
+            <Reveal delay={0.15} className="mx-auto w-full max-w-lg lg:max-w-none">
+              <AssessmentReportPreview />
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
       {/* ── TESTIMONIAL ── */}
       <section className="border-gray-100 border-y bg-gray-50/60">
-        <Reveal className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 md:py-24">
-          <Quote className="mx-auto h-8 w-8 text-teal-500/40" />
-          <blockquote className="mt-6 font-bold font-bricolage text-gray-900 text-xl leading-relaxed md:text-2xl">
-            "Aku sempat bingung antara Kedokteran dan Teknik Informatika. Setelah ikut test ini, rekomendasinya
-            menegaskan kalau investigatif + teknis adalah kombinasi yang cocok untukku."
-          </blockquote>
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-navy font-bold font-bricolage text-sm text-white">
-              R
-            </div>
-            <div className="text-left">
-              <p className="font-bold font-manrope text-gray-900 text-sm">Raka</p>
-              <p className="font-manrope text-gray-500 text-xs">Siswa kelas 12, hasil kode IAC</p>
-            </div>
-          </div>
+        <Reveal>
+          <TestimonialCarousel />
         </Reveal>
       </section>
 
@@ -446,7 +431,11 @@ export default function AssessmentLandingPage() {
 
         <Reveal delay={0.1} className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
           {/* B2C */}
-          <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-8">
+          <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:-translate-y-0.5 hover:shadow-lg">
+            <span
+              className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+              aria-hidden
+            />
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-teal-500/10 px-3 py-1 font-bold font-manrope text-[11px] text-teal-700">
                 UNTUK DIRI SENDIRI
@@ -542,65 +531,12 @@ export default function AssessmentLandingPage() {
                 href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
                 className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 font-bold font-bricolage text-base text-brand-navy shadow-lg transition-all hover:bg-amber-50 active:scale-[0.98]"
               >
-                Mulai Test Sekarang <ArrowRight className="h-5 w-5" />
+                Mulai Test Sekarang <ArrowRight className="h-5 w-5 animate-[bob_1.2s_ease-in-out_infinite]" />
               </Link>
             </div>
           </Reveal>
         </div>
       </section>
-    </div>
-  );
-}
-function MiniMindMap() {
-  const branch = (x: number, y: number, color: string, label: string, sub: string) => (
-    <g>
-      <path
-        d={`M 36 62 C ${x - 60} 62, ${x - 24} ${y + 20}, ${x} ${y + 20}`}
-        stroke={color}
-        strokeWidth="2"
-        fill="none"
-        strokeOpacity="0.45"
-      />
-      <rect x={x} y={y} width={126} height={40} rx="8" fill="white" stroke={color} strokeWidth="1.4" />
-      <text x={x + 10} y={y + 17} fontSize="11" fontWeight="700" fill="#1a1f6d" fontFamily="Manrope, sans-serif">
-        {label}
-      </text>
-      <text x={x + 10} y={y + 32} fontSize="9" fill="#6b7280" fontFamily="Manrope, sans-serif">
-        {sub}
-      </text>
-    </g>
-  );
-
-  return (
-    <div className="mt-3 rounded-xl border border-gray-100 p-2">
-      <svg viewBox="0 0 330 150" className="h-auto w-full" aria-label="Contoh peta jalur karir">
-        <rect x="0" y="38" width="72" height="48" rx="10" fill="#1a1f6d" />
-        <text
-          x="36"
-          y="58"
-          textAnchor="middle"
-          fontSize="10"
-          fontWeight="700"
-          fill="#fff"
-          fontFamily="Manrope, sans-serif"
-        >
-          Game
-        </text>
-        <text
-          x="36"
-          y="72"
-          textAnchor="middle"
-          fontSize="9"
-          fontWeight="600"
-          fill="#fe9114"
-          fontFamily="Manrope, sans-serif"
-        >
-          Developer
-        </text>
-        {branch(104, 14, "#1a1f6d", "Teknik Informatika", "3 prodi · 5 kampus")}
-        {branch(104, 96, "#0d9488", "Desain & DKV", "4 prodi · 6 kampus")}
-        {branch(196, 55, "#7c3aed", "Ilmu Komunikasi", "2 prodi · 4 kampus")}
-      </svg>
     </div>
   );
 }

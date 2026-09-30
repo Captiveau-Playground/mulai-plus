@@ -141,6 +141,9 @@ export function ensureUtm(href: string, content = "front-link"): string {
     const base = typeof window !== "undefined" ? window.location.origin : "https://mulaiplus.id";
     const u = new URL(href, base);
     if (u.searchParams.has("utm_source")) return href;
+    // UTM hanya utk link KE LUAR (external / berbeda origin).
+    // Link internal TANPA UTM — menjaga atribusi asli (mis. organic/login) tidak tercemar.
+    if (u.origin === base) return href;
     u.searchParams.set("utm_source", "mulaiplus_web");
     u.searchParams.set("utm_medium", "front");
     const seg = (u.pathname || "/").split("/").filter(Boolean).pop() || "home";

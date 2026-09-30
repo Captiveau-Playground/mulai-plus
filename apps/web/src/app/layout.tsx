@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-
 import { Bricolage_Grotesque, Geist, Geist_Mono, Manrope } from "next/font/google";
+import { JsonLd, organizationSchema } from "@/components/seo/json-ld";
 
 import "../style/globals-app.css";
 import "../style/globals-internal.css";
@@ -119,6 +119,7 @@ export default function RootLayout({
           <AmplitudeInit />
           <RedirectHandler />
           <FeaturesProvider>
+            <JsonLd data={organizationSchema} />
             {children}
             <ChatbotProvider />
           </FeaturesProvider>
