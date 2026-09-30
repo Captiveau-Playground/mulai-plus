@@ -17,6 +17,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { NewsletterSubscribe } from "@/components/front/newsletter-subscribe";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -577,9 +578,7 @@ export default function ArticlesPage() {
                 <p className="mt-2 font-manrope text-sm text-white/60">
                   Subscribe newsletter untuk dapat artikel dan berita terbaru dari MULAI+
                 </p>
-                <Button className="mt-5 rounded-xl bg-brand-orange px-6 font-manrope font-semibold text-white hover:bg-brand-orange/90">
-                  Subscribe Newsletter
-                </Button>
+                <NewsletterSubscribe source="article-page" />
               </div>
             </div>
           </section>

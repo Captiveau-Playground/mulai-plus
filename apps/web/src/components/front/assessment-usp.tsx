@@ -22,15 +22,20 @@ export function AssessmentEngineSection() {
 
       {/* Pipeline */}
       <div className="relative mx-auto mt-14 max-w-4xl">
-        <div
-          className="absolute top-12 right-[22%] left-[22%] hidden h-px bg-gradient-to-r from-teal-500/30 via-gray-300 to-teal-500/30 md:block"
-          aria-hidden
-        />
+        <div className="absolute top-12 right-[22%] left-[22%] hidden h-px bg-gradient-to-r from-teal-500/30 via-gray-300 to-teal-500/30 md:block" aria-hidden>
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-teal-500"
+              style={{ animation: "dot-flow-seg 2.8s linear infinite", animationDelay: `${i * 0.9}s` }}
+            />
+          ))}
+        </div>
 
         <div className="grid gap-8 md:grid-cols-3 md:gap-6">
           {/* Input */}
-          <div className="relative text-center">
-            <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm">
+          <div className="group relative text-center">
+            <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm transition-transform group-hover:animate-[icon-wiggle_0.5s_ease]">
               <UserRound className="h-6 w-6" />
             </div>
             <h3 className="mt-4 font-bold font-bricolage text-base text-gray-900">Profilmu</h3>
@@ -40,8 +45,8 @@ export function AssessmentEngineSection() {
           </div>
 
           {/* Engine */}
-          <div className="relative rounded-2xl border border-gray-200 bg-gray-50/80 p-6 text-center">
-            <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-navy text-white shadow-brand-navy/20 shadow-lg">
+          <div className="group relative rounded-2xl border border-gray-200 bg-gray-50/80 p-6 text-center transition-all hover:border-teal-500/30 hover:shadow-lg">
+            <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-navy text-white shadow-brand-navy/20 shadow-lg transition-transform group-hover:animate-[icon-wiggle_0.5s_ease]">
               <BrainCircuit className="h-6 w-6" />
             </div>
             <h3 className="mt-4 font-bold font-bricolage text-base text-gray-900">Mesin MULAI+</h3>
@@ -59,8 +64,8 @@ export function AssessmentEngineSection() {
           </div>
 
           {/* Output */}
-          <div className="relative text-center">
-            <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-white text-teal-600 shadow-sm">
+          <div className="group relative text-center">
+            <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-white text-teal-600 shadow-sm transition-transform group-hover:animate-[icon-wiggle_0.5s_ease]">
               <Target className="h-6 w-6" />
             </div>
             <h3 className="mt-4 font-bold font-bricolage text-base text-gray-900">Rekomendasi</h3>
@@ -86,7 +91,7 @@ export function AssessmentEngineSection() {
             desc: "Setiap jurusan diberi persentase — transparan, bukan magic.",
           },
         ].map((c) => (
-          <div key={c.title} className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-5">
+          <div key={c.title} className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-5 transition-all hover:-translate-y-1 hover:border-teal-500/25 hover:shadow-md">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600">
               <c.icon className="h-4.5 h-[18px] w-4.5 w-[18px]" />
             </div>

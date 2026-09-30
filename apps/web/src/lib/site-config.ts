@@ -32,6 +32,7 @@ export const SOCIAL = {
   instagram: { label: "Instagram", url: "https://instagram.com/mulaiplus.id" },
   linkedin: { label: "LinkedIn", url: "https://linkedin.com/company/mulai-plus" },
   facebook: { label: "Facebook", url: "https://www.facebook.com/share/1JScon8NNn/?mibextid=wwXIfr" },
+  threads: { label: "Threads", url: "https://threads.net/@mulaiplus.id" },
 } as const;
 
 export const SOCIAL_LINKS = Object.values(SOCIAL);

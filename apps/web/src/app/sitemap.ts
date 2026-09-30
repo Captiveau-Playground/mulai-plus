@@ -9,6 +9,13 @@ const PAGE_SIZE = 1000;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: baseUrl, changeFrequency: "weekly", priority: 1.0 },
+    { url: `${baseUrl}/assessment`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${baseUrl}/assessment/minat`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${baseUrl}/assessment/bakat`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${baseUrl}/assessment/future-career`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${baseUrl}/explore/ai-assistant`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${baseUrl}/sponsors`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${baseUrl}/changelog`, changeFrequency: "monthly", priority: 0.3 },
     { url: `${baseUrl}/programs`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${baseUrl}/blog`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${baseUrl}/blog/articles`, changeFrequency: "weekly", priority: 0.8 },

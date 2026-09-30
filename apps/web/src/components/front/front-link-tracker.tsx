@@ -20,25 +20,31 @@ export function FrontLinkTracker() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const target = e.target as Element | null;
-      const a = target?.closest?.("a");
-      if (!a) return;
+      const el = target?.closest?.("a, button") as HTMLElement | null;
+      if (!el) return;
+      // CTA yang sudah punya event tersendiri (di-tandai data-tracked) — jangan double-fire.
+      if (el.dataset?.tracked === "1") return;
 
-      const href = a.getAttribute("href") || "";
-      const text = (a.textContent ?? "").trim().slice(0, 80);
+      const text = (el.textContent ?? "").trim().slice(0, 80);
       const page = window.location.pathname;
 
-      trackEvent("front_link_click", {
-        page,
-        link_text: text,
-        link_href: href.slice(0, 200),
-        campaign: getUtmFromUrl()?.campaign ?? undefined,
-      });
-
-      // Tambah UTM bila belum ada (kecuali anchor/mailto/tel/hash)
-      const finalHref = ensureUtm(href, text || page);
-      if (finalHref !== href) {
-        e.preventDefault();
-        window.location.href = finalHref;
+      if (el.tagName === "A") {
+        const href = el.getAttribute("href") || "";
+        trackEvent("front_link_click", {
+          page,
+          link_text: text,
+          link_href: href.slice(0, 200),
+          campaign: getUtmFromUrl()?.campaign ?? undefined,
+        });
+        // UTM hanya utk link eksternal — atribusi internal tetap bersih.
+        const finalHref = ensureUtm(href, text || page);
+        if (finalHref !== href) {
+          e.preventDefault();
+          window.location.href = finalHref;
+        }
+      } else {
+        // Tombol <button> tanpa event khusus → dicatat sebagai CTA.
+        trackEvent("front_cta_click", { page, cta_text: text, element: "button" });
       }
     };
     document.addEventListener("click", onClick, true);
