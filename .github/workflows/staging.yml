@@ -426,7 +426,23 @@ jobs:
       # ---------- Web Worker ----------
       - name: Build OpenNext (staging)
         working-directory: apps/web
-        run: ./node_modules/.bin/opennextjs-cloudflare build
+        # Retry 3x: Turbopack/postcss kadang timeout saat runner lagi ramai
+        # (build lokal next build selalu hijau — ini murni flake runner).
+        run: |
+          set -euo pipefail
+          ok=0
+          for i in 1 2 3; do
+            if ./node_modules/.bin/opennextjs-cloudflare build; then
+              ok=1
+              break
+            fi
+            echo "⚠️ OpenNext build gagal (percobaan $i/3) — retry…"
+            sleep 15
+          done
+          if [ "$ok" != "1" ]; then
+            echo "❌ OpenNext build gagal setelah 3 percobaan"
+            exit 1
+          fi
         env:
           NEXT_PUBLIC_SERVER_URL: https://api.staging.mulaiplus.id
           NEXT_PUBLIC_RELEASE_TAG: ${{ needs.tag.outputs.new_tag }}
