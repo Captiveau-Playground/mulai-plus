@@ -18,6 +18,7 @@ import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentFaq, AssessmentPricingSection } from "@/components/front/assessment-shared";
 import { UspStrip } from "@/components/front/assessment-usp";
 import { trackEvent } from "@/lib/analytics";
+import { buildUtmUrl } from "@/lib/utm";
 
 const RIASEC = [
   {
@@ -264,19 +265,21 @@ export default function AssessmentMinatPage() {
       />
 
       {/* CTA */}
-      <section className="border-gray-100 border-t">
-        <Reveal className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-20 lg:px-8">
-          <h2 className="font-bold font-bricolage text-3xl text-brand-navy tracking-tight">
+      <section className="border-gray-100 border-t bg-white">
+        <Reveal className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 md:py-20">
+          <p className="font-bold font-manrope text-user-primary text-xs uppercase tracking-widest">Tes Minat · Holland</p>
+          <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight sm:text-4xl">
             Siap Menemukan Tipe Minatmu?
           </h2>
-          <p className="mt-3 font-manrope text-gray-500">Gratis, ±7 menit, hasil langsung.</p>
-          <Link
-            href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
-            onClick={() => trackEvent("assessment_cta_click", { type: "minat" })}
-            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-brand-orange px-8 py-4 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+          <p className="mx-auto mt-3 max-w-lg font-manrope text-gray-500">Gratis, ±7 menit, hasil langsung. Cari tahu 3 huruf kode minat yang menentukan arah kampusmu.</p>
+          <a
+            data-tracked="1"
+            href={buildUtmUrl('/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment', { source: 'mulaiplus_web', medium: 'front', campaign: 'assessment-minat', content: 'cta-bottom' }) as any}
+            onClick={() => trackEvent("assessment_cta_click", { type: "minat", cta: "bottom" })}
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-brand-orange px-7 py-3.5 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
           >
-            Mulai Tes Minat <ArrowRight className="h-5 w-5" />
-          </Link>
+            Mulai Tes Minat <ArrowRight className="h-4.5 w-4.5" />
+          </a>
         </Reveal>
       </section>
     </div>
