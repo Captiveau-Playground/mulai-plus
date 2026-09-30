@@ -585,7 +585,7 @@ export default function ArticlesPage() {
                 <p className="mt-2 font-manrope text-sm text-white/60">
                   Subscribe newsletter untuk dapat artikel dan berita terbaru dari MULAI+
                 </p>
-                <NewsletterSubscribe source="blog-page" />
+                <NewsletterSubscribe source="article-page" />
               </div>
             </div>
           </section>
