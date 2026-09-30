@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/analytics";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { buildUtmUrl } from "@/lib/utm";
 import { client, orpc } from "@/utils/orpc";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mulaiplus.id";
@@ -423,7 +424,14 @@ export default function ArticleDetailPage() {
 function RelatedArticleCard({ article }: { article: any }) {
   return (
     <Link
-      href={`/blog/articles/${article.slug}`}
+      href={
+        buildUtmUrl(`/blog/articles/${article.slug}`, {
+          source: "mulaiplus_web",
+          medium: "front",
+          campaign: "blog",
+          content: "related-articles",
+        }) as any
+      }
       className="group flex flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:-translate-y-0.5 hover:border-brand-orange/40 hover:shadow-md"
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-gradient-to-br from-brand-navy/10 to-brand-orange/10">
@@ -458,14 +466,24 @@ function RelatedArticleCard({ article }: { article: any }) {
 function SidebarPrograms() {
   const services = [
     {
-      href: "/assessment",
+      href: buildUtmUrl("/assessment", {
+        source: "mulaiplus_web",
+        medium: "front",
+        campaign: "blog",
+        content: "service-tes-minat",
+      }),
       icon: "🧭",
       title: "Tes Minat & Bakat",
       desc: "Kenali jurusan & karier yang cocok.",
       ctaAction: "Mulai Tes",
     },
     {
-      href: "/explore/ai-assistant",
+      href: buildUtmUrl("/explore/ai-assistant", {
+        source: "mulaiplus_web",
+        medium: "front",
+        campaign: "blog",
+        content: "service-ai",
+      }),
       icon: "🤖",
       title: "AI Assistant Mul.ai",
       desc: "Tanya apa saja seputar kuliahmu.",
@@ -503,7 +521,14 @@ function SidebarPrograms() {
         ))}
       </div>
       <Link
-        href="/explore/ai-assistant"
+        href={
+          buildUtmUrl("/explore/ai-assistant", {
+            source: "mulaiplus_web",
+            medium: "front",
+            campaign: "blog",
+            content: "blog-all-services",
+          }) as any
+        }
         className="flex items-center justify-center gap-1 border-white/10 border-t py-2.5 font-manrope font-semibold text-[11px] text-brand-orange no-underline transition-all hover:bg-white/5"
       >
         Eksplor layanan kami<span>→</span>
