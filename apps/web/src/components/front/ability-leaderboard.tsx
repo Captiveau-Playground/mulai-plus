@@ -116,6 +116,7 @@ export function AbilityLeaderboard() {
         <div className="mt-6 flex justify-center">
           <Link
             href={ctaHref as any}
+            data-tracked="1"
             onClick={() =>
               trackEvent("assessment_cta_click", { type: "bakat", placement: "leaderboard", campaign: "assessment" })
             }
