@@ -6,10 +6,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AuthGate } from "@/components/front/auth-gate";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
+import { buildUtmUrl } from "@/lib/utm";
 import { orpc } from "@/utils/orpc";
 
 const api = orpc as any;
@@ -401,17 +401,44 @@ export default function ProdiDetailPage() {
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
           <GraduationCap className="mx-auto h-8 w-8 text-brand-orange" />
           <h2 className="mt-3 font-bold font-bricolage text-2xl text-white sm:text-3xl">
-            Butuh bantuan masuk {prog?.name ?? "jurusan impian"}?
+            Cocok nggak sih jurusan ini buat kamu?
           </h2>
           <p className="mt-2 font-manrope text-white/70">
-            Konsultasi gratis dengan mentor kami untuk strategi masuk PTN lewat SNBP/SNBT.
+            Kenali kecocokanmu lewat Tes Minat &amp; Bakat (~3 menit), atau tanya AI Assistant Mul.ai soal prospek
+            jurusan ini — gratis.
           </p>
-          <Button
-            className="mt-6 rounded-full bg-brand-orange px-8 font-manrope text-white shadow-lg hover:bg-brand-orange/90"
-            onClick={() => trackEvent("cta_click", { page: "prodi_detail" })}
-          >
-            Konsultasi Gratis <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <a
+              data-tracked="1"
+              href={
+                buildUtmUrl("/assessment", {
+                  source: "mulaiplus_web",
+                  medium: "front",
+                  campaign: "prodi-detail",
+                  content: "tes-minat-bakat",
+                }) as any
+              }
+              className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-7 py-3 font-manrope font-semibold text-sm text-white shadow-lg transition-all hover:bg-brand-orange/90"
+              onClick={() => trackEvent("cta_click", { page: "prodi_detail", cta: "tes-minat" })}
+            >
+              🧭 Cek Kecocokan — Tes Minat &amp; Bakat
+            </a>
+            <a
+              data-tracked="1"
+              href={
+                buildUtmUrl("/explore/ai-assistant", {
+                  source: "mulaiplus_web",
+                  medium: "front",
+                  campaign: "prodi-detail",
+                  content: "ai-assistant",
+                }) as any
+              }
+              className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-7 py-3 font-manrope font-semibold text-sm text-white transition-all hover:bg-white/20"
+              onClick={() => trackEvent("cta_click", { page: "prodi_detail", cta: "ai-assistant" })}
+            >
+              🤖 Tanya Mul.ai <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
         </div>
       </section>
     </div>
