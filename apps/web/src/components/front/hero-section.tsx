@@ -154,11 +154,16 @@ export function HeroSection() {
           className="hidden md:flex md:items-center md:justify-center"
         >
           <div className="h-72 w-72 md:h-[320px] md:w-[320px] lg:h-[500px] lg:w-[500px] xl:h-[600px] xl:w-[600px]">
-            <DotLottieReact
-              src="https://lottie.host/46206dbd-ed4a-4090-9805-93d7a9390349/AlQyQScXbD.lottie"
+            <video
+              src="/animation/animation-fbfda72d-efce-471b-b059-1813b501ac6a.webm"
+              autoPlay
               loop
-              autoplay
-              style={{ width: "100%", height: "100%" }}
+              muted
+              playsInline
+              preload="auto"
+              disablePictureInPicture
+              aria-label="Animasi maskot MULAI+ memegang kompas"
+              className="h-full w-full object-contain [&::-webkit-media-controls-panel]:hidden"
             />
           </div>
         </motion.div>
