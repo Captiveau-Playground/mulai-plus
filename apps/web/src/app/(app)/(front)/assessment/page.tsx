@@ -16,6 +16,7 @@ import Link from "next/link";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentMock } from "@/components/front/assessment-mock";
+import { TestimonialCarousel } from "@/components/front/testimonial-carousel";
 import { AssessmentReportPreview } from "@/components/front/assessment-report-preview";
 import { AssessmentEngineSection } from "@/components/front/assessment-usp";
 import { CareerPathMap } from "@/components/front/career-path-map";
@@ -201,7 +202,7 @@ export default function AssessmentLandingPage() {
                   aria-hidden
                 />
                 <div className="relative">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 transition-transform group-hover:animate-[icon-wiggle_0.5s_ease]">
                     <Compass className="h-5 w-5" />
                   </div>
                   <h3 className="mt-5 font-bold font-bricolage text-gray-900 text-xl">Tes Minat</h3>
@@ -209,10 +210,11 @@ export default function AssessmentLandingPage() {
                     Model Holland RIASEC — 10 soal untuk menemukan 6 tipe minat yang membentuk arah jurusanmu.
                   </p>
                   <div className="mt-5 flex items-center gap-1.5">
-                    {["R", "I", "A", "S", "E", "C"].map((c) => (
+                    {["R", "I", "A", "S", "E", "C"].map((c, ci) => (
                       <span
                         key={c}
                         className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 font-bold font-bricolage text-gray-500 text-xs"
+                        style={{ animation: `chip-pop 0.35s ease both ${ci * 0.07}s` }}
                       >
                         {c}
                       </span>
@@ -345,12 +347,17 @@ export default function AssessmentLandingPage() {
         </Reveal>
 
         <StaggerGroup className="relative mt-12 grid gap-8 md:grid-cols-3">
-          <div className="absolute top-6 right-[16%] left-[16%] hidden h-px bg-gray-200 md:block" aria-hidden />
+          <div className="absolute top-6 right-[16%] left-[16%] hidden h-px bg-gray-200 md:block" aria-hidden>
+            <span
+              className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-teal-500"
+              style={{ animation: "dot-flow 3s linear infinite" }}
+            />
+          </div>
           {STEPS.map((s, i) => (
-            <StaggerItem key={s.title} className="relative text-center">
-              <div className="relative mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm">
+            <StaggerItem key={s.title} className="group relative text-center">
+              <div className="relative mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm transition-transform group-hover:animate-[icon-wiggle_0.5s_ease]">
                 <s.icon className="h-5 w-5" />
-                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-navy font-bold font-manrope text-[10px] text-white">
+                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-navy font-bold font-manrope text-[10px] text-white transition-transform group-hover:scale-125">
                   {i + 1}
                 </span>
               </div>
@@ -408,21 +415,8 @@ export default function AssessmentLandingPage() {
 
       {/* ── TESTIMONIAL ── */}
       <section className="border-gray-100 border-y bg-gray-50/60">
-        <Reveal className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 md:py-24">
-          <Quote className="mx-auto h-8 w-8 text-teal-500/40" />
-          <blockquote className="mt-6 font-bold font-bricolage text-gray-900 text-xl leading-relaxed md:text-2xl">
-            "Aku sempat bingung antara Kedokteran dan Teknik Informatika. Setelah ikut test ini, rekomendasinya
-            menegaskan kalau investigatif + teknis adalah kombinasi yang cocok untukku."
-          </blockquote>
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-navy font-bold font-bricolage text-sm text-white">
-              R
-            </div>
-            <div className="text-left">
-              <p className="font-bold font-manrope text-gray-900 text-sm">Raka</p>
-              <p className="font-manrope text-gray-500 text-xs">Siswa kelas 12, hasil kode IAC</p>
-            </div>
-          </div>
+        <Reveal>
+          <TestimonialCarousel />
         </Reveal>
       </section>
 
@@ -437,7 +431,11 @@ export default function AssessmentLandingPage() {
 
         <Reveal delay={0.1} className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
           {/* B2C */}
-          <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-8">
+          <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:-translate-y-0.5 hover:shadow-lg">
+            <span
+              className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+              aria-hidden
+            />
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-teal-500/10 px-3 py-1 font-bold font-manrope text-[11px] text-teal-700">
                 UNTUK DIRI SENDIRI
@@ -533,7 +531,7 @@ export default function AssessmentLandingPage() {
                 href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
                 className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 font-bold font-bricolage text-base text-brand-navy shadow-lg transition-all hover:bg-amber-50 active:scale-[0.98]"
               >
-                Mulai Test Sekarang <ArrowRight className="h-5 w-5" />
+                Mulai Test Sekarang <ArrowRight className="h-5 w-5 animate-[bob_1.2s_ease-in-out_infinite]" />
               </Link>
             </div>
           </Reveal>

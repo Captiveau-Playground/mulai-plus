@@ -532,6 +532,39 @@ body {
   85% { opacity: 1; }
   100% { left: 96%; opacity: 0; }
 }
+@keyframes dot-flow-seg {
+  0% { left: 22%; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { left: 78%; opacity: 0; }
+}
+@keyframes dot-flow {
+  0% { left: 8%; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { left: 92%; opacity: 0; }
+}
+@keyframes icon-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+@keyframes quote-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes chip-pop {
+  0% { opacity: 0; transform: translateY(6px) scale(0.75); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes bob {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-5px); }
