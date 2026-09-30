@@ -248,75 +248,20 @@ export default function AssessmentBakatPage() {
 
       {/* CTA */}
       <section className="border-gray-100 border-t bg-white">
-        <Reveal className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-navy via-[#2a31a4] to-brand-navy-light px-6 py-12 text-center shadow-2xl shadow-brand-navy/20 sm:px-12 md:py-16">
-            <div className="pointer-events-none absolute -top-24 left-1/4 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute -right-16 -bottom-24 h-64 w-64 rounded-full bg-brand-orange/15 blur-3xl" aria-hidden />
-            <div
-              className="pointer-events-none absolute inset-0 opacity-[0.06]"
-              style={{ backgroundImage: "radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)", backgroundSize: "22px 22px" }}
-              aria-hidden
-            />
-
-            <div className="relative">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 font-manrope text-[11px] font-semibold tracking-wide text-teal-300">
-                🔍 Tes Bakat — kekuatan aslimu
-              </span>
-
-              <h2 className="mx-auto mt-5 max-w-2xl font-bold font-bricolage text-3xl text-white leading-tight md:text-4xl">
-                2 dari 5 Kemampuan Ini Jadi Kekuatan Utamamu — Yang Mana?
-              </h2>
-              <p className="mx-auto mt-3 max-w-md font-manrope text-sm text-white/70 leading-relaxed">5 dimensi bakat diukur, 2 tertinggi jadi kekuatan yang bisa kamu andalkan, dan 1 terendah jadi area yang siap kamu asah.</p>
-
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                                    <span key="Logika"
-                      className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 font-bold font-manrope text-[11px] text-white/85"
-                      style={{ animation: `chip-pop 0.4s ease both ${0.15 + 0 * 0.08}s` }}
-                    >
-                      Logika
-                    </span>
-                    <span key="Numerik"
-                      className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 font-bold font-manrope text-[11px] text-white/85"
-                      style={{ animation: `chip-pop 0.4s ease both ${0.15 + 1 * 0.08}s` }}
-                    >
-                      Numerik
-                    </span>
-                    <span key="Verbal"
-                      className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 font-bold font-manrope text-[11px] text-white/85"
-                      style={{ animation: `chip-pop 0.4s ease both ${0.15 + 2 * 0.08}s` }}
-                    >
-                      Verbal
-                    </span>
-                    <span key="Visual"
-                      className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 font-bold font-manrope text-[11px] text-white/85"
-                      style={{ animation: `chip-pop 0.4s ease both ${0.15 + 3 * 0.08}s` }}
-                    >
-                      Visual
-                    </span>
-                    <span key="Sosial"
-                      className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 font-bold font-manrope text-[11px] text-white/85"
-                      style={{ animation: `chip-pop 0.4s ease both ${0.15 + 4 * 0.08}s` }}
-                    >
-                      Sosial
-                    </span>
-              </div>
-
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <a
-                  data-tracked="1"
-                  href={buildUtmUrl('/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment', { source: 'mulaiplus_web', medium: 'front', campaign: 'assessment-bakat', content: 'cta-bottom-hook' }) as any}
-                  onClick={() => trackEvent("assessment_cta_click", { type: "bakat", cta: "bottom-hook" })}
-                  className="group relative inline-flex items-center gap-2 overflow-hidden rounded-2xl bg-brand-orange px-9 py-4 font-bold font-bricolage text-base text-white shadow-xl shadow-brand-orange/30 transition-all hover:brightness-105 active:scale-[0.97]"
-                >
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-500 group-hover:translate-x-full" aria-hidden />
-                  Mulai Tes Bakat <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </a>
-                <span className="inline-flex items-center gap-2 font-manrope text-xs text-white/55">
-                  Gratis · ±5 menit · hasil langsung
-                </span>
-              </div>
-            </div>
-          </div>
+        <Reveal className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 md:py-20">
+          <p className="font-bold font-manrope text-user-primary text-xs uppercase tracking-widest">Tes Bakat · 5 Dimensi</p>
+          <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight sm:text-4xl">
+            Ukur Kekuatanmu Sekarang
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg font-manrope text-gray-500">Gratis, ±5 menit, hasil langsung. Kenali 5 dimensi bakatmu dan 2 kekuatan utama yang bisa kamu andalkan.</p>
+          <a
+            data-tracked="1"
+            href={buildUtmUrl('/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment', { source: 'mulaiplus_web', medium: 'front', campaign: 'assessment-bakat', content: 'cta-bottom' }) as any}
+            onClick={() => trackEvent("assessment_cta_click", { type: "bakat", cta: "bottom" })}
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-brand-orange px-7 py-3.5 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+          >
+            Mulai Tes Bakat <ArrowRight className="h-4.5 w-4.5" />
+          </a>
         </Reveal>
       </section>
     </div>
