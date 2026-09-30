@@ -134,5 +134,14 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_course_published_created
 -- Slow query snapshot (pg_stat_statements) — aktif di Supabase (shared_preload).
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
+-- Explore: GROUP BY name + ILIKE (query 24-38s di Supabase panel)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_study_programs_name_lower
+  ON study_programs (lower(name), status);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_universities_name_lower
+  ON universities (lower(name)) WHERE status = 'Aktif';
+-- Session token lookup (better-auth 304x/hari)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_session_token
+  ON session (token);
+
 -- Refresh statistik planner
 ANALYZE;

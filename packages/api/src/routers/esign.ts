@@ -102,6 +102,51 @@ export const esignRouter = {
       return { token, url: `/verify/signature/${token}` };
     }),
 
+  /** Tanda tangan digital laporan TMB — QR terhubung ke modul e-sign (admin list tanpa approval). */
+  signTmbReport: publicProcedure
+    .input(
+      z.object({
+        studentName: z.string(),
+        studentId: z.string(),
+        documentDate: z.string(),
+      }),
+    )
+    .handler(async ({ input }) => {
+      const documentId = `tmb-${input.studentId}`;
+      // Ditandatangani secara digital OLEH SISTEM (nama: Product, jabatan: System).
+      const payload = { n: "Product", r: "system", d: documentId, t: input.documentDate, for: input.studentName };
+      const token = createSignedToken(payload);
+
+      // Audit trail DB (stateless HMAC tetap deterministic)
+      try {
+        const existing = await db.query.esignSignature.findFirst({
+          where: and(eq(esignSignature.documentId, documentId), eq(esignSignature.signerRole, "system")),
+        });
+        if (!existing) {
+          await db.insert(esignSignature).values({
+            id: randomUUID(),
+            token,
+            documentType: "tmb_report",
+            documentId,
+            signerName: "Product",
+            signerRole: "system",
+            documentHash: hmacSign(documentId),
+          });
+          await db.insert(auditLog).values({
+            id: randomUUID(),
+            action: "ESIGN_TMB_CREATED",
+            resource: "esign_signature",
+            resourceId: documentId,
+            details: { signerName: input.studentName, token },
+          });
+        }
+      } catch {
+        // DB failure tidak memblokir QR
+      }
+
+      return { token, url: `/verify/signature/${token}` };
+    }),
+
   /**
    * Verify an HMAC-signed token.
    */
