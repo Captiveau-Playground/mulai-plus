@@ -153,7 +153,7 @@ export function HeroSection() {
           animate="show"
           className="hidden md:flex md:items-center md:justify-center"
         >
-          <div className="h-72 w-44 overflow-hidden md:h-[320px] md:w-[220px] lg:h-[430px] lg:w-[300px] xl:h-[520px] xl:w-[390px]">
+          <div className="h-80 w-52 overflow-hidden md:h-[360px] md:w-[260px] lg:h-[470px] lg:w-[350px] xl:h-[580px] xl:w-[450px]">
             <video
               src="/animation/animation-fbfda72d-efce-471b-b059-1813b501ac6a.webm"
               autoPlay
@@ -163,7 +163,7 @@ export function HeroSection() {
               preload="auto"
               disablePictureInPicture
               aria-label="Animasi maskot MULAI+ memegang kompas"
-              className="h-full w-full object-cover scale-[1.08] [&::-webkit-media-controls-panel]:hidden"
+              className="h-full w-full object-cover scale-[1.2] [&::-webkit-media-controls-panel]:hidden"
             />
           </div>
         </motion.div>
