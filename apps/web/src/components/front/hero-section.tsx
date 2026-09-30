@@ -48,7 +48,7 @@ export function HeroSection() {
         />
       </div>
 
-      <div className="container relative z-10 mx-auto flex max-w-7xl flex-1 flex-col justify-center gap-6 px-4 md:grid md:grid-cols-2 md:items-center md:gap-12 md:px-6 lg:px-6">
+      <div className="container relative z-10 mx-auto flex max-w-7xl flex-1 flex-col justify-center gap-6 px-4 md:grid md:grid-cols-[1.15fr_0.85fr] md:items-center md:gap-12 md:px-6 lg:px-6">
         {/* Left column: content */}
         <div className="flex flex-col gap-6 md:gap-8">
           {/* ── Eyebrow ── */}
@@ -153,7 +153,7 @@ export function HeroSection() {
           animate="show"
           className="hidden md:flex md:items-center md:justify-center"
         >
-          <div className="h-72 w-72 md:h-[320px] md:w-[320px] lg:h-[500px] lg:w-[500px] xl:h-[600px] xl:w-[600px]">
+          <div className="h-72 w-72 md:h-[300px] md:w-[300px] lg:h-[420px] lg:w-[420px] xl:h-[520px] xl:w-[520px]">
             <video
               src="/animation/animation-fbfda72d-efce-471b-b059-1813b501ac6a.webm"
               autoPlay
