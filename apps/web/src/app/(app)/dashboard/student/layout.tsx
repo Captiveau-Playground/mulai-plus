@@ -9,6 +9,7 @@ import { StudentSidebar } from "@/components/student-sidebar";
 import { PageState } from "@/components/ui/page-state";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { useAuthorizePage } from "@/lib/auth-client";
+import { MaintenanceGate } from "@/components/dashboard/maintenance-gate";
 
 function StudentDashboardContent({ children }: { children: React.ReactNode }) {
   const { setOpenMobile } = useSidebar();
@@ -27,7 +28,9 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
       <SidebarInset className="!bg-bg-light">
         <div className={`flex flex-col ${fullVh ? "h-dvh overflow-hidden" : "min-h-screen"}`}>
           <DashboardHeader />
-          <div className={fullVh ? "min-h-0 flex-1 overflow-y-auto" : "flex-1"}>{children}</div>
+          <div className={fullVh ? "min-h-0 flex-1 overflow-y-auto" : "flex-1"}>
+            <MaintenanceGate>{children}</MaintenanceGate>
+          </div>
           <DashboardFooter />
         </div>
       </SidebarInset>
