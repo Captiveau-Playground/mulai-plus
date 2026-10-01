@@ -36,7 +36,7 @@ const TIER2: Sponsor[] = [
   {
     name: "Amplitude",
     tag: "Product Analytics",
-    logo: "/sponsors/amplitude.png",
+    logo: "/sponsors/amplitude-logo-vector.png",
     href: "https://amplitude.com",
     alt: "Logo Amplitude",
   },
@@ -50,7 +50,7 @@ const TIER2: Sponsor[] = [
   {
     name: "Neon",
     tag: "Serverless Postgres",
-    logo: "/sponsors/neon.svg",
+    logo: "/sponsors/neon-logo-light-color.svg",
     href: "https://neon.tech",
     alt: "Logo Neon",
   },
