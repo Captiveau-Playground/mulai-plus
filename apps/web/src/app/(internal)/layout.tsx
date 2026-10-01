@@ -7,7 +7,7 @@ export default function InternalLayout({
 }>) {
   return (
     <div className="grid grid-rows-[auto_1fr] overflow-x-hidden">
-      <MaintenanceGate>{children}</MaintenanceGate>
+      <MaintenanceGate exceptPaths={["/admin"]}>{children}</MaintenanceGate>
     </div>
   );
 }

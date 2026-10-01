@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Wrench } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { env } from "@mulai-plus/env/web";
 
@@ -12,9 +13,20 @@ interface Status {
   endsAt?: string | null;
 }
 
-/** Gate dashboard — saat maintenance aktif, tampilkan info & sembunyikan konten aksi. */
-export function MaintenanceGate({ children }: { children: ReactNode }) {
+/** Gate dashboard — saat maintenance aktif, tampilkan info & sembunyikan konten aksi.
+ *  exceptPaths: rute yang TETAP buka (mis. /admin untuk toggle maintenance). */
+export function MaintenanceGate({
+  children,
+  exceptPaths = [],
+}: {
+  children: ReactNode;
+  exceptPaths?: string[];
+}) {
+  const pathname = usePathname();
   const [status, setStatus] = useState<Status | null>(null);
+
+  // Rute yang di-exempt (admin) selalu buka tanpa cek flag
+  if (exceptPaths.some((p) => pathname?.startsWith(p))) return <>{children}</>;
 
   useEffect(() => {
     let alive = true;
