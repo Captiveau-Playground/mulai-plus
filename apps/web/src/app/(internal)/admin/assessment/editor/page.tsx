@@ -1,10 +1,9 @@
 "use client";
 
-import { CheckCircle2, FilePlus2, GitBranch, HelpCircle, Layers, Loader2, Pencil, Plus, Rocket, Trash2, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Eye, FilePlus2, Loader2, Plus, Rocket, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { client } from "@/lib/client";
@@ -12,413 +11,264 @@ import { notify } from "@/lib/toast";
 
 interface Assessment { id: string; code: string; name: string }
 interface Version { id: string; assessmentId: string; versionNumber: number; status: string; configJson?: any; publishedAt?: string | null }
-interface Dimension { id: string; code: string; name: string; displayOrder: number }
-interface Option { id?: string; optionValue: string; label: string; score: number }
-interface Question { id: string; dimensionId: string; questionText: string; questionType: string; weight?: number; presentationMode?: string; hasMathNotation?: boolean; displayOrder: number; isActive?: boolean }
-interface Content { questions: Question[]; options: any[]; textConfigs: any[]; dimensions: Dimension[]; scales: any[] }
+interface Dim { id: string; code: string; name: string }
+interface Qn { id: string; dimensionId: string; questionText: string; questionType: string; weight?: number; hasMathNotation?: boolean; displayOrder: number }
+interface Content { questions: Qn[]; options: any[]; textConfigs: any[]; dimensions: Dim[]; scales: any[] }
 
-const STATUS: Record<string, string> = { live: "bg-teal-500/10 text-teal-700 border-teal-500/30", draft: "bg-gray-100 text-gray-600 border-gray-200", archived: "bg-gray-50 text-gray-400 border-gray-200", preview: "bg-amber-500/10 text-amber-700 border-amber-500/30", validate: "bg-amber-500/10 text-amber-700 border-amber-500/30" };
-
+/** UI PM-friendly: satu layar — Aturan, Soal, Terbitkan. Versi tersembunyi (auto-snapshot). */
 export default function AssessmentEditorPage() {
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const aClient = client as any;
+  const [asses, setAsses] = useState<Assessment[]>([]);
   const [versBy, setVersBy] = useState<Record<string, Version[]>>({});
   const [code, setCode] = useState("");
-  const [tab, setTab] = useState<"config" | "content" | "publish">("config");
-  const [help, setHelp] = useState(true);
-  const [live, setLive] = useState<Version | null>(null);
-  const [draft, setDraft] = useState<Version | null>(null);
+  const [rules, setRules] = useState<Record<string, any>>({});
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [content, setContent] = useState<Content | null>(null);
-  const [cfg, setCfg] = useState<Record<string, any>>({});
+  const [canEdit, setCanEdit] = useState(false);
   const [busy, setBusy] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
-  const [editor, setEditor] = useState<{ open: boolean; q?: any }>({ open: false });
-  const aClient = client as any;
+  const [modal, setModal] = useState<{ open: boolean; q?: any }>({ open: false });
 
   const reload = useCallback(async () => {
-    const data = (await aClient.discoverAdmin.list()) as any;
-    setAssessments(data.assessments ?? []);
+    const data = await aClient.discoverAdmin.list();
+    setAsses(data.assessments ?? []);
     const m: Record<string, Version[]> = {};
-    for (const a of data.assessments ?? []) {
-      const v = (await aClient.discoverAdmin.versions.list({ assessmentId: a.id })) as any;
-      m[a.id] = v.items ?? [];
-    }
+    for (const a of data.assessments ?? []) { const v = await aClient.discoverAdmin.versions.list({ assessmentId: a.id }); m[a.id] = v.items ?? []; }
     setVersBy(m);
     if (!code && data.assessments?.[0]) setCode(data.assessments[0].code);
   }, [code]);
-
   useEffect(() => { void reload(); }, [reload]);
 
-  const assess = assessments.find((a) => a.code === code);
-  const vers = assess ? (versBy[assess.id] ?? []) : [];
-  const selLive = useMemo(() => vers.find((v) => v.status === "live") ?? null, [vers]);
-  const selDraft = useMemo(() => vers.find((v) => v.status === "draft") ?? null, [vers]);
-  const active = selDraft ?? selLive;
+  const vers = useMemo(() => { const a = asses.find((x) => x.code === code); return a ? (versBy[a.id] ?? []) : []; }, [asses, code, versBy]);
+  const live = vers.find((v) => v.status === "live") ?? null;
+  const draft = vers.find((v) => v.status === "draft") ?? null;
 
-  useEffect(() => {
-    if (!active) return;
-    setCfg((active.configJson ?? {}) as any);
-    if (active.status === "draft") {
-      void (aClient.discoverAdmin.contentList({ versionId: active.id }) as any).then((c: any) => setContent(c));
-    } else {
-      setContent(null);
-    }
-  }, [active?.id, code]);
+  const ensureEdit = async () => {
+    if (draft) return draft;
+    if (live) { await aClient.discoverAdmin.versions.createDraft({ code }); await reload(); }
+    return null;
+  };
 
-  const createDraft = async () => {
-    if (!code) return;
-    setBusy("draft");
-    try {
-      await aClient.discoverAdmin.versions.createDraft({ code });
-      notify.create("Draft dibuat", { description: "Snapshot LIVE — kini bisa diedit." });
-      await reload();
-      setTab("content");
-    } catch (e) { notify.error("Gagal buat draft", { description: (e as Error)?.message?.slice(0, 120) }); }
+  const loadContent = useCallback(async (v: Version | null) => {
+    if (!v) { setContent(null); return; }
+    setRules(v.configJson ?? {});
+    if (v.status === "draft") { setCanEdit(true); setContent(await aClient.discoverAdmin.contentList({ versionId: v.id })); }
+    else { setCanEdit(false); setContent(null); }
+  }, []);
+  useEffect(() => { const sel = draft ?? live; void loadContent(sel); }, [draft?.id, live?.id]);
+
+  const startEdit = async () => {
+    setBusy("edit");
+    try { const d = await ensureEdit(); await reload(); const nd = (await aClient.discoverAdmin.versions.list({ assessmentId: asses.find((x) => x.code === code)!.id })).items.find((v: any) => v.status === "draft");
+      await loadContent(nd); setErrors([]); notify.create("Mode ubah aktif", { description: "Perubahan otomatis tersimpan sebagai draf aman." }); }
+    catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); }
     finally { setBusy(""); }
   };
 
-  const saveConfig = async () => {
-    if (!active) return;
-    setBusy("cfg");
-    try {
-      await aClient.discoverAdmin.configUpdate({ versionId: active.id, config: cfg });
-      notify.create("Pengaturan disimpan ✅");
-    } catch (e) { notify.error("Gagal simpan", { description: (e as Error)?.message?.slice(0, 120) }); }
-    finally { setBusy(""); }
+  const saveRules = async () => {
+    if (!draft) return;
+    setBusy("rules");
+    try { await aClient.discoverAdmin.configUpdate({ versionId: draft.id, config: rules }); notify.create("Aturan disimpan ✅"); }
+    catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); } finally { setBusy(""); }
   };
 
-  const delQ = async (questionId: string) => {
-    await aClient.discoverAdmin.contentDelete({ questionId });
-    setContent(null);
-    if (active) setContent(await (aClient.discoverAdmin.contentList({ versionId: active.id }) as any));
-    notify.create("Soal dihapus");
+  const delQ = async (id: string) => {
+    await aClient.discoverAdmin.contentDelete({ questionId: id });
+    if (draft) setContent(await aClient.discoverAdmin.contentList({ versionId: draft.id }));
   };
 
   const publish = async () => {
-    if (!selDraft) return;
-    setBusy("pub");
-    try {
-      const r = (await aClient.discoverAdmin.versions.publish({ versionId: selDraft.id })) as any;
-      if (r.ok) { notify.create("Terbit 🎉", { description: "Versi LIVE; lama di-archive." }); setErrors([]); }
-      else setErrors(r.errors ?? ["Ditolak"]);
-      await reload();
-    } catch (e) { notify.error("Gagal publish", { description: (e as Error)?.message?.slice(0, 120) }); }
-    finally { setBusy(""); }
+    if (!draft) return; setBusy("pub");
+    try { const r = await aClient.discoverAdmin.versions.publish({ versionId: draft.id }); if (r.ok) { notify.create("Terbit 🎉 didik"); setErrors([]); } else setErrors(r.errors ?? []); await reload(); }
+    catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); } finally { setBusy(""); }
   };
 
-  return (
-    <div className="space-y-4">
-      <Header help={help} setHelp={setHelp} />
+  const active = draft ?? live;
+  const dims = useMemo(() => { const a = asses.find((x) => x.code === code); return a ? (versBy[a.id] ?? []) : []; }, []);
 
-      {/* Pilih assessment */}
-      <div className="flex flex-wrap items-center gap-2">
-        {assessments.map((a) => (
-          <button key={a.id} onClick={() => { setCode(a.code); setTab("config"); }}
-            className={`rounded-xl px-4 py-2 font-manrope text-sm font-semibold transition-all ${code === a.code ? "bg-brand-navy text-white shadow" : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300"}`}>
-            {a.name}
-          </button>
-        ))}
-        {vers.map((v) => (
-          <Badge key={v.id} className={`border ${STATUS[v.status] ?? ""}`}>v{v.versionNumber} · {v.status}</Badge>
-        ))}
+  return (
+    <div className="mx-auto max-w-4xl space-y-4">
+      {/* Header + pemilih asesmen + Terbitkan */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="font-bold font-bricolage text-xl text-foreground">Kelola Tes</span>
+          <Select value={code} onValueChange={(v) => setCode(v ?? "")}>
+            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectContent>{asses.map((a) => <SelectItem key={a.id} value={a.code}>{a.name}</SelectItem>)}</SelectContent>
+          </Select>
+          {active && <Badge className={active.status === "live" ? "border-teal-500/30 bg-teal-500/10 text-teal-700" : "border-amber-500/30 bg-amber-500/10 text-amber-700"}>{active.status === "live" ? "Online" : "Draf"}</Badge>}
+          {active?.publishedAt && active.status === "live" && <span className="font-manrope text-[11px] text-muted-foreground">Terakhir diperbarui {new Date(active.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          {live && (<a href="/assessment/talent?preview=1" target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 font-manrope text-xs font-semibold text-gray-600 hover:bg-gray-50"><Eye className="h-3.5 w-3.5" /> Lihat sebagai siswa</a>)}
+          <Button className="bg-brand-orange hover:bg-brand-orange/90" disabled={!draft || busy === "pub" || busy === "edit"} onClick={() => void publish()}>
+            {busy === "pub" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Rocket className="mr-1 h-4 w-4" />} Terbitkan
+          </Button>
+        </div>
       </div>
 
-      {!active && (selLive || selDraft) === null && (
-        <Card><CardContent className="pt-5 font-manrope text-sm text-muted-foreground">
-          Belum ada versi. {selLive === null && selDraft === null && assessments.length > 0 ? "Sebarkan lewat seeder (packages/db) atau hubungi developer." : ""}
-        </CardContent></Card>
-      )}
-
-      {active && (
-        <>
-          {/* Wizard tabs */}
-          <div className="flex flex-wrap gap-1.5">
-            {([["config", "1 · Pengaturan"], ["content", "2 · Konten"], ["publish", "3 · Terbitkan"]] as const).map(([k, label]) => (
-              <button key={k} onClick={() => setTab(k)}
-                className={`rounded-lg px-4 py-2 font-manrope text-sm font-semibold transition-all ${tab === k ? "bg-brand-orange text-white shadow" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* 1 · PENGATURAN */}
-          {tab === "config" && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Pengaturan Asesmen</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                {[
-                  ["total_dim", "Total Dimensi", "number"],
-                  ["result_dim_count", "Jumlah hasil (Top-N)", "number"],
-                  ["min_q_per_dim", "Min. soal per dimensi", "number"],
-                  ["scoring_method", "Metode skoring", "select:sum:average:weighted"],
-                  ["randomize_q", "Acak soal", "select:true:false"],
-                  ["randomize_a", "Acak opsi", "select:true:false"],
-                  ["timer_enabled", "Aktifkan timer", "select:true:false"],
-                  ["allow_pause", "Izinkan pause/resume", "select:true:false"],
-                ].map(([key, label, kind]) => (
-                  <div key={key}>
-                    <label className="mb-1 block font-manrope text-xs font-semibold text-foreground">{label}</label>
-                    {kind.startsWith("select:") ? (
-                      <Select value={String(cfg[key] ?? "")} onValueChange={(v) => setCfg((c) => ({ ...c, [key]: kind.includes("select:true:false") ? v === "true" : v }))}>
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {kind.split(":").slice(1).map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input type={kind} value={cfg[key] ?? ""} onChange={(e) => setCfg((c) => ({ ...c, [key]: Number(e.target.value) }))} />
-                    )}
-                  </div>
-                ))}
-                <div className="md:col-span-2">
-                  <Button onClick={() => void saveConfig()} disabled={busy === "cfg"} className="bg-brand-navy hover:bg-brand-navy-light">
-                    {busy === "cfg" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />} Simpan Pengaturan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 2 · KONTEN */}
-          {tab === "content" && (
-            <Card>
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle className="text-base">Soal — {selDraft ? `v${selDraft.versionNumber} (draft)` : (selLive ? `v${selLive.versionNumber} (LIVE, terkunci)` : "")}</CardTitle>
-                {selDraft ? (
-                  <Button size="sm" className="bg-brand-orange hover:bg-brand-orange/90" onClick={() => setEditor({ open: true })}>
-                    <Plus className="mr-1 h-4 w-4" /> Tambah Soal
-                  </Button>
-                ) : selLive ? (
-                  <Button size="sm" variant="outline" onClick={() => void createDraft()} disabled={busy === "draft"}>
-                    {busy === "draft" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <GitBranch className="mr-1 h-4 w-4" />} Buat Draft v{selLive.versionNumber + 1} & Edit
-                  </Button>
-                ) : null}
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {selDraft && !content && <Loader2 className="mx-auto my-6 h-5 w-5 animate-spin text-muted-foreground" />}
-                {(!content || content.questions.length === 0) && selDraft && (
-                  <p className="font-manrope text-sm text-muted-foreground">Belum ada soal di draft ini.</p>
-                )}
-                {(content?.questions ?? []).map((q, i) => {
-                  const opts = (content?.options ?? []).filter((o) => o.questionId === q.id);
-                  const dim = content?.dimensions.find((d) => d.id === q.dimensionId);
-                  const tc = content?.textConfigs.find((t) => t.questionId === q.id);
-                  return (
-                    <div key={q.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="truncate font-manrope text-sm font-medium text-gray-800">
-                          <span className="mr-2 text-xs text-gray-400">{i + 1}.</span>
-                          {q.questionText}
-                        </p>
-                        <p className="font-manrope text-[11px] text-muted-foreground">
-                          {dim?.name ?? q.dimensionId} · {q.questionType === "text_input" ? `Isian (${tc?.evaluationType ?? "?"})` : `${opts.length} opsi`} · bobot {q.weight ?? 1}
-                          {q.hasMathNotation ? " · LaTeX" : ""}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <button onClick={() => setEditor({ open: true, q })} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-200"><Pencil className="h-4 w-4" /></button>
-                        <button onClick={() => void delQ(q.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 3 · TERBITKAN */}
-          {tab === "publish" && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Terbitkan & Uji</CardTitle></CardHeader>
-              <CardContent className="space-y-3 font-manrope text-sm text-muted-foreground">
-                {selLive && (
-                  <p>
-                    Versi LIVE saat ini: <b className="text-brand-navy">v{selLive.versionNumber}</b>
-                    {selLive.publishedAt && <> (terbit {new Date(selLive.publishedAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })})</>}.
-                  </p>
-                )}
-                {selDraft ? (
-                  <>
-                    <p>Draft <b>v{selDraft.versionNumber}</b> siap diterbitkan. Validasi otomatis dijalankan — jika ada yang kurang, kamu lihat daftar kesalahannya di bawah.</p>
-                    <Button className="bg-brand-orange hover:bg-brand-orange/90" onClick={() => void publish()} disabled={busy === "pub"}>
-                      {busy === "pub" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Rocket className="mr-1 h-4 w-4" />} Terbitkan v{selDraft.versionNumber}
-                    </Button>
-                  </>
-                ) : (
-                  <p>Tidak ada draft — buka tab <b>Konten</b> lalu <b>Buat Draft</b> untuk mengubah soal versi baru.</p>
-                )}
-                {selLive && (
-                  <a href="/assessment/talent?preview=1" target="_blank" className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 font-manrope text-xs font-semibold text-white hover:bg-teal-700">
-                    👁 Coba halaman siswa (preview) →
-                  </a>
-                )}
-                {errors.length > 0 && (
-                  <div className="rounded-xl border border-red-100 bg-red-50/60 p-3">
-                    <p className="font-manrope text-xs font-semibold text-red-700">Validasi gagal:</p>
-                    <ul className="mt-1 list-inside list-disc space-y-0.5">
-                      {errors.map((e, i) => <li key={i} className="text-[11px] text-red-700/90">{e}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
-
-      {/* Modal builder soal */}
-      {editor.open && active && content && <QuestionModal q={editor.q} versionId={active.id} dims={content.dimensions} onSave={async () => { setEditor({ open: false }); setContent(await (aClient.discoverAdmin.contentList({ versionId: active.id }) as any)); }} onClose={() => setEditor({ open: false })} />}
-    </div>
-  );
-}
-
-function Header({ help, setHelp }: { help: boolean; setHelp: (v: boolean) => void }) {
-  return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="flex items-center gap-2 font-bold font-bricolage text-xl text-foreground">
-            <Layers className="h-5 w-5 text-brand-navy" /> Kelola Asesmen
-          </h1>
-          <p className="mt-0.5 font-manrope text-sm text-muted-foreground">Alur simpel: <b>1·Atur → 2·Isi Soal → 3·Terbitkan</b>.</p>
-        </div>
-        <button onClick={() => setHelp(!help)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 font-manrope text-xs font-semibold text-gray-600 hover:bg-gray-50">
-          <HelpCircle className="h-3.5 w-3.5" /> {help ? "Tutup panduan" : "Bagaimana cara pakai?"}
+      {/* Aturan tes (collapsible) */}
+      <div className="rounded-2xl border border-gray-200 bg-white">
+        <button onClick={() => setRulesOpen(!rulesOpen)} className="flex w-full items-center justify-between px-5 py-3.5">
+          <span className="font-bold font-bricolage text-sm text-brand-navy">Aturan tes</span>
+          {rulesOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
         </button>
+        {rulesOpen && (
+          <div className="grid gap-3 border-t border-gray-100 px-5 pb-5 pt-4 md:grid-cols-3">
+            <Rule label="Tampilkan hasil N kode teratas" hint="cth: 3" type="number" value={rules.result_dim_count ?? ""} onChange={(v) => setRules((r) => ({ ...r, result_dim_count: Number(v) }))} />
+            <Rule label="Min. soal per dimensi" value={rules.min_q_per_dim ?? ""} type="number" onChange={(v) => setRules((r) => ({ ...r, min_q_per_dim: Number(v) }))} />
+            <Rule label="Cara nilai" type="select" opts={[["sum", "Jumlah poin"], ["average", "Rata-rata"], ["weighted", "Bobot soal"]]} value={rules.scoring_method ?? "sum"} onChange={(v) => setRules((r) => ({ ...r, scoring_method: v }))} />
+            <Rule label="Acak urutan soal" type="bool" value={rules.randomize_q === true} onChange={(v) => setRules((r) => ({ ...r, randomize_q: v }))} />
+            <Rule label="Acak urutan pilihan" type="bool" value={rules.randomize_a === true} onChange={(v) => setRules((r) => ({ ...r, randomize_a: v }))} />
+            <Rule label="Izinkan lanjut kemudian" type="bool" value={rules.allow_pause === true} onChange={(v) => setRules((r) => ({ ...r, allow_pause: v }))} />
+            <div className="md:col-span-3"><Button size="sm" variant="outline" onClick={() => void saveRules()} disabled={busy === "rules"}>{busy === "rules" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 h-3.5 w-3.5" />} Simpan aturan</Button></div>
+          </div>
+        )}
       </div>
-      {help && (
-        <div className="mt-3 rounded-2xl border border-teal-100 bg-teal-50/40 p-4">
-          <p className="font-manrope text-xs font-semibold text-teal-800">Panduan singkat</p>
-          <ol className="mt-1.5 space-y-1 font-manrope text-xs text-gray-600">
-            <li>① <b>Pengaturan</b> — pilih asesmen (Discover = minat · Talent = bakat), atur jumlah dimensi, top-N, metode skoring, timer.</li>
-            <li>② <b>Konten</b> — jika versi LIVE, tekan <b>Buat Draft</b> (versi lama tak bisa diubah agar hasil historis aman). Tambah/edit soal: pilih dimensi, tipe (Pilihan / Isian), isi opsi + bobot. Soal isian punya aturan penilaian (tepat/toleransi angka/kata/kunci pola).</li>
-            <li>③ <b>Terbitkan</b> — sistem memvalidasi otomatis (min. soal per dimensi, opsi ≥2, konfigurasi valid). Jika lolos → jadi LIVE; versi lama otomatis di-archive. Siswa langsung melihat versi terbaru.</li>
-            <li>💡 Versi LIVE <b>terkunci</b> — perubahan selalu lewat draft baru. Itu kunci integritas hasil historis.</li>
-          </ol>
+
+      {/* Daftar soal */}
+      <div className="rounded-2xl border border-gray-200 bg-white">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
+          <span className="font-bold font-bricolage text-sm text-brand-navy">Daftar soal <span className="ml-1 font-manrope text-[11px] font-normal text-muted-foreground">{content?.questions.length ?? 0} soal</span></span>
+          {!canEdit && live && <Button size="sm" className="bg-brand-navy hover:bg-brand-navy-light" onClick={() => void startEdit()} disabled={busy === "edit"}>{busy === "edit" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <PencilIcon />} Ubah soal</Button>}
+          {canEdit && <Button size="sm" className="bg-brand-orange hover:bg-brand-orange/90" onClick={() => setModal({ open: true })}><Plus className="mr-1 h-4 w-4" /> Tambah soal</Button>}
+        </div>
+        <div className="divide-y divide-gray-50 px-2 pb-2">
+          {canEdit && (!content || content.questions.length === 0) && <p className="px-3 py-6 text-center font-manrope text-sm text-muted-foreground">Belum ada soal.</p>}
+          {(content?.questions ?? []).filter(() => canEdit).map((q, i) => {
+            const opts = (content?.options ?? []).filter((o: any) => o.questionId === q.id);
+            const tc = (content?.textConfigs ?? []).find((t: any) => t.questionId === q.id);
+            const dim = content?.dimensions.find((d) => d.id === q.dimensionId);
+            return (
+              <div key={q.id} className="group flex items-center justify-between gap-2 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate font-manrope text-sm font-medium text-gray-800"><span className="mr-2 text-xs text-gray-400">{i + 1}.</span>{q.questionText}</p>
+                  <p className="font-manrope text-[11px] text-muted-foreground">{dim?.name ?? "—"} · {q.questionType === "text_input" ? "Isian" : `${opts.length} pilihan`}</p>
+                </div>
+                <div className="flex shrink-0 gap-1 opacity-60 transition-opacity group-hover:opacity-100">
+                  <button onClick={() => setModal({ open: true, q })} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><PencilIcon /></button>
+                  <button onClick={() => void delQ(q.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Validasi & terbit */}
+      {errors.length > 0 && (
+        <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
+          <p className="font-manrope text-sm font-semibold text-red-700">Sebelum terbit, perbaiki:</p>
+          <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-red-700/90">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
         </div>
       )}
+
+      {modal.open && draft && content && <QuestionModal q={modal.q} versionId={draft.id} content={content} onDone={async () => { setModal({ open: false }); setContent(await aClient.discoverAdmin.contentList({ versionId: draft.id })); }} onClose={() => setModal({ open: false })} />}
     </div>
   );
 }
 
+function PencilIcon() { return <span className="mr-1 inline-block h-4 w-4 align-[-2px]">✏️</span>; }
 
-function QuestionModal({ q, versionId, dims, onSave, onClose }: { q?: any; versionId: string; dims: Dimension[]; onSave: () => void; onClose: () => void }) {
+function Rule({ label, hint, type, opts, value, onChange }: { label: string; hint?: string; type: "number" | "bool" | "select"; opts?: [string, string][]; value: any; onChange: (v: any) => void }) {
+  return (
+    <label className="block font-manrope text-xs font-semibold text-foreground">
+      {label} {hint && <span className="font-normal text-muted-foreground">({hint})</span>}
+      {type === "number" && <Input type="number" className="mt-1" value={value} onChange={(e) => onChange(e.target.value)} />}
+      {type === "bool" && (
+        <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={value ? "1" : "0"} onChange={(e) => onChange(e.target.value === "1")}>
+          <option value="1">Ya</option><option value="0">Tidak</option>
+        </select>
+      )}
+      {type === "select" && (
+        <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={value} onChange={(e) => onChange(e.target.value)}>
+          {(opts ?? []).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      )}
+    </label>
+  );
+}
+
+function QuestionModal({ q, versionId, content, onDone, onClose }: { q?: any; versionId: string; content: Content; onDone: () => void; onClose: () => void }) {
   const aClient = client as any;
   const [form, setForm] = useState<any>({
-    id: q?.id, dimensionId: q?.dimensionId ?? dims[0]?.id ?? "", scaleId: q?.scaleId ?? null,
-    questionText: q?.questionText ?? "", questionType: q?.questionType ?? "multiple_choice",
-    hasMathNotation: q?.hasMathNotation ?? false, weight: q?.weight ?? 1, mediaUrl: q?.mediaUrl ?? "", mediaCaption: q?.mediaCaption ?? "",
-    options: (q?.opts?.length ?? 0) > 0 ? q.opts.map((o: any) => ({ id: o.id, optionValue: o.optionValue, label: o.label, score: o.score })) : [{ optionValue: "A", label: "", score: 1 }, { optionValue: "B", label: "", score: 0 }],
-    textEval: q?.tc ? { evaluationType: q.tc.evaluationType, answerKey: q.tc.answerKey, numericTolerance: q.tc.numericTolerance ?? "" } : { evaluationType: "numeric_tolerance", answerKey: "", numericTolerance: "0.01" },
+    id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", questionText: q?.questionText ?? "",
+    questionType: q?.questionType ?? "multiple_choice", weight: q?.weight ?? 1,
+    options: (q?.opts?.length ?? 0) > 0 ? q.opts.map((o: any) => ({ label: o.label, score: o.score })) : [{ label: "", score: 1 }, { label: "", score: 0 }],
+    textEval: { evaluationType: "numeric_tolerance", answerKey: "", numericTolerance: "0.01" },
   });
   const [busy, setBusy] = useState(false);
-
   const patch = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
-  const patchOpt = (i: number, k: string, v: any) => setForm((f: any) => {
-    const opts = [...f.options]; opts[i] = { ...opts[i], [k]: v }; return { ...f, options: opts };
-  });
+  const patchOpt = (i: number, k: string, v: any) => setForm((f: any) => { const o = [...f.options]; o[i] = { ...o[i], [k]: v }; return { ...f, options: o }; });
 
   const save = async () => {
     if (!form.questionText.trim()) { notify.error("Teks soal wajib diisi"); return; }
-    if (form.questionType === "multiple_choice" && form.options.filter((o: any) => o.label.trim()).length < 2) { notify.error("Pilihan ganda butuh minimal 2 opsi berlabel"); return; }
+    if (form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim()).length < 2) { notify.error("Butuh minimal 2 pilihan"); return; }
     setBusy(true);
     try {
       await aClient.discoverAdmin.contentSave({
         versionId,
         questionData: {
-          id: form.id, dimensionId: form.dimensionId, scaleId: form.scaleId, questionText: form.questionText,
-          questionType: form.questionType, hasMathNotation: form.hasMathNotation, mediaUrl: form.mediaUrl || null,
-          mediaCaption: form.mediaCaption || null, weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: q?.isActive ?? true,
-          options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => o.label.trim()) : [],
-          textEval: form.questionType === "text_input" ? form.textEval : null,
+          id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
+          questionType: form.questionType, hasMathNotation: false, mediaUrl: null, mediaCaption: null,
+          weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
+          options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => String(o.label || "").trim()) : [],
+          textEval: form.questionType === "text_input" && form.textEval.answerKey ? form.textEval : null,
         },
       });
-      notify.create("Soal tersimpan ✅");
-      onSave();
-    } catch (e) { notify.error("Gagal simpan", { description: (e as Error)?.message?.slice(0, 120) }); }
-    finally { setBusy(false); }
+      notify.create("Soal tersimpan ✅"); onDone();
+    } catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); } finally { setBusy(false); }
   };
 
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm">
-      <div className="mt-6 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="mt-6 w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold font-bricolage text-base text-brand-navy">{q?.id ? "Edit Soal" : "Tambah Soal"}</h3>
+          <h3 className="font-bold font-bricolage text-base text-brand-navy">{form.id ? "Ubah soal" : "Tambah soal"}</h3>
           <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
         </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <label className="block font-manrope text-xs font-semibold text-foreground">Dimensi
-            <Select value={String(form.dimensionId)} onValueChange={(v) => patch("dimensionId", v)}>
-              <SelectTrigger className="mt-1 w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>{dims.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-            </Select>
+        <div className="mt-4 space-y-3">
+          <label className="block font-manrope text-xs font-semibold text-foreground">Teks soal
+            <Input className="mt-1" value={form.questionText} onChange={(e) => patch("questionText", e.target.value)} placeholder="cth: Kamu lebih suka bekerja dengan…" />
           </label>
-          <label className="block font-manrope text-xs font-semibold text-foreground">Tipe
-            <Select value={form.questionType} onValueChange={(v) => patch("questionType", v)}>
-              <SelectTrigger className="mt-1 w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="multiple_choice">Pilihan Ganda</SelectItem>
-                <SelectItem value="text_input">Isian (TEXT)</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="block font-manrope text-xs font-semibold text-foreground md:col-span-2">Teks soal (dukung LaTeX $…$ bila tanda)
-            <Input className="mt-1" value={form.questionText} onChange={(e) => patch("questionText", e.target.value)} placeholder="cth: Hitung hasil dari $\\frac{3}{4} + 0.125$" />
-          </label>
-          <label className="block font-manrope text-xs font-semibold text-foreground">Bobot
-            <Input type="number" className="mt-1" value={form.weight} onChange={(e) => patch("weight", Number(e.target.value))} />
-          </label>
-          <label className="block font-manrope text-xs font-semibold text-foreground">Gambar (opsional)
-            <Input className="mt-1" value={form.mediaUrl} onChange={(e) => patch("mediaUrl", e.target.value)} placeholder="URL gambar / R2" />
-          </label>
-        </div>
-
-        {form.questionType === "multiple_choice" ? (
-          <div className="mt-4 space-y-2">
-            <p className="font-manrope text-xs font-semibold text-foreground">Opsi Jawaban (label + skor)</p>
-            {form.options.map((o: any, i: number) => (
-              <div key={i} className="flex gap-2">
-                <Input className="flex-1" placeholder={`Opsi ${o.optionValue}`} value={o.label} onChange={(e) => patchOpt(i, "label", e.target.value)} />
-                <Input type="number" className="w-20" value={o.score} onChange={(e) => patchOpt(i, "score", Number(e.target.value))} title="Skor ke dimensi" />
-                {form.options.length > 2 && <button onClick={() => patch("options", form.options.filter((_: any, x: number) => x !== i))} className="text-red-400"><Trash2 className="h-4 w-4" /></button>}
-              </div>
-            ))}
-            {form.options.length < 6 && (
-              <Button size="sm" variant="outline" onClick={() => patch("options", [...form.options, { optionValue: String.fromCharCode(65 + form.options.length), label: "", score: 0 }])}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Tambah opsi
-              </Button>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block font-manrope text-xs font-semibold text-foreground">Dimensi
+              <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.dimensionId} onChange={(e) => patch("dimensionId", e.target.value)}>
+                {content.dimensions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </label>
+            <label className="block font-manrope text-xs font-semibold text-foreground">Jenis jawaban
+              <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.questionType} onChange={(e) => patch("questionType", e.target.value)}>
+                <option value="multiple_choice">Pilihan ganda</option><option value="text_input">Mengetik jawaban</option>
+              </select>
+            </label>
           </div>
-        ) : (
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <p className="font-manrope text-xs font-semibold text-foreground md:col-span-2">Aturan penilaian isian</p>
-            <label className="block font-manrope text-xs text-foreground">Metode
-              <Select value={form.textEval.evaluationType} onValueChange={(v) => patch("textEval", { ...form.textEval, evaluationType: v })}>
-                <SelectTrigger className="mt-1 w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="exact_match">Persis (teks/angka)</SelectItem>
-                  <SelectItem value="numeric_tolerance">Angka (toleransi)</SelectItem>
-                  <SelectItem value="keyword_match">Mengandung kata kunci</SelectItem>
-                  <SelectItem value="pattern_match">Pola (regex)</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="block font-manrope text-xs text-foreground">Kunci jawaban
-              <Input className="mt-1" value={form.textEval.answerKey} onChange={(e) => patch("textEval", { ...form.textEval, answerKey: e.target.value })} placeholder="cth: 0.75 / 3/4" />
-            </label>
-            {form.textEval.evaluationType === "numeric_tolerance" && (
-              <label className="block font-manrope text-xs text-foreground md:col-span-2">Toleransi (cth 0.01)
-                <Input className="mt-1" value={form.textEval.numericTolerance} onChange={(e) => patch("textEval", { ...form.textEval, numericTolerance: e.target.value })} />
+          {form.questionType === "multiple_choice" ? (
+            <div className="space-y-2">
+              <p className="font-manrope text-xs font-semibold text-foreground">Pilihan (pilihan mendapat 1 poin utk dimensi; sisanya 0)</p>
+              {form.options.map((o: any, i: number) => (
+                <div key={i} className="flex gap-2">
+                  <Input className="flex-1" placeholder={`Pilihan ${["A", "B", "C", "D", "E", "F"][i]}`} value={o.label} onChange={(e) => patchOpt(i, "label", e.target.value)} />
+                  <Input type="number" className="w-20" value={o.score} onChange={(e) => patchOpt(i, "score", Number(e.target.value))} />
+                  {form.options.length > 2 && <button onClick={() => patch("options", form.options.filter((_: any, x: number) => x !== i))} className="text-red-400"><Trash2 className="h-4 w-4" /></button>}
+                </div>
+              ))}
+              {form.options.length < 6 && <Button size="sm" variant="outline" onClick={() => patch("options", [...form.options, { label: "", score: 0 }])}><Plus className="mr-1 h-3.5 w-3.5" /> Tambah pilihan</Button>}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block font-manrope text-xs font-semibold text-foreground">Jawaban benar (angka/persis)
+                <Input className="mt-1" value={form.textEval.answerKey} onChange={(e) => patch("textEval", { ...form.textEval, answerKey: e.target.value })} placeholder="cth: 0.75 atau 3/4" />
               </label>
-            )}
-          </div>
-        )}
-
+              <label className="block font-manrope text-xs font-semibold text-foreground">Toleransi angka
+                <Input className="mt-1" value={form.textEval.numericTolerance} onChange={(e) => patch("textEval", { ...form.textEval, numericTolerance: e.target.value })} placeholder="0.01" />
+              </label>
+            </div>
+          )}
+        </div>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button className="bg-brand-navy hover:bg-brand-navy-light" onClick={() => void save()} disabled={busy}>
-            {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-1 h-4 w-4" />} Simpan Soal
-          </Button>
+          <Button className="bg-brand-navy hover:bg-brand-navy-light" onClick={() => void save()} disabled={busy}>{busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-1 h-4 w-4" />} Simpan soal</Button>
         </div>
       </div>
     </div>
