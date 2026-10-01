@@ -1,7 +1,13 @@
+import { MaintenanceGate } from "@/components/dashboard/maintenance-gate";
+
 export default function InternalLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <div className="grid grid-rows-[auto_1fr] overflow-x-hidden">{children}</div>;
+  return (
+    <div className="grid grid-rows-[auto_1fr] overflow-x-hidden">
+      <MaintenanceGate exceptPaths={["/admin"]}>{children}</MaintenanceGate>
+    </div>
+  );
 }
