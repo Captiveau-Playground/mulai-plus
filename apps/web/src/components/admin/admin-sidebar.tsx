@@ -10,6 +10,7 @@ import {
   Fingerprint,
   Key,
   LayoutDashboard,
+  Wrench,
   Link as LinkIcon,
   Settings2,
   Shield,
@@ -48,6 +49,11 @@ const data = {
       title: "Dashboard",
       url: "/admin",
       icon: LayoutDashboard,
+    },
+    {
+      title: "Maintenance",
+      url: "/admin/maintenance",
+      icon: Wrench,
     },
   ],
   navAssessment: [

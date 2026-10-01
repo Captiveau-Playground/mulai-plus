@@ -419,13 +419,23 @@ export function createApp(options: CreateAppOptions) {
 
   // ── Status publik — dipakai banner maintenance (soft maintenance) di dashboard.
   //    Toggle via secret MAINTENANCE (bulk). Cache pendek biar update cepat.
-  app.get("/meta/status", (c: any) => {
-    const env = c.env as Record<string, string | undefined>;
-    const maintenance = env?.MAINTENANCE === "1" || env?.SOFT_MAINTENANCE === "1";
+  app.get("/meta/status", async (c: any) => {
+    const env = c.env as Record<string, any>;
+    const kv = env?.KV_CACHE;
+    let flag: any = null;
+    if (kv?.get) {
+      try {
+        const raw = await kv.get("maintenance:flag");
+        if (raw) flag = JSON.parse(raw);
+      } catch {
+        /* lanjut */
+      }
+    }
+    const maintenance = flag?.active === true || env?.MAINTENANCE === "1" || env?.SOFT_MAINTENANCE === "1";
     return c.json({
       maintenance,
-      message: maintenance ? "Layanan sedang pemeliharaan. Coba lagi beberapa saat ya 🙏" : null,
-      endsAt: env?.MAINTENANCE_ENDS_AT || null,
+      message: flag?.message || (maintenance ? "Layanan sedang pemeliharaan. Coba lagi beberapa saat ya 🙏" : null),
+      endsAt: flag?.endsAt || env?.MAINTENANCE_ENDS_AT || null,
     });
   });
 
