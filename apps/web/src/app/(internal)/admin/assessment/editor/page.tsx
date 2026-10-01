@@ -54,7 +54,7 @@ export default function AssessmentEditorPage() {
   const loadContent = useCallback(async (v: Version | null) => {
     if (!v) { setContent(null); return; }
     setRules(v.configJson ?? {});
-    try { setContent(await aClient.discoverAdmin.contentList({ versionId: v.id })); } catch { setContent(null); }
+    try { setContent(await aClient.discoverAdmin.versions.contentList({ versionId: v.id })); } catch { setContent(null); }
     setCanEdit(v.status === "draft");
   }, []);
   useEffect(() => { const sel = draft ?? live; void loadContent(sel); }, [draft?.id, live?.id]);
@@ -69,7 +69,7 @@ export default function AssessmentEditorPage() {
 
   const checkGate = useCallback(async () => {
     if (!draft) { setGate(null); return; }
-    try { setGate(await aClient.discoverAdmin.validate({ versionId: draft.id })); }
+    try { setGate(await aClient.discoverAdmin.versions.contentList({ versionId: draft.id })); }
     catch { setGate(null); }
   }, [draft?.id]);
 
@@ -78,26 +78,26 @@ export default function AssessmentEditorPage() {
   const saveRules = async () => {
     if (!draft) return;
     setBusy("rules");
-    try { await aClient.discoverAdmin.configUpdate({ versionId: draft.id, config: rules }); notify.create("Aturan disimpan ✅"); }
+    try { await aClient.discoverAdmin.versions.contentList({ versionId: draft.id, config: rules }); notify.create("Aturan disimpan ✅"); }
     catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); } finally { setBusy(""); }
   };
 
-  const reloadContent = async () => { if (draft) setContent(await aClient.discoverAdmin.contentList({ versionId: draft.id })); };
+  const reloadContent = async () => { if (draft) setContent(await aClient.discoverAdmin.versions.contentList({ versionId: draft.id })); };
   const dropQ = async (from: number, to: number) => {
     if (!content || from === to) return;
     const qs = [...content.questions];
     const [moved] = qs.splice(from, 1);
     qs.splice(to, 0, moved!);
     setContent({ ...content, questions: qs });
-    await aClient.discoverAdmin.contentReorder({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
+    await aClient.discoverAdmin.versions.contentList({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
     setDragIdx(null);
   };
   const delQ = async (id: string) => {
-    await aClient.discoverAdmin.contentDelete({ questionId: id });
+    await aClient.discoverAdmin.versions.contentList({ questionId: id });
     await reloadContent();
   };
   const dupQ = async (id: string) => {
-    await aClient.discoverAdmin.contentDuplicate({ questionId: id });
+    await aClient.discoverAdmin.versions.contentList({ questionId: id });
     await reloadContent();
     notify.create("Soal disalin");
   };
@@ -107,7 +107,7 @@ export default function AssessmentEditorPage() {
     const j = idx + dir;
     if (j < 0 || j >= qs.length) return;
     [qs[idx], qs[j]] = [qs[j]!, qs[idx]!];
-    await aClient.discoverAdmin.contentReorder({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
+    await aClient.discoverAdmin.versions.contentList({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
     await reloadContent();
   };
 
@@ -279,7 +279,7 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
     if (form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim()).length < 2) { notify.error("Butuh minimal 2 pilihan"); return; }
     setBusy(true);
     try {
-      await aClient.discoverAdmin.contentSave({
+      await aClient.discoverAdmin.versions.contentList({
         versionId,
         questionData: {
           id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
