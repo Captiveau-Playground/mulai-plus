@@ -109,10 +109,10 @@ async function main() {
   console.log("  (verifikasi manual) dimZ=4 (3×1+1×1), dimV=2 → profile Z-V");
 
   console.log("── [3] tie-breaker waktu (skor seri) ──");
-  const { aid: aid2, vid: vid2, qz: qA, qv: qB } = await buildCompliant("TALENT_TIE" + suf, { method: "sum", tieDimA: 0, tieDimAwsTime: 999, tieDimBwsTime: 5 });
+  const { aid: aid2, vid: vid2, qz: qA, qv: qB, dZ: dA, dCh: dB } = await buildCompliant("TALENT_TIE" + suf, { method: "sum", tieDimA: 0, tieDimAwsTime: 999, tieDimBwsTime: 5 });
   await publishVersion(vid2);
-  const mk = async (qid: string, dimId: string, sid: string) => {
-    const o = (await db.query.questionOptions.findMany({ where: eq(schema.questionOptions.questionId, qid) }))[0];
+  const mk = async (qid: string, _dimId: string, sid: string) => {
+    const o = (await db.query.questionOptions.findMany({ where: eq(schema.questionOptions.questionId, qid) }))[0]!;
     await db.insert(schema.assessmentAnswers).values({ id: id(), sessionId: sid, questionId: qid, selectedOptionId: o.id, scoreEarned: 1 });
   };
   const s2 = { id: id(), studentId: "tie-test", versionId: vid2, status: "in_progress" as const, configJson: {} };
@@ -125,7 +125,7 @@ async function main() {
   ];
   rows.sort((a, b) => b.total - a.total || a.time - b.time);
   const codes = rows.map((r) => r.dimId === dA ? "Z" : "V");
-  console.log("  tie sort (A slow, V fast):", codes.join(","), rows[0].dimId === dB ? "✓ V menang (lebih cepat)" : "✗");
+  console.log("  tie sort (A slow, V fast):", codes.join(","), rows[0]!.dimId === dB ? "✓ V menang (lebih cepat)" : "✗");
 
   console.log("── cleanup ──");
   await cleanup(aid); await cleanup(aid2);
