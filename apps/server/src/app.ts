@@ -2,6 +2,7 @@ import { createContext } from "@mulai-plus/api/context-core";
 import { appRouter } from "@mulai-plus/api/routers/index";
 import type { createAuth } from "@mulai-plus/auth/create-auth";
 import { db, eq } from "@mulai-plus/db/db";
+import { systemSettings } from "@mulai-plus/db/schema/settings";
 import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import { env } from "@mulai-plus/env/server";
 import { notifyDiscord } from "@mulai-plus/notify/discord";
@@ -429,6 +430,17 @@ export function createApp(options: CreateAppOptions) {
         if (raw) flag = JSON.parse(raw);
       } catch {
         /* lanjut */
+      }
+    }
+    // Dev lokal (tanpa KV) → fallback ke system_settings DB
+    if (!flag) {
+      try {
+        const row = await db.query.systemSettings.findFirst({
+          where: eq(systemSettings.key, "maintenance:flag"),
+        });
+        if (row?.value) flag = row.value as any;
+      } catch {
+        /* DB unavailable — biarkan off */
       }
     }
     const maintenance = flag?.active === true || env?.MAINTENANCE === "1" || env?.SOFT_MAINTENANCE === "1";
