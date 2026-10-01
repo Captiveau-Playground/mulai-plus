@@ -417,6 +417,18 @@ export function createApp(options: CreateAppOptions) {
   app.get("/", (c) => c.text("OK"));
   app.get("/health", (c) => c.json({ ok: true, service: "api" }));
 
+  // ── Status publik — dipakai banner maintenance (soft maintenance) di dashboard.
+  //    Toggle via secret MAINTENANCE (bulk). Cache pendek biar update cepat.
+  app.get("/meta/status", (c: any) => {
+    const env = c.env as Record<string, string | undefined>;
+    const maintenance = env?.MAINTENANCE === "1" || env?.SOFT_MAINTENANCE === "1";
+    return c.json({
+      maintenance,
+      message: maintenance ? "Layanan sedang pemeliharaan. Coba lagi beberapa saat ya 🙏" : null,
+      endsAt: env?.MAINTENANCE_ENDS_AT || null,
+    });
+  });
+
   app.use("/rpc/*", (c, next) => kvRpcCache(c as any, next));
 
   app.use("/*", async (c, next) => {
