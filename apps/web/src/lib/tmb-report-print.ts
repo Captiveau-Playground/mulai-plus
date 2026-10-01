@@ -86,8 +86,13 @@ export interface TmbReportData {
 function levelLabel(l: string) {
   return l === "high" ? "Tinggi" : l === "medium" ? "Sedang" : "Perlu Pengembangan";
 }
-function levelColor(l: string) {
-  return l === "high" ? "#22C55E" : l === "medium" ? "#F59E0B" : "#F87171";
+/** Bar minat & bakat memakai satu warna (matching palet S.teal); perbedaan = opacity. */
+function rgba(hex: string, a: number) {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a.toFixed(3)})`;
+}
+function levelAlpha(l: string) {
+  return l === "high" ? 1 : l === "medium" ? 0.62 : 0.38;
 }
 
 const S = {
@@ -120,18 +125,16 @@ function bar(label: string, pct: number, color: string, right?: string, desc?: s
 export function renderReportHtml(r: TmbReportData, qrData = ""): string {
   const dims = ["R", "I", "A", "S", "E", "C"];
   const max = Math.max(...dims.map((d) => r.hollandScores?.[d] ?? 0), 0.1);
-  const diff =
-    r.differentiation === "strong" ? "Tinggi" : r.differentiation === "moderate" ? "Sedang" : "Perlu Eksplorasi";
-
   const riasec = dims
     .map((d) => {
       const score = Math.round((r.hollandScores?.[d] ?? 0) * 100);
       const pct = ((r.hollandScores?.[d] ?? 0) / max) * 100;
-      const top = r.hollandCode?.includes(d);
+      // 100% = hijau penuh; skor lebih rendah → opacity menurun (indikator melemah)
+      const alpha = 0.3 + 0.7 * (pct / 100);
       return bar(
         `${d} · ${HOLLAND_NAME[d] ?? ""}`,
         pct,
-        top ? S.teal : "#B0B1BA",
+        rgba(S.teal, alpha),
         `${score}%`,
         `${HOLLAND_DESC[d]} <b>Karier:</b> ${HOLLAND_CAREERS[d]}`,
       );
@@ -146,7 +149,7 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
       return bar(
         label,
         pct,
-        levelColor(lv),
+        rgba(S.teal, levelAlpha(lv)),
         `${s.correct}/${s.total} · ${levelLabel(lv)}`,
         `${ABILITY_DESC[k]} <b>Cocok untuk:</b> ${ABILITY_CAREERS[k]}`,
       );
@@ -231,9 +234,8 @@ export function renderReportHtml(r: TmbReportData, qrData = ""): string {
     <div class="sec">
       <h2>1. Profil Minat (Holland RIASEC)</h2>
       <table class="bars"><tbody>${riasec}</tbody></table>
-      <div style="margin-top:8px;font-size:11.5px;"><b style="color:${S.teal};">Kode Minat: ${r.hollandCode || "---"}</b>
-        <span style="color:${S.gray};float:right;">Kejelasan: ${diff} · Confidence ${r.confidenceScore}%</span></div>
-      ${r.hollandCode ? `<div style="margin-top:6px;font-size:10px;color:#4A4F5C;background:#F4F6FB;border-left:3px solid ${S.orange};padding:7px 10px;border-radius:6px;"><b style="color:${S.navy};">Apa arti kode ini?</b><br/>${strongestHolland(r.hollandCode)}</div>` : ""}
+      <div style="margin-top:8px;font-size:11.5px;"><b style="color:${S.teal};">Kode Minat: ${r.hollandCode || "---"}</b></div>
+      ${r.hollandCode ? `<div style="margin-top:6px;font-size:10px;color:#4A4F5C;background:#F4F6FB;border-left:3px solid ${S.orange};padding:7px 10px;border-radius:6px;"><b style="color:${S.navy};">Apa arti kode ini?</b><br/>${strongestHolland(r.hollandCode)}<div style="margin-top:6px;padding-top:5px;border-top:1px dashed #D7DBE6;font-size:8.5px;color:#7A7F8C;line-height:1.5;">💡 Huruf kode ditulis berurutan dari skor tertinggi ke terendah. Jika ada skor yang sama, urutan mengikuti abjad huruf (mis. A sebelum R). Referensi: teori tipe kepribadian karier Holland (RIASEC).</div></div>` : ""}
     </div>
 
     <div class="sec">

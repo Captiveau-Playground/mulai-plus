@@ -10,6 +10,7 @@ import {
   Fingerprint,
   Key,
   LayoutDashboard,
+  Wrench,
   Link as LinkIcon,
   Settings2,
   Shield,
@@ -302,7 +303,7 @@ const data = {
       ],
     },
     {
-      title: "Settings",
+      title: "Systems & Settings",
       url: "#",
       icon: Settings2,
       items: [
@@ -317,6 +318,11 @@ const data = {
         {
           title: "Email",
           url: "/admin/email",
+        },
+        {
+          title: "Maintenance",
+          url: "/admin/maintenance",
+          icon: Wrench,
         },
       ],
     },
