@@ -36,10 +36,11 @@ export async function seedTalentV1({ force = false }: { force?: boolean } = {}) 
   await db.insert(schema.answerScales).values({ id: scaleId, name: "Ability MC (A–D)", description: "Pilihan ganda kemampuan; 1 utk jawaban benar." });
 
   const dimIds: Record<string, string> = {};
-  dimsRaw.forEach((d, i) => {
+  for (let i = 0; i < dimsRaw.length; i++) {
+    const d = dimsRaw[i]!;
     dimIds[d] = id();
-    void db.insert(schema.assessmentDimensions).values({ id: dimIds[d], versionId: vid, code: d.toUpperCase(), name: d, shortName: d.toUpperCase().slice(0, 4), displayOrder: i, isActive: true });
-  });
+    await db.insert(schema.assessmentDimensions).values({ id: dimIds[d], versionId: vid, code: d.toUpperCase(), name: d, shortName: d.toUpperCase().slice(0, 4), displayOrder: i, isActive: true });
+  }
 
   let q = 0;
   for (const x of qs) {
@@ -50,10 +51,11 @@ export async function seedTalentV1({ force = false }: { force?: boolean } = {}) 
       .filter((t): t is string => !!t);
     if (opts.length === 0) continue;
     await db.insert(schema.questions).values({ id: qid, versionId: vid, dimensionId: dimIds[(x as any).dimension] ?? "", scaleId, questionCode: `T-${String((x as any).order ?? q + 1).padStart(3, "0")}`, questionText: x.text, questionType: "multiple_choice", presentationMode: "standard_option_card", weight: 1, displayOrder: (x as any).order ?? q, isActive: (x as any).isActive ?? true });
-    opts.forEach((label, i) => {
+    for (let i = 0; i < opts.length; i++) {
+      const label = opts[i]!;
       const correct = (x as any).answer === fields[i];
-      void db.insert(schema.questionOptions).values({ id: id(), questionId: qid, optionValue: fields[i], targetDimension: dimIds[(x as any).dimension] ?? "", label, score: correct ? 1 : 0, displayOrder: i });
-    });
+      await db.insert(schema.questionOptions).values({ id: id(), questionId: qid, optionValue: fields[i], targetDimension: dimIds[(x as any).dimension] ?? "", label, score: correct ? 1 : 0, displayOrder: i });
+    }
     q++;
   }
   console.log(`✅ TALENT v1 seeded (draft): ${q} soal · ${dimsRaw.length} dims · scale ability`);
