@@ -55,7 +55,7 @@ export function MaintenanceBanner() {
     : null;
 
   return (
-    <div className="flex items-center gap-2 border-b border-brand-orange/20 bg-brand-navy px-3 py-1.5 sm:px-4">
+    <div className="fixed inset-x-0 top-14 z-40 flex items-center gap-2 border-b border-brand-orange/20 bg-brand-navy px-3 py-1.5 shadow-sm sm:px-4 md:top-16">
       <Wrench className="h-3.5 w-3.5 shrink-0 text-brand-orange" />
       <p className="min-w-0 flex-1 truncate font-manrope text-[11px] font-medium text-white/90 sm:text-xs">
         🔧 Kami sedang melakukan pemeliharaan{eta ? ` — perkiraan selesai ${eta}` : ""}.
