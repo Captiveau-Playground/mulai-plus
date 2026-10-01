@@ -10,7 +10,6 @@ export const metadata = {
 type Sponsor = {
   name: string;
   tag: string;
-  desc: string;
   logo: string;
   href: string;
   alt: string;
@@ -20,7 +19,6 @@ const TIER1: Sponsor[] = [
   {
     name: "UPN Veteran Jawa Timur",
     tag: "Pendanaan Riset",
-    desc: "Mendukung MULAI+ melalui pendanaan riset — kolaborasi riset pengembangan platform bersama civitas akademika.",
     logo: "/sponsors/upn-veteran-jatim.png",
     href: "https://upnjatim.ac.id",
     alt: "Logo Universitas Pembangunan Nasional Veteran Jawa Timur",
@@ -31,7 +29,6 @@ const TIER2: Sponsor[] = [
   {
     name: "Cloudflare",
     tag: "Cloudflare for Startups",
-    desc: "Program Cloudflare for Startups — akses pro ke infrastruktur edge: Workers, KV, Durable Objects, Hyperdrive, dan CDN yang menopang API, AI, dan web MULAI+.",
     logo: "/sponsors/cloudflare.svg",
     href: "https://www.cloudflare.com/forstartups/",
     alt: "Logo Cloudflare",
@@ -39,7 +36,6 @@ const TIER2: Sponsor[] = [
   {
     name: "Amplitude",
     tag: "Product Analytics",
-    desc: "Product analytics — memahami perjalanan pelajar dari tes minat hingga keputusan kuliah, demi pengalaman yang lebih baik.",
     logo: "/sponsors/amplitude.png",
     href: "https://amplitude.com",
     alt: "Logo Amplitude",
@@ -47,10 +43,16 @@ const TIER2: Sponsor[] = [
   {
     name: "Sentry",
     tag: "Product Monitoring",
-    desc: "Product monitoring — error tracking & tracing produksi, menjaga setiap worker dan request tetap sehat.",
     logo: "/sponsors/sentry.svg",
     href: "https://sentry.io",
     alt: "Logo Sentry",
+  },
+  {
+    name: "Neon",
+    tag: "Serverless Postgres",
+    logo: "/sponsors/neon.svg",
+    href: "https://neon.tech",
+    alt: "Logo Neon",
   },
 ];
 
@@ -58,7 +60,6 @@ const TIER3: Sponsor[] = [
   {
     name: "API Sekolah Mandiri",
     tag: "Open Source & Data",
-    desc: "Open-source (EduAPI Indonesia) — data master satuan pendidikan untuk autocomplete sekolah, disajikan via edge serverless secara gratis.",
     logo: "/sponsors/github.svg",
     href: "https://github.com/bahrye/api-sekolah-indonesia",
     alt: "Logo GitHub — API Sekolah Mandiri",
@@ -126,7 +127,9 @@ export default function SponsorsPage() {
                   <h3 className="font-bold font-bricolage text-brand-navy text-lg group-hover:text-brand-orange">
                     {s.name}
                   </h3>
-                  <p className="mt-1 font-manrope text-muted-foreground text-xs leading-relaxed">{s.desc}</p>
+                  <span className="mt-1 w-fit rounded-md bg-brand-orange/10 px-2 py-0.5 font-manrope font-semibold text-[10px] text-brand-orange">
+                    {s.tag}
+                  </span>
                 </div>
               </a>
             ))}
@@ -157,7 +160,6 @@ export default function SponsorsPage() {
                 <h3 className="mt-1 font-bold font-bricolage text-base text-brand-navy group-hover:text-brand-orange">
                   {s.name}
                 </h3>
-                <p className="mt-1.5 font-manrope text-muted-foreground text-xs leading-relaxed">{s.desc}</p>
               </a>
             ))}
           </div>
@@ -188,7 +190,6 @@ export default function SponsorsPage() {
                   <h3 className="mt-1 flex items-center gap-1.5 font-bold font-bricolage text-base text-brand-navy group-hover:text-brand-orange">
                     {s.name} <Github className="size-3.5" />
                   </h3>
-                  <p className="mt-1 font-manrope text-muted-foreground text-xs leading-relaxed">{s.desc}</p>
                 </div>
               </a>
             ))}
