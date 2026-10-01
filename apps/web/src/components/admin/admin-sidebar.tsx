@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BarChart3,
   BookOpen,
   Brain,
   Building2,
@@ -51,35 +52,19 @@ const data = {
       icon: LayoutDashboard,
     },
   ],
-  navAssessment: [
+  navAssessmentOps: [
     {
-      title: "Assessment",
-      url: "/admin/assessment",
+      title: "Assessment — Operasional",
+      url: "/admin/assessment/editor",
       icon: Brain,
       items: [
         {
-          title: "Dashboard",
-          url: "/admin/assessment",
-        },
-        {
-          title: "Sekolah & Batch",
-          url: "/admin/assessment/schools",
-        },
-        {
-          title: "B2C — Statistik",
-          url: "/admin/assessment/b2c",
-        },
-        {
-          title: "B2C — History",
-          url: "/admin/assessment/b2c/history",
-        },
-        {
-          title: "Konten Test",
-          url: "/admin/assessment/questions",
-        },
-        {
-          title: "Editor (Engine v2)",
+          title: "Editor Soal (V2)",
           url: "/admin/assessment/editor",
+        },
+        {
+          title: "Konten Test (Legacy)",
+          url: "/admin/assessment/questions",
         },
         {
           title: "Pola Jurusan",
@@ -88,6 +73,31 @@ const data = {
         {
           title: "Mapping Karier",
           url: "/admin/assessment/careers",
+        },
+        {
+          title: "Sekolah & Batch",
+          url: "/admin/assessment/schools",
+        },
+      ],
+    },
+  ],
+  navAssessmentAn: [
+    {
+      title: "Assessment — Analitik",
+      url: "/admin/assessment",
+      icon: BarChart3,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/admin/assessment",
+        },
+        {
+          title: "B2C — Statistik",
+          url: "/admin/assessment/b2c",
+        },
+        {
+          title: "B2C — History",
+          url: "/admin/assessment/b2c/history",
         },
       ],
     },
@@ -362,7 +372,8 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navGeneral} />
-        <NavMain label="Assessment" items={data.navAssessment} />
+        <NavMain items={data.navAssessmentOps} />
+        <NavMain items={data.navAssessmentAn} />
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
         <NavMain label="Content" items={data.navCms} />
