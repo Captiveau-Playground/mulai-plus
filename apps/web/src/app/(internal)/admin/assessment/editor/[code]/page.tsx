@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Copy, Eye, FilePlus2, GripVertical, Loader2, Plus, Rocket, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Copy, Eye, FilePlus2, GitBranch, GripVertical, Loader2, Plus, Rocket, ShieldCheck, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,8 @@ export default function AssessmentEditorPage() {
   const [modal, setModal] = useState<{ open: boolean; q?: any }>({ open: false });
   const [gate, setGate] = useState<{ ok: boolean; errors: string[] } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [branchOpen, setBranchOpen] = useState(false);
+  const [verify, setVerify] = useState<{ vid: string } | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
@@ -145,27 +147,52 @@ export default function AssessmentEditorPage() {
             <Link href="/admin/assessment/editor" className="font-manrope text-xs font-semibold text-muted-foreground hover:text-brand-navy">← Semua Tes</Link>
             <h1 className="font-bold font-bricolage text-xl text-foreground">{asses.find((x) => x.code === code)?.name ?? code}</h1>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {vers.map((v) => (
-              <div key={v.id} className="flex items-center gap-1">
-                <button
-                  onClick={() => setSelectedId(v.id)}
-                  title="Lihat versi ini"
-                  className={`rounded-full px-3 py-1 font-manrope text-xs font-semibold transition-all ${selVer?.id === v.id ? "bg-brand-navy text-white shadow" : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300"}`}
-                >
-                  v{v.versionNumber} · {v.status === "live" ? "● Online" : v.status}
-                </button>
-                {v.status !== "live" && (
-                  <button
-                    onClick={() => void release(v.id)}
-                    disabled={busy === "pub"}
-                    className="font-manrope text-[10px] font-semibold text-brand-orange underline-offset-2 hover:underline disabled:opacity-50"
-                  >
-                    {v.status === "draft" ? "Terbit" : "Rilis kembali"}
-                  </button>
-                )}
+          <div className="relative">
+            <button
+              onClick={() => setBranchOpen(!branchOpen)}
+              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 hover:border-gray-300"
+            >
+              <GitBranch className="h-4 w-4 text-gray-400" />
+              <span>main</span>
+              <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${branchOpen ? "rotate-180" : ""}`} />
+              {live && <span className="rounded-full bg-teal-500/10 px-2 py-0.5 text-[10px] font-semibold text-teal-700">aktif utk siswa</span>}
+            </button>
+
+            {branchOpen && (
+              <div className="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
+                <div className="border-b border-gray-100 bg-gray-50/70 px-3 py-2 font-manrope text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Versi tes — pilih mana yang dirilis utk siswa
+                </div>
+                <div className="max-h-80 overflow-y-auto p-1.5">
+                  {vers.map((v) => {
+                    const isLive = v.status === "live";
+                    const selected = selVer?.id === v.id;
+                    return (
+                      <div key={v.id} className={`flex items-center gap-2 rounded-lg px-2 py-2 ${selected ? "bg-teal-500/5" : ""}`}>
+                        <button onClick={() => { setSelectedId(v.id); setBranchOpen(false); }} className="min-w-0 flex-1 text-left">
+                          <p className="flex items-center gap-1.5 font-manrope text-xs font-semibold text-gray-800">
+                            <GitBranch className="h-3.5 w-3.5 text-gray-400" /> v{v.versionNumber}
+                            {isLive ? <span className="rounded-full bg-teal-500/10 px-2 py-0.5 text-[10px] font-semibold text-teal-700">● main · aktif utk siswa</span>
+                              : v.status === "draft" ? <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700">draf</span>
+                              : <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">lama</span>}
+                            {v.publishedAt && !isLive && <span className="font-manrope text-[10px] text-gray-400">{new Date(v.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>}
+                          </p>
+                          <p className="truncate font-manrope text-[10px] text-muted-foreground">{v.versionNumber === 1 ? "Versi perdana" : `Pembaruan ke-${v.versionNumber}`}</p>
+                        </button>
+                        {!isLive && (
+                          <button
+                            onClick={() => { setVerify({ vid: v.id }); setBranchOpen(false); }}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-brand-navy px-2.5 py-1.5 font-manrope text-[10px] font-semibold text-white hover:bg-brand-navy-light"
+                          >
+                            <Rocket className="h-3 w-3" /> Verifikasi &amp; Rilis
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            ))}
+            )}
           </div>
           {active?.publishedAt && active.status === "live" && <span className="font-manrope text-[11px] text-muted-foreground">Terakhir diperbarui {new Date(active.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>}
         </div>
@@ -203,7 +230,9 @@ export default function AssessmentEditorPage() {
           {!canEdit && live && <Button size="sm" className="bg-brand-navy hover:bg-brand-navy-light" onClick={() => void startEdit()} disabled={busy === "edit"}>{busy === "edit" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <PencilIcon />} Ubah soal</Button>}
           {canEdit && <Button size="sm" className="bg-brand-orange hover:bg-brand-orange/90" onClick={() => setModal({ open: true })}><Plus className="mr-1 h-4 w-4" /> Tambah soal</Button>}
         </div>
-        {modal.open && draft && content && (
+        {verify && <ReleaseVerifyModal versionId={verify.vid} onClose={() => setVerify(null)} onDone={async () => { await reload(); setVerify(null); setSelectedId(verify.vid); }} />}
+
+      {modal.open && draft && content && (
           <div className="border-b border-teal-100 bg-teal-50/20 px-4 py-4">
             <QuestionPanel q={modal.q} versionId={draft.id} content={content} onDone={async () => { setModal({ open: false }); await reloadContent(); }} onClose={() => setModal({ open: false })} />
           </div>
@@ -274,6 +303,66 @@ export default function AssessmentEditorPage() {
 }
 
 function PencilIcon() { return <span className="mr-1 inline-block h-4 w-4 align-[-2px]">✏️</span>; }
+
+function ReleaseVerifyModal({ versionId, onClose, onDone }: { versionId: string; onClose: () => void; onDone: () => Promise<void> }) {
+  const aClient = client as any;
+  const [checks, setChecks] = useState<{ ok: boolean; errors: string[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    (async () => { try { setChecks(await aClient.discoverAdmin.versions.validate({ versionId })); } catch { setChecks({ ok: false, errors: ["Gagal memuat verifikasi."] }); } })();
+  }, [versionId]);
+
+  const doRelease = async () => {
+    setBusy(true);
+    try {
+      const r = await aClient.discoverAdmin.versions.publish({ versionId });
+      if (r.ok) { await onDone(); }
+      else setChecks({ ok: false, errors: r.errors ?? [] });
+    } catch (e) { setChecks({ ok: false, errors: [(e as Error)?.message ?? "Gagal rilis"] }); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-bold font-bricolage text-base text-brand-navy">
+            <ShieldCheck className="h-5 w-5 text-teal-600" /> Verifikasi sebelum rilis
+          </h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+        </div>
+        <p className="mt-1 font-manrope text-xs text-muted-foreground">
+          Versi ini akan menjadi rilis utk siswa. Periksa kelengkapan dulu — seperti merge branch di GitHub.
+        </p>
+        <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+          {checks === null ? (
+            <p className="flex items-center gap-2 font-manrope text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Menjalankan verifikasi…</p>
+          ) : checks.ok ? (
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+              <p className="font-manrope text-xs font-semibold text-teal-700">Semua verifikasi lolos — versi siap dirilis.</p>
+            </div>
+          ) : (
+            <ul className="space-y-1.5">
+              {(checks.errors ?? ["Ada masalah."]).map((e, i) => (
+                <li key={i} className="flex items-start gap-2 font-manrope text-[11px] text-red-700">
+                  <X className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {e}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
+          <Button className="bg-teal-600 hover:bg-teal-700" disabled={!checks?.ok || busy} onClick={() => void doRelease()}>
+            {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Rocket className="mr-1 h-4 w-4" />} Aktifkan &amp; Rilis
+          </Button>
+        </div>
+        {!checks?.ok && checks !== null && <p className="mt-2 text-center font-manrope text-[10px] text-muted-foreground">Perbaiki masalah di versi tersebut sebelum bisa dirilis.</p>}
+      </div>
+    </div>
+  );
+}
 
 function Rule({ label, hint, type, opts, value, onChange }: { label: string; hint?: string; type: "number" | "bool" | "select"; opts?: [string, string][]; value: any; onChange: (v: any) => void }) {
   return (

@@ -382,6 +382,31 @@ async function contentOfVersion(versionId: string) {
   return { questions, options: opts, textConfigs: cfg, dimensions: dims, scales };
 }
 
+async function removeAssessment(assessmentId: string) {
+  const vs = await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, assessmentId) });
+  for (const v of vs) {
+    const sessions = await db.query.assessmentSessions.findMany({ where: eq(schema.assessmentSessions.versionId, v.id) });
+    for (const s of sessions) {
+      await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, s.id));
+      await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, s.id));
+      await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, s.id));
+      await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, s.id));
+    }
+    const qs = await db.query.questions.findMany({ where: eq(schema.questions.versionId, v.id) });
+    for (const q of qs) {
+      await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, q.id));
+      await db.delete(schema.textInputConfigs).where(eq(schema.textInputConfigs.questionId, q.id));
+    }
+    await db.delete(schema.questions).where(eq(schema.questions.versionId, v.id));
+    await db.delete(schema.assessmentSections).where(eq(schema.assessmentSections.versionId, v.id));
+    const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, v.id) });
+    for (const d of dims) await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, d.id));
+    await db.delete(schema.assessmentDimensions).where(eq(schema.assessmentDimensions.versionId, v.id));
+    await db.delete(schema.assessmentVersions).where(eq(schema.assessmentVersions.id, v.id));
+  }
+  await db.delete(schema.assessments).where(eq(schema.assessments.id, assessmentId));
+}
+
 export const discoverAdminRouter = {
   list: adminProcedure.handler(async () => {
     const assessments = await db.query.assessments.findMany({ orderBy: asc(schema.assessments.code) });
@@ -632,6 +657,36 @@ export const discoverAdminRouter = {
         const merged = { ...(v.configJson ?? {}), ...input.config };
         await db.update(schema.assessmentVersions).set({ configJson: merged }).where(eq(schema.assessmentVersions.id, input.versionId));
         return { ok: true, config: merged };
+      }),
+
+    /** Buat tes baru + versi draf v1 (bahan kerjanyam). */
+    create: adminProcedure
+      .input(z.object({ code: z.string().min(2).max(40), name: z.string().min(1).max(120), description: z.string().optional() }))
+      .handler(async ({ input }) => {
+        const dup = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
+        if (dup) return { ok: false, error: "code_sudah_dipakai" } as const;
+        const aid = uid();
+        const vid = uid();
+        const cfg = { total_dim: 1, result_dim_count: 1, min_q_per_dim: 0, randomize_q: false, randomize_a: false, timer_enabled: false, timer_scope: "none", allow_pause: false, scoring_method: "sum" };
+        await db.insert(schema.assessments).values({ id: aid, code: input.code, name: input.name, description: input.description ?? null, defaultConfigJson: cfg });
+        await db.insert(schema.assessmentVersions).values({ id: vid, assessmentId: aid, versionNumber: 1, status: "draft", configJson: cfg });
+        return { ok: true, assessmentId: aid, versionId: vid };
+      }),
+
+    /** Ubah nama/deskripsi tes. */
+    updateMeta: adminProcedure
+      .input(z.object({ id: z.string().min(1), name: z.string().min(1).max(120), description: z.string().optional().nullable() }))
+      .handler(async ({ input }) => {
+        await db.update(schema.assessments).set({ name: input.name, description: input.description ?? null }).where(eq(schema.assessments.id, input.id));
+        return { ok: true };
+      }),
+
+    /** Hapus tes beserta seluruh versi & sesi (cascade). */
+    remove: adminProcedure
+      .input(z.object({ id: z.string().min(1) }))
+      .handler(async ({ input }) => {
+        await removeAssessment(input.id);
+        return { ok: true };
       }),
   },
 };
