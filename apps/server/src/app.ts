@@ -443,6 +443,19 @@ export function createApp(options: CreateAppOptions) {
         /* DB unavailable — biarkan off */
       }
     }
+    // Auto-deactivate: kalau endsAt sudah lewat → status normal & flag dibersihkan
+    if (flag?.active === true && flag?.endsAt && Date.now() > new Date(flag.endsAt).getTime()) {
+      flag = null;
+      if (kv?.delete) kv.delete("maintenance:flag").catch(() => {});
+      try {
+        await db
+          .delete(systemSettings)
+          .where(eq(systemSettings.key, "maintenance:flag"))
+          .catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    }
     const maintenance = flag?.active === true || env?.MAINTENANCE === "1" || env?.SOFT_MAINTENANCE === "1";
     return c.json({
       maintenance,
