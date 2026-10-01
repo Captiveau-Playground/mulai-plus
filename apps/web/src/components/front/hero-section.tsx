@@ -153,7 +153,7 @@ export function HeroSection() {
           animate="show"
           className="hidden md:flex md:items-center md:justify-center"
         >
-          <div className="h-80 w-52 overflow-hidden rounded-[1.6rem] bg-[#69A9E1] md:h-[360px] md:w-[260px] md:rounded-[1.75rem] lg:h-[470px] lg:w-[350px] xl:h-[580px] xl:w-[450px]">
+          <div className="h-80 w-52 overflow-hidden md:h-[360px] md:w-[260px] lg:h-[470px] lg:w-[350px] xl:h-[580px] xl:w-[450px]">
             <video
               autoPlay
               loop
