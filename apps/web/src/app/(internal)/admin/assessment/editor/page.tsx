@@ -224,8 +224,8 @@ export default function AssessmentEditorPage() {
           </div>
         ) : (
           <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
-            <p className="font-manrope text-sm font-semibold text-red-700">{gate.errors.length} hal perlu diperbaiki sebelum terbit:</p>
-            <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-red-700/90">{gate.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
+            <p className="font-manrope text-sm font-semibold text-red-700">{(gate.errors ?? []).length} hal perlu diperbaiki sebelum terbit:</p>
+            <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-red-700/90">{(gate.errors ?? []).map((e, i) => <li key={i}>{e}</li>)}</ul>
           </div>
         )
       )}
