@@ -167,6 +167,11 @@ export default function AssessmentEditorPage() {
           {!canEdit && live && <Button size="sm" className="bg-brand-navy hover:bg-brand-navy-light" onClick={() => void startEdit()} disabled={busy === "edit"}>{busy === "edit" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <PencilIcon />} Ubah soal</Button>}
           {canEdit && <Button size="sm" className="bg-brand-orange hover:bg-brand-orange/90" onClick={() => setModal({ open: true })}><Plus className="mr-1 h-4 w-4" /> Tambah soal</Button>}
         </div>
+        {modal.open && draft && content && (
+          <div className="border-b border-teal-100 bg-teal-50/20 px-4 py-4">
+            <QuestionPanel q={modal.q} versionId={draft.id} content={content} onDone={async () => { setModal({ open: false }); await reloadContent(); }} onClose={() => setModal({ open: false })} />
+          </div>
+        )}
         <div className="divide-y divide-gray-50 px-2 pb-2">
           {canEdit && (!content || content.questions.length === 0) && <p className="px-3 py-6 text-center font-manrope text-sm text-muted-foreground">Belum ada soal.</p>}
           {(content?.questions ?? []).filter(() => canEdit).map((q, i) => {
@@ -224,7 +229,7 @@ export default function AssessmentEditorPage() {
         </div>
       )}
 
-      {modal.open && draft && content && <QuestionModal q={modal.q} versionId={draft.id} content={content} onDone={async () => { setModal({ open: false }); setContent(await aClient.discoverAdmin.contentList({ versionId: draft.id })); }} onClose={() => setModal({ open: false })} />}
+
     </div>
   );
 }
@@ -250,7 +255,7 @@ function Rule({ label, hint, type, opts, value, onChange }: { label: string; hin
   );
 }
 
-function QuestionModal({ q, versionId, content, onDone, onClose }: { q?: any; versionId: string; content: Content; onDone: () => void; onClose: () => void }) {
+function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; versionId: string; content: Content; onDone: () => void; onClose: () => void }) {
   const aClient = client as any;
   const [form, setForm] = useState<any>({
     id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", questionText: q?.questionText ?? "",
@@ -282,12 +287,11 @@ function QuestionModal({ q, versionId, content, onDone, onClose }: { q?: any; ve
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm">
-      <div className="mt-6 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold font-bricolage text-base text-brand-navy">{form.id ? "Ubah soal" : "Tambah soal"}</h3>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
-        </div>
+    <div>
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold font-bricolage text-base text-brand-navy">{form.id ? "Ubah soal" : "Tambah soal"} <span className="ml-1 rounded-md bg-teal-500/10 px-2 py-0.5 font-manrope text-[10px] font-semibold text-teal-700">preview live di samping</span></h3>
+        <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+      </div>
         <div className="mt-4 grid gap-5 md:grid-cols-2">
           <div className="space-y-3">
           <label className="block font-manrope text-xs font-semibold text-foreground">Teks soal
@@ -354,7 +358,6 @@ function QuestionModal({ q, versionId, content, onDone, onClose }: { q?: any; ve
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Batal</Button>
           <Button className="bg-brand-navy hover:bg-brand-navy-light" onClick={() => void save()} disabled={busy}>{busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-1 h-4 w-4" />} Simpan soal</Button>
-        </div>
       </div>
     </div>
   );
