@@ -87,6 +87,20 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Guard — cegah deploy saat maintenance aktif 🛑
+        run: |
+          set -euo pipefail
+          CODE=$(curl -s -o /tmp/mstatus.json -w "%{http_code}" --max-time 15 https://api.mulaiplus.id /meta/status || true)
+          if [ "$CODE" != "200" ]; then
+            echo "⚠️ API /meta/status tidak merespons ($CODE) — guard dilewati dgn peringatan."
+            exit 0
+          fi
+          if grep -q '"maintenance":true' /tmp/mstatus.json; then
+            echo "❌ MAINTENANCE SEDANG AKTIF — deploy dibatalkan. Matikan di /admin/maintenance dulu."
+            exit 1
+          fi
+          echo "✅ Layanan normal — lanjut deploy."
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -400,7 +414,21 @@ jobs:
           echo "$reply" | grep -q "full_reply"
           echo "✅ mulai-plus-ai-production (Workers) sehat"
 
-      - name: Deploy API Worker (production)
+      - name: Guard — cegah deploy saat maintenance aktif 🛑
+        run: |
+          set -euo pipefail
+          CODE=$(curl -s -o /tmp/mstatus.json -w "%{http_code}" --max-time 15 https://api.mulaiplus.id /meta/status || true)
+          if [ "$CODE" != "200" ]; then
+            echo "⚠️ API /meta/status tidak merespons ($CODE) — guard dilewati dgn peringatan."
+            exit 0
+          fi
+          if grep -q '"maintenance":true' /tmp/mstatus.json; then
+            echo "❌ MAINTENANCE SEDANG AKTIF — deploy dibatalkan. Matikan di /admin/maintenance dulu."
+            exit 1
+          fi
+          echo "✅ Layanan normal — lanjut deploy."
+
+      - name: Deploy API Worker (staging)
         working-directory: apps/server
         env:
           # Stub validasi — wrangler v4 menjalankan init bundle worker (createEnv baca process.env CI).
