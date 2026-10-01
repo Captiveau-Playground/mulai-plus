@@ -78,6 +78,10 @@ const data = {
           url: "/admin/assessment/questions",
         },
         {
+          title: "Editor (Engine v2)",
+          url: "/admin/assessment/editor",
+        },
+        {
           title: "Pola Jurusan",
           url: "/admin/assessment/patterns",
         },
