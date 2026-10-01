@@ -50,9 +50,10 @@ export function MaintenanceGate({
   if (status === null) return <>{children}</>; // belum tahu → biarkan dulu (no blank)
   if (!status.maintenance) return <>{children}</>;
 
+  // Full-screen overlay: menutupi layout & sidebar — tidak ada yang bisa diklik.
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-3xl border border-brand-orange/25 bg-white p-8 text-center shadow-xl shadow-brand-navy/5">
+    <div className="fixed inset-0 z-[999] flex min-h-full items-center justify-center overflow-y-auto bg-white px-4 py-8">
+      <div className="w-full max-w-md rounded-3xl border border-brand-orange/25 bg-white p-8 text-center shadow-2xl shadow-brand-navy/10">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10 text-brand-orange">
           <Wrench className="h-7 w-7" />
         </span>
