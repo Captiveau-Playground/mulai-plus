@@ -21,6 +21,7 @@ import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
 import { maintenanceRouter } from "./maintenance";
+import { discoverAdminRouter, discoverRouter } from "./discover";
 import { shortLinksRouter } from "./short-links";
 import { testimonialsRouter } from "./testimonials";
 import { tmbAdminRouter, tmbRouter } from "./tmb";
@@ -38,6 +39,8 @@ export const appRouter = {
   user: userRouter,
   settings: settingsRouter,
   maintenance: maintenanceRouter,
+  discover: discoverRouter,
+  discoverAdmin: discoverAdminRouter,
   features: {
     get: publicProcedure.handler(async () => {
       const nowMs = Date.now();
