@@ -54,8 +54,8 @@ export default function AssessmentEditorPage() {
   const loadContent = useCallback(async (v: Version | null) => {
     if (!v) { setContent(null); return; }
     setRules(v.configJson ?? {});
-    if (v.status === "draft") { setCanEdit(true); setContent(await aClient.discoverAdmin.contentList({ versionId: v.id })); }
-    else { setCanEdit(false); setContent(null); }
+    try { setContent(await aClient.discoverAdmin.contentList({ versionId: v.id })); } catch { setContent(null); }
+    setCanEdit(v.status === "draft");
   }, []);
   useEffect(() => { const sel = draft ?? live; void loadContent(sel); }, [draft?.id, live?.id]);
 
@@ -126,10 +126,14 @@ export default function AssessmentEditorPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="font-bold font-bricolage text-xl text-foreground">Kelola Tes</span>
-          <Select value={code} onValueChange={(v) => setCode(v ?? "")}>
-            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-            <SelectContent>{asses.map((a) => <SelectItem key={a.id} value={a.code}>{a.name}</SelectItem>)}</SelectContent>
-          </Select>
+          <div className="flex flex-wrap gap-1.5">
+            {asses.map((a) => (
+              <button key={a.id} onClick={() => setCode(a.code)}
+                className={`rounded-full px-3.5 py-1.5 font-manrope text-xs font-semibold transition-all ${code === a.code ? "bg-brand-navy text-white shadow" : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300"}`}>
+                {a.name}
+              </button>
+            ))}
+          </div>
           {active && <Badge className={active.status === "live" ? "border-teal-500/30 bg-teal-500/10 text-teal-700" : "border-amber-500/30 bg-amber-500/10 text-amber-700"}>{active.status === "live" ? "Online" : "Draf"}</Badge>}
           {active?.publishedAt && active.status === "live" && <span className="font-manrope text-[11px] text-muted-foreground">Terakhir diperbarui {new Date(active.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>}
         </div>
@@ -163,7 +167,7 @@ export default function AssessmentEditorPage() {
       {/* Daftar soal */}
       <div className="rounded-2xl border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
-          <span className="font-bold font-bricolage text-sm text-brand-navy">Daftar soal <span className="ml-1 font-manrope text-[11px] font-normal text-muted-foreground">{content?.questions.length ?? 0} soal</span></span>
+          <span className="font-bold font-bricolage text-sm text-brand-navy">Daftar soal <span className="ml-1 font-manrope text-[11px] font-normal text-muted-foreground">{content?.questions.length ?? 0} soal {!canEdit ? "· tampilan hanya-baca" : ""}</span></span>
           {!canEdit && live && <Button size="sm" className="bg-brand-navy hover:bg-brand-navy-light" onClick={() => void startEdit()} disabled={busy === "edit"}>{busy === "edit" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <PencilIcon />} Ubah soal</Button>}
           {canEdit && <Button size="sm" className="bg-brand-orange hover:bg-brand-orange/90" onClick={() => setModal({ open: true })}><Plus className="mr-1 h-4 w-4" /> Tambah soal</Button>}
         </div>
@@ -174,7 +178,7 @@ export default function AssessmentEditorPage() {
         )}
         <div className="divide-y divide-gray-50 px-2 pb-2">
           {canEdit && (!content || content.questions.length === 0) && <p className="px-3 py-6 text-center font-manrope text-sm text-muted-foreground">Belum ada soal.</p>}
-          {(content?.questions ?? []).filter(() => canEdit).map((q, i) => {
+          {(content?.questions ?? []).map((q, i) => {
             const opts = (content?.options ?? []).filter((o: any) => o.questionId === q.id);
             const tc = (content?.textConfigs ?? []).find((t: any) => t.questionId === q.id);
             const dim = content?.dimensions.find((d) => d.id === q.dimensionId);
@@ -195,6 +199,7 @@ export default function AssessmentEditorPage() {
                   <p className="font-manrope text-[11px] text-muted-foreground">{dim?.name ?? "—"} · {q.questionType === "text_input" ? "Isian" : `${opts.length} pilihan`}</p>
                   </div>
                 </div>
+                {canEdit && (
                 <div className="flex shrink-0 gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
                   <button title="Naik" onClick={() => void moveQ(i, -1)} disabled={i === 0} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
                   <button title="Turun" onClick={() => void moveQ(i, 1)} disabled={i === (content?.questions.length ?? 1) - 1} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
@@ -202,6 +207,8 @@ export default function AssessmentEditorPage() {
                   <button onClick={() => setModal({ open: true, q })} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"><PencilIcon /></button>
                   <button onClick={() => void delQ(q.id)} className="rounded-md p-1.5 text-red-400 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
                 </div>
+                )}
+
               </div>
             );
           })}
