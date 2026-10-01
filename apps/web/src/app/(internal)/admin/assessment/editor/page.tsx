@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Copy, Eye, FilePlus2, Loader2, Plus, Rocket, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Copy, Eye, FilePlus2, GripVertical, Loader2, Plus, Rocket, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ export default function AssessmentEditorPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [modal, setModal] = useState<{ open: boolean; q?: any }>({ open: false });
   const [gate, setGate] = useState<{ ok: boolean; errors: string[] } | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
     const data = await aClient.discoverAdmin.list();
@@ -82,6 +83,15 @@ export default function AssessmentEditorPage() {
   };
 
   const reloadContent = async () => { if (draft) setContent(await aClient.discoverAdmin.contentList({ versionId: draft.id })); };
+  const dropQ = async (from: number, to: number) => {
+    if (!content || from === to) return;
+    const qs = [...content.questions];
+    const [moved] = qs.splice(from, 1);
+    qs.splice(to, 0, moved!);
+    setContent({ ...content, questions: qs });
+    await aClient.discoverAdmin.contentReorder({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
+    setDragIdx(null);
+  };
   const delQ = async (id: string) => {
     await aClient.discoverAdmin.contentDelete({ questionId: id });
     await reloadContent();
@@ -164,10 +174,21 @@ export default function AssessmentEditorPage() {
             const tc = (content?.textConfigs ?? []).find((t: any) => t.questionId === q.id);
             const dim = content?.dimensions.find((d) => d.id === q.dimensionId);
             return (
-              <div key={q.id} className="group flex items-center justify-between gap-2 px-3 py-2.5">
-                <div className="min-w-0">
+              <div
+                key={q.id}
+                draggable
+                onDragStart={() => setDragIdx(i)}
+                onDragOver={(e) => { e.preventDefault(); }}
+                onDrop={() => dragIdx !== null && void dropQ(dragIdx, i)}
+                onDragEnd={() => setDragIdx(null)}
+                className={`group flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 ${dragIdx === i ? "opacity-40" : ""} ${dragIdx !== null && dragIdx !== i ? "cursor-grabbing" : ""}`}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-gray-300" />
+                  <div className="min-w-0">
                   <p className="truncate font-manrope text-sm font-medium text-gray-800"><span className="mr-2 text-xs text-gray-400">{i + 1}.</span>{q.questionText}</p>
                   <p className="font-manrope text-[11px] text-muted-foreground">{dim?.name ?? "—"} · {q.questionType === "text_input" ? "Isian" : `${opts.length} pilihan`}</p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
                   <button title="Naik" onClick={() => void moveQ(i, -1)} disabled={i === 0} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
@@ -262,12 +283,13 @@ function QuestionModal({ q, versionId, content, onDone, onClose }: { q?: any; ve
 
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm">
-      <div className="mt-6 w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="mt-6 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="font-bold font-bricolage text-base text-brand-navy">{form.id ? "Ubah soal" : "Tambah soal"}</h3>
           <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
         </div>
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 grid gap-5 md:grid-cols-2">
+          <div className="space-y-3">
           <label className="block font-manrope text-xs font-semibold text-foreground">Teks soal
             <Input className="mt-1" value={form.questionText} onChange={(e) => patch("questionText", e.target.value)} placeholder="cth: Kamu lebih suka bekerja dengan…" />
           </label>
@@ -306,6 +328,29 @@ function QuestionModal({ q, versionId, content, onDone, onClose }: { q?: any; ve
             </div>
           )}
         </div>
+          {/* Preview live siswa */}
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+            <p className="font-manrope text-[10px] font-semibold uppercase tracking-wide text-teal-600">Tampilan siswa</p>
+            <p className="mt-2 font-manrope text-[10px] text-gray-400">{content.dimensions.find((d) => d.id === form.dimensionId)?.name ?? "Dimensi"}</p>
+            <h4 className="mt-1 font-bold font-bricolage text-sm text-gray-900 leading-snug">{form.questionText || "Teks soal…"}</h4>
+            {form.questionType === "multiple_choice" ? (
+              <div className="mt-2 space-y-1.5">
+                {form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => (
+                  <div key={i} className={`flex items-center gap-2 rounded-lg border p-2.5 ${i === 0 ? "border-teal-500/60 bg-teal-500/5" : "border-gray-200 bg-white"}`}>
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-md text-[9px] font-bold ${i === 0 ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}>{["A", "B", "C", "D", "E", "F"][i]}</span>
+                    <span className="font-manrope text-xs text-gray-700">{o.label}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-2">
+                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 font-manrope text-xs text-gray-400">Jawaban siswa di sini…</div>
+                {form.textEval.answerKey && <p className="mt-1.5 font-manrope text-[10px] text-gray-400">Kunci: {form.textEval.answerKey} (toleransi {form.textEval.numericTolerance || "0.01"})</p>}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Batal</Button>
           <Button className="bg-brand-navy hover:bg-brand-navy-light" onClick={() => void save()} disabled={busy}>{busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-1 h-4 w-4" />} Simpan soal</Button>
