@@ -1,7 +1,10 @@
 # Migrasi Supabase → Neon (Launch Plan)
 
-> Status: **STAGING SEDANG DIJALANKAN** — data dump+restore ✅ (10 tabel kunci verified: user 74, prodi 18.881, audit 21.429), pg_trgm + GIN index ✅, apps/server/.env.staging DATABASE_URL flipped ke NEON pooler ✅. Arrr :-)
-> Belum: Hyperdrive staging (eksekusi CF dashboard + id), CI secret DATABASE_URL, smoke E2E, prod.
+> Status: **CUTOVER LIVE (2026-10-01)** — staging & production keduanya di Neon.
+> ✅ Dump+restore S→N verified (staging: user 74 · prod: user 189 · prodi 18.881 · audit 36.227; pg_trgm+GIN).
+> ✅ Hyperdrive: staging `f98f19a5…` (mulai-plus-neon-staging) · prod `86e18616…` (mulai-plus-neon-production), wired & DEPLOYED api+ai (staging+prod).
+> ✅ Smoke: /health 200, /ai/health 200, `/rpc/features/get` = `{"json":{"chatbot_enabled":false}}` — match DB Neon langsung (bukan cache).
+> ⏳ MENUNGGU USER: ① CI GH secret `DATABASE_URL` → Neon pooled (staging & prod), ② reset password Neon (URL sempat bocor di chat), ③ smoke E2E lengkap user barisan.
 > Tujuan: keluar dari bottleneck Supabase staging (CPU/Disk IO 100%, churn koneksi)
 > dan dapat fitur Launch Plan: pooler, branch, autoscaling, read replica.
 
