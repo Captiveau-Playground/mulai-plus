@@ -111,19 +111,28 @@ function TalentAssessmentPage() {
     setPending(true);
     try {
       const det = (await client.discover.session({ sessionId: activeSession.id })) as any;
+      // Muat KONTEN VERSI SESI (bukan versi live terbaru) — integritas v1/v2
+      const cfgV = (await client.discover.config({ versionId: det.session.versionId })) as any;
+      const qsV = (cfgV.questions ?? []).filter((q: any) => q.isActive) as Q[];
+      const dimsV = (cfgV.dimensions ?? []) as Dim[];
+      setQuestions(qsV);
+      setDims(dimsV);
+      setSections(cfgV.sections ?? []);
+      setInstructions(cfgV.instructions ?? []);
       const saved = new Set(det.answers?.map((a: any) => a.questionId) ?? []);
       const map: Record<string, { opt?: string; text?: string }> = {};
       const optsById = new Map<string, string>();
-      for (const q of questions) for (const o of q.opts) optsById.set(o.id, o.optionValue);
+      for (const q of qsV) for (const o of q.opts) optsById.set(o.id, o.optionValue);
       for (const a of det.answers ?? []) map[a.questionId] = a.optionId ? { opt: optsById.get(a.optionId) ?? a.optionId } : { text: a.text };
-      const firstUnanswered = questions.findIndex((q) => !saved.has(q.id));
+      const firstUnanswered = qsV.findIndex((q) => !saved.has(q.id));
       setAnswers(map);
       setSessionId(det.session.id);
       setTimer(det.session.configJson?.timer ?? null);
       dimStart.current = Date.now();
       renderedDim.current = null;
-      setIdx(firstUnanswered >= 0 ? firstUnanswered : 0);
-      enterOrRun(questions[firstUnanswered >= 0 ? firstUnanswered : 0]!);
+      const startIdx = firstUnanswered >= 0 ? firstUnanswered : 0;
+      setIdx(startIdx);
+      enterOrRun(qsV[startIdx]!);
     } catch (e) { setErr((e as Error)?.message ?? "Gagal resume"); } finally { setPending(false); }
   };
 

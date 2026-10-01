@@ -78,9 +78,12 @@ async function questionsOf(versionId: string): Promise<QuestionRow[]> {
 export const discoverRouter = {
   /** Konten asesmen versi LIVE (config + dims + soals). */
   config: publicProcedure
-    .input(z.object({ code: z.string().default("DISCOVER") }))
+    .input(z.object({ code: z.string().optional().default("DISCOVER"), versionId: z.string().optional() }))
     .handler(async ({ input }) => {
-      const v = await getLiveVersion(input.code);
+      // Load versi spesifik (utk resume sesi lama / preview per versi) atau versi LIVE (rilis)
+      const v = input.versionId
+        ? ((await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) })) as VersionRow | null)
+        : await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
       const dimensions = await db.query.assessmentDimensions.findMany({
         where: eq(schema.assessmentDimensions.versionId, v.id),
