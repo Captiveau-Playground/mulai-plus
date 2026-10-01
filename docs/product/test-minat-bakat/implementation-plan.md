@@ -10,6 +10,14 @@
 | Fase | Judul | Durasi | Output utama |
 |---|---|---|---|
 | **0** | Fondasi Engine + Lifecycle/Versioning | 2–3 sprint | Model generik, assessment_versions immutable, answer scale, scoring config, migrasi data minat → Discover v1 |
+
+> **STATUS Fase 0 (2026-10-01): SELESAI — teruji di staging, tanpa dampak ke tmb_***
+> - L1 skema generik + migration 0020/0021 (staging Neon)
+> - L2 seeder DISCOVER v1 (10 soal pair → 20 opsi, 6 dims, scale pair, config SUM/top-3, LIVE)
+> - L3 router `discover`/`discoverAdmin` + scoring + gatekeeper (lib terpisah utk testability)
+> - L4 admin editor `/admin/assessment/editor` + sidebar
+> - **Testing (staging)**: student E2E config→start→submit×10→finish=`E-I-A` (DB: session completed, results/answers/scores); admin: gate DISCOVER v1 DITOLAK 6 error (`min 3 soal/dim`), draft compliant → publish→LIVE + archived + publishedAt ✓ (TEST sekali pakai di-cleanup)
+> - **Menjalankan**: `bun run db:push` → `DATABASE_URL=… bun scripts/seed-assessment.ts [--force]` (packages/db) → `bun scripts/admin-publish-test.mts` (packages/api); UI `/admin/assessment/editor`
 | **1** | Discover™ complete (minat) | 1–2 sprint | Intro sections, dimension instructions, preview-as-student, gatekeeper validasi, pause/resume |
 | **2** | Talent™ multi-format (bakat) | 3–4 sprint | LaTeX/KaTeX, gambar+caption+posisi, TEXT_INPUT + evaluasi, timer server-side, tie-breaker 3-tingkat, WEIGHTED scoring |
 | **3** | Enrichment (opsional) | 2+ sprint | CAT adaptive, WYSIWYG math, localization, interactive canvas |
