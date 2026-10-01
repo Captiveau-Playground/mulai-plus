@@ -1,6 +1,7 @@
 # Migrasi Supabase → Neon (Launch Plan)
 
-> Status: **RENCANA** — menunggu project Neon dibuat & connection string diberikan.
+> Status: **STAGING SEDANG DIJALANKAN** — data dump+restore ✅ (10 tabel kunci verified: user 74, prodi 18.881, audit 21.429), pg_trgm + GIN index ✅, apps/server/.env.staging DATABASE_URL flipped ke NEON pooler ✅. Arrr :-)
+> Belum: Hyperdrive staging (eksekusi CF dashboard + id), CI secret DATABASE_URL, smoke E2E, prod.
 > Tujuan: keluar dari bottleneck Supabase staging (CPU/Disk IO 100%, churn koneksi)
 > dan dapat fitur Launch Plan: pooler, branch, autoscaling, read replica.
 
