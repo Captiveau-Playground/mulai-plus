@@ -173,6 +173,7 @@ export const questionOptions = pgTable("question_options", {
     .notNull()
     .references(() => questions.id, { onDelete: "cascade" }),
   optionValue: varchar("option_value", { length: 20 }).notNull(), // OPT_A
+  targetDimension: varchar("target_dimension", { length: 24 }), // dimension yg di-scoring (mendukung pair/reverse)
   label: text("label").notNull(), // HTML/LaTeX
   hasMathNotation: boolean("has_math_notation").notNull().default(false),
   imageUrl: text("image_url"),
