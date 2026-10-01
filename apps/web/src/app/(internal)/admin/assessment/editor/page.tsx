@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronDown, ChevronUp, Eye, FilePlus2, Loader2, Plus, Rocket, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Copy, Eye, FilePlus2, Loader2, Plus, Rocket, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ export default function AssessmentEditorPage() {
   const [busy, setBusy] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [modal, setModal] = useState<{ open: boolean; q?: any }>({ open: false });
+  const [gate, setGate] = useState<{ ok: boolean; errors: string[] } | null>(null);
 
   const reload = useCallback(async () => {
     const data = await aClient.discoverAdmin.list();
@@ -65,6 +66,14 @@ export default function AssessmentEditorPage() {
     finally { setBusy(""); }
   };
 
+  const checkGate = useCallback(async () => {
+    if (!draft) { setGate(null); return; }
+    try { setGate(await aClient.discoverAdmin.validate({ versionId: draft.id })); }
+    catch { setGate(null); }
+  }, [draft?.id]);
+
+  useEffect(() => { void checkGate(); }, [checkGate, content]);
+
   const saveRules = async () => {
     if (!draft) return;
     setBusy("rules");
@@ -72,9 +81,24 @@ export default function AssessmentEditorPage() {
     catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); } finally { setBusy(""); }
   };
 
+  const reloadContent = async () => { if (draft) setContent(await aClient.discoverAdmin.contentList({ versionId: draft.id })); };
   const delQ = async (id: string) => {
     await aClient.discoverAdmin.contentDelete({ questionId: id });
-    if (draft) setContent(await aClient.discoverAdmin.contentList({ versionId: draft.id }));
+    await reloadContent();
+  };
+  const dupQ = async (id: string) => {
+    await aClient.discoverAdmin.contentDuplicate({ questionId: id });
+    await reloadContent();
+    notify.create("Soal disalin");
+  };
+  const moveQ = async (idx: number, dir: number) => {
+    if (!content) return;
+    const qs = [...content.questions];
+    const j = idx + dir;
+    if (j < 0 || j >= qs.length) return;
+    [qs[idx], qs[j]] = [qs[j]!, qs[idx]!];
+    await aClient.discoverAdmin.contentReorder({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
+    await reloadContent();
   };
 
   const publish = async () => {
@@ -101,7 +125,7 @@ export default function AssessmentEditorPage() {
         </div>
         <div className="flex items-center gap-2">
           {live && (<a href="/assessment/talent?preview=1" target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 font-manrope text-xs font-semibold text-gray-600 hover:bg-gray-50"><Eye className="h-3.5 w-3.5" /> Lihat sebagai siswa</a>)}
-          <Button className="bg-brand-orange hover:bg-brand-orange/90" disabled={!draft || busy === "pub" || busy === "edit"} onClick={() => void publish()}>
+          <Button className={(gate && !gate.ok) || !draft ? "bg-gray-300 hover:bg-gray-300" : "bg-brand-orange hover:bg-brand-orange/90"} disabled={!draft || (gate ? !gate.ok : false) || busy === "pub" || busy === "edit"} onClick={() => void publish()}>
             {busy === "pub" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Rocket className="mr-1 h-4 w-4" />} Terbitkan
           </Button>
         </div>
@@ -145,9 +169,12 @@ export default function AssessmentEditorPage() {
                   <p className="truncate font-manrope text-sm font-medium text-gray-800"><span className="mr-2 text-xs text-gray-400">{i + 1}.</span>{q.questionText}</p>
                   <p className="font-manrope text-[11px] text-muted-foreground">{dim?.name ?? "—"} · {q.questionType === "text_input" ? "Isian" : `${opts.length} pilihan`}</p>
                 </div>
-                <div className="flex shrink-0 gap-1 opacity-60 transition-opacity group-hover:opacity-100">
-                  <button onClick={() => setModal({ open: true, q })} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><PencilIcon /></button>
-                  <button onClick={() => void delQ(q.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
+                <div className="flex shrink-0 gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
+                  <button title="Naik" onClick={() => void moveQ(i, -1)} disabled={i === 0} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
+                  <button title="Turun" onClick={() => void moveQ(i, 1)} disabled={i === (content?.questions.length ?? 1) - 1} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
+                  <button title="Salin soal" onClick={() => void dupQ(q.id)} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"><Copy className="h-4 w-4" /></button>
+                  <button onClick={() => setModal({ open: true, q })} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"><PencilIcon /></button>
+                  <button onClick={() => void delQ(q.id)} className="rounded-md p-1.5 text-red-400 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             );
@@ -155,10 +182,23 @@ export default function AssessmentEditorPage() {
         </div>
       </div>
 
-      {/* Validasi & terbit */}
+      {/* Status siap terbit (live) */}
+      {gate && draft && (
+        gate.ok ? (
+          <div className="flex items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50/60 px-4 py-3">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-teal-600" />
+            <p className="font-manrope text-sm font-semibold text-teal-700">Siap terbit — tidak ada masalah. 🎉</p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
+            <p className="font-manrope text-sm font-semibold text-red-700">{gate.errors.length} hal perlu diperbaiki sebelum terbit:</p>
+            <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-red-700/90">{gate.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
+          </div>
+        )
+      )}
       {errors.length > 0 && (
         <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
-          <p className="font-manrope text-sm font-semibold text-red-700">Sebelum terbit, perbaiki:</p>
+          <p className="font-manrope text-sm font-semibold text-red-700">Terbit ditolak:</p>
           <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-red-700/90">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
         </div>
       )}

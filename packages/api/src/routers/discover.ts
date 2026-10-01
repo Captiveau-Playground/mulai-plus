@@ -2,7 +2,7 @@ import { db, eq, inArray, and, asc, desc } from "@mulai-plus/db/db";
 import { schema } from "@mulai-plus/db/db";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
-import { publishVersion } from "../lib/assessment-gate";
+import { publishVersion, validatePublish } from "../lib/assessment-gate";
 import { evaluateTextInput } from "../lib/evaluate-input";
 
 /**
@@ -577,6 +577,43 @@ export const discoverAdminRouter = {
         await db.delete(schema.questions).where(eq(schema.questions.id, input.questionId));
         return { ok: true };
       }),
+
+    /** Urutkan ulang soal (daftar id berurutan). */
+    contentReorder: adminProcedure
+      .input(z.object({ versionId: z.string().min(1), orderedIds: z.array(z.string()).min(1) }))
+      .handler(async ({ input }) => {
+        for (let i = 0; i < input.orderedIds.length; i++) {
+          await db
+            .update(schema.questions)
+            .set({ displayOrder: i })
+            .where(and(eq(schema.questions.id, input.orderedIds[i]!), eq(schema.questions.versionId, input.versionId)));
+        }
+        return { ok: true };
+      }),
+
+    /** Salin soal berikut opsi/konfig urutan (utk duplikasi cepat). */
+    contentDuplicate: adminProcedure
+      .input(z.object({ questionId: z.string().min(1) }))
+      .handler(async ({ input }) => {
+        const src = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId) });
+        if (!src) return { ok: false, error: "question_not_found" } as const;
+        const maxQ = await db.query.questions.findMany({
+          where: eq(schema.questions.versionId, src.versionId),
+          columns: { displayOrder: true },
+        });
+        const nq = uid();
+        await db.insert(schema.questions).values({ ...src, id: nq, displayOrder: (maxQ.reduce((m, q) => Math.max(m, q.displayOrder ?? 0), 0) + 1) });
+        const opts = await db.query.questionOptions.findMany({ where: eq(schema.questionOptions.questionId, input.questionId) });
+        for (const o of opts) await db.insert(schema.questionOptions).values({ ...o, id: uid(), questionId: nq });
+        const tc = await db.query.textInputConfigs.findFirst({ where: eq(schema.textInputConfigs.questionId, input.questionId) });
+        if (tc) await db.insert(schema.textInputConfigs).values({ ...tc, id: uid(), questionId: nq });
+        return { ok: true, questionId: nq };
+      }),
+
+    /** Validasi live tanpa publish (gatekeeper). */
+    validate: adminProcedure
+      .input(z.object({ versionId: z.string().min(1) }))
+      .handler(async ({ input }) => validatePublish(input.versionId)),
 
     /** Update config versi (opsional: total_dim, result_dim_count, min_q, scoring, timer, dll). */
     configUpdate: adminProcedure
