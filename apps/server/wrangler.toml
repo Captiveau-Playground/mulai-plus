@@ -71,7 +71,8 @@ R2_PUBLIC_URL = "https://cdn-dev.mulaiplus.id"
 # its own pooling, so direct :5432 is the supported setup.
 [[env.staging.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "5d214aea95a842069ee2a0bba93222c4"  # mulai-plus-staging-db-direct
+id = "f98f19a5ab114162b2180cb41b0e5499"  # mulai-plus-neon-staging (rolled out 2025-10-01)
+# ROLLBACK (Supabase): "5d214aea95a842069ee2a0bba93222c4" # mulai-plus-staging-db-direct
 
 # ──────────────────────────── PRODUCTION ────────────────────────────
 # VPS tetap melayani api-prod.mulaiplus.id sebagai rollback runtime;
@@ -107,7 +108,8 @@ R2_PUBLIC_URL = "https://cdn.mulaiplus.id"
 
 [[env.production.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "42a918a410c84017afa795d9a58f6eb3"  # mulai-plus-production-db-direct
+id = "86e1861682904ade889a0e9c7ce7ccc7"  # mulai-plus-neon-production (rolled out)
+# ROLLBACK (Supabase): "42a918a410c84017afa795d9a58f6eb3" # mulai-plus-production-db-direct  # mulai-plus-production-db-direct
 
 # ──────────────────────────── SECRETS ────────────────────────────
 # Set via CLI (never commit):

@@ -361,59 +361,6 @@ jobs:
 
 
 
-      - name: Deploy AI Worker (production)
-        working-directory: apps/ai
-
-        env:
-          # Stub validasi — wrangler v4 menjalankan init bundle worker (createEnv
-          # baca process.env CI). Nilai tidak memengaruhi worker (dipakai cfg toml).
-          DATABASE_URL: hyperdrive://ci-placeholder
-          BETTER_AUTH_URL: https://api.mulaiplus.id
-          CORS_ORIGIN: https://mulaiplus.id
-          PAYMENT_API_URL: https://ci.invalid
-          PAYMENT_API_KEY: ci-stub
-          GOOGLE_CLIENT_ID: ci-stub
-          GOOGLE_CLIENT_SECRET: ci-stub
-          R2_ACCOUNT_ID: ci-stub
-          R2_ACCESS_KEY_ID: ci-stub
-          R2_SECRET_ACCESS_KEY: ci-stub
-          R2_BUCKET_NAME: mulai-plus-media
-          R2_PUBLIC_URL: https://cdn.mulaiplus.id
-          APP_URL: https://mulaiplus.id
-        run: ./node_modules/.bin/wrangler deploy --env production
-
-      # ---------- AI Worker (TS) — deploy SEBELUM api (URL AI_SERVICE_URL sudah di-flip) ----------
-      - name: Set AI Worker secrets (production)
-        working-directory: apps/ai
-        env:
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          set -euo pipefail
-          # ATOMIS: secret bulk menulis SET lengkap sekaligus — hindari gotcha
-          # "put terpisah menghapus secret lain" yg bikin LLM putus tiap redeploy.
-          secret_json=$(jq -n --arg a "$AI_API_KEY" --arg o "$OPENAI_API_KEY" '{AI_API_KEY:$a, OPENAI_API_KEY:$o}')
-          printf '%s' "$secret_json" | ./node_modules/.bin/wrangler secret bulk --env production
-      - name: Smoke test AI — /health + chat (custom domain)
-        run: |
-          set -euo pipefail
-          URL="https://api.mulaiplus.id"
-          ok=0
-          for i in 1 2 3; do
-            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/ai/health" || true)
-            if [ "$code" = "200" ]; then ok=1; break; fi
-            echo "[attempt $i/3] HTTP=$code — retry (DNS custom domain)..."
-            sleep 8
-          done
-          [ "$ok" = "1" ] || { echo "❌ AI /health gagal — pastikan master sudah punya deploy-cf (merge infra) & api-production ter-deploy dengan kode terbaru."; exit 1; }
-          reply=$(curl -s -X POST "$URL/ai/chat" -H "Content-Type: application/json" \
-            -H "Origin: https://mulaiplus.id" \
-            -H "User-Agent: Mozilla/5.0 (CI smoke; like browser)" \
-            -H "x-session-id: ci-prod-smoke-$(date +%s)" \
-            -d '{"message":"halo"}' --max-time 90 || true)
-          echo "$reply" | grep -q "full_reply"
-          echo "✅ mulai-plus-ai-production (Workers) sehat"
-
       - name: Guard — cegah deploy saat maintenance aktif 🛑
         run: |
           set -euo pipefail
@@ -487,6 +434,50 @@ jobs:
           set_secret UNOSEND_API_KEY
           set_secret RESEND_API_KEY
           set_secret HERMES_API_KEY
+
+
+      # ---------- AI Worker (TS) — deploy SEBELUM api (URL AI_SERVICE_URL sudah di-flip) ----------
+      - name: Set AI Worker secrets (production)
+        working-directory: apps/ai
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          # ATOMIS: secret bulk menulis SET lengkap sekaligus — hindari gotcha
+          # "put terpisah menghapus secret lain" yg bikin LLM putus tiap redeploy.
+          secret_json=$(jq -n --arg a "$AI_API_KEY" --arg o "$OPENAI_API_KEY" '{AI_API_KEY:$a, OPENAI_API_KEY:$o}')
+          printf '%s' "$secret_json" | ./node_modules/.bin/wrangler secret bulk --env production
+
+      - name: Deploy AI Worker (production)
+        working-directory: apps/ai
+        run: ./node_modules/.bin/wrangler deploy --env production
+
+      - name: Deploy API Worker (production)
+        working-directory: apps/server
+        run: ./node_modules/.bin/wrangler deploy --env production
+
+      # /ai/health di-serve oleh API WORKER (proxy) — karenanya API harus sudah
+      # ter-deploy SEBELUM smoke ini. (Urutan lama salah: smoke duluan → gagal → API tak pernah deploy.)
+      - name: Smoke test AI — /health + chat (custom domain)
+        run: |
+          set -euo pipefail
+          URL="https://api.mulaiplus.id"
+          ok=0
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/ai/health" || true)
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            echo "[attempt $i/3] HTTP=$code — retry (DNS custom domain)..."
+            sleep 8
+          done
+          [ "$ok" = "1" ] || { echo "❌ AI /health gagal — pastikan master sudah punya deploy-cf (merge infra) & api-production ter-deploy dengan kode terbaru."; exit 1; }
+          reply=$(curl -s -X POST "$URL/ai/chat" -H "Content-Type: application/json" \
+            -H "Origin: https://mulaiplus.id" \
+            -H "User-Agent: Mozilla/5.0 (CI smoke; like browser)" \
+            -H "x-session-id: ci-prod-smoke-$(date +%s)" \
+            -d '{"message":"halo"}' --max-time 90 || true)
+          echo "$reply" | grep -q "full_reply"
+          echo "✅ mulai-plus-ai-production (Workers) sehat"
 
       - name: Smoke test API — root / harus OK (workers.dev)
         run: |
