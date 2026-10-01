@@ -32,6 +32,7 @@ export default function AssessmentEditorPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [modal, setModal] = useState<{ open: boolean; q?: any }>({ open: false });
   const [gate, setGate] = useState<{ ok: boolean; errors: string[] } | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
@@ -60,7 +61,8 @@ export default function AssessmentEditorPage() {
     try { setContent(await aClient.discoverAdmin.versions.contentList({ versionId: v.id })); } catch { setContent(null); }
     setCanEdit(v.status === "draft");
   }, []);
-  useEffect(() => { const sel = draft ?? live; void loadContent(sel); }, [draft?.id, live?.id]);
+  const selVer = vers.find((v) => v.id === selectedId) ?? draft ?? live;
+  useEffect(() => { void loadContent(selVer); }, [selVer?.id]);
 
   const startEdit = async () => {
     setBusy("edit");
@@ -114,6 +116,17 @@ export default function AssessmentEditorPage() {
     await reloadContent();
   };
 
+  const release = async (vid: string) => {
+    setBusy("pub");
+    try {
+      const r = await aClient.discoverAdmin.versions.publish({ versionId: vid });
+      if (r.ok) { notify.create("Versi dijadikan rilis 🎉", { description: "Siswa kini menerima versi ini." }); setErrors([]); }
+      else setErrors(r.errors ?? []);
+      await reload(); setSelectedId(vid);
+    } catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); }
+    finally { setBusy(""); }
+  };
+
   const publish = async () => {
     if (!draft) return; setBusy("pub");
     try { const r = await aClient.discoverAdmin.versions.publish({ versionId: draft.id }); if (r.ok) { notify.create("Terbit 🎉 didik"); setErrors([]); } else setErrors(r.errors ?? []); await reload(); }
@@ -134,9 +147,24 @@ export default function AssessmentEditorPage() {
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {vers.map((v) => (
-              <Badge key={v.id} className={v.status === "live" ? "border-teal-500/30 bg-teal-500/10 text-teal-700" : v.status === "draft" ? "border-amber-500/30 bg-amber-500/10 text-amber-700" : "border-gray-200 bg-gray-100 text-gray-500"}>
-                v{v.versionNumber} · {v.status === "live" ? "Online" : v.status}
-              </Badge>
+              <div key={v.id} className="flex items-center gap-1">
+                <button
+                  onClick={() => setSelectedId(v.id)}
+                  title="Lihat versi ini"
+                  className={`rounded-full px-3 py-1 font-manrope text-xs font-semibold transition-all ${selVer?.id === v.id ? "bg-brand-navy text-white shadow" : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300"}`}
+                >
+                  v{v.versionNumber} · {v.status === "live" ? "● Online" : v.status}
+                </button>
+                {v.status !== "live" && (
+                  <button
+                    onClick={() => void release(v.id)}
+                    disabled={busy === "pub"}
+                    className="font-manrope text-[10px] font-semibold text-brand-orange underline-offset-2 hover:underline disabled:opacity-50"
+                  >
+                    {v.status === "draft" ? "Terbit" : "Rilis kembali"}
+                  </button>
+                )}
+              </div>
             ))}
           </div>
           {active?.publishedAt && active.status === "live" && <span className="font-manrope text-[11px] text-muted-foreground">Terakhir diperbarui {new Date(active.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>}

@@ -17,6 +17,7 @@
 > - L3 router `discover`/`discoverAdmin` + scoring + gatekeeper (lib terpisah utk testability)
 > - L4 admin editor `/admin/assessment/editor` + sidebar
 > - **Testing (staging)**: student E2E config→start→submit×10→finish=`E-I-A` (DB: session completed, results/answers/scores); admin: gate DISCOVER v1 DITOLAK 6 error (`min 3 soal/dim`), draft compliant → publish→LIVE + archived + publishedAt ✓ (TEST sekali pakai di-cleanup)
+> - Versioning live: satu versi **dirilis (Online)**; versi lain tetap tersimpan (draft/archived) & bisa **dipilih lagi sbg rilis (rollback)** via tombol 'Terbit/Rilis kembali' di `/admin/assessment/editor/{code}`; siswa selalu menerima versi rilis.
 > - **Menjalankan**: `bun run db:push` → `DATABASE_URL=… bun scripts/seed-assessment.ts [--force]` (packages/db) → `bun scripts/admin-publish-test.mts` (packages/api); UI `/admin/assessment/editor`
 | **1** | Discover™ complete (minat) | 1–2 sprint | Intro sections, dimension instructions, preview-as-student, gatekeeper validasi, pause/resume |
 | **2** | Talent™ multi-format (bakat) | 3–4 sprint | LaTeX/KaTeX, gambar+caption+posisi, TEXT_INPUT + evaluasi, timer server-side, tie-breaker 3-tingkat, WEIGHTED scoring |
