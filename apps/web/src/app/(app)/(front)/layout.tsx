@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Footer } from "@/components/front/footer";
 import { FrontLinkTracker } from "@/components/front/front-link-tracker";
 import { Navbar } from "@/components/front/navbar";
+import { MaintenanceBanner } from "@/components/front/maintenance-banner";
 
 export const metadata: Metadata = {
   title: {
@@ -47,6 +48,7 @@ export default function FrontLayout({
         Langsung ke konten utama
       </a>
       <Navbar />
+      <MaintenanceBanner />
       {children}
       <Footer />
       <FrontLinkTracker />
