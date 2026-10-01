@@ -38,8 +38,10 @@ export async function validatePublish(versionId: string): Promise<{ ok: boolean;
     if (!q.dimensionId) errors.push(`Soal ${q.questionCode ?? q.id} belum punya dimensi.`);
     if (!q.scaleId && q.questionType === "multiple_choice") errors.push(`Soal ${q.questionCode ?? q.id} belum punya answer scale.`);
     const o = opts.filter((x) => x.questionId === q.id);
-    if (o.length < 2) errors.push(`Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`);
-    for (const oo of o) if (!oo.label) errors.push(`Opsi pada soal ${q.questionCode ?? q.id} harus punya label.`);
+    if (q.questionType === "multiple_choice" && o.length < 2)
+      errors.push(`Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`);
+    if (q.questionType !== "text_input")
+      for (const oo of o) if (!oo.label) errors.push(`Opsi pada soal ${q.questionCode ?? q.id} harus punya label.`);
     const key = `${q.dimensionId}:${q.displayOrder}`;
     if (orderSeen.has(key)) errors.push(`Display order konflik pada dimensi soal ${q.questionCode ?? q.id}.`);
     orderSeen.add(key);

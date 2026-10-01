@@ -86,6 +86,16 @@ Relasi: assessments 1:N versions; version 1:N sections/dimensions/questions; dim
 
 ---
 
+> **STATUS Fase 2 — TALENT™ (2026-10-01): BACKEND ENGINE SELESAI — teruji di staging**
+> - Schema: `text_input_configs`, `questions.weight`, enum text-eval (migration 0022, staging ✅)
+> - `evaluateTextInput`: exact / numeric_tolerance (tol) / keyword / pattern + normalisasi pecahan↔desimal — **unit 6/6 ✓**
+> - Scoring method SUM / AVERAGE / **WEIGHTED** (Σ score×weight per soal) di `finish`
+> - Tie-breaker **waktu→abjad** (durations per dimensi dari klien; skor seri → waktu lebih cepat menang) ✓
+> - Timer server: `start` menghitung `serverNow` + `expectedEnd` dari config (scope dimension/question/none) & dikembalikan klien
+> - `submitText` (TEXT_INPUT) + sesi; gatekeeper kini membebaskan TEXT_INPUT dari syarat 2-opsi
+> - Seeder `TALENT v1` (draft) — snapshot ability legacy (5 dims, N soal MC)
+> - Test `bun scripts/talent-engine-test.mts`: evaluator ✓ · weighted-publish LIVE ✓ · tie V(cepat) menang ✓ · cleanup ✓
+> - **Sisa renderer sisi siswa** (KaTeX, media R2, TEXT_INPUT UI, timer countdown) → masuk Fase 3/enrichment; engine sudah siap dikonsumsi.
 ## 3. Fase Detail
 
 ### Fase 0 — Fondasi Engine + Versioning (2–3 sprint)

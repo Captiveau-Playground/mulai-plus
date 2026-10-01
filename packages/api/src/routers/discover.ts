@@ -3,6 +3,7 @@ import { schema } from "@mulai-plus/db/db";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 import { publishVersion } from "../lib/assessment-gate";
+import { evaluateTextInput } from "../lib/evaluate-input";
 
 /**
  * Discover™ — Assessment Engine (Fase 0).
@@ -106,15 +107,41 @@ export const discoverRouter = {
     .handler(async ({ input }) => {
       const v = await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
+      const c = (v.configJson ?? {}) as any;
+      let serverTimer: Record<string, unknown> | undefined;
+      if (c?.timer_enabled === true) {
+        const scope = c?.timer_scope ?? "none";
+        let totalSeconds = 0;
+        if (scope === "dimension") {
+          const dims = await db.query.assessmentDimensions.findMany({
+            where: eq(schema.assessmentDimensions.versionId, v.id),
+            columns: { durationSeconds: true },
+          });
+          totalSeconds = dims.reduce((s, d) => s + (d.durationSeconds ?? 0), 0);
+        } else if (scope === "question") {
+          const qs = await db.query.questions.findMany({
+            where: eq(schema.questions.versionId, v.id),
+            columns: { id: true },
+          });
+          const perQ = Number(c?.time_per_question ?? 30);
+          totalSeconds = qs.length * perQ;
+        }
+        serverTimer = {
+          scope,
+          totalSeconds,
+          serverNowISO: new Date().toISOString(),
+          expectedEndISO: new Date(Date.now() + totalSeconds * 1000).toISOString(),
+        };
+      }
       const session = {
         id: uid(),
         studentId: input.studentId,
         versionId: v.id,
         status: "in_progress",
-        configJson: v.configJson,
+        configJson: { ...v.configJson, timer: serverTimer },
       };
       await db.insert(schema.assessmentSessions).values(session as any);
-      return { ok: true, sessionId: session.id, versionId: v.id };
+      return { ok: true, sessionId: session.id, versionId: v.id, serverTimer };
     }),
 
   /** Simpan satu jawaban (upsert). */
@@ -160,9 +187,38 @@ export const discoverRouter = {
       return { ok: true };
     }),
 
-  /** Selesaikan → skor SUM per dimensi (target_dimension) → top-N → profile (tie: abjad). */
+  /** Jawaban isian (TEXT_INPUT) — Tennessee evaluasi via lib/evaluate-input. */
+  submitText: publicProcedure
+    .input(z.object({ sessionId: z.string().min(1), questionId: z.string().min(1), textAnswer: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const sess = await db.query.assessmentSessions.findFirst({ where: eq(schema.assessmentSessions.id, input.sessionId) });
+      if (!sess || sess.status !== "in_progress") return { ok: false, error: "session_not_found" } as const;
+      const q = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId) });
+      if (!q) return { ok: false, error: "question_not_found" } as const;
+      const cfg = await db.query.textInputConfigs.findFirst({ where: eq(schema.textInputConfigs.questionId, input.questionId) });
+      const evalRes = cfg
+        ? evaluateTextInput(
+            cfg.evaluationType as any,
+            cfg.answerKey,
+            input.textAnswer,
+            cfg.numericTolerance ?? "0.01",
+          )
+        : { correct: true, normalized: input.textAnswer.trim() };
+      const existing = await db.query.assessmentAnswers.findFirst({
+        where: and(eq(schema.assessmentAnswers.sessionId, input.sessionId), eq(schema.assessmentAnswers.questionId, input.questionId)),
+      });
+      const scoreEarned = evalRes.correct ? 1 : 0;
+      if (existing) {
+        await db.update(schema.assessmentAnswers).set({ textAnswer: input.textAnswer, scoreEarned, answeredAt: new Date() }).where(eq(schema.assessmentAnswers.id, existing.id));
+      } else {
+        await db.insert(schema.assessmentAnswers).values({ id: uid(), sessionId: input.sessionId, questionId: input.questionId, textAnswer: input.textAnswer, scoreEarned });
+      }
+      return { ok: true, correct: evalRes.correct, normalized: evalRes.normalized };
+    }),
+
+  /** Selesaikan → skor per method (SUM/AVG/WEIGHTED) → top-N → profile (tie: waktu→abjad). */
   finish: publicProcedure
-    .input(z.object({ sessionId: z.string().min(1) }))
+    .input(z.object({ sessionId: z.string().min(1), durations: z.record(z.string(), z.number()).optional() }))
     .handler(async ({ input }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
@@ -174,34 +230,57 @@ export const discoverRouter = {
         });
         return { ok: true, already_completed: true, result: r };
       }
+      const cfg = (sess.configJson ?? {}) as any;
+      const method: string = cfg?.scoring_method ?? "sum";
       const purse = await db.query.assessmentAnswers.findMany({
-        where: and(
-          eq(schema.assessmentAnswers.sessionId, input.sessionId),
-        ),
+        where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
       });
       const optIds = purse.map((a) => a.selectedOptionId).filter(Boolean) as string[];
       const opts = optIds.length
         ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.id, optIds) })
         : [];
+      const qIds = purse.map((a) => a.questionId).filter(Boolean) as string[];
+      const qs = qIds.length
+        ? await db.query.questions.findMany({ where: inArray(schema.questions.id, qIds), columns: { id: true, dimensionId: true, weight: true } })
+        : [];
+      const qBy = new Map(qs.map((q) => [q.id, q]));
+      const optBy = new Map(opts.map((o) => [o.id, o]));
 
+      // Akumulasi per dimensi: rawscore + count (utk average) + weighted
       const scores = new Map<string, number>();
-      const timeStart = Date.now();
-      for (const o of opts) {
-        const key = o.targetDimension ?? "";
-        if (!key) continue;
-        scores.set(key, (scores.get(key) ?? 0) + (o.score ?? 0));
+      const counts = new Map<string, number>();
+      for (const a of purse) {
+        let dimId = "";
+        let score = a.scoreEarned ?? 0;
+        const q = qBy.get(a.questionId);
+        if (a.selectedOptionId) {
+          const o = optBy.get(a.selectedOptionId);
+          dimId = o?.targetDimension ?? q?.dimensionId ?? "";
+          score = o?.score ?? score;
+        } else {
+          dimId = q?.dimensionId ?? "";
+        }
+        if (!dimId) continue;
+        if (method === "weighted") score = score * (q?.weight ?? 1);
+        scores.set(dimId, (scores.get(dimId) ?? 0) + score);
+        counts.set(dimId, (counts.get(dimId) ?? 0) + 1);
+      }
+      if (method === "average") {
+        for (const [k, v] of scores) scores.set(k, counts.get(k) ? Math.round((v / counts.get(k)!) * 1000) / 1000 : 0);
       }
       const dims = await db.query.assessmentDimensions.findMany({
         where: eq(schema.assessmentDimensions.versionId, sess.versionId),
       });
       const dimByCode = new Map(dims.map((d) => [d.id, d.code]));
-      const rows = [...scores.entries()].map(([dimId, total]) => ({ dimId, total }));
+      const durations = input.durations ?? {};
+      const rows = [...scores.entries()].map(([dimId, total]) => ({ dimId, total, time: durations[dimId] ?? Number.MAX_SAFE_INTEGER }));
       rows.sort(
         (a, b) =>
           b.total - a.total ||
+          a.time - b.time ||
           (dimByCode.get(a.dimId) ?? "").localeCompare(dimByCode.get(b.dimId) ?? ""),
       );
-      const topN = Number((sess.configJson as any)?.result_dim_count ?? 3);
+      const topN = Number(cfg?.result_dim_count ?? 3);
       const top = rows.slice(0, topN).map((r) => dimByCode.get(r.dimId) ?? r.dimId);
       const profileCode = top.join("-");
 
@@ -214,7 +293,7 @@ export const discoverRouter = {
           dimensionId: row.dimId,
           totalScore: row.total,
           rank: i + 1,
-          completionTimeSeconds: Math.round((Date.now() - timeStart) / 1000),
+          completionTimeSeconds: row.time === Number.MAX_SAFE_INTEGER ? null : row.time,
         });
       }
       const result = {

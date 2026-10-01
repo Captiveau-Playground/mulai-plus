@@ -41,6 +41,15 @@ export const assessmentSessionStatusEnum = pgEnum("assessment_session_status", [
 
 export const assessmentTimerScopeEnum = pgEnum("assessment_timer_scope", ["dimension", "question", "none"]);
 
+export const assessmentTextEvalEnum = pgEnum("assessment_text_eval", [
+  "exact_match",
+  "numeric_tolerance",
+  "keyword_match",
+  "pattern_match",
+]);
+
+export const assessmentScoringAggEnum = pgEnum("assessment_scoring_agg", ["correct", "weight", "time"]);
+
 // ─── Master akar ───────────────────────────────────────
 
 export const assessments = pgTable("assessments", {
@@ -158,6 +167,7 @@ export const questions = pgTable(
     altText: text("alt_text"),
     questionType: assessmentQuestionTypeEnum("question_type").notNull().default("multiple_choice"),
     presentationMode: assessmentPresentationModeEnum("presentation_mode").notNull().default("standard_option_card"),
+    weight: integer("weight").notNull().default(1),
     displayOrder: integer("display_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -180,6 +190,17 @@ export const questionOptions = pgTable("question_options", {
   imageCaption: text("image_caption"),
   score: integer("score").notNull().default(0),
   displayOrder: integer("display_order").notNull().default(0),
+});
+
+export const textInputConfigs = pgTable("text_input_configs", {
+  id: varchar("id", { length: 24 }).primaryKey(),
+  questionId: varchar("question_id", { length: 24 })
+    .notNull()
+    .references(() => questions.id, { onDelete: "cascade" }),
+  evaluationType: assessmentTextEvalEnum("evaluation_type").notNull().default("exact_match"),
+  answerKey: text("answer_key").notNull(),
+  numericTolerance: text("numeric_tolerance"), // "0.01" — simpan sbg string agar ringan; parse di evaluator
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // ─── Sesi & hasil siswa ────────────────────────────────
