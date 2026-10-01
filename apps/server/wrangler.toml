@@ -108,7 +108,8 @@ R2_PUBLIC_URL = "https://cdn.mulaiplus.id"
 
 [[env.production.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "42a918a410c84017afa795d9a58f6eb3"  # mulai-plus-production-db-direct
+id = "86e1861682904ade889a0e9c7ce7ccc7"  # mulai-plus-neon-production (rolled out)
+# ROLLBACK (Supabase): "42a918a410c84017afa795d9a58f6eb3" # mulai-plus-production-db-direct  # mulai-plus-production-db-direct
 
 # ──────────────────────────── SECRETS ────────────────────────────
 # Set via CLI (never commit):
