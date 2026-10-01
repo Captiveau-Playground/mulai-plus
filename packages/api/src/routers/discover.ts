@@ -358,6 +358,27 @@ export const discoverRouter = {
 
 // ─── Admin ─────────────────────────────────────────────
 
+/** ── Konten builder (admin) ── */
+async function contentOfVersion(versionId: string) {
+  const questions = await db.query.questions.findMany({
+    where: eq(schema.questions.versionId, versionId),
+    orderBy: asc(schema.questions.displayOrder),
+  });
+  const qIds = questions.map((q) => q.id);
+  const opts = qIds.length
+    ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.questionId, qIds), orderBy: asc(schema.questionOptions.displayOrder) })
+    : [];
+  const cfg = qIds.length
+    ? await db.query.textInputConfigs.findMany({ where: inArray(schema.textInputConfigs.questionId, qIds) })
+    : [];
+  const dims = await db.query.assessmentDimensions.findMany({
+    where: eq(schema.assessmentDimensions.versionId, versionId),
+    orderBy: asc(schema.assessmentDimensions.displayOrder),
+  });
+  const scales = await db.query.answerScales.findMany({ orderBy: asc(schema.answerScales.name) });
+  return { questions, options: opts, textConfigs: cfg, dimensions: dims, scales };
+}
+
 export const discoverAdminRouter = {
   list: adminProcedure.handler(async () => {
     const assessments = await db.query.assessments.findMany({ orderBy: asc(schema.assessments.code) });
@@ -447,6 +468,130 @@ export const discoverAdminRouter = {
         const r = await publishVersion(input.versionId);
         if (!r.ok) return { ok: false, errors: r.errors ?? ["publish_failed"] } as const;
         return { ok: true, versionId: r.versionId };
+      }),
+
+    /** Daftar konten versi (soal+opsi+config+scales) utk builder. */
+    contentList: adminProcedure
+      .input(z.object({ versionId: z.string().min(1) }))
+      .handler(async ({ input }) => contentOfVersion(input.versionId)),
+
+    /** Simpan/create soal + opsi-opsi + text-input-config (upsert utk edit). */
+    contentSave: adminProcedure
+      .input(
+        z.object({
+          versionId: z.string().min(1),
+          questionData: z.object({
+            id: z.string().optional(),
+            dimensionId: z.string().min(1),
+            scaleId: z.string().optional().nullable(),
+            questionText: z.string().min(1),
+            questionType: z.enum(["multiple_choice", "text_input"]).default("multiple_choice"),
+            hasMathNotation: z.boolean().default(false),
+            mediaUrl: z.string().optional().nullable(),
+            mediaCaption: z.string().optional().nullable(),
+            weight: z.number().optional().default(1),
+            displayOrder: z.number().optional().default(0),
+            isActive: z.boolean().optional().default(true),
+            options: z
+              .array(
+                z.object({
+                  id: z.string().optional(),
+                  optionValue: z.string().min(1),
+                  label: z.string().min(1),
+                  score: z.number().optional().default(0),
+                  targetDimension: z.string().optional().nullable(),
+                  displayOrder: z.number().optional().default(0),
+                }),
+              )
+              .max(6),
+            textEval: z
+              .object({ evaluationType: z.string(), answerKey: z.string(), numericTolerance: z.string().optional() })
+              .optional()
+              .nullable(),
+          }),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const { versionId, questionData: q } = input;
+        const qid = q.id ?? uid();
+        if (!q.id) {
+          await db.insert(schema.questions).values({
+            id: qid,
+            versionId,
+            dimensionId: q.dimensionId,
+            scaleId: q.scaleId ?? null,
+            questionText: q.questionText,
+            questionType: q.questionType as any,
+            hasMathNotation: q.hasMathNotation,
+            mediaUrl: q.mediaUrl ?? null,
+            mediaCaption: q.mediaCaption ?? null,
+            weight: q.weight,
+            displayOrder: q.displayOrder,
+            isActive: q.isActive,
+          });
+        } else {
+          await db
+            .update(schema.questions)
+            .set({
+              dimensionId: q.dimensionId,
+              scaleId: q.scaleId ?? null,
+              questionText: q.questionText,
+              questionType: q.questionType as any,
+              hasMathNotation: q.hasMathNotation,
+              mediaUrl: q.mediaUrl ?? null,
+              mediaCaption: q.mediaCaption ?? null,
+              weight: q.weight,
+              displayOrder: q.displayOrder,
+              isActive: q.isActive,
+            })
+            .where(eq(schema.questions.id, qid));
+        }
+        await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, qid));
+        for (const o of q.options) {
+          await db.insert(schema.questionOptions).values({
+            id: o.id ?? uid(),
+            questionId: qid,
+            optionValue: o.optionValue,
+            targetDimension: o.targetDimension ?? q.dimensionId,
+            label: o.label,
+            score: o.score,
+            displayOrder: o.displayOrder,
+          });
+        }
+        await db.delete(schema.textInputConfigs).where(eq(schema.textInputConfigs.questionId, qid));
+        if (q.questionType === "text_input" && q.textEval) {
+          await db.insert(schema.textInputConfigs).values({
+            id: uid(),
+            questionId: qid,
+            evaluationType: q.textEval.evaluationType as any,
+            answerKey: q.textEval.answerKey,
+            numericTolerance: q.textEval.numericTolerance ?? null,
+          });
+        }
+        return { ok: true, questionId: qid };
+      }),
+
+    contentDelete: adminProcedure
+      .input(z.object({ questionId: z.string().min(1) }))
+      .handler(async ({ input }) => {
+        await db.delete(schema.questions).where(eq(schema.questions.id, input.questionId));
+        return { ok: true };
+      }),
+
+    /** Update config versi (opsional: total_dim, result_dim_count, min_q, scoring, timer, dll). */
+    configUpdate: adminProcedure
+      .input(
+        z.object({
+          versionId: z.string().min(1),
+          config: z.record(z.string(), z.any()),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) });
+        if (!v) return { ok: false, error: "version_not_found" } as const;
+        const merged = { ...(v.configJson ?? {}), ...input.config };
+        await db.update(schema.assessmentVersions).set({ configJson: merged }).where(eq(schema.assessmentVersions.id, input.versionId));
+        return { ok: true, config: merged };
       }),
   },
 };
