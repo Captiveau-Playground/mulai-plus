@@ -91,12 +91,17 @@ export const discoverRouter = {
         orderBy: asc(schema.assessmentSections.displayOrder),
       });
       const questions = await questionsOf(v.id);
+      const dimIds = dimensions.map((d) => d.id);
+      const instructions = dimIds.length
+        ? await db.query.dimensionInstructions.findMany({ where: inArray(schema.dimensionInstructions.dimensionId, dimIds) })
+        : [];
       return {
         ok: true,
         version: { id: v.id, number: v.versionNumber, status: v.status },
         config: v.configJson,
         dimensions,
         sections,
+        instructions,
         questions,
       };
     }),
@@ -312,18 +317,42 @@ export const discoverRouter = {
       return { ok: true, profileCode, topDimensions: top, rawScores: result.rawScoresJson, resultId: result.id };
     }),
 
-  /** Status sesi (utk resume Fase-1; minimal sekarang). */
+  /** Jeda (pause) → lanjutkan nanti. */
+  pause: publicProcedure
+    .input(z.object({ sessionId: z.string().min(1), currentDimensionId: z.string().optional() }))
+    .handler(async ({ input }) => {
+      const sess = await db.query.assessmentSessions.findFirst({ where: eq(schema.assessmentSessions.id, input.sessionId) });
+      if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
+      await db.update(schema.assessmentSessions).set({ status: "paused", currentDimensionId: input.currentDimensionId ?? sess.currentDimensionId }).where(eq(schema.assessmentSessions.id, input.sessionId));
+      return { ok: true };
+    }),
+
+  /** Sesi aktif milik siswa (resume). */
+  mySessions: publicProcedure
+    .input(z.object({ studentId: z.string().min(1), code: z.string().default("DISCOVER") }))
+    .handler(async ({ input }) => {
+      const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
+      const vs = a ? await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) }) : [];
+      const ids = vs.map((v) => v.id);
+      const items = ids.length
+        ? await db.query.assessmentSessions.findMany({
+            where: and(inArray(schema.assessmentSessions.versionId, ids), eq(schema.assessmentSessions.studentId, input.studentId), inArray(schema.assessmentSessions.status, ["in_progress", "paused"] as any)),
+            orderBy: (t) => [desc(t.startedAt)],
+          })
+        : [];
+      return { ok: true, items };
+    }),
+
+  /** Detail sesi + jawaban (utk resume/restore posisi). */
   session: publicProcedure
     .input(z.object({ sessionId: z.string().min(1) }))
     .handler(async ({ input }) => {
-      const sess = await db.query.assessmentSessions.findFirst({
-        where: eq(schema.assessmentSessions.id, input.sessionId),
-      });
+      const sess = await db.query.assessmentSessions.findFirst({ where: eq(schema.assessmentSessions.id, input.sessionId) });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
-      const answered = await db.query.assessmentAnswers.findMany({
-        where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
-      });
-      return { ok: true, session: sess, answeredCount: answered.length };
+      const answered = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, input.sessionId) });
+      const byQ = answered.map((a) => ({ questionId: a.questionId, optionId: a.selectedOptionId, text: a.textAnswer }));
+      return { ok: true, session: sess, status: sess.status, answers: byQ };
     }),
 };
 

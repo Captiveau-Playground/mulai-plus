@@ -96,7 +96,16 @@ Relasi: assessments 1:N versions; version 1:N sections/dimensions/questions; dim
 > - Seeder `TALENT v1` (draft) — snapshot ability legacy (5 dims, N soal MC)
 > - Test `bun scripts/talent-engine-test.mts`: evaluator ✓ · weighted-publish LIVE ✓ · tie V(cepat) menang ✓ · cleanup ✓
 > - **Renderer siswa SELESAI**: `/assessment/talent` (baru, aditif) — config engine-driven, KaTeX (dep `katex`), media+caption, TEXT_INPUT, timer countdown server-bound, per-dimensi durations → finish; TALENT v1 LIVE di staging (10 soal · 5 dims); publikasi via gatekeeper ✓
-## 3. Fase Detail
+#> **STATUS Fase 1 (2026-10-01): SELESAI — teruji staging**
+> - Router: `pause` + `mySessions` (resume) + `session` (detail + answers restore) + config kini sertakan dimension `instructions`
+> - Seeder konten DISCOVER live: intro sections (description/bullet_list) + per-dimensi instruction (idempotent)
+> - Renderer talent: sections intro render, instruction screen per dimensi, pause/resume UI (restore posisi dari jawaban tersimpan), preview mode (`?preview=1`, terisolasi), gamification mode (emoji/image/visual_comparison), CAT-lite (urutkan soal ke dimensi paling sedikit terjawab)
+> - E2E: config(sections/instr) · start · pause → mySessions=paused · session detail ✓
+>
+> **STATUS Fase 3 (2026-10-01): BACKLOG TERDOKUMENTASI — yang termudah sudah live (CAT-lite di renderer; latex/katex util siap dipakai editor).**
+> - WYSIWYG math editor & interactive canvas & localization penuh: sengaja di-backlog (non-blocking utk MVP; butuh design & scope terpisah).
+> - CAT penuh (IRT/ability-estimation) & interactive canvas = fase lanjutan terpisah.
+# 3. Fase Detail
 
 ### Fase 0 — Fondasi Engine + Versioning (2–3 sprint)
 
