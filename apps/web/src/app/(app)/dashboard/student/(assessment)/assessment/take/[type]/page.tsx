@@ -7,6 +7,8 @@ import { ArrowRight, Check, Flame, Home, Sparkles, Timer, X } from "lucide-react
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { EngineRun } from "@/components/assessment/engine-run";
 import { useEffect, useRef, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,8 @@ function fireConfetti() {
 }
 
 export default function TmbTestPage() {
+  const t = String(useParams().type ?? "");
+  if (t === "DISCOVER" || t === "TALENT") return <EngineTake type={t} />;
   const params = useParams();
   const router = useRouter();
   const testCode = (params.type as string) === "ability" ? "ability" : "interest";
@@ -760,6 +764,22 @@ export default function TmbTestPage() {
             })
         )}
       </div>
+    </div>
+  );
+}
+
+function EngineTake({ type }: { type: string }) {
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="flex items-center gap-2">
+        <Link href="/dashboard/student/assessment" className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 font-manrope text-xs font-semibold text-gray-600 hover:bg-gray-50">
+          ← Pilih Test
+        </Link>
+        <span className="font-manrope text-xs text-muted-foreground">Tes {type === "DISCOVER" ? "Minat" : "Bakat"} — jawaban tersimpan otomatis</span>
+      </div>
+      <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>}>
+        <EngineRun code={type} />
+      </Suspense>
     </div>
   );
 }
