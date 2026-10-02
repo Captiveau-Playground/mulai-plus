@@ -361,7 +361,7 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
               )}
             </div>
 
-            <p className="mt-5 font-manrope text-[10px] font-semibold tracking-wide text-teal-600 uppercase">
+            <p className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 font-manrope text-[11px] font-semibold text-teal-700">
               {secLabel ? `${secLabel} · ` : ""}{dimsBy.get(current.dimensionId)?.name ?? "Soal"}
             </p>
             <h3 className="mt-1 font-bold font-bricolage text-lg text-gray-900 leading-snug">
@@ -388,7 +388,8 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
                   const hasImg = !!o.imageUrl;
                   return (
                     <button key={o.id} onClick={() => answer(o.id)} disabled={pending}
-                      className={`group flex items-center gap-3 rounded-xl border border-gray-200 p-4 text-left transition-all hover:border-teal-500/50 hover:bg-teal-500/5 ${current.presentationMode === "visual_comparison" ? "min-h-28 justify-center" : ""} disabled:opacity-60`}>
+                      className={`group flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all hover:border-teal-500/60 hover:bg-teal-500/5 hover:shadow-md active:scale-[0.99] ${current.presentationMode === "visual_comparison" ? "min-h-28 justify-center" : ""} disabled:opacity-60 ${o.optionValue === "A" ? "border-teal-500 bg-teal-500/5" : "border-gray-100"}`}>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white font-bold font-manrope text-xs text-gray-500 shadow-sm">{o.optionValue || "•"}</span>
                       {hasImg && <img src={o.imageUrl!} alt="" className="h-12 w-12 rounded-lg object-contain" />}
                       {emoji && <span className="text-2xl">{emoji}</span>}
                       <span className="font-manrope text-sm text-gray-700">{o.label}</span>
@@ -429,45 +430,45 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
 
         {/* DONE */}
         {phase === "done" && (
-          <div className="rounded-3xl border border-teal-100 bg-teal-50/40 p-8 text-center sm:p-10">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-teal-600" />
-            <h2 className="mt-3 font-bold font-bricolage text-2xl text-brand-navy">{preview ? "Preview selesai" : "{t.done}"}</h2>
+          <div className="rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-8 text-center shadow-xl shadow-teal-600/20 sm:p-10">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-white/90" />
+            <h2 className="mt-3 font-bold font-bricolage text-2xl text-white">{preview ? "Preview selesai" : "{t.done}"}</h2>
             {result?.profileCode && (
               <div className="mt-4">
-                <p className="font-manrope text-xs uppercase tracking-widest text-gray-400">{t.profile}</p>
-                <p className="mt-1 font-bold font-bricolage text-3xl text-teal-700">{result.profileCode}</p>
+                <p className="font-manrope text-xs uppercase tracking-widest text-white/70">{t.profile}</p>
+                <p className="mt-1 font-bold font-bricolage text-4xl text-white">{result.profileCode}</p>
               </div>
             )}
             {result?.recommendations?.length > 0 && (
-              <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-4 text-left">
-                <p className="font-manrope text-xs font-semibold text-gray-500">Jurusan yang cocok utkmu</p>
+              <div className="mt-5 rounded-2xl border border-white/15 bg-white/10 p-4 text-left backdrop-blur">
+                <p className="font-manrope text-xs font-semibold text-white/80">Jurusan yang cocok utkmu</p>
                 <div className="mt-2 space-y-1.5">
                   {(result.recommendations as any[]).slice(0, 5).map((r: any, i: number) => (
                     <div key={i} className="flex items-center justify-between gap-2">
                       <div>
-                        <p className="font-manrope text-sm font-semibold text-brand-navy">{r.categoryName}</p>
-                        <p className="font-manrope text-[10px] text-gray-400">{r.careers?.slice(0, 3).join(" · ") ?? ""}</p>
+                        <p className="font-manrope text-sm font-semibold text-white">{r.categoryName}</p>
+                        <p className="font-manrope text-[10px] text-white/60">{r.careers?.slice(0, 3).join(" · ") ?? ""}</p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-teal-500/10 px-2 py-0.5 font-manrope text-[10px] font-semibold text-teal-700">{r.confidence}%</span>
+                      <span className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 font-manrope text-[10px] font-semibold text-white">{r.confidence}%</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
             {(result?.xpEarned ?? 0) > 0 && (
-              <p className="mt-3 font-manrope text-sm font-semibold text-brand-orange">
+              <p className="mt-3 font-manrope text-sm font-semibold text-amber-300">
                 +{result.xpEarned} XP · streak 🔥 {result.streak} bagian
               </p>
             )}
-            {result?.timedOut && <p className="mt-2 font-manrope text-[11px] text-amber-600">Waktu habis — jawaban yang terisi otomatis dikirim & diverifikasi.</p>}
+            {result?.timedOut && <p className="mt-2 font-manrope text-[11px] text-amber-200">Waktu habis — jawaban yang terisi otomatis dikirim & diverifikasi.</p>}
             {result?.topDimensions && (
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 {(result.topDimensions as string[]).map((c) => (
-                  <span key={c} className="rounded-lg bg-white px-3 py-1 font-bold font-bricolage text-brand-navy shadow-sm">{c}</span>
+                  <span key={c} className="rounded-lg bg-white/15 px-3 py-1 font-bold font-bricolage text-white">{c}</span>
                 ))}
               </div>
             )}
-            <button onClick={() => { setResult(null); setAnswers({}); setSessionId(""); setPhase("intro"); }} className="mt-7 rounded-xl bg-brand-navy px-6 py-3 font-manrope text-sm font-semibold text-white transition-all hover:bg-brand-navy-light">
+            <button onClick={() => { setResult(null); setAnswers({}); setSessionId(""); setPhase("intro"); }} className="mt-6 rounded-xl bg-white px-6 py-3 font-manrope text-sm font-semibold text-teal-700 shadow-lg transition-all hover:bg-white/90">
               {preview ? "Preview ulang" : "Ulangi Tes"}
             </button>
           </div>
