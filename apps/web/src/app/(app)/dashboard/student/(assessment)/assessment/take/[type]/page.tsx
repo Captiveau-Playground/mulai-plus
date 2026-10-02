@@ -196,10 +196,12 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     }
   }, []);
 
+  const optsRef = useRef<any[] | null>(null);
   const engineLoad = (i: number) => {
     const q = engineQs[i];
     if (!q) { void engineFinish(); return; }
     lastDimRef.current = q.dimensionId;
+    optsRef.current = q.opts ?? [];
     setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label } as unknown as Question);
     setProgress(i + 1);
     setTotal(engineQs.length);
@@ -252,7 +254,12 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     if (revealed || !question) return;
     setSelected(option);
     setRevealed(true);
-    void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: option } as any)
+    // huruf/teks → id opsi ASLI (q.opts[i].id) — submit butuh optionId valid
+    const oList = optsRef.current ?? [];
+    const idx = ["A", "B", "C", "D"].indexOf(option);
+    const optId = idx >= 0 ? oList[idx]?.id : oList.find((o: any) => o.id === option)?.id;
+    if (!optId) { console.warn("[engine] opsi tanpa id:", option, oList); return; }
+    void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: optId } as any)
       .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submit ditolak", r); })
       .catch((e: any) => console.error("[engine] submit gagal:", e?.message ?? e));
     setTimeout(() => engineNext(eq + 1), 360);
