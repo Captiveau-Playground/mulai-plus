@@ -506,24 +506,37 @@ export const discoverRouter = {
         where: and(inArray(schema.assessmentSessions.versionId, vs.map((v) => v.id)), eq(schema.assessmentSessions.studentId, input.studentId), eq(schema.assessmentSessions.status, "completed")),
         orderBy: (t: any) => [desc(t.completedAt)],
       });
-      const sess = sessions[0];
-      if (!sess) return { ok: true, code: a.code, present: false } as const;
-      const r = await db.query.assessmentResults.findFirst({ where: eq(schema.assessmentResults.sessionId, sess.id) });
-      if (!r) return { ok: true, code: a.code, present: false } as const;
-      return {
-        ok: true,
-        code: a.code,
-        name: a.name,
-        present: true,
-        profileCode: r.profileCode,
-        topDimensions: r.topDimensionsJson,
-        rawScores: r.rawScoresJson,
-        recommendations: r.recommendationsJson ?? [],
-        xpEarned: r.xpEarned,
-        streak: r.streak,
-        timedOut: r.timedOut,
-        completedAt: sess.completedAt,
-      };
+      const isMinat = String(input.code).toUpperCase() === "DISCOVER";
+      // "selesai" hanya jika skor VALID (profil RIASEC utk minat; ada tscores utk bakat) —
+      // sesi lama/preview yang gagal backwrite (profil kosong) TIDAK dihitung hasil.
+      for (const sess of sessions) {
+        const r = await db.query.assessmentResults.findFirst({ where: eq(schema.assessmentResults.sessionId, sess.id) });
+        if (!r) continue;
+        const hasValid = isMinat
+          ? !!r.profileCode && r.profileCode.length > 0
+          : (() => {
+              const raw = (r.rawScoresJson ?? {}) as Record<string, number>;
+              const dims = (r.topDimensionsJson ?? []) as any[];
+              const sum = Object.values(raw).reduce((x, v) => x + (Number(v) || 0), 0);
+              return dims.length > 0 || sum > 0;
+            })();
+        if (!hasValid) continue; // lewati sesi tak valid, cari yg valid di bawahnya
+        return {
+          ok: true,
+          code: a.code,
+          name: a.name,
+          present: true,
+          profileCode: r.profileCode,
+          topDimensions: r.topDimensionsJson,
+          rawScores: r.rawScoresJson,
+          recommendations: r.recommendationsJson ?? [],
+          xpEarned: r.xpEarned,
+          streak: r.streak,
+          timedOut: r.timedOut,
+          completedAt: sess.completedAt,
+        };
+      }
+      return { ok: true, code: a.code, present: false } as const;
     }),
 
   /** Detail sesi + jawaban (utk resume/restore posisi). */
