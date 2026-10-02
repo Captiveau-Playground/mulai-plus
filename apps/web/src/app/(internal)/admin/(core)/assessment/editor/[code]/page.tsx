@@ -62,8 +62,8 @@ export default function AssessmentDetailPage() {
   );
   const { data: gate } = useQuery(
     orpc.discoverAdmin.versions.validate.queryOptions({
-      input: { versionId: draft?.id ?? "" },
-      enabled: !!draft,
+      input: { versionId: selVer?.status === "draft" ? selVer.id : (draft?.id ?? "") },
+      enabled: !!selVer && selVer.status === "draft",
     }),
   );
 
@@ -353,16 +353,10 @@ export default function AssessmentDetailPage() {
       </div>
 
       {/* Status rilis */}
-      {gate && draft && (
-        gate.ok ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50/60 px-4 py-3">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-teal-600" />
-            <p className="font-manrope text-sm font-semibold text-teal-700">Siap terbit — tidak ada masalah. 🎉</p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
-            <p className="font-manrope text-sm font-semibold text-red-700">{(gate.errors ?? []).length} hal perlu diperbaiki sebelum terbit — klik untuk lompat:</p>
-            <div className="mt-1.5 flex flex-col gap-1">
+      {gate && !gate.ok && (
+        <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
+          <p className="font-manrope text-sm font-semibold text-red-700">{(gate.errors ?? []).length} hal perlu diperbaiki sebelum terbit — klik untuk lompat:</p>
+          <div className="mt-1.5 flex flex-col gap-1">
               {((gate.details?.length ? gate.details : (gate.errors ?? []).map((e: string) => {
                 const qm = e.match(/Soal (?:\\|[a-z0-9]{8,24})/i);
                 const qid = e.match(/Soal\s+([a-z0-9]{8,24})/i);
@@ -379,9 +373,15 @@ export default function AssessmentDetailPage() {
                   <span className="underline decoration-dotted underline-offset-2">{d.message}</span>
                 </button>
               ))}
-            </div>
-          </div>
-        )
+              </div>
+        </div>
+      )}
+
+      {gate?.ok && selVer?.status === "draft" && (
+        <div key={selVer.id} className="flex items-center gap-2 rounded-2xl border border-teal-200 bg-teal-50/60 px-4 py-3">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-teal-600" />
+          <p className="font-manrope text-sm font-semibold text-teal-700">Siap terbit — tidak ada masalah. 🎉</p>
+        </div>
       )}
 
       <WorkingOverlay show={busyAny} label={mSaveQ.isPending ? "Menyimpan soal…" : mPub.isPending ? "Menerbitkan…" : mDimsAdd.isPending ? "Menambah dimensi…" : mReorder.isPending ? "Menyimpan urutan…" : "Menyimpan…"} />
