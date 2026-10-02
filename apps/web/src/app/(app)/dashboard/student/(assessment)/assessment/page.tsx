@@ -32,22 +32,15 @@ const TEST_META: Record<string, { emoji: string; color: string; desc: string; xp
 export default function AssessmentHomePage() {
   const [infoOpen, setInfoOpen] = useState(true);
   const gate = useProfileGate();
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     ...orpc.tmb.assessment.list.queryOptions({ input: {} }),
+    enabled: true,
   });
   const { data: liveTests } = useQuery({
     queryKey: ["assess-live-tests"],
     queryFn: () => (client as any).discover.liveTests(),
     staleTime: 30_000,
   });
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" />
-      </div>
-    );
-  }
 
   const stats = data?.stats ?? { xp: 0, level: 1, streak: 0, testsCompleted: 0 };
   const tests = data?.tests ?? [];
