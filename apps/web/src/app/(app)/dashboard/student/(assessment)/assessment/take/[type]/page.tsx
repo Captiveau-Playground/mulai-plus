@@ -511,7 +511,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             (() => {
               const otherDone = typeof window !== "undefined" && !!localStorage.getItem("v2-done:" + engine!.otherCode);
               return otherDone ? (
-                <Link href={"/dashboard/student/assessment/engine-report" as any} className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]">
+                <Link href={"/dashboard/student/assessment/result" as any} className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]">
                   <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
                 </Link>
               ) : (
