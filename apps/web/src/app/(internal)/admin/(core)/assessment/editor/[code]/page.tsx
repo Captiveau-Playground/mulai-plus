@@ -190,12 +190,12 @@ export default function AssessmentDetailPage() {
         </button>
         {rulesOpen && (
           <div className="grid gap-3 border-t border-gray-100 px-5 pb-5 pt-4 md:grid-cols-3">
-            <Rule label="Tampilkan hasil N kode teratas" type="number" value={rules.result_dim_count ?? ""} onChange={(v) => setRules((r) => ({ ...r, result_dim_count: Number(v) }))} disabled={!canEdit} />
-            <Rule label="Min. soal per dimensi" type="number" value={rules.min_q_per_dim ?? ""} onChange={(v) => setRules((r) => ({ ...r, min_q_per_dim: Number(v) }))} disabled={!canEdit} />
-            <Rule label="Cara nilai" type="select" opts={[["sum", "Jumlah poin"], ["average", "Rata-rata"], ["weighted", "Bobot soal"]]} value={rules.scoring_method ?? "sum"} onChange={(v) => setRules((r) => ({ ...r, scoring_method: v }))} disabled={!canEdit} />
-            <Rule label="Acak urutan soal" type="bool" value={rules.randomize_q === true} onChange={(v) => setRules((r) => ({ ...r, randomize_q: v }))} disabled={!canEdit} />
-            <Rule label="Acak urutan pilihan" type="bool" value={rules.randomize_a === true} onChange={(v) => setRules((r) => ({ ...r, randomize_a: v }))} disabled={!canEdit} />
-            <Rule label="Izinkan lanjut kemudian" type="bool" value={rules.allow_pause === true} onChange={(v) => setRules((r) => ({ ...r, allow_pause: v }))} disabled={!canEdit} />
+            <Rule label="Tampilkan hasil N kode teratas" hint="Berapa peringkat teratas yang ditampilkan ke siswa (cth 3 → S-I-A)." type="number" value={rules.result_dim_count ?? ""} onChange={(v) => setRules((r) => ({ ...r, result_dim_count: Number(v) }))} disabled={!canEdit} />
+            <Rule label="Min. soal per dimensi" hint="Syarat jumlah soal per dimensi agar versi bisa dirilis." type="number" value={rules.min_q_per_dim ?? ""} onChange={(v) => setRules((r) => ({ ...r, min_q_per_dim: Number(v) }))} disabled={!canEdit} />
+            <Rule label="Cara nilai" hint="Jumlah poin = skor dijumlah; Rata-rata = dibagi banyak soal; Bobot = dikali bobot soal." type="select" opts={[["sum", "Jumlah poin"], ["average", "Rata-rata"], ["weighted", "Bobot soal"]]} value={rules.scoring_method ?? "sum"} onChange={(v) => setRules((r) => ({ ...r, scoring_method: v }))} disabled={!canEdit} />
+            <Rule label="Acak urutan soal" hint="Urutan soal diacak setiap siswa memulai." type="bool" value={rules.randomize_q === true} onChange={(v) => setRules((r) => ({ ...r, randomize_q: v }))} disabled={!canEdit} />
+            <Rule label="Acak urutan pilihan" hint="Urutan opsi jawaban diacak per siswa." type="bool" value={rules.randomize_a === true} onChange={(v) => setRules((r) => ({ ...r, randomize_a: v }))} disabled={!canEdit} />
+            <Rule label="Izinkan lanjut kemudian" hint="Siswa boleh berhenti & melanjutkan tes lain waktu." type="bool" value={rules.allow_pause === true} onChange={(v) => setRules((r) => ({ ...r, allow_pause: v }))} disabled={!canEdit} />
             <div className="md:col-span-3">
               {canEdit ? (
                 <Button size="sm" variant="outline" onClick={() => void mRules.mutateAsync({ versionId, config: rules })} disabled={mRules.isPending}>
@@ -207,7 +207,11 @@ export default function AssessmentDetailPage() {
             </div>
             <div className="md:col-span-3">
               <div className="border-t border-gray-100 pt-3">
-                <p className="font-manrope text-xs font-semibold text-foreground">Dimensi ({dims.length}) {!canEdit && <span className="font-normal text-muted-foreground">· hanya baca</span>}</p>
+                <p className="flex items-center gap-1 font-manrope text-xs font-semibold text-foreground">
+                  Dimensi ({dims.length}) {!canEdit && <span className="font-normal text-muted-foreground">· hanya baca</span>}
+                  <span className="cursor-help rounded-full border border-gray-200 px-1 text-[9px] leading-4 text-gray-400" title="Dimensi = bagian tes (cth R/I/A/S/E/C utk minat). Siswa melihat soal per dimensi; hasil = peringkat antardimensi.">?</span>
+                </p>
+                <p className="font-manrope text-[10px] font-normal text-muted-foreground">Dimensi = bagian tes. Siswa melihat soal per dimensi; hasil = peringkat antardimensi.</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {dims.map((d) => (
                     <span key={d.id} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 font-manrope text-[11px] font-semibold text-gray-700">
@@ -280,7 +284,10 @@ export default function AssessmentDetailPage() {
                     <button title="Naik" onClick={() => moveQ(i, -1)} disabled={i === 0} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
                     <button title="Turun" onClick={() => moveQ(i, 1)} disabled={i === questions.length - 1} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
                     <button title="Salin soal" onClick={() => dupQ(q.id)} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"><Copy className="h-4 w-4" /></button>
-                    <button onClick={() => setModal({ open: true, q })} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100">✏️</button>
+                    <button
+                      onClick={() => setModal({ open: true, q: { ...q, opts: (content?.options ?? []).filter((o: any) => o.questionId === q.id), tc: (content?.textConfigs ?? []).find((t: any) => t.questionId === q.id) } })}
+                      className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
+                    >✏️</button>
                     <button onClick={() => delQ(q.id)} className="rounded-md p-1.5 text-red-400 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 )}
@@ -363,10 +370,14 @@ function ReleaseVerifyModal({ versionId, publish, onClose }: { versionId: string
   );
 }
 
-function Rule({ label, type, opts, value, onChange, disabled }: { label: string; type: "number" | "bool" | "select"; opts?: [string, string][]; value: any; onChange: (v: any) => void; disabled: boolean }) {
+function Rule({ label, hint, type, opts, value, onChange, disabled }: { label: string; hint?: string; type: "number" | "bool" | "select"; opts?: [string, string][]; value: any; onChange: (v: any) => void; disabled: boolean }) {
   return (
     <label className={`block font-manrope text-xs font-semibold text-foreground ${disabled ? "opacity-60" : ""}`}>
-      {label}
+      <span className="flex items-center gap-1">
+        {label}
+        {hint && <span className="cursor-help rounded-full border border-gray-200 px-1 text-[9px] leading-4 text-gray-400" title={hint}>?</span>}
+      </span>
+      {hint && <span className="block pb-1 font-manrope text-[10px] font-normal text-muted-foreground">{hint}</span>}
       {type === "number" && <Input type="number" className="mt-1" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />}
       {type === "bool" && (
         <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm disabled:bg-gray-50" disabled={disabled} value={value ? "1" : "0"} onChange={(e) => onChange(e.target.value === "1")}>
