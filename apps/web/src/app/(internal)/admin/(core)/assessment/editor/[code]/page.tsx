@@ -265,6 +265,7 @@ export default function AssessmentDetailPage() {
             <Rule label="Acak urutan soal" hint="Urutan soal diacak setiap siswa memulai." type="bool" value={rules.randomize_q === true} onChange={(v) => setRules((r) => ({ ...r, randomize_q: v }))} disabled={!canEdit} />
             <Rule label="Acak urutan pilihan" hint="Urutan opsi jawaban diacak per siswa." type="bool" value={rules.randomize_a === true} onChange={(v) => setRules((r) => ({ ...r, randomize_a: v }))} disabled={!canEdit} />
             <Rule label="Izinkan lanjut kemudian" hint="Siswa boleh berhenti & melanjutkan tes lain waktu." type="bool" value={rules.allow_pause === true} onChange={(v) => setRules((r) => ({ ...r, allow_pause: v }))} disabled={!canEdit} />
+            <Rule label="Pembagian bagian soal" hint="Pecah alur tes jadi beberapa bagian dgn checkpoint XP antar bagian." type="select" opts={[["none", "Satu bagian (lurus)"], ["by_dimension", "Per dimensi"], ["chunk:10", "Per 10 soal"], ["chunk:20", "Per 20 soal"]]} value={rules.section_mode ?? "none"} onChange={(v) => setRules((r) => ({ ...r, section_mode: v }))} disabled={!canEdit} />
             <div className="md:col-span-3">
               {canEdit ? (
                 <Button size="sm" variant="outline" onClick={() => void mRules.mutateAsync({ versionId, config: rules })} disabled={mRules.isPending}>

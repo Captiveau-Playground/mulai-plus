@@ -98,6 +98,26 @@ export const discoverRouter = {
       const instructions = dimIds.length
         ? await db.query.dimensionInstructions.findMany({ where: inArray(schema.dimensionInstructions.dimensionId, dimIds) })
         : [];
+      const cfgRun = (v.configJson ?? {}) as any;
+      const sm = cfgRun.section_mode ?? "none";
+      const activeQ = questions;
+      const activeDim = dimensions;
+      let runSections: { key: string; title: string; from: number; to: number }[] = [];
+      if (sm === "by_dimension") {
+        let pos = 0;
+        runSections = activeDim.map((d) => {
+          const cnt = activeQ.filter((q) => q.dimensionId === d.id).length;
+          const sec = { key: d.id, title: d.name, from: pos, to: pos + cnt - 1 };
+          pos += cnt;
+          return sec;
+        }).filter((s) => s.from <= s.to);
+      } else if (sm && sm.startsWith("chunk")) {
+        const size = Number(sm.split(":")[1] ?? 10) || 10;
+        runSections = [];
+        for (let f = 0; f < activeQ.length; f += size) runSections.push({ key: "chunk" + f, title: `Bagian ${runSections.length + 1}`, from: f, to: Math.min(f + size - 1, activeQ.length - 1) });
+      } else {
+        runSections = activeQ.length ? [{ key: "all", title: "Satu Bagian", from: 0, to: activeQ.length - 1 }] : [];
+      }
       return {
         ok: true,
         version: { id: v.id, number: v.versionNumber, status: v.status },
@@ -106,6 +126,7 @@ export const discoverRouter = {
         sections,
         instructions,
         questions,
+        runSections,
       };
     }),
 

@@ -61,6 +61,8 @@ function TalentAssessmentPage() {
   const [timer, setTimer] = useState<{ serverNowISO: string; expectedEndISO: string } | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [runSections, setRunSections] = useState<{ key: string; title: string; from: number; to: number }[]>([]);
+  const [cp, setCp] = useState<{ next: number; done: number } | null>(null);
 
   const dimStart = useRef(0);
   const dimElapsed = useRef<Record<string, number>>({});
@@ -78,6 +80,7 @@ function TalentAssessmentPage() {
       setDims(cfg.dimensions ?? []);
       setSections(cfg.sections ?? []);
       setInstructions(cfg.instructions ?? []);
+      setRunSections(cfg.runSections ?? []);
       setPhase("intro");
     } catch (e) {
       setErr((e as Error)?.message ?? "Gagal memuat");
@@ -119,6 +122,7 @@ function TalentAssessmentPage() {
       setDims(dimsV);
       setSections(cfgV.sections ?? []);
       setInstructions(cfgV.instructions ?? []);
+      setRunSections(cfgV.runSections ?? []);
       const saved = new Set(det.answers?.map((a: any) => a.questionId) ?? []);
       const map: Record<string, { opt?: string; text?: string }> = {};
       const optsById = new Map<string, string>();
@@ -162,6 +166,9 @@ function TalentAssessmentPage() {
   const startDimension = () => { dimStart.current = Date.now(); setPhase("run"); };
 
   const current = questions[idx];
+  const secIndex = (pos: number) => runSections.findIndex((sc) => pos >= sc.from && pos <= sc.to);
+  const curSec = secIndex(idx);
+  const secLabel = curSec >= 0 ? runSections[curSec]?.title ?? "" : "";
 
   const nextIdx = () => {
     // CAT-lite: pilih soal berikutnya dari dimensi yang paling sedikit terjawab
@@ -209,7 +216,15 @@ function TalentAssessmentPage() {
       dimStart.current = Date.now();
     }
     const n = nextIdx();
-    if (n >= 0) { setIdx(n); enterOrRun(questions[n]!); }
+    if (n >= 0) {
+      const fromSec = curSec;
+      const toSec = secIndex(n);
+      if (fromSec >= 0 && toSec > fromSec && toSec < runSections.length) {
+        setCp({ next: n, done: Object.keys(answers).length });
+      } else {
+        setIdx(n); enterOrRun(questions[n]!);
+      }
+    }
     else void finishRun();
   };
 
@@ -357,7 +372,9 @@ function TalentAssessmentPage() {
               )}
             </div>
 
-            <p className="mt-5 font-manrope text-[10px] font-semibold tracking-wide text-teal-600 uppercase">{dimsBy.get(current.dimensionId)?.name ?? "Soal"}</p>
+            <p className="mt-5 font-manrope text-[10px] font-semibold tracking-wide text-teal-600 uppercase">
+              {secLabel ? `${secLabel} · ` : ""}{dimsBy.get(current.dimensionId)?.name ?? "Soal"}
+            </p>
             <h3 className="mt-1 font-bold font-bricolage text-lg text-gray-900 leading-snug">
               {current.hasMathNotation ? <Latex text={current.questionText} /> : current.questionText}
             </h3>
@@ -397,6 +414,26 @@ function TalentAssessmentPage() {
                 <Pause className="h-3.5 w-3.5" /> Berhenti & lanjutkan nanti
               </button>
               <span className="font-manrope text-[11px] text-gray-400">Semua jawaban auto-tersimpan</span>
+            </div>
+          </div>
+        )}
+
+        {/* CHECKPOINT ANTAR BAGIAN */}
+        {cp && (
+          <div className="rounded-3xl border border-brand-orange/25 bg-white p-8 text-center shadow-xl shadow-brand-orange/5 sm:p-10">
+            <span className="text-4xl">🎯</span>
+            <h2 className="mt-3 font-bold font-bricolage text-2xl text-brand-navy">Bagian {curSec + 1}/{runSections.length} selesai!</h2>
+            <p className="mt-2 font-manrope text-sm text-gray-500">
+              {cp.done}/{questions.length} soal terjawab · <b className="text-brand-orange">+10 XP</b> · streak 🔥
+            </p>
+            <p className="mx-auto mt-2 max-w-sm font-manrope text-xs text-gray-400">Istirahat sebentar? Jawaban sudah tersimpan otomatis.</p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button onClick={() => { setCp(null); setIdx(cp.next); enterOrRun(questions[cp.next]!); }} className="rounded-xl bg-brand-navy px-7 py-3.5 font-bold font-manrope text-sm text-white shadow-lg transition-all hover:bg-brand-navy-light">
+                Lanjut ke {runSections[secIndex(cp.next)]?.title ?? "bagian berikutnya"} →
+              </button>
+              <button onClick={() => { void pause(); setCp(null); }} className="rounded-xl border border-gray-200 px-6 py-3.5 font-manrope text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                Istirahat dulu
+              </button>
             </div>
           </div>
         )}
