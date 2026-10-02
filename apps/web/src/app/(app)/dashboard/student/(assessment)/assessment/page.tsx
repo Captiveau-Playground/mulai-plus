@@ -207,8 +207,8 @@ export default function AssessmentHomePage() {
           {((liveTests?.items ?? []) as any[]).map((test: any, i: number) => {
             const meta =
               test.family === "minat"
-                ? { emoji: "🧠", color: "from-violet-500 to-purple-600", desc: "Pilih aktivitas yang paling menggambarkanmu — cari tahu tipe minatmu (Holland RIASEC)", xp: `+${test.xp} XP`, href: `/assessment/talent?code=${test.code}` }
-                : { emoji: "💡", color: "from-mentor-teal to-teal-700", desc: "Ukur kemampuan dasar: numerik, verbal, logika, spasial & ketelitian", xp: `+${test.xp} XP`, href: `/assessment/talent?code=${test.code}` };
+                ? { emoji: "🧠", color: "from-violet-500 to-purple-600", desc: "Pilih aktivitas yang paling menggambarkanmu — cari tahu tipe minatmu (Holland RIASEC)", xp: `+${test.xp} XP`, }
+                : { emoji: "💡", color: "from-mentor-teal to-teal-700", desc: "Ukur kemampuan dasar: numerik, verbal, logika, spasial & ketelitian", xp: `+${test.xp} XP`, };
             return (
               <motion.div
                 key={test.code}
