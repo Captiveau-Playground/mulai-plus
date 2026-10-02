@@ -849,23 +849,23 @@ export const discoverAdminRouter = {
 
     /** Buat tes baru + versi draf v1 (bahan kerjanyam). */
     create: adminProcedure
-      .input(z.object({ code: z.string().min(2).max(40), name: z.string().min(1).max(120), description: z.string().optional() }))
+      .input(z.object({ code: z.string().min(2).max(40), name: z.string().min(1).max(120), description: z.string().optional(), family: z.enum(["minat", "bakat"]).optional().nullable() }))
       .handler(async ({ input }) => {
         const dup = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
         if (dup) return { ok: false, error: "code_sudah_dipakai" } as const;
         const aid = uid();
         const vid = uid();
         const cfg = { total_dim: 1, result_dim_count: 1, min_q_per_dim: 0, randomize_q: false, randomize_a: false, timer_enabled: false, timer_scope: "none", allow_pause: false, scoring_method: "sum" };
-        await db.insert(schema.assessments).values({ id: aid, code: input.code, name: input.name, description: input.description ?? null, defaultConfigJson: cfg });
+        await db.insert(schema.assessments).values({ id: aid, code: input.code, family: input.family ?? null, name: input.name, description: input.description ?? null, defaultConfigJson: cfg });
         await db.insert(schema.assessmentVersions).values({ id: vid, assessmentId: aid, versionNumber: 1, status: "draft", configJson: cfg });
         return { ok: true, assessmentId: aid, versionId: vid };
       }),
 
     /** Ubah nama/deskripsi tes. */
     updateMeta: adminProcedure
-      .input(z.object({ id: z.string().min(1), name: z.string().min(1).max(120), description: z.string().optional().nullable() }))
+      .input(z.object({ id: z.string().min(1), name: z.string().min(1).max(120), description: z.string().optional().nullable(), family: z.enum(["minat", "bakat"]).optional().nullable() }))
       .handler(async ({ input }) => {
-        await db.update(schema.assessments).set({ name: input.name, description: input.description ?? null }).where(eq(schema.assessments.id, input.id));
+        await db.update(schema.assessments).set({ name: input.name, description: input.description ?? null, family: input.family ?? null }).where(eq(schema.assessments.id, input.id));
         return { ok: true };
       }),
 

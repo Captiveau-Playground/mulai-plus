@@ -45,9 +45,9 @@ export default function AssessmentEditorIndex() {
     }),
   );
 
-  const saveTest = async (payload: { code: string; name: string; description?: string; id?: string }) => {
-    if (payload.id) await mUpdate.mutateAsync({ id: payload.id, name: payload.name, description: payload.description ?? null });
-    else await mCreate.mutateAsync({ code: payload.code, name: payload.name, description: payload.description ?? "" });
+  const saveTest = async (payload: { code: string; name: string; description?: string; id?: string; family?: string | null }) => {
+    if (payload.id) await mUpdate.mutateAsync({ id: payload.id, name: payload.name, description: payload.description ?? null, family: (payload.family as "minat" | "bakat" | null) ?? null });
+    else await mCreate.mutateAsync({ code: payload.code, name: payload.name, description: payload.description ?? "", family: (payload.family as "minat" | "bakat" | null) ?? null });
   };
 
   const busy = mCreate.isPending || mUpdate.isPending || mRemove.isPending;
@@ -155,6 +155,7 @@ function TestModal({ editing, busy, onSave, onClose }: { editing?: SummaryItem; 
   const [code, setCode] = useState(editing?.code ?? "");
   const [name, setName] = useState(editing?.name ?? "");
   const [desc, setDesc] = useState(editing?.description ?? "");
+  const [family, setFamily] = useState<string>((editing as any)?.family ?? "");
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
@@ -175,7 +176,7 @@ function TestModal({ editing, busy, onSave, onClose }: { editing?: SummaryItem; 
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
-          <Button className="bg-brand-navy hover:bg-brand-navy-light" disabled={busy || !name.trim() || (!editing && !code.trim())} onClick={() => onSave({ id: editing?.id, code: code.trim(), name: name.trim(), description: desc.trim() || "" })}>
+          <Button className="bg-brand-navy hover:bg-brand-navy-light" disabled={busy || !name.trim() || (!editing && !code.trim())} onClick={() => onSave({ id: editing?.id, code: code.trim(), name: name.trim(), description: desc.trim() || "", family: family || null } as any)}>
             {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Plus className="mr-1 h-4 w-4" />} Simpan
           </Button>
         </div>
