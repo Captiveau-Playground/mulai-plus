@@ -1,58 +1,56 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Brain, Layers, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { client } from "@/lib/client";
 import { notify } from "@/lib/toast";
+import { orpc } from "@/utils/orpc";
 
-interface Assessment { id: string; code: string; name: string; description?: string | null }
 interface Version { id: string; versionNumber: number; status: string; publishedAt?: string | null }
+interface SummaryItem { id: string; code: string; name: string; description?: string | null; versions: Version[] }
 
-/** Index Kelola Tes — daftar semua tes + CRUD (buat/ubah/hapus). */
+/** Index Kelola Tes (TanStack Query) — daftar tes + CRUD. */
 export default function AssessmentEditorIndex() {
-  const aClient = client as any;
-  const [items, setItems] = useState<{ a: Assessment; v: Version[] }[] | null>(null);
-  const [modal, setModal] = useState<{ open: boolean; editing?: Assessment } | null>(null);
-  const [del, setDel] = useState<Assessment | null>(null);
-  const [busy, setBusy] = useState(false);
+  const queryClient = useQueryClient();
+  const [modal, setModal] = useState<{ open: boolean; editing?: SummaryItem } | null>(null);
+  const [del, setDel] = useState<SummaryItem | null>(null);
 
-  const reload = async () => {
-    try {
-      const data = await aClient.discoverAdmin.list();
-      const rows: { a: Assessment; v: Version[] }[] = [];
-      for (const a of data.assessments ?? []) {
-        const v = await aClient.discoverAdmin.versions.list({ assessmentId: a.id });
-        rows.push({ a, v: v.items ?? [] });
-      }
-      setItems(rows);
-    } catch { setItems([]); }
-  };
-  useEffect(() => { void reload(); }, []);
+  const summariesKey = orpc.discoverAdmin.summaries.key();
+  const { data, isPending } = useQuery(orpc.discoverAdmin.summaries.queryOptions());
+  const items: SummaryItem[] = data?.items ?? [];
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: summariesKey });
+
+  const mCreate = useMutation(
+    orpc.discoverAdmin.create.mutationOptions({
+      onSuccess: () => { notify.create("Tes disimpan ✅"); setModal(null); void invalidate(); },
+      onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
+    }),
+  );
+  const mUpdate = useMutation(
+    orpc.discoverAdmin.updateMeta.mutationOptions({
+      onSuccess: () => { notify.create("Tes diperbarui ✅"); setModal(null); void invalidate(); },
+      onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
+    }),
+  );
+  const mRemove = useMutation(
+    orpc.discoverAdmin.remove.mutationOptions({
+      onSuccess: () => { notify.create("Tes dihapus"); setDel(null); void invalidate(); },
+      onError: (e) => notify.error("Gagal hapus", { description: e.message?.slice(0, 120) }),
+    }),
+  );
 
   const saveTest = async (payload: { code: string; name: string; description?: string; id?: string }) => {
-    setBusy(true);
-    try {
-      if (payload.id) await aClient.discoverAdmin.updateMeta({ id: payload.id, name: payload.name, description: payload.description ?? null });
-      else await aClient.discoverAdmin.create({ code: payload.code, name: payload.name, description: payload.description ?? "" });
-      notify.create("Tes disimpan ✅");
-      setModal(null);
-      await reload();
-    } catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); }
-    finally { setBusy(false); }
+    if (payload.id) await mUpdate.mutateAsync({ id: payload.id, name: payload.name, description: payload.description ?? null });
+    else await mCreate.mutateAsync({ code: payload.code, name: payload.name, description: payload.description ?? "" });
   };
 
-  const removeTest = async () => {
-    if (!del) return;
-    setBusy(true);
-    try { await aClient.discoverAdmin.remove({ id: del.id }); notify.create("Tes dihapus"); setDel(null); await reload(); }
-    catch (e) { notify.error("Gagal hapus", { description: (e as Error)?.message?.slice(0, 120) }); }
-    finally { setBusy(false); }
-  };
+  const busy = mCreate.isPending || mUpdate.isPending || mRemove.isPending;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -68,11 +66,12 @@ export default function AssessmentEditorIndex() {
         </Button>
       </div>
 
-      {items === null && <p className="font-manrope text-sm text-muted-foreground">Memuat tes…</p>}
-      {items !== null && items.length === 0 && <Card><CardContent className="pt-5 font-manrope text-sm text-muted-foreground">Belum ada tes — klik <b>Buat Tes</b> untuk memulai.</CardContent></Card>}
+      {isPending && <p className="font-manrope text-sm text-muted-foreground">Memuat tes…</p>}
+      {!isPending && items.length === 0 && <Card><CardContent className="pt-5 font-manrope text-sm text-muted-foreground">Belum ada tes — klik <b>Buat Tes</b> untuk memulai.</CardContent></Card>}
 
       <div className="grid gap-3">
-        {items?.map(({ a, v }) => {
+        {items.map((a) => {
+          const v = a.versions;
           const live = v.find((x) => x.status === "live");
           const draft = v.find((x) => x.status === "draft");
           return (
@@ -109,10 +108,15 @@ export default function AssessmentEditorIndex() {
         })}
       </div>
 
-      {/* Modal buat/ubah tes */}
-      {modal?.open && <TestModal editing={modal.editing} busy={busy} onSave={saveTest} onClose={() => setModal(null)} />}
+      {modal?.open && (
+        <TestModal
+          editing={modal.editing}
+          busy={busy}
+          onSave={saveTest}
+          onClose={() => setModal(null)}
+        />
+      )}
 
-      {/* Modal konfirmasi hapus */}
       {del && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
@@ -122,7 +126,7 @@ export default function AssessmentEditorIndex() {
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDel(null)} disabled={busy}>Batal</Button>
-              <Button className="bg-red-600 hover:bg-red-700" onClick={() => void removeTest()} disabled={busy}>
+              <Button className="bg-red-600 hover:bg-red-700" onClick={() => void mRemove.mutateAsync({ id: del.id })} disabled={busy}>
                 {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1 h-4 w-4" />} Hapus tes
               </Button>
             </div>
@@ -133,7 +137,7 @@ export default function AssessmentEditorIndex() {
   );
 }
 
-function TestModal({ editing, busy, onSave, onClose }: { editing?: Assessment; busy: boolean; onSave: (p: { code: string; name: string; description?: string; id?: string }) => void; onClose: () => void }) {
+function TestModal({ editing, busy, onSave, onClose }: { editing?: SummaryItem; busy: boolean; onSave: (p: { code: string; name: string; description?: string; id?: string }) => void; onClose: () => void }) {
   const [code, setCode] = useState(editing?.code ?? "");
   const [name, setName] = useState(editing?.name ?? "");
   const [desc, setDesc] = useState(editing?.description ?? "");

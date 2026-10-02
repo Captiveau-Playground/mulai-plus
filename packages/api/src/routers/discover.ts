@@ -413,6 +413,21 @@ export const discoverAdminRouter = {
     const versions = await db.query.assessmentVersions.findMany({ orderBy: asc(schema.assessmentVersions.versionNumber) });
     return { assessments, versions };
   }),
+
+  /** Satu panggilan utk index (list + versi) — hemat round-trip. */
+  summaries: adminProcedure.handler(async () => {
+    const assessments = await db.query.assessments.findMany({ orderBy: asc(schema.assessments.code) });
+    const versions = await db.query.assessmentVersions.findMany({ orderBy: (t: any) => [desc(t.versionNumber)] });
+    const byAss = new Map<string, any[]>();
+    for (const v of versions) {
+      const arr = byAss.get(v.assessmentId) ?? [];
+      arr.push(v);
+      byAss.set(v.assessmentId, arr);
+    }
+    return {
+      items: assessments.map((a) => ({ ...a, versions: (byAss.get(a.id) ?? []).map((v) => ({ id: v.id, versionNumber: v.versionNumber, status: v.status, publishedAt: v.publishedAt })) })),
+    };
+  }),
   versions: {
     list: adminProcedure
       .input(z.object({ assessmentId: z.string().min(1) }).or(z.object({ code: z.string().min(1) })))
