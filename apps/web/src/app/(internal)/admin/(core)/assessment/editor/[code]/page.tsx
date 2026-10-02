@@ -177,16 +177,7 @@ export default function AssessmentDetailPage() {
           <h1 className="flex flex-wrap items-center gap-2 font-bold font-bricolage text-xl text-foreground">
             {assess.name}
             {(assess as any).family && <span className="rounded-full bg-gray-100 px-2 py-0.5 font-manrope text-[10px] font-semibold text-gray-500">{(assess as any).family === "minat" ? "Tes Minat · B2C" : "Tes Bakat · B2C"}</span>}
-            <select
-              value={(assess as any).family ?? ""}
-              onChange={(e) => setFamily(e.target.value)}
-              title="Jenis tes: B2C (max 1 LIVE per jenis) atau Bebas (B2B)"
-              className="rounded-lg border border-gray-200 bg-white px-2 py-1 font-manrope text-[11px] text-gray-600 outline-none focus:border-brand-orange/50"
-            >
-              <option value="">Jenis: Bebas (B2B/umum)</option>
-              <option value="minat">Jenis: Tes Minat (B2C)</option>
-              <option value="bakat">Jenis: Tes Bakat (B2C)</option>
-            </select>
+
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -195,46 +186,6 @@ export default function AssessmentDetailPage() {
             <Rocket className="mr-1 h-4 w-4" /> Terbitkan
           </Button>
         </div>
-      </div>
-
-      {/* Branch selector ala GitHub */}
-      <div className="relative">
-        <button onClick={() => setBranchOpen(!branchOpen)} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 hover:border-gray-300">
-          <GitBranch className="h-4 w-4 text-gray-400" />
-          <span>main</span>
-          <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${branchOpen ? "rotate-180" : ""}`} />
-          {live && <span className="rounded-full bg-teal-500/10 px-2 py-0.5 text-[10px] font-semibold text-teal-700">aktif utk siswa</span>}
-        </button>
-        {branchOpen && (
-          <div className="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
-            <div className="border-b border-gray-100 bg-gray-50/70 px-3 py-2 font-manrope text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Versi tes — pilih mana yang dirilis utk siswa</div>
-            <div className="max-h-80 overflow-y-auto p-1.5">
-              {vers.map((v) => {
-                const isLive = v.status === "live";
-                const selected = selVer?.id === v.id;
-                return (
-                  <div key={v.id} className={`flex items-center gap-2 rounded-lg px-2 py-2 ${selected ? "bg-teal-500/5" : ""}`}>
-                    <button onClick={() => { setSelectedId(v.id); setBranchOpen(false); }} className="min-w-0 flex-1 text-left">
-                      <p className="flex items-center gap-1.5 font-manrope text-xs font-semibold text-gray-800">
-                        <GitBranch className="h-3.5 w-3.5 text-gray-400" /> v{v.versionNumber}
-                        {isLive ? <span className="rounded-full bg-teal-500/10 px-2 py-0.5 text-[10px] font-semibold text-teal-700">● main · aktif utk siswa</span>
-                          : v.status === "draft" ? <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700">draf</span>
-                          : <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">lama</span>}
-                        {v.publishedAt && !isLive && <span className="font-manrope text-[10px] text-gray-400">{new Date(v.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>}
-                      </p>
-                      <p className="truncate font-manrope text-[10px] text-muted-foreground">{v.versionNumber === 1 ? "Versi perdana" : `Pembaruan ke-${v.versionNumber}`}</p>
-                    </button>
-                    {!isLive && (
-                      <button onClick={() => { setVerify({ vid: v.id }); setBranchOpen(false); }} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-brand-navy px-2.5 py-1.5 font-manrope text-[10px] font-semibold text-white hover:bg-brand-navy-light">
-                        <Rocket className="h-3 w-3" /> Verifikasi &amp; Rilis
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-5">
@@ -246,6 +197,51 @@ export default function AssessmentDetailPage() {
         </button>
         {rulesOpen && (
           <div className="border-t border-gray-100 px-5 pb-5 pt-4">
+            {/* Rilis & Versi */}
+            <div className="mb-2">
+              <p className="flex items-center gap-1 font-manrope text-xs font-semibold text-foreground">
+                Rilis &amp; Versi
+                <span className="cursor-help rounded-full border border-gray-200 px-1 text-[9px] leading-4 text-gray-400" title="main = versi yang dipakai siswa sekarang. Pilih versi lain utk melihat isinya; 'Verifikasi & Rilis' utk mengganti rilis (maks 1 LIVE per jenis B2C).">?</span>
+              </p>
+              <div className="mt-1.5 space-y-1.5">
+                {vers.map((v) => {
+                  const isLive = v.status === "live";
+                  const selected = selVer?.id === v.id;
+                  return (
+                    <div key={v.id} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${selected ? "border-teal-500/40 bg-teal-500/5" : "border-gray-100 bg-gray-50/50"}`}>
+                      <button onClick={() => { setSelectedId(v.id); }} className="min-w-0 flex-1 text-left" title="Lihat isi versi ini">
+                        <p className="font-manrope text-[11px] font-semibold text-gray-800">
+                          v{v.versionNumber} {v.versionNumber === 1 ? "" : `· ${v.versionNumber === vers.length ? "terbaru" : ""}`}
+                          {isLive ? <span className="ml-1 rounded-full bg-teal-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-teal-700">● main · aktif utk siswa</span>
+                            : v.status === "draft" ? <span className="ml-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700">draf</span>
+                            : <span className="ml-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500">lama</span>}
+                        </p>
+                      </button>
+                      {!isLive && (
+                        <button onClick={() => { setVerify({ vid: v.id }); }} className="shrink-0 rounded-md bg-brand-navy px-2 py-1 font-manrope text-[9px] font-semibold text-white hover:bg-brand-navy-light">
+                          {v.status === "draft" ? "Verifikasi & Rilis" : "Rilis kembali"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Jenis B2C */}
+            <div className="mb-2 flex items-center gap-3 border-t border-gray-100 pt-2">
+              <span className="font-manrope text-xs font-semibold text-foreground">Jenis (B2C/B2B)</span>
+              <select
+                value={(assess as any).family ?? ""}
+                onChange={(e) => setFamily(e.target.value)}
+                className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 font-manrope text-[11px] outline-none focus:border-brand-orange/50"
+              >
+                <option value="">Bebas (B2B / umum)</option>
+                <option value="minat">Tes Minat — max 1 LIVE (B2C)</option>
+                <option value="bakat">Tes Bakat — max 1 LIVE (B2C)</option>
+              </select>
+            </div>
+
             <div className="mb-3 rounded-xl bg-blue-50/60 p-3">
               <p className="font-manrope text-[11px] font-semibold text-blue-800">Apa yang dicek sistem sebelum versi bisa terbit ("verifikasi"):</p>
               <ul className="mt-1 grid gap-1 font-manrope text-[10px] text-blue-800/80 sm:grid-cols-2">
