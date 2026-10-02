@@ -218,7 +218,20 @@ export default function AssessmentDetailPage() {
           {rulesOpen ? <ChevronDown className="h-4 w-4 rotate-180 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
         </button>
         {rulesOpen && (
-          <div className="grid gap-3 border-t border-gray-100 px-5 pb-5 pt-4 md:grid-cols-3">
+          <div className="border-t border-gray-100 px-5 pb-5 pt-4">
+            <div className="mb-3 rounded-xl bg-blue-50/60 p-3">
+              <p className="font-manrope text-[11px] font-semibold text-blue-800">Apa yang dicek sistem sebelum versi bisa terbit ("verifikasi"):</p>
+              <ul className="mt-1 grid gap-1 font-manrope text-[10px] text-blue-800/80 sm:grid-cols-2">
+                <li>✓ Tes punya nama & kode</li>
+                <li>✓ Dimensi aktif sesuai jumlah total</li>
+                <li>✓ Setiap soal punya dimensi & skala jawaban</li>
+                <li>✓ Pilihan ganda punya ≥2 opsi berlabel</li>
+                <li>✓ Tiap dimensi memenuhi min. soal (atur di atas)</li>
+                <li>✓ Urutan soal unik per dimensi (pakai ↑↓/drag bila bentrok)</li>
+                <li>✓ Jumlah hasil (top-N) tidak lebih dari total dimensi</li>
+              </ul>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
             <Rule label="Tampilkan hasil N kode teratas" hint="Berapa peringkat teratas yang ditampilkan ke siswa (cth 3 → S-I-A)." type="number" value={rules.result_dim_count ?? ""} onChange={(v) => setRules((r) => ({ ...r, result_dim_count: Number(v) }))} disabled={!canEdit} />
             <Rule label="Min. soal per dimensi" hint="Syarat jumlah soal per dimensi agar versi bisa dirilis." type="number" value={rules.min_q_per_dim ?? ""} onChange={(v) => setRules((r) => ({ ...r, min_q_per_dim: Number(v) }))} disabled={!canEdit} />
             <Rule label="Cara nilai" hint="Jumlah poin = skor dijumlah; Rata-rata = dibagi banyak soal; Bobot = dikali bobot soal." type="select" opts={[["sum", "Jumlah poin"], ["average", "Rata-rata"], ["weighted", "Bobot soal"]]} value={rules.scoring_method ?? "sum"} onChange={(v) => setRules((r) => ({ ...r, scoring_method: v }))} disabled={!canEdit} />
@@ -261,6 +274,7 @@ export default function AssessmentDetailPage() {
               </div>
             </div>
           </div>
+          </div>
         )}
       </div>
 
@@ -281,7 +295,7 @@ export default function AssessmentDetailPage() {
 
         {modal?.open && selVer && content && (
           <div id="q-panel" className="border-b border-teal-100 bg-teal-50/20 px-4 py-4">
-            <QuestionPanel q={modal.q} versionId={versionId} content={content} onDone={(qid) => { mSaveQ.mutate({ ...(modal.q?.id ? { id: modal.q.id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
+            <QuestionPanel q={modal.q} versionId={versionId} content={content} onDone={async (qid) => { const id = modal.q?.id; await mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
           </div>
         )}
 
@@ -458,16 +472,26 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
     : !form.dimensionId ? "Pilih dimensi untuk soal ini."
     : form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim()).length < 2 ? "Pilih ganda butuh minimal 2 opsi berlabel."
     : "";
-  const save = () => {
+  const [formErr, setFormErr] = useState<string[]>([]);
+  const save = async () => {
     if (issue) { notify.error(issue); return; }
     setBusy(true);
-    onDone({
-      id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
-      questionType: form.questionType, hasMathNotation: false, mediaUrl: null, mediaCaption: null,
-      weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
-      options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, targetDimension: form.dimensionId, displayOrder: i })) : [],
-      textEval: form.questionType === "text_input" && form.textEval.answerKey ? form.textEval : null,
-    });
+    setFormErr([]);
+    try {
+      await onDone({
+        id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
+        questionType: form.questionType, hasMathNotation: false, mediaUrl: null, mediaCaption: null,
+        weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
+        options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, targetDimension: form.dimensionId, displayOrder: i })) : [],
+        textEval: form.questionType === "text_input" && form.textEval.answerKey ? form.textEval : null,
+      });
+    } catch (e: any) {
+      const msg = e?.message ?? e?.data?.message ?? "Gagal menyimpan soal.";
+      const issues: string[] = (e?.data?.issues ?? []).map((x: any) => `Field "${(x.path ?? []).join(".")}" — ${x.message}`);
+      setFormErr([msg, ...issues.slice(0, 4)]);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

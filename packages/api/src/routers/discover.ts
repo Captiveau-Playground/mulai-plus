@@ -425,7 +425,7 @@ export const discoverAdminRouter = {
       byAss.set(v.assessmentId, arr);
     }
     return {
-      items: assessments.map((a) => ({ ...a, versions: (byAss.get(a.id) ?? []).map((v) => ({ id: v.id, versionNumber: v.versionNumber, status: v.status, publishedAt: v.publishedAt })) })),
+      items: assessments.map((a) => ({ ...a, versions: (byAss.get(a.id) ?? []).map((v) => ({ id: v.id, versionNumber: v.versionNumber, status: v.status, publishedAt: v.publishedAt, configJson: v.configJson })) })),
     };
   }),
   versions: {
