@@ -133,9 +133,11 @@ export const discoverRouter = {
 
   /** Mulai sesi — lock versi live terbaru. */
   start: publicProcedure
-    .input(z.object({ code: z.string().default("DISCOVER"), studentId: z.string().min(1) }))
+    .input(z.object({ code: z.string().default("DISCOVER"), studentId: z.string().min(1), versionId: z.string().optional() }))
     .handler(async ({ input }) => {
-      const v = await getLiveVersion(input.code);
+      const v = input.versionId
+        ? ((await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) })) as VersionRow | null)
+        : await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
       const c = (v.configJson ?? {}) as any;
       let serverTimer: Record<string, unknown> | undefined;
@@ -869,6 +871,53 @@ export const discoverAdminRouter = {
       }),
 
     /** Media soal — R2 folder khusus (assessment-media/). */
+  /** Kelola section pengantar (intro) utk versi ini. */
+  sectionSave: adminProcedure
+    .input(
+      z.object({
+        versionId: z.string().min(1),
+        id: z.string().optional(),
+        title: z.string().min(1).max(200),
+        contentType: z.enum(["description", "bullet_list", "cards"]).default("description"),
+        contentJson: z.any().optional(),
+        displayOrder: z.number().optional(),
+        visibility: z.boolean().optional().default(true),
+      }),
+    )
+    .handler(async ({ input }) => {
+      const cnt = (await db.query.assessmentSections.findMany({ where: eq(schema.assessmentSections.versionId, input.versionId) })).length;
+      const data = {
+        versionId: input.versionId,
+        title: input.title,
+        contentType: input.contentType as any,
+        contentJson: input.contentJson ?? {},
+        displayOrder: input.displayOrder ?? cnt,
+        visibility: input.visibility ?? true,
+      };
+      if (input.id) await db.update(schema.assessmentSections).set(data).where(eq(schema.assessmentSections.id, input.id));
+      else await db.insert(schema.assessmentSections).values({ id: uid(), ...(data as any) });
+      return { ok: true };
+    }),
+  sectionDelete: adminProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .handler(async ({ input }) => { await db.delete(schema.assessmentSections).where(eq(schema.assessmentSections.id, input.id)); return { ok: true }; }),
+  instrSave: adminProcedure
+    .input(
+      z.object({
+        dimensionId: z.string().min(1),
+        id: z.string().optional(),
+        header: z.string().min(1).max(200),
+        contentType: z.enum(["description", "bullet_list"]).default("bullet_list"),
+        contentJson: z.any().optional(),
+      }),
+    )
+    .handler(async ({ input }) => {
+      const data = { dimensionId: input.dimensionId, header: input.header, contentType: input.contentType as any, contentJson: input.contentJson ?? {} };
+      if (input.id) await db.update(schema.dimensionInstructions).set(data).where(eq(schema.dimensionInstructions.id, input.id));
+      else await db.insert(schema.dimensionInstructions).values({ id: uid(), ...(data as any) });
+      return { ok: true };
+    }),
+
   /** Validasi live tanpa publish (gatekeeper). */
     validate: adminProcedure
       .input(z.object({ versionId: z.string().min(1) }))

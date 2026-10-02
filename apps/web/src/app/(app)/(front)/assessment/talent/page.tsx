@@ -44,6 +44,7 @@ function TalentAssessmentPage() {
   const { data: session } = useSearchParamsSafe();
   const search = useSearchParams();
   const preview = search?.get("preview") === "1";
+  const verIdParam = search?.get("v") ?? null;
   const [studentId, setStudentId] = useState<string | null>(null);
   const [phase, setPhase] = useState<"load" | "intro" | "instruction" | "run" | "done">("load");
   const [err, setErr] = useState("");
@@ -76,7 +77,9 @@ function TalentAssessmentPage() {
   const load = useCallback(async () => {
     setPhase("load");
     try {
-      const cfg = (await client.discover.config({ code: "TALENT" })) as any;
+      const cfg = verIdParam
+        ? ((await client.discover.config({ versionId: verIdParam })) as any)
+        : ((await client.discover.config({ code: "TALENT" })) as any);
       if (!cfg?.ok) { setErr("Talent belum tersedia."); setPhase("intro"); return; }
       setQuestions((cfg.questions as Q[]).filter((q: any) => q.isActive));
       setDims(cfg.dimensions ?? []);
@@ -102,7 +105,9 @@ function TalentAssessmentPage() {
     if (!uid && !preview) { window.location.href = "/login?callbackUrl=%2Fassessment%2Ftalent"; return; }
     setPending(true);
     try {
-      const r = (await client.discover.start({ code: "TALENT", studentId: uid || "preview-" + Math.random().toString(36).slice(2, 9) })) as any;
+      const r = verIdParam
+        ? ((await client.discover.start({ code: "TALENT", studentId: uid || "preview-" + Math.random().toString(36).slice(2, 9), versionId: verIdParam })) as any)
+        : ((await client.discover.start({ code: "TALENT", studentId: uid || "preview-" + Math.random().toString(36).slice(2, 9) })) as any);
       setSessionId(r.sessionId);
       setTimer(r.serverTimer ?? null);
       if (r.serverTimer) setRemaining(deltaSeconds(r.serverTimer));

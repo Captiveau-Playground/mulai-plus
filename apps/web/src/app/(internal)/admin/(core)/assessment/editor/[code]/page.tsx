@@ -21,6 +21,7 @@ interface Content { questions: Qn[]; options: any[]; textConfigs: any[]; dimensi
 export default function AssessmentDetailPage() {
   const code = (useParams().code as string) ?? "";
   const queryClient = useQueryClient();
+  const rawClient = client as any;
   const [rules, setRules] = useState<Record<string, any>>({});
   const [rulesOpen, setRulesOpen] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export default function AssessmentDetailPage() {
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: summariesKey });
     if (versionId) void queryClient.invalidateQueries({ queryKey: contentKey() });
+    if (versionId) void queryClient.invalidateQueries({ queryKey: cfgKey });
     if (draft) void queryClient.invalidateQueries({ queryKey: gateKey() });
   };
 
@@ -62,6 +64,12 @@ export default function AssessmentDetailPage() {
       enabled: !!selVer,
     }),
   );
+  const cfgKey = ["assess-cfg", versionId];
+  const { data: cfgV } = useQuery({
+    queryKey: cfgKey,
+    queryFn: () => rawClient.discover.config({ versionId }),
+    enabled: !!versionId,
+  });
   const { data: gate } = useQuery(
     orpc.discoverAdmin.versions.validate.queryOptions({
       input: { versionId: selVer?.status === "draft" ? selVer.id : (draft?.id ?? "") },
@@ -103,6 +111,9 @@ export default function AssessmentDetailPage() {
     onSuccess: () => { void invalidate(); },
     onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
   }));
+  const mSecSave = useMutation({ mutationFn: (i: any) => rawClient.discoverAdmin.versions.sectionSave(i), onSuccess: () => { void invalidate(); notify.create("Pengantar disimpan ✅"); }, onError: (e: any) => notify.error("Gagal", { description: e?.message?.slice(0, 120) }) });
+  const mSecDel = useMutation({ mutationFn: (i: any) => rawClient.discoverAdmin.versions.sectionDelete(i), onSuccess: () => { void invalidate(); }, onError: (e: any) => notify.error("Gagal", { description: e?.message?.slice(0, 120) }) });
+  const mInstr = useMutation({ mutationFn: (i: any) => rawClient.discoverAdmin.versions.instrSave(i), onSuccess: () => { notify.create("Instruksi disimpan ✅"); void invalidate(); }, onError: (e: any) => notify.error("Gagal", { description: e?.message?.slice(0, 120) }) });
   const mImport = useMutation(orpc.discoverAdmin.versions.importQuestions.mutationOptions({
     onSuccess: () => { void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
     onError: (e) => notify.error("Impor gagal", { description: e.message?.slice(0, 160) }),
@@ -220,9 +231,12 @@ export default function AssessmentDetailPage() {
                         </p>
                       </button>
                       {!isLive && (
-                        <button onClick={() => { setVerify({ vid: v.id }); }} className="shrink-0 rounded-md bg-brand-navy px-2 py-1 font-manrope text-[9px] font-semibold text-white hover:bg-brand-navy-light">
-                          {v.status === "draft" ? "Verifikasi & Rilis" : "Rilis kembali"}
-                        </button>
+                        <>
+                          <a href={`/assessment/talent?preview=1&v=${v.id}`} target="_blank" title="Simulasi siswa versi ini" className="shrink-0 rounded-md border border-gray-200 px-2 py-1 font-manrope text-[9px] font-semibold text-gray-500 hover:bg-gray-50">👁</a>
+                          <button onClick={() => { setVerify({ vid: v.id }); }} className="shrink-0 rounded-md bg-brand-navy px-2 py-1 font-manrope text-[9px] font-semibold text-white hover:bg-brand-navy-light">
+                            {v.status === "draft" ? "Verifikasi & Rilis" : "Rilis kembali"}
+                          </button>
+                        </>
                       )}
                     </div>
                   );
@@ -296,6 +310,42 @@ export default function AssessmentDetailPage() {
                     <Button size="sm" className="shrink-0 bg-brand-navy hover:bg-brand-navy-light" disabled={!dimCode.trim() || !dimName.trim() || mDimsAdd.isPending} onClick={() => void mDimsAdd.mutateAsync({ versionId, code: dimCode.trim(), name: dimName.trim() })}>
                       {mDimsAdd.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1 h-3.5 w-3.5" />} Tambah
                     </Button>
+                  </div>
+                )}
+                {canEdit && (
+                  <div className="mt-3 border-t border-gray-100 pt-3">
+                    <p className="flex items-center gap-1 font-manrope text-xs font-semibold text-foreground">
+                      Pengantar &amp; Instruksi
+                      <span className="cursor-help rounded-full border border-gray-200 px-1 text-[9px] leading-4 text-gray-400" title="Sections = halaman pengantar sebelum tes dimulai. Instruksi = petunjuk singkat sebelum soal dimensi dimulai.">?</span>
+                    </p>
+                    <p className="font-manrope text-[10px] font-normal text-muted-foreground">Editable saat draf. Instruksi per dimensi tampil sebelum bagiannya.</p>
+                    <div className="mt-2 space-y-2">
+                      {((cfgV as any)?.sections ?? []).map((sc: any, i: number) => (
+                        <div key={sc.id ?? i} className="rounded-lg border border-gray-100 bg-gray-50/50 p-2">
+                          <div className="flex gap-1.5">
+                            <Input className="flex-1 text-xs" value={sc.title} onChange={(e) => { sc.title = e.target.value; void invalidate(); }} placeholder="Judul pengantar" />
+                            <select className="rounded-lg border border-gray-200 px-2 py-1 font-manrope text-[10px]" value={sc.contentType} onChange={(e) => { sc.contentType = e.target.value as any; void invalidate(); }}>
+                              <option value="description">Deskripsi</option><option value="bullet_list">Poin</option><option value="cards">Kartu</option>
+                            </select>
+                            <Button size="sm" variant="outline" className="!px-2 !py-0.5 text-[10px]" onClick={() => void mSecSave.mutateAsync({ versionId, id: sc.id, title: sc.title, contentType: sc.contentType, contentJson: sc.contentJson, displayOrder: sc.displayOrder, visibility: sc.visibility })}>Simpan</Button>
+                            <button onClick={() => void mSecDel.mutateAsync({ id: sc.id })} className="text-red-400"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                          <Input className="mt-1.5 w-full text-xs" value={(sc.contentJson?.text ?? "") || (sc.contentJson?.items ?? []).join(" • ")} onChange={(e) => { sc.contentJson = sc.contentType === "description" ? { text: e.target.value } : { items: e.target.value.split("\n") }; void invalidate(); }} placeholder="Isi (deskripsi / satu poin per baris)" />
+                        </div>
+                      ))}
+                      <Button size="sm" variant="outline" onClick={() => void mSecSave.mutateAsync({ versionId, title: "Pengantar baru", contentType: "description", contentJson: { text: "Tulis…" } })}><Plus className="mr-1 h-3.5 w-3.5" /> Tambah pengantar</Button>
+                    </div>
+                    <div className="mt-3 space-y-1.5">
+                      {dims.map((d) => {
+                        const ins = ((cfgV as any)?.instructions ?? []).find((x: any) => x.dimensionId === d.id);
+                        return (
+                          <div key={d.id} className="grid grid-cols-1 gap-1 rounded-lg border border-gray-100 bg-white p-2">
+                            <p className="font-manrope text-[10px] font-semibold text-gray-600">Instruksi · {d.name}</p>
+                            <Input className="text-xs" value={ins?.header ?? ""} onChange={(e) => { const h = e.target.value; void mInstr.mutateAsync({ dimensionId: d.id, id: ins?.id, header: h || d.name, contentType: ins?.contentType ?? "bullet_list", contentJson: ins?.contentJson ?? { items: [] } }); }} placeholder="Judul instruksi (cth: Bagian {d.name})" />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -710,7 +760,7 @@ function Rule({ label, hint, type, opts, value, onChange, disabled }: { label: s
 function QuestionPanel({ q, versionId, content, onDone, onClose, openPicker }: { q?: any; versionId: string; content: Content; onDone: (payload: any) => void; onClose: () => void; openPicker?: (cb: (u: string) => void) => void }) {
   const dims0 = content.dimensions ?? [];
   const [form, setForm] = useState<any>({
-    id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", questionText: q?.questionText ?? "",
+    id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", scaleId: q?.scaleId ?? null, questionText: q?.questionText ?? "",
     questionType: q?.questionType ?? "multiple_choice", weight: q?.weight ?? 1,
     hasMathNotation: q?.hasMathNotation ?? false, mediaUrl: q?.mediaUrl ?? "", mediaCaption: q?.mediaCaption ?? "", presentationMode: q?.presentationMode ?? "standard_option_card",
     options: (q?.opts?.length ?? 0) > 0 ? q.opts.map((o: any) => ({ id: o.id, optionValue: o.optionValue, label: o.label, score: o.score })) : [{ optionValue: "A", label: "", score: 1 }, { optionValue: "B", label: "", score: 0 }],
@@ -733,7 +783,7 @@ function QuestionPanel({ q, versionId, content, onDone, onClose, openPicker }: {
     setFormErr([]);
     try {
       await onDone({
-        id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
+        id: form.id, dimensionId: form.dimensionId, scaleId: form.scaleId ?? null, questionText: form.questionText,
         questionType: form.questionType, hasMathNotation: !!form.hasMathNotation, mediaUrl: form.mediaUrl || null, mediaCaption: form.mediaCaption || null, presentationMode: form.presentationMode ?? "standard_option_card",
         weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
         options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, targetDimension: form.dimensionId, displayOrder: i })) : [],
@@ -783,6 +833,17 @@ function QuestionPanel({ q, versionId, content, onDone, onClose, openPicker }: {
               <option value="visual_comparison">Banding visual (grid besar)</option>
             </select>
           </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block font-manrope text-xs font-semibold text-foreground">Bobot soal (utk metode Bobot)
+              <Input type="number" className="mt-1" value={form.weight ?? 1} onChange={(e) => patch("weight", Number(e.target.value))} />
+            </label>
+            <label className="block font-manrope text-xs font-semibold text-foreground">Skala jawaban
+              <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.scaleId ?? ""} onChange={(e) => patch("scaleId", e.target.value || null)}>
+                <option value="">Bawaan otomatis</option>
+                {(content.scales ?? []).map((sx: any) => <option key={sx.id} value={sx.id}>{sx.name}</option>)}
+              </select>
+            </label>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <label className="block font-manrope text-xs font-semibold text-foreground">Dimensi
               <select className={"mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm " + (dims0.length === 0 ? "bg-gray-50 text-gray-400" : "")} value={form.dimensionId} onChange={(e) => patch("dimensionId", e.target.value)}>
