@@ -659,6 +659,8 @@ export const discoverAdminRouter = {
         return { ok: true, config: merged };
       }),
 
+  },
+
     /** Buat tes baru + versi draf v1 (bahan kerjanyam). */
     create: adminProcedure
       .input(z.object({ code: z.string().min(2).max(40), name: z.string().min(1).max(120), description: z.string().optional() }))
@@ -688,5 +690,5 @@ export const discoverAdminRouter = {
         await removeAssessment(input.id);
         return { ok: true };
       }),
-  },
+
 };
