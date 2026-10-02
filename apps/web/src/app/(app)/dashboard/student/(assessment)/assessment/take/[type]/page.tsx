@@ -61,7 +61,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [eq, setEq] = useState(0);
   const params = useParams();
   const router = useRouter();
-  const testCode = (params.type as string) === "ability" ? "ability" : "interest";
+  const testCode = isEngine
+    ? (engine!.code === "DISCOVER" ? "interest" : "ability")
+    : (params.type as string) === "ability" ? "ability" : "interest";
   const isInterest = testCode === "interest";
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
