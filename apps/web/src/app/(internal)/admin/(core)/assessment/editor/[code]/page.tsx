@@ -174,9 +174,19 @@ export default function AssessmentDetailPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/admin/assessment/editor" className="font-manrope text-xs font-semibold text-muted-foreground hover:text-brand-navy">← Semua Tes</Link>
-          <h1 className="flex items-center gap-2 font-bold font-bricolage text-xl text-foreground">
+          <h1 className="flex flex-wrap items-center gap-2 font-bold font-bricolage text-xl text-foreground">
             {assess.name}
             {(assess as any).family && <span className="rounded-full bg-gray-100 px-2 py-0.5 font-manrope text-[10px] font-semibold text-gray-500">{(assess as any).family === "minat" ? "Tes Minat · B2C" : "Tes Bakat · B2C"}</span>}
+            <select
+              value={(assess as any).family ?? ""}
+              onChange={(e) => setFamily(e.target.value)}
+              title="Jenis tes: B2C (max 1 LIVE per jenis) atau Bebas (B2B)"
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1 font-manrope text-[11px] text-gray-600 outline-none focus:border-brand-orange/50"
+            >
+              <option value="">Jenis: Bebas (B2B/umum)</option>
+              <option value="minat">Jenis: Tes Minat (B2C)</option>
+              <option value="bakat">Jenis: Tes Bakat (B2C)</option>
+            </select>
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -264,19 +274,6 @@ export default function AssessmentDetailPage() {
               )}
             </div>
             <div className="md:col-span-3">
-              <div className="mt-3 flex items-center gap-3 border-t border-gray-100 pt-3">
-                <span className="font-manrope text-xs font-semibold text-foreground">Jenis (badge B2C)</span>
-                <select
-                  disabled={!canEdit}
-                  value={(assess as any).family ?? ""}
-                  onChange={(e) => setFamily(e.target.value)}
-                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 font-manrope text-xs disabled:bg-gray-50"
-                >
-                  <option value="">Bebas (B2B / umum)</option>
-                  <option value="minat">Tes Minat — max 1 LIVE (B2C)</option>
-                  <option value="bakat">Tes Bakat — max 1 LIVE (B2C)</option>
-                </select>
-              </div>
               <div className="border-t border-gray-100 pt-3">
                 <p className="flex items-center gap-1 font-manrope text-xs font-semibold text-foreground">
                   Dimensi ({dims.length}) {!canEdit && <span className="font-normal text-muted-foreground">· hanya baca</span>}
