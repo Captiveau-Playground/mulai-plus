@@ -549,9 +549,11 @@ export const discoverRouter = {
         where: eq(tmbAssessmentResults.userId, input.studentId),
         orderBy: (t: any) => [asc(t.createdAt)],
       });
+      // Junk (kedua sisi kosong) dari era sesi rusak tidak boleh muncul — cuma attempt nyata yg tampil
+      const nyata = rows.filter((r) => (r.hollandCode ?? "").length > 0 || Object.keys((r as any).abilityScores ?? {}).length > 0);
       return {
         ok: true,
-        attempts: rows.map((r) => ({
+        attempts: nyata.map((r) => ({
           id: r.id,
           createdAt: r.createdAt,
           hollandCode: r.hollandCode,
