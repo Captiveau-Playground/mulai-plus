@@ -68,6 +68,7 @@ export default function AssessmentHistoryPage() {
 
   return (
     <div className="space-y-3">
+      <EngineHistoryCards />
       {data.map((r: any) => {
         const isBatch = r.source?.kind === "batch";
         return (
