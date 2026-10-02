@@ -12,6 +12,7 @@ import { EngineRun } from "@/components/assessment/engine-run";
 import { useEffect, useRef, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
 
 type Question = {
@@ -39,23 +40,27 @@ export default function TmbTestPage() {
 }
 
 function EngineWrapper({ code }: { code: string }) {
-  const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string } | null>(null);
+  const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string } | null>(null);
   const [errg, setErrg] = useState("");
+  const { data: authSession } = authClient.useSession();
   useEffect(() => {
+    if (!authSession?.user?.id) return;
     (async () => {
       try {
+        const sid = authSession!.user!.id;
         const cfg = (await client.discover.config({ code } as any)) as any;
-        const st = (await client.discover.start({ code, studentId: "preview-" + Math.random().toString(36).slice(2, 9) } as any)) as any;
-        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat" });
+        let st: any = { sessionId: "" };
+        try { st = (await client.discover.start({ code, studentId: sid, versionId: null } as any)) as any; } catch { st = (await client.discover.start({ code, studentId: sid } as any)) as any; }
+        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat", studentId: sid });
       } catch (e: any) { setErrg(e?.message ?? "Gagal memuat tes"); }
     })();
-  }, [code]);
+  }, [code, authSession?.user?.id]);
   if (errg) return <p className="font-manrope text-sm text-red-500">{errg}</p>;
   if (!ready) return <div className="flex min-h-[40vh] items-center justify-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
-  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel }} />;
+  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel, studentId: ready.studentId }} />;
 }
 
-function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string } }) {
+function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string } }) {
   const isEngine = !!engine;
   const engineQs = engine?.questions ?? [];
   const [eq, setEq] = useState(0);
@@ -506,7 +511,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             (() => {
               const otherDone = typeof window !== "undefined" && !!localStorage.getItem("v2-done:" + engine!.otherCode);
               return otherDone ? (
-                <Link href="/dashboard/student/assessment/result" className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]">
+                <Link href={"/dashboard/student/assessment/engine-report" as any} className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]">
                   <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
                 </Link>
               ) : (

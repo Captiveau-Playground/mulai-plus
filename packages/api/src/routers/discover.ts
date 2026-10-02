@@ -426,6 +426,37 @@ export const discoverRouter = {
       return { ok: true, items };
     }),
 
+  /** Hasil terakhir engine utk satu tes (report). */
+  resultsFor: publicProcedure
+    .input(z.object({ code: z.string().min(1), studentId: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
+      if (!a) return { ok: false, error: "assessment_not_found" } as const;
+      const vs = await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) });
+      const sessions = await db.query.assessmentSessions.findMany({
+        where: and(inArray(schema.assessmentSessions.versionId, vs.map((v) => v.id)), eq(schema.assessmentSessions.studentId, input.studentId), eq(schema.assessmentSessions.status, "completed")),
+        orderBy: (t: any) => [desc(t.completedAt)],
+      });
+      const sess = sessions[0];
+      if (!sess) return { ok: true, code: a.code, present: false } as const;
+      const r = await db.query.assessmentResults.findFirst({ where: eq(schema.assessmentResults.sessionId, sess.id) });
+      if (!r) return { ok: true, code: a.code, present: false } as const;
+      return {
+        ok: true,
+        code: a.code,
+        name: a.name,
+        present: true,
+        profileCode: r.profileCode,
+        topDimensions: r.topDimensionsJson,
+        rawScores: r.rawScoresJson,
+        recommendations: r.recommendationsJson ?? [],
+        xpEarned: r.xpEarned,
+        streak: r.streak,
+        timedOut: r.timedOut,
+        completedAt: sess.completedAt,
+      };
+    }),
+
   /** Detail sesi + jawaban (utk resume/restore posisi). */
   session: publicProcedure
     .input(z.object({ sessionId: z.string().min(1) }))
