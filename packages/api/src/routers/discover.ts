@@ -3,6 +3,7 @@ import { schema } from "@mulai-plus/db/db";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
+import { uploadToR2, deleteFromR2, getPublicUrl, listR2ObjectsDetailed, extractKeyFromUrl } from "@mulai-plus/r2/server";
 import { evaluateTextInput } from "../lib/evaluate-input";
 
 /**
@@ -842,7 +843,33 @@ export const discoverAdminRouter = {
         return { ok: true, created, failed: fail, dimsCreated: createdDims };
       }),
 
-    /** Validasi live tanpa publish (gatekeeper). */
+    /** Media soal — R2 folder khusus (assessment-media/). */
+  media: {
+    list: adminProcedure.handler(async () => {
+      const items = await listR2ObjectsDetailed("assessment-media/");
+      return {
+        items: items.map((o) => ({ key: o.key, url: getPublicUrl(o.key), size: o.size, uploadedAt: o.lastModified ?? null, name: o.key.split("/").pop() ?? o.key })),
+      };
+    }),
+    upload: adminProcedure
+      .input(z.object({ dataB64: z.string().min(10), mime: z.string().max(80).optional().default("image/png"), filename: z.string().max(120).optional() }))
+      .handler(async ({ input }) => {
+        const buf = Buffer.from(input.dataB64, "base64");
+        const ext = (input.mime.split("/")[1] ?? "png").replace(/[^a-z0-9]/gi, "").slice(0, 5) || "png";
+        const res = await uploadToR2(buf, { filename: input.filename ?? `media.${ext}`, mimeType: input.mime || "image/png", path: "assessment-media" });
+        return { ok: true, key: res.key, url: res.url, size: res.size };
+      }),
+    delete: adminProcedure
+      .input(z.object({ key: z.string().min(1) }))
+      .handler(async ({ input }) => {
+        const raw = input.key.startsWith("assessment-media/") ? input.key : (extractKeyFromUrl(input.key) ?? "");
+        if (!raw.startsWith("assessment-media/")) return { ok: false, error: "key_tidak_valid" } as const;
+        await deleteFromR2(raw);
+        return { ok: true };
+      }),
+  },
+
+  /** Validasi live tanpa publish (gatekeeper). */
     validate: adminProcedure
       .input(z.object({ versionId: z.string().min(1) }))
       .handler(async ({ input }) => validatePublish(input.versionId)),

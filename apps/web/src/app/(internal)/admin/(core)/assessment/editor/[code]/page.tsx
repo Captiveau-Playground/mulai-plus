@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/toast";
-import { orpc } from "@/utils/orpc";
+import { orpc, client } from "@/utils/orpc";
 import "katex/dist/katex.min.css";
 
 interface Ver { id: string; versionNumber: number; status: string; configJson?: any; publishedAt?: string | null }
@@ -31,6 +31,7 @@ export default function AssessmentDetailPage() {
   const [dimCode, setDimCode] = useState("");
   const [dimName, setDimName] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [gal, setGal] = useState<{ open: boolean; cb: (u: string) => void } | null>(null);
   const [focusQ, setFocusQ] = useState<string | null>(null);
   const [focusDim, setFocusDim] = useState(false);
   const [hlQ, setHlQ] = useState<string | null>(null);
@@ -324,7 +325,7 @@ export default function AssessmentDetailPage() {
 
         {modal?.open && selVer && content && (
           <div id="q-panel" className="border-b border-teal-100 bg-teal-50/20 px-4 py-4">
-            <QuestionPanel q={modal.q} versionId={versionId} content={content} onDone={async (qid) => { const id = modal.q?.id; await mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
+            <QuestionPanel q={modal.q} versionId={versionId} content={content} openPicker={(cb) => setGal({ open: true, cb })} onDone={async (qid) => { const id = modal.q?.id; await mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
           </div>
         )}
 
@@ -402,6 +403,8 @@ export default function AssessmentDetailPage() {
           <p className="font-manrope text-sm font-semibold text-teal-700">Siap terbit — tidak ada masalah. 🎉</p>
         </div>
       )}
+
+      {gal?.open && <MediaManager onPick={(u) => { gal.cb(u); setGal(null); }} onClose={() => setGal(null)} />}
 
       <WorkingOverlay show={busyAny} label={mSaveQ.isPending ? "Menyimpan soal…" : mPub.isPending ? "Menerbitkan…" : mDimsAdd.isPending ? "Menambah dimensi…" : mReorder.isPending ? "Menyimpan urutan…" : "Menyimpan…"} />
 
@@ -603,6 +606,58 @@ function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId:
   );
 }
 
+function MediaManager({ onPick, onClose }: { onPick: (u: string) => void; onClose: () => void }) {
+  const aClient = client as any;
+  const qc = useQueryClient();
+  const key = ["assess-media"];
+  const { data, isPending } = useQuery({ queryKey: key, queryFn: () => aClient.discoverAdmin.media.list() });
+  const items: { key: string; url: string; name: string; size: number }[] = data?.items ?? [];
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+
+  const mUp = useMutation({
+    mutationFn: (i: any) => aClient.discoverAdmin.media.upload(i),
+    onSuccess: () => { notify.create("Gambar diunggah ✅"); void invalidate(); },
+    onError: (e: any) => notify.error("Gagal unggah", { description: e?.message?.slice(0, 120) }),
+  });
+  const mDel = useMutation({
+    mutationFn: (i: any) => aClient.discoverAdmin.media.delete(i),
+    onSuccess: () => { void invalidate(); },
+    onError: (e: any) => notify.error("Gagal hapus", { description: e?.message?.slice(0, 120) }),
+  });
+
+  const onFile = async (f: File) => {
+    const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => { const s = String(r.result ?? ""); res(s.split(",")[1] ?? ""); }; r.onerror = rej; r.readAsDataURL(f); });
+    await mUp.mutateAsync({ dataB64: b64, mime: f.type || "image/png", filename: f.name });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold font-bricolage text-base text-brand-navy">Galeri Media Soal (R2)</h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+        </div>
+        <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-4 py-4 font-manrope text-sm text-gray-600 hover:border-brand-orange/40">
+          <Plus className="h-4 w-4 text-brand-navy" /> Unggah gambar baru
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); }} />
+        </label>
+        {isPending && <p className="mt-2 font-manrope text-xs text-muted-foreground">Memuat…</p>}
+        <div className="mt-3 grid max-h-80 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+          {items.map((o) => (
+            <button key={o.key} onClick={() => onPick(o.url)} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+              <img src={o.url} alt={o.name} className="h-24 w-full object-cover" />
+              <span className="absolute inset-x-0 bottom-0 hidden bg-black/50 px-1 py-0.5 font-manrope text-[9px] text-white group-hover:block">{o.name}</span>
+              <span onClick={(e) => { e.stopPropagation(); if (confirm("Hapus gambar ini?")) void mDel.mutateAsync({ key: o.key }); }} className="absolute top-1 right-1 rounded-md bg-red-500 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"><Trash2 className="h-3 w-3" /></span>
+            </button>
+          ))}
+          {items.length === 0 && !isPending && <p className="col-span-full py-6 text-center font-manrope text-xs text-muted-foreground">Belum ada gambar.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MathPreview({ text }: { text: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -652,7 +707,7 @@ function Rule({ label, hint, type, opts, value, onChange, disabled }: { label: s
   );
 }
 
-function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; versionId: string; content: Content; onDone: (payload: any) => void; onClose: () => void }) {
+function QuestionPanel({ q, versionId, content, onDone, onClose, openPicker }: { q?: any; versionId: string; content: Content; onDone: (payload: any) => void; onClose: () => void; openPicker?: (cb: (u: string) => void) => void }) {
   const dims0 = content.dimensions ?? [];
   const [form, setForm] = useState<any>({
     id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", questionText: q?.questionText ?? "",
@@ -712,6 +767,9 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
           <div className="grid grid-cols-2 gap-3">
             <label className="block font-manrope text-xs font-semibold text-foreground">Media gambar (URL)
               <Input className="mt-1" value={form.mediaUrl} onChange={(e) => patch("mediaUrl", e.target.value)} placeholder="https://cdn…/gambar.png" />
+              {openPicker && <button type="button" onClick={() => openPicker((u) => patch("mediaUrl", u))} className="mt-1 inline-flex items-center gap-1 rounded-md bg-teal-600 px-2 py-1 font-manrope text-[10px] font-semibold text-white hover:bg-teal-700">
+                📁 Galeri media
+              </button>}
             </label>
             <label className="block font-manrope text-xs font-semibold text-foreground">Keterangan gambar
               <Input className="mt-1" value={form.mediaCaption} onChange={(e) => patch("mediaCaption", e.target.value)} placeholder="Gambar 1.1: …" />
