@@ -258,7 +258,7 @@ export default function AssessmentDetailPage() {
                 <li>✓ Jumlah hasil (top-N) tidak lebih dari total dimensi</li>
               </ul>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3">
             <Rule label="Tampilkan hasil N kode teratas" hint="Berapa peringkat teratas yang ditampilkan ke siswa (cth 3 → S-I-A)." type="number" value={rules.result_dim_count ?? ""} onChange={(v) => setRules((r) => ({ ...r, result_dim_count: Number(v) }))} disabled={!canEdit} />
             <Rule label="Min. soal per dimensi" hint="Syarat jumlah soal per dimensi agar versi bisa dirilis." type="number" value={rules.min_q_per_dim ?? ""} onChange={(v) => setRules((r) => ({ ...r, min_q_per_dim: Number(v) }))} disabled={!canEdit} />
             <Rule label="Cara nilai" hint="Jumlah poin = skor dijumlah; Rata-rata = dibagi banyak soal; Bobot = dikali bobot soal." type="select" opts={[["sum", "Jumlah poin"], ["average", "Rata-rata"], ["weighted", "Bobot soal"]]} value={rules.scoring_method ?? "sum"} onChange={(v) => setRules((r) => ({ ...r, scoring_method: v }))} disabled={!canEdit} />
@@ -266,7 +266,7 @@ export default function AssessmentDetailPage() {
             <Rule label="Acak urutan pilihan" hint="Urutan opsi jawaban diacak per siswa." type="bool" value={rules.randomize_a === true} onChange={(v) => setRules((r) => ({ ...r, randomize_a: v }))} disabled={!canEdit} />
             <Rule label="Izinkan lanjut kemudian" hint="Siswa boleh berhenti & melanjutkan tes lain waktu." type="bool" value={rules.allow_pause === true} onChange={(v) => setRules((r) => ({ ...r, allow_pause: v }))} disabled={!canEdit} />
             <Rule label="Pembagian bagian soal" hint="Pecah alur tes jadi beberapa bagian dgn checkpoint XP antar bagian." type="select" opts={[["none", "Satu bagian (lurus)"], ["by_dimension", "Per dimensi"], ["chunk:10", "Per 10 soal"], ["chunk:20", "Per 20 soal"]]} value={rules.section_mode ?? "none"} onChange={(v) => setRules((r) => ({ ...r, section_mode: v }))} disabled={!canEdit} />
-            <div className="md:col-span-3">
+            <div className="">
               {canEdit ? (
                 <Button size="sm" variant="outline" onClick={() => void mRules.mutateAsync({ versionId, config: rules })} disabled={mRules.isPending}>
                   {mRules.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 h-3.5 w-3.5" />} Simpan aturan
@@ -275,7 +275,7 @@ export default function AssessmentDetailPage() {
                 <Button size="sm" variant="outline" onClick={startEdit} disabled={mDraft.isPending}>{mDraft.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FilePlus2 className="mr-1 h-3.5 w-3.5" />} Ubah aturan</Button>
               )}
             </div>
-            <div className="md:col-span-3">
+            <div className="">
               <div className="border-t border-gray-100 pt-3">
                 <p className="flex items-center gap-1 font-manrope text-xs font-semibold text-foreground">
                   Dimensi ({dims.length}) {!canEdit && <span className="font-normal text-muted-foreground">· hanya baca</span>}
