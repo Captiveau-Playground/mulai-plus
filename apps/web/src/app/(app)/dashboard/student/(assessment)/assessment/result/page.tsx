@@ -227,6 +227,7 @@ export default function TmbResultPage() {
               <Link href="/dashboard/student/assessment/take/TALENT" className="mt-3 inline-flex items-center rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjut Tes Bakat →</Link>
             </div>
           ) : (
+          <>
           <div className="mt-4 space-y-3">
             {Object.entries(ABILITY_INFO).map(([key, info]) => {
               const s = abilityScores[key] ?? { correct: 0, total: 0 };
@@ -283,6 +284,7 @@ export default function TmbResultPage() {
               </Link>
             </div>
           )}
+          </>
           )}
         </motion.div>
       </div>
