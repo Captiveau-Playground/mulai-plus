@@ -524,7 +524,7 @@ export const discoverAdminRouter = {
               .array(
                 z.object({
                   id: z.string().optional(),
-                  optionValue: z.string().min(1),
+                  optionValue: z.string().optional(),
                   label: z.string().min(1),
                   score: z.number().optional().default(0),
                   targetDimension: z.string().optional().nullable(),
@@ -575,11 +575,12 @@ export const discoverAdminRouter = {
             .where(eq(schema.questions.id, qid));
         }
         await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, qid));
-        for (const o of q.options) {
+        for (let oi = 0; oi < q.options.length; oi++) {
+          const o = q.options[oi]!;
           await db.insert(schema.questionOptions).values({
             id: o.id ?? uid(),
             questionId: qid,
-            optionValue: o.optionValue,
+            optionValue: o.optionValue || String.fromCharCode(65 + oi),
             targetDimension: o.targetDimension ?? q.dimensionId,
             label: o.label,
             score: o.score,

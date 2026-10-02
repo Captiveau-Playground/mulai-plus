@@ -406,7 +406,7 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
           id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
           questionType: form.questionType, hasMathNotation: false, mediaUrl: null, mediaCaption: null,
           weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
-          options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => String(o.label || "").trim()) : [],
+          options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => ({ ...o, optionValue: o.optionValue ?? "ABCDEF"[i] })) : [],
           textEval: form.questionType === "text_input" && form.textEval.answerKey ? form.textEval : null,
         },
       });
