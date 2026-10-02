@@ -478,7 +478,7 @@ function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId:
     const ws = wb.Sheets[wb.SheetNames[0]!];
     const raw = XLSX.utils.sheet_to_json(ws, { defval: "" }) as Record<string, any>[];
     const mapType = (v: any) => { const t = String(v ?? "").toLowerCase(); if (t.includes("isian") || t.includes("text") || t.includes("ketik")) return "text_input"; if (t.includes("pilih") || t.includes("ganda") || t === "mc") return "multiple_choice"; return undefined; };
-    const mapEval = (v: any) => { const t = String(v ?? "").toLowerCase(); if (t.includes("kata") || t.includes("keyword")) return "keyword_match"; if (t.includes("pola") || t.includes("regex") || t.includes("pattern")) return "pattern_match"; if (t.includes("persis") || t.includes("exact")) return "exact_match"; return "numeric_tolerance"; };
+    const mapEval = (v: any) => { const t = String(v ?? "").toLowerCase(); if (!t) return "exact_match"; if (t.includes("kata") || t.includes("keyword")) return "keyword_match"; if (t.includes("pola") || t.includes("regex") || t.includes("pattern")) return "pattern_match"; if (t.includes("angka") || t.includes("numeric") || t.includes("toler")) return "numeric_tolerance"; if (t.includes("persis") || t.includes("exact")) return "exact_match"; return "exact_match"; };
     setRows(raw.map((r) => ({
       text: String(r["Teks"] ?? r["Soal"] ?? ""),
       dimension: String(r["Dimensi"] ?? ""),
@@ -537,15 +537,22 @@ function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId:
             <table className="w-full text-left font-manrope text-[11px]">
               <thead className="sticky top-0 bg-gray-50 text-gray-500"><tr><th className="px-2 py-1">#</th><th className="px-2 py-1">Teks</th><th className="px-2 py-1">Dimensi</th><th className="px-2 py-1">Tipe</th><th className="px-2 py-1">Opsi</th></tr></thead>
               <tbody>
-                {rows.slice(0, 50).map((r: any, i: number) => (
-                  <tr key={i} className="border-t border-gray-50">
+                {rows.slice(0, 50).map((r: any, i: number) => {
+                    const tipe = r.type ?? "multiple_choice";
+                    const mc = tipe === "multiple_choice";
+                    const bad = mc ? (r.options.length < 2) : !r.answerKey.trim();
+                    return (
+                  <tr key={i} className={`border-t border-gray-50 ${bad ? "bg-red-50/50" : ""}`}>
                     <td className="px-2 py-1 text-gray-400">{i + 2}</td>
-                    <td className="max-w-[220px] truncate px-2 py-1">{r.text}</td>
+                    <td className="max-w-[200px] truncate px-2 py-1">{r.text}</td>
                     <td className="px-2 py-1">{r.dimension}</td>
-                    <td className="px-2 py-1">{r.type ?? "pilihan"}</td>
-                    <td className="px-2 py-1">{r.options.length}{r.options.length ? (` [${r.key}]`) : ""}</td>
+                    <td className="px-2 py-1">{mc ? `pilihan · ${r.options.length} opsi` : `isian · ${r.answerKey.trim() || "tanpa kunci"}`}</td>
+                    <td className="px-2 py-1">
+                      {mc ? (r.options.length >= 2 ? `${r.options.length} opsi [kunci ${r.key}]` : <span className="text-red-600">min. 2 opsi!</span>) : (r.answerKey.trim() ? `exact "${r.answerKey}"` : <span className="text-amber-600">isi kunci setelah impor</span>)}
+                    </td>
                   </tr>
-                ))}
+                    );
+                })}
               </tbody>
             </table>
             {rows.length > 50 && <p className="px-2 py-1 text-[10px] text-gray-400">… +{rows.length - 50} baris</p>}

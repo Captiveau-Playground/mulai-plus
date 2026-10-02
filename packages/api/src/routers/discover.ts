@@ -362,6 +362,17 @@ export const discoverRouter = {
 // ─── Admin ─────────────────────────────────────────────
 
 /** ── Konten builder (admin) ── */
+/** Normalisasi jenis evaluasi isian: exact(persis) default; angka; kata; pola. */
+function normalizeEval(v?: string): string {
+  const t = (v ?? "").trim().toLowerCase();
+  if (!t) return "exact_match";
+  if (t.includes("kata") || t.includes("keyword")) return "keyword_match";
+  if (t.includes("pola") || t.includes("regex") || t.includes("pattern")) return "pattern_match";
+  if (t.includes("angka") || t.includes("numeric") || t.includes("toler")) return "numeric_tolerance";
+  if (t.includes("persis") || t.includes("exact")) return "exact_match";
+  return "exact_match";
+}
+
 async function contentOfVersion(versionId: string) {
   const questions = await db.query.questions.findMany({
     where: eq(schema.questions.versionId, versionId),
@@ -750,9 +761,10 @@ export const discoverAdminRouter = {
               });
             }
           } else {
+            const ev = normalizeEval(r.evalType);
             await db.insert(schema.textInputConfigs).values({
-              id: uid(), questionId: qid, evaluationType: (r.evalType as any) ?? "numeric_tolerance", answerKey: r.answerKey ?? "",
-              numericTolerance: r.numericTolerance ?? (r.evalType === "numeric_tolerance" ? "0.01" : null),
+              id: uid(), questionId: qid, evaluationType: ev as any, answerKey: r.answerKey ?? "",
+              numericTolerance: ev === "numeric_tolerance" ? (r.numericTolerance || "0.01") : null,
             });
           }
           created++;
