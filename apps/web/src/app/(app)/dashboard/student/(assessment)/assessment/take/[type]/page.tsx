@@ -176,6 +176,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const engineLoad = (i: number) => {
     const q = engineQs[i];
     if (!q) { void engineFinish(); return; }
+    lastDimRef.current = q.dimensionId;
     setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label } as unknown as Question);
     setProgress(i + 1);
     setTotal(engineQs.length);
@@ -185,10 +186,24 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     try { const r = (await client.discover.finish({ sessionId: engine!.sessionId } as any)) as any; setXpEarned(r?.xpEarned ?? 0); } catch { /* ok */ }
     setDone(true);
     fireConfetti();
+    try { localStorage.setItem("v2-done:" + engine!.code, "1"); } catch { /* ignore */ }
   };
   const [secDone, setSecDone] = useState(0);
   const [secStreak, setSecStreak] = useState(0);
   const [secOverlay, setSecOverlay] = useState<{ nextEq: number; doneName: string; nextName: string } | null>(null);
+  const [secStart, setSecStart] = useState<{ eqIndex: number; name: string } | null>(null);
+  const lastDimRef = useRef<string | null>(null);
+  const dimNameOf = (dimId: string) => engine?.dims?.find((d: any) => d.id === dimId)?.name ?? "Bagian berikutnya";
+  const engineBegin = (i: number) => {
+    const q = engineQs[i];
+    if (!q) { void engineFinish(); return; }
+    if (lastDimRef.current !== q.dimensionId && (secStart || secOverlay || i === 0)) {
+      setSecStart({ eqIndex: i, name: dimNameOf(q.dimensionId) });
+      lastDimRef.current = q.dimensionId;
+      return;
+    }
+    engineLoad(i);
+  };
 
   const engineNext = (i: number) => {
     const cur = engineQs[i - 1];
@@ -200,6 +215,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       setXpFlash(10);
       try { confetti({ particleCount: 60, spread: 70, origin: { y: 0.4 } }); } catch { /* ignore */ }
       setSecOverlay({ nextEq: i, doneName: dimName(cur.dimensionId), nextName: dimName(nxt.dimensionId) });
+      setSecStart(null);
     } else if (i >= engineQs.length) {
       void engineFinish();
     } else {
@@ -328,7 +344,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
   // auto-start
   useEffect(() => {
-    if (isEngine) { engineLoad(0); return; }
+    if (isEngine) { engineBegin(0); return; }
     if (isDemo) return; // mode simulasi tidak perlu backend
     if (!attemptId && !startMutation.isPending && !done) {
       startMutation.mutate({ testCode });
@@ -486,7 +502,20 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         )}
 
         <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
-          {bothDone || (!isInterest && resultId) ? (
+          {isEngine ? (
+            (() => {
+              const otherDone = typeof window !== "undefined" && !!localStorage.getItem("v2-done:" + engine!.otherCode);
+              return otherDone ? (
+                <Link href="/dashboard/student/assessment/result" className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]">
+                  <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
+                </Link>
+              ) : (
+                <Link href={`/dashboard/student/assessment/take/${engine!.otherCode}`} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]">
+                  Lanjut ke {engine!.otherLabel} <ArrowRight className="h-5 w-5" />
+                </Link>
+              );
+            })()
+          ) : bothDone || (!isInterest && resultId) ? (
             <Link
               href="/dashboard/student/assessment/result"
               className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
@@ -495,11 +524,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             </Link>
           ) : (
             <Link
-              href={isInterest ? "/dashboard/student/assessment/take/ability" : "/dashboard/student/assessment"}
+              href="/dashboard/student/assessment"
               className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
             >
-              {isInterest ? "Lanjut ke Test Bakat" : "Kembali ke Beranda"}
-              <ArrowRight className="h-5 w-5" />
+              Kembali ke Beranda <ArrowRight className="h-5 w-5" />
             </Link>
           )}
           <Link
@@ -509,18 +537,30 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             <Home className="h-4 w-4" /> Beranda
           </Link>
         </div>
-              {isEngine && (
-          <Link
-            href={`/dashboard/student/assessment/take/${engine!.otherCode}`}
-            className="mt-3 flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110"
-          >
-            Lanjut ke {engine!.otherLabel} → <ArrowRight className="h-4 w-4" />
-          </Link>
-        )}
-
-</motion.div>
+      </motion.div>
     );
   }
+  if (isEngine && secStart) {
+    return (
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
+          <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
+            <Image src="/maskot/masko-book.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
+          </span>
+          <p className="mt-3 font-manrope text-xs font-bold tracking-wide text-teal-600 uppercase">Bagian berikutnya</p>
+          <h2 className="mt-1 font-bold font-bricolage text-2xl text-gray-900">{secStart.name}</h2>
+          <p className="mt-1 font-manrope text-sm text-gray-500">Kamu akan mengerjakan {5} soal pada bagian ini.</p>
+          <button
+            onClick={() => { setSecStart(null); setSelected(null); setRevealed(false); engineLoad(secStart.eqIndex); }}
+            className="mt-5 w-full rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110"
+          >
+            Mulai bagian →
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
+
   if (isEngine && secOverlay) {
     return (
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
@@ -535,7 +575,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           </p>
           <div className="mt-5 space-y-2">
             <button
-              onClick={() => { setSecOverlay(null); setSelected(null); setRevealed(false); engineLoad(secOverlay.nextEq); }}
+              onClick={() => { setSecOverlay(null); setSelected(null); setRevealed(false); engineBegin(secOverlay.nextEq); }}
               className="w-full rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110"
             >
               Lanjut ke {secOverlay.nextName} →
