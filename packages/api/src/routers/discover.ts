@@ -426,24 +426,39 @@ export const discoverRouter = {
             if (fam === "minat" && /^[riasec]$/.test(code)) hollandScores[code.toUpperCase()] = Math.round(total);
             if (fam === "bakat" && code) abilityScores[code] = { correct: Math.round(total), total: cnt };
           }
+          // ability disimpan dgn bentuk KONTRAK legacy: { levels, scores } (page hasil baca .levels & .scores)
+          const abilityStore = fam === "bakat"
+            ? {
+                levels: Object.fromEntries(
+                  Object.entries(abilityScores as Record<string, { correct: number; total: number }>).map(([k, v]) => {
+                    const pct = v.total ? v.correct / v.total : 0;
+                    return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
+                  }),
+                ),
+                scores: abilityScores,
+              }
+            : undefined;
           const diff = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
             ? (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.4 ? "strong" : (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.15 ? "moderate" : "weak"
             : "moderate";
+          const confScore = String(Math.max(0, Math.min(100, Math.round(50 + (diffFactor ?? 0.5) * 40))));
           if (existingForAttempt) {
             await db.update(tmbAssessmentResults).set({
-              ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }),
+              ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }),
               differentiation: diff,
-              confidenceScore: String(diffFactor ?? 0.5),
+              confidenceScore: confScore,
             }).where(eq(tmbAssessmentResults.id, rid));
             await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, rid));
           } else {
-            await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }), differentiation: diff, confidenceScore: String(diffFactor ?? 0.5) });
+            await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }), differentiation: diff, confidenceScore: confScore });
           }
           // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
           // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)
           if (existingForAttempt) {
             const mergedH = { ...((existingForAttempt as any)?.hollandScores ?? {}), ...(fam === "minat" ? hollandScores : {}) };
-            const mergedA = { ...((existingForAttempt as any)?.abilityScores ?? {}), ...(fam === "bakat" ? abilityScores : {}) };
+            const prevAb = ((existingForAttempt as any)?.abilityScores ?? {});
+            const prevScores = prevAb?.scores ?? prevAb ?? {};
+            const mergedA = { ...prevScores, ...(fam === "bakat" ? abilityScores : {}) };
             const [prodiList, patterns, careersList] = await Promise.all([
               getProdiList(),
               db.query.tmbMajorPatterns.findMany({ where: eq(schema.tmbMajorPatterns.isActive, true) }),
@@ -476,8 +491,9 @@ export const discoverRouter = {
             }
           }
         }
-      } catch {
-        /* backwrite legacy gagal → jangan jatuhkan hasil engine */
+      } catch (e: any) {
+        // backwrite legacy gagal → jangan jatuhkan hasil engine, TAPI tampilkan biar bisa dilacak
+        console.error("[engine][backwrite] gagal:", e?.message ?? e);
       }
       await db
         .update(schema.assessmentSessions)
