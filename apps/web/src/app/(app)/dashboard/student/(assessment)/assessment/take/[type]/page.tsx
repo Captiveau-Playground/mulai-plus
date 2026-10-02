@@ -613,9 +613,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             >
               Lanjut ke {secOverlay.nextName} →
             </button>
-            <button onClick={() => setSecOverlay(null)} className="w-full rounded-2xl border border-gray-200 px-4 py-3 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50">
-              Istirahat dulu (simpan)
-            </button>
           </div>
         </div>
       </motion.div>
