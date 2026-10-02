@@ -444,7 +444,7 @@ function ReleaseVerifyModal({ versionId, publish, onClose }: { versionId: string
 function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId: string; dims: Dim[]; mImport: any; onDone: () => void; onClose: () => void }) {
   const [rows, setRows] = useState<any[] | null>(null);
   const [fileName, setFileName] = useState("");
-  const [result, setResult] = useState<{ created: number; failed: string[] } | null>(null);
+  const [result, setResult] = useState<{ created: number; failed: string[]; dimsCreated?: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const cols = ["Teks", "Dimensi", "Tipe", "Opsi A", "Opsi B", "Opsi C", "Opsi D", "Opsi E", "Opsi F", "Kunci", "Bobot", "Kunci Isian", "Cara nilai", "Toleransi"];
@@ -496,7 +496,7 @@ function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId:
     if (!rows?.length) return;
     setBusy(true);
     try {
-      const r = await mImport.mutateAsync({ versionId, rows });
+      const r = (await mImport.mutateAsync({ versionId, rows })) as any;
       setResult({ created: r.created ?? 0, failed: r.failed ?? [] });
       notify.create(`Impor selesai — ${r.created ?? 0} soal ditambahkan`, { description: (r.failed ?? []).length ? `${r.failed.length} baris dilewati (lihat hasil).` : "Semua baris berhasil." });
     } finally { setBusy(false); }
