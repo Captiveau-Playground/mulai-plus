@@ -383,7 +383,7 @@ export default function AssessmentDetailPage() {
 
       <WorkingOverlay show={busyAny} label={mSaveQ.isPending ? "Menyimpan soal…" : mPub.isPending ? "Menerbitkan…" : mDimsAdd.isPending ? "Menambah dimensi…" : mReorder.isPending ? "Menyimpan urutan…" : "Menyimpan…"} />
 
-      {importOpen && canEdit && <ImportModal versionId={versionId} mImport={mImport} onDone={() => setImportOpen(false)} onClose={() => setImportOpen(false)} />}
+      {importOpen && canEdit && <ImportModal versionId={versionId} dims={dims} mImport={mImport} onDone={() => setImportOpen(false)} onClose={() => setImportOpen(false)} />}
 
       {verify && <ReleaseVerifyModal versionId={verify.vid} publish={mPub} onClose={() => setVerify(null)} />}
     </div>
@@ -441,7 +441,7 @@ function ReleaseVerifyModal({ versionId, publish, onClose }: { versionId: string
   );
 }
 
-function ImportModal({ versionId, mImport, onDone, onClose }: { versionId: string; mImport: any; onDone: () => void; onClose: () => void }) {
+function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId: string; dims: Dim[]; mImport: any; onDone: () => void; onClose: () => void }) {
   const [rows, setRows] = useState<any[] | null>(null);
   const [fileName, setFileName] = useState("");
   const [result, setResult] = useState<{ created: number; failed: string[] } | null>(null);
@@ -523,7 +523,17 @@ function ImportModal({ versionId, mImport, onDone, onClose }: { versionId: strin
         </label>
 
         {rows !== null && (
-          <div className="mt-3 max-h-56 overflow-y-auto rounded-xl border border-gray-100">
+          <div className="mt-3">
+            {(() => {
+              const known = new Set<string>(dims.flatMap((d) => [d.code.toLowerCase(), d.name.toLowerCase()]));
+              const unknown = [...new Set(rows.map((r: any) => String(r.dimension ?? "").trim().toLowerCase()).filter((v: string) => v && !known.has(v)))];
+              return unknown.length > 0 ? (
+                <p className="mb-1 rounded-lg bg-amber-50 px-2 py-1.5 font-manrope text-[10px] text-amber-700">
+                  Dimensi <b>{unknown.length}</b> ini belum ada & akan <b>dibuat otomatis</b>: {unknown.join(", ")}
+                </p>
+              ) : null;
+            })()}
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-gray-100">
             <table className="w-full text-left font-manrope text-[11px]">
               <thead className="sticky top-0 bg-gray-50 text-gray-500"><tr><th className="px-2 py-1">#</th><th className="px-2 py-1">Teks</th><th className="px-2 py-1">Dimensi</th><th className="px-2 py-1">Tipe</th><th className="px-2 py-1">Opsi</th></tr></thead>
               <tbody>
@@ -540,11 +550,12 @@ function ImportModal({ versionId, mImport, onDone, onClose }: { versionId: strin
             </table>
             {rows.length > 50 && <p className="px-2 py-1 text-[10px] text-gray-400">… +{rows.length - 50} baris</p>}
           </div>
+          </div>
         )}
 
         {result && (
           <div className="mt-3 rounded-xl border border-teal-100 bg-teal-50/50 p-3">
-            <p className="font-manrope text-xs font-semibold text-teal-700">{result.created} soal berhasil ditambahkan.</p>
+            <p className="font-manrope text-xs font-semibold text-teal-700">{result.created} soal berhasil ditambahkan{result.dimsCreated?.length ? ` + ${result.dimsCreated.length} dimensi baru dibuat` : ""}.</p>
             {result.failed.length > 0 && <ul className="mt-1 max-h-28 overflow-y-auto font-manrope text-[10px] text-red-700">{(result.failed.slice(0, 10)).map((e, i) => <li key={i}>{e}</li>)}</ul>}
           </div>
         )}

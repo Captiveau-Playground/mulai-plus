@@ -698,6 +698,26 @@ export const discoverAdminRouter = {
         const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, input.versionId) });
         const byCode = new Map(dims.map((d) => [d.code.toLowerCase(), d]));
         const byName = new Map(dims.map((d) => [d.name.toLowerCase(), d]));
+        const createdDims: string[] = [];
+        const maxDimOrder = dims.reduce((m, d) => Math.max(m, d.displayOrder ?? 0), 0);
+        const ensureDim = async (raw: string): Promise<{ id: string } | null> => {
+          const val = (raw ?? "").trim();
+          if (!val) return null;
+          const low = val.toLowerCase();
+          const hit = byCode.get(low) ?? byName.get(low);
+          if (hit) return { id: hit.id };
+          // auto-create dimensi baru
+          const codeBase = (val.length === 1 ? val : val.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 4)) || "DIM";
+          let code = codeBase;
+          let n = 2;
+          while (byCode.has(code.toLowerCase())) { code = codeBase.slice(0, 4) + n; n++; }
+          const did = uid();
+          await db.insert(schema.assessmentDimensions).values({ id: did, versionId: input.versionId, code, name: val, shortName: code, displayOrder: maxDimOrder + byCode.size + 1, isActive: true });
+          byCode.set(code.toLowerCase(), { id: did } as any);
+          byName.set(low, { id: did } as any);
+          createdDims.push(`${val} → ${code}`);
+          return { id: did };
+        };
         const defaultScale = await db.query.answerScales.findFirst({ where: eq(schema.answerScales.name, "Skala Bawaan (A-F, 1 poin)") });
         let scaleId = defaultScale?.id ?? null;
         if (!scaleId) {
@@ -710,9 +730,8 @@ export const discoverAdminRouter = {
         let order = maxOrder + 1;
         for (let ri = 0; ri < input.rows.length; ri++) {
           const r = input.rows[ri]!;
-          const label = (r.dimension ?? "").trim().toLowerCase();
-          const dim = byCode.get(label) ?? byName.get(label) ?? (r.options?.length ? null : byCode.get(r.dimension.trim()));
-          if (!dim) { fail.push(`Baris ${ri + 2}: dimensi tidak dikenal "${r.dimension}".`); continue; }
+          const dim = await ensureDim(r.dimension ?? "");
+          if (!dim) { fail.push(`Baris ${ri + 2}: kolom Dimensi kosong atau tidak dikenal "${r.dimension}".`); continue; }
           const typeR = r.type ?? (r.answerKey ? "text_input" : "multiple_choice");
           const qid = uid();
           await db.insert(schema.questions).values({
@@ -738,7 +757,16 @@ export const discoverAdminRouter = {
           }
           created++;
         }
-        return { ok: true, created, failed: fail };
+        // sesuaikan total_dim & clamp result_dim_count bila ada dimensi baru
+        if (createdDims.length > 0) {
+          const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) });
+          const all = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, input.versionId) });
+          const cfg: any = { ...(v?.configJson ?? {}) };
+          cfg.total_dim = all.length;
+          if (Number(cfg.result_dim_count ?? 0) > cfg.total_dim) cfg.result_dim_count = Math.max(1, cfg.total_dim);
+          if (v) await db.update(schema.assessmentVersions).set({ configJson: cfg }).where(eq(schema.assessmentVersions.id, input.versionId));
+        }
+        return { ok: true, created, failed: fail, dimsCreated: createdDims };
       }),
 
     /** Validasi live tanpa publish (gatekeeper). */
