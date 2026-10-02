@@ -66,7 +66,7 @@ function EngineProgressCard() {
       <p className="font-bold font-bricolage text-base">Attempt ke-{n} selesai — 🎉</p>
       <p className="mt-1 font-manrope text-xs text-white/80">{last?.hollandCode ? `${last.hollandCode}` : ""} · Selesai {new Date(last?.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}. Mau coba lebih baik?</p>
       <Link href="/dashboard/student/assessment/result" className="mt-3 inline-flex items-center gap-1 rounded-xl bg-white px-4 py-2 font-manrope text-xs font-semibold text-teal-700 hover:brightness-95">Lihat Rekomendasi →</Link>
-      <Link href="/dashboard/student/assessment/take/DISCOVER" className="mt-3 ml-2 inline-flex items-center gap-1 rounded-xl border border-white/40 px-4 py-2 font-manrope text-xs font-semibold text-white hover:bg-white/10">Tes Baru (ke-{n + 1})</Link>
+      <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => raw.discover.purgeIncomplete({ studentId: sid })} className="mt-3 ml-2 inline-flex items-center gap-1 rounded-xl border border-white/40 px-4 py-2 font-manrope text-xs font-semibold text-white hover:bg-white/10">Tes Baru (ke-{n + 1})</Link>
     </div>
   );
 }

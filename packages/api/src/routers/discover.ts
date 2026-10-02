@@ -402,8 +402,11 @@ export const discoverRouter = {
           const existing = await db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.userId, sess.studentId), orderBy: (t: any) => [desc(t.createdAt)] });
           // baris jatuh tempo lengkap (minat+bakat) => ini adalah RETEST → attempt baru (baris baru),
           // sehingga duet lama tetap tersimpan di history dan yang baru mulai dari bagian ini saja.
-          const fullAttempt = !!existing && !!existing.hollandCode && !!(existing as any).abilityScores;
-          const existingForAttempt = fullAttempt ? null : existing;
+          const hReal = !!existing && (existing.hollandCode ?? "").length > 0;
+          const aReal = !!existing && Object.keys(((existing as any).abilityScores ?? {})).length > 0;
+          // Kawin hanya bila row punya TEPAT SATU sisi nyata (minat✓/bakat kosong → lanjut).
+          // Junk (kode kosong / {}), row lengkap, atau kosong total → ATTEMPT BARU.
+          const existingForAttempt = hReal !== aReal ? existing : null;
           const rid = existingForAttempt?.id ?? uid();
           const base = existingForAttempt ? {} : { id: rid, userId: sess.studentId };
           const hollandScores: Record<string, number> = {};
@@ -417,8 +420,8 @@ export const discoverRouter = {
           const diff = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
             ? (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.4 ? "strong" : (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.15 ? "moderate" : "weak"
             : "moderate";
-          const hasH = fam === "minat" ? true : !!existingForAttempt?.hollandCode;
-          const hasA = fam === "bakat" ? true : !!existingForAttempt?.abilityScores;
+          const hasH = fam === "minat" ? true : ((existingForAttempt?.hollandCode ?? "")).length > 0;
+          const hasA = fam === "bakat" ? Object.keys(((existingForAttempt as any)?.abilityScores ?? {})).length > 0 : false;
           if (existingForAttempt) {
             await db.update(tmbAssessmentResults).set({
               ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }),
@@ -514,7 +517,7 @@ export const discoverRouter = {
         where: eq(tmbAssessmentResults.userId, input.studentId),
         orderBy: (t: any) => [desc(t.createdAt)],
       });
-      const present = !!row && (isMinat ? !!row.hollandCode && row.hollandCode.length > 0 : !!(row as any).abilityScores);
+      const present = !!row && (isMinat ? (row.hollandCode ?? "").length > 0 : Object.keys(((row as any).abilityScores ?? {})).length > 0);
       if (!present) return { ok: true, code: a.code, present: false } as const;
       return {
         ok: true,
@@ -547,6 +550,23 @@ export const discoverRouter = {
           complete: !!r.hollandCode && !!(r as any).abilityScores,
         })),
       } as const;
+    }),
+
+  /** Bersihkan row attempt yang TIDAK lengkap (junk/abandon) utk user — dipanggil saat 'Tes Baru'. */
+  purgeIncomplete: publicProcedure
+    .input(z.object({ studentId: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const rows = await db.query.tmbAssessmentResults.findMany({ where: eq(tmbAssessmentResults.userId, input.studentId) });
+      let purged = 0;
+      for (const r of rows) {
+        const hReal = (r.hollandCode ?? "").length > 0;
+        const aReal = Object.keys(((r as any).abilityScores ?? {})).length > 0;
+        if (hReal && aReal) continue; // attempt lengkap disimpan
+        await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, r.id));
+        await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.id, r.id));
+        purged++;
+      }
+      return { ok: true, purged } as const;
     }),
 
   /** Detail sesi + jawaban (utk resume/restore posisi). */
