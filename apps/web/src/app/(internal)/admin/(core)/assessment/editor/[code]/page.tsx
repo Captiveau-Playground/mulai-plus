@@ -144,6 +144,12 @@ export default function AssessmentDetailPage() {
     void mReorder.mutateAsync({ versionId, orderedIds: qs.map((q) => q.id) });
     setDragIdx(null);
   }, [questions, versionId]);
+  const openEdit = (id: string) => {
+    const q = questions.find((x) => x.id === id);
+    if (!q) { setFocusQ(id); return; }
+    setModal({ open: true, q: { ...q, opts: (content?.options ?? []).filter((o: any) => o.questionId === q.id), tc: (content?.textConfigs ?? []).find((t: any) => t.questionId === q.id) } });
+    setTimeout(() => document.getElementById("q-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
   const delQ = (id: string) => void mDelQ.mutateAsync({ questionId: id });
   const dupQ = (id: string) => void mDupQ.mutateAsync({ questionId: id });
 
@@ -274,7 +280,7 @@ export default function AssessmentDetailPage() {
         </div>
 
         {modal?.open && selVer && content && (
-          <div className="border-b border-teal-100 bg-teal-50/20 px-4 py-4">
+          <div id="q-panel" className="border-b border-teal-100 bg-teal-50/20 px-4 py-4">
             <QuestionPanel q={modal.q} versionId={versionId} content={content} onDone={(qid) => { mSaveQ.mutate({ ...(modal.q?.id ? { id: modal.q.id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
           </div>
         )}
@@ -333,7 +339,7 @@ export default function AssessmentDetailPage() {
             <p className="font-manrope text-sm font-semibold text-red-700">{(gate.errors ?? []).length} hal perlu diperbaiki sebelum terbit — klik untuk lompat:</p>
             <div className="mt-1.5 flex flex-col gap-1">
               {(gate.details?.length ? gate.details : (gate.errors ?? []).map((e: string) => ({ kind: "config" as const, message: e }))).map((d: any, i: number) => (
-                <button key={i} onClick={() => { if (d.kind === "question" && d.id) setFocusQ(d.id); else if (d.kind === "dimension") setFocusDim(true); }}
+                <button key={i} onClick={() => { if (d.kind === "question" && d.id) openEdit(d.id); else if (d.kind === "dimension") { setRulesOpen(true); setFocusDim(true); } }}
                   className="flex items-start gap-2 rounded-lg bg-white/70 px-2 py-1.5 text-left font-manrope text-[11px] text-red-700/90 transition-all hover:bg-white hover:shadow-sm">
                   {d.kind === "question" ? "☰ " : d.kind === "dimension" ? "▦ " : "⚙ "}
                   <span className="underline decoration-dotted underline-offset-2">{d.message}</span>
