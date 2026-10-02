@@ -103,9 +103,10 @@ Relasi: assessments 1:N versions; version 1:N sections/dimensions/questions; dim
 > - Renderer talent: sections intro render, instruction screen per dimensi, pause/resume UI (restore posisi dari jawaban tersimpan), preview mode (`?preview=1`, terisolasi), gamification mode (emoji/image/visual_comparison), CAT-lite (urutkan soal ke dimensi paling sedikit terjawab)
 > - E2E: config(sections/instr) · start · pause → mySessions=paused · session detail ✓
 >
-> **STATUS Fase 3 (2026-10-01): BACKLOG TERDOKUMENTASI — yang termudah sudah live (CAT-lite di renderer; latex/katex util siap dipakai editor).**
-> - WYSIWYG math editor & interactive canvas & localization penuh: sengaja di-backlog (non-blocking utk MVP; butuh design & scope terpisah).
-> - CAT penuh (IRT/ability-estimation) & interactive canvas = fase lanjutan terpisah.
+> **STATUS Fase 3 (2026-10-01): SEBAGIAN SELESAI**
+> - ✅ CAT-lite (urutan adaptif per dimensi paling sedikit terjawab) · LaTeX preview live di admin (MathPreview + validator) · lokalisasi ID/EN ringan (config `lang`, UI siswa 2 bahasa) · checkpoint XP/streak persist · timer TIMEOUT server.
+> - ⏳ deferred jujur (butuh scope/design terpisah, bukan hilang): WYSIWYG editor penuh (MathQuill) → cukup LaTeX+preview; interactive canvas (rotasi 3D); CAT penuh (IRT); localization penuh (translation tables utk semua konten).
+> - **Menjalankan preview admin**: centang LaTeX di form soal → pratinjau live muncul; pilih **Bahasa antarmuka** di Aturan utk id/en siswa.
 # 3. Fase Detail
 
 ### Fase 0 — Fondasi Engine + Versioning (2–3 sprint)

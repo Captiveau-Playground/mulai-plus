@@ -63,6 +63,8 @@ function TalentAssessmentPage() {
   const [result, setResult] = useState<any>(null);
   const [runSections, setRunSections] = useState<{ key: string; title: string; from: number; to: number }[]>([]);
   const [cp, setCp] = useState<{ next: number; done: number } | null>(null);
+  const [lang, setLang] = useState<"id" | "en">("id");
+  const t = useMemo(() => dict(lang), [lang]);
 
   const dimStart = useRef(0);
   const dimElapsed = useRef<Record<string, number>>({});
@@ -81,6 +83,7 @@ function TalentAssessmentPage() {
       setSections(cfg.sections ?? []);
       setInstructions(cfg.instructions ?? []);
       setRunSections(cfg.runSections ?? []);
+      setLang((cfg.config?.lang as any) === "en" ? "en" : "id");
       setPhase("intro");
     } catch (e) {
       setErr((e as Error)?.message ?? "Gagal memuat");
@@ -123,6 +126,7 @@ function TalentAssessmentPage() {
       setSections(cfgV.sections ?? []);
       setInstructions(cfgV.instructions ?? []);
       setRunSections(cfgV.runSections ?? []);
+      setLang((cfgV.config?.lang as any) === "en" ? "en" : "id");
       const saved = new Set(det.answers?.map((a: any) => a.questionId) ?? []);
       const map: Record<string, { opt?: string; text?: string }> = {};
       const optsById = new Map<string, string>();
@@ -313,7 +317,7 @@ function TalentAssessmentPage() {
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <button onClick={start} disabled={pending} className="inline-flex items-center gap-2 rounded-xl bg-brand-navy px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98] disabled:opacity-60">
-                {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />} Mulai Sekarang
+                {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />} {t.start}
               </button>
               {activeSession && (
                 <button onClick={() => void resume()} className="inline-flex items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-500/5 px-6 py-4 font-bold font-manrope text-sm text-teal-700 transition-all hover:bg-teal-500/10">
@@ -352,7 +356,7 @@ function TalentAssessmentPage() {
               );
             })()}
             <button onClick={startDimension} className="mt-6 rounded-xl bg-teal-600 px-8 py-3.5 font-bold font-manrope text-sm text-white shadow-lg transition-all hover:bg-teal-700">
-              Mulai Bagian Ini
+              {t.beginSection}
             </button>
           </div>
         )}
@@ -387,9 +391,9 @@ function TalentAssessmentPage() {
 
             {current.questionType === "text_input" ? (
               <div className="mt-5 flex gap-2">
-                <input value={textVal} onChange={(e) => setTextVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitText()} placeholder="Tulis jawaban (mis. 3/4 atau 0.75)…" className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-sm outline-none focus:border-teal-500" />
+                <input value={textVal} onChange={(e) => setTextVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitText()} placeholder={t.answerPlaceholder} className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-sm outline-none focus:border-teal-500" />
                 <button onClick={submitText} disabled={pending} className="rounded-xl bg-teal-600 px-5 py-3 font-manrope text-sm font-semibold text-white transition-all hover:bg-teal-700 disabled:opacity-60">
-                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Kirim"}
+                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "{t.send}"}
                 </button>
               </div>
             ) : (
@@ -411,9 +415,9 @@ function TalentAssessmentPage() {
 
             <div className="mt-6 flex items-center justify-between">
               <button onClick={() => void pause()} disabled={pending} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 font-manrope text-xs font-semibold text-gray-500 transition-all hover:bg-gray-100">
-                <Pause className="h-3.5 w-3.5" /> Berhenti & lanjutkan nanti
+                <Pause className="h-3.5 w-3.5" /> {t.pause}
               </button>
-              <span className="font-manrope text-[11px] text-gray-400">Semua jawaban auto-tersimpan</span>
+              <span className="font-manrope text-[11px] text-gray-400">{t.autosave}</span>
             </div>
           </div>
         )}
@@ -426,13 +430,13 @@ function TalentAssessmentPage() {
             <p className="mt-2 font-manrope text-sm text-gray-500">
               {cp.done}/{questions.length} soal terjawab · <b className="text-brand-orange">+10 XP</b> · streak 🔥
             </p>
-            <p className="mx-auto mt-2 max-w-sm font-manrope text-xs text-gray-400">Istirahat sebentar? Jawaban sudah tersimpan otomatis.</p>
+            <p className="mx-auto mt-2 max-w-sm font-manrope text-xs text-gray-400">{t.restHint}</p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <button onClick={() => { setCp(null); setIdx(cp.next); enterOrRun(questions[cp.next]!); }} className="rounded-xl bg-brand-navy px-7 py-3.5 font-bold font-manrope text-sm text-white shadow-lg transition-all hover:bg-brand-navy-light">
-                Lanjut ke {runSections[secIndex(cp.next)]?.title ?? "bagian berikutnya"} →
+                {t.continueTo} {runSections[secIndex(cp.next)]?.title ?? "bagian berikutnya"} →
               </button>
               <button onClick={() => { void pause(); setCp(null); }} className="rounded-xl border border-gray-200 px-6 py-3.5 font-manrope text-sm font-semibold text-gray-600 hover:bg-gray-50">
-                Istirahat dulu
+                {t.rest}
               </button>
             </div>
           </div>
@@ -442,10 +446,10 @@ function TalentAssessmentPage() {
         {phase === "done" && (
           <div className="rounded-3xl border border-teal-100 bg-teal-50/40 p-8 text-center sm:p-10">
             <CheckCircle2 className="mx-auto h-10 w-10 text-teal-600" />
-            <h2 className="mt-3 font-bold font-bricolage text-2xl text-brand-navy">{preview ? "Preview selesai" : "Tes Selesai! 🎉"}</h2>
+            <h2 className="mt-3 font-bold font-bricolage text-2xl text-brand-navy">{preview ? "Preview selesai" : "{t.done}"}</h2>
             {result?.profileCode && (
               <div className="mt-4">
-                <p className="font-manrope text-xs uppercase tracking-widest text-gray-400">Talent Profile</p>
+                <p className="font-manrope text-xs uppercase tracking-widest text-gray-400">{t.profile}</p>
                 <p className="mt-1 font-bold font-bricolage text-3xl text-teal-700">{result.profileCode}</p>
               </div>
             )}
@@ -478,6 +482,40 @@ export default function Page() {
       <TalentAssessmentPage />
     </Suspense>
   );
+}
+
+function dict(lang: "id" | "en") {
+  const id = {
+    start: "Mulai Sekarang",
+    beginSection: "Mulai Bagian Ini",
+    done: "Tes Selesai! 🎉",
+    profile: "Talent Profile",
+    answerPlaceholder: "Tulis jawaban (mis. 3/4 atau 0.75)…",
+    send: "Kirim",
+    autosave: "Semua jawaban auto-tersimpan",
+    pause: "Berhenti & lanjutkan nanti",
+    sectionDone: "Bagian selesai!",
+    continueTo: "Lanjut ke",
+    rest: "Istirahat dulu",
+    restHint: "Istirahat sebentar? Jawaban sudah tersimpan otomatis.",
+  };
+  if (lang === "en") {
+    return {
+      start: "Start now",
+      beginSection: "Start this section",
+      done: "Test completed! 🎉",
+      profile: "Talent Profile",
+      answerPlaceholder: "Type your answer (e.g. 3/4 or 0.75)…",
+      send: "Submit",
+      autosave: "All answers are auto-saved",
+      pause: "Pause & continue later",
+      sectionDone: "Section done!",
+      continueTo: "Continue to",
+      rest: "Take a break",
+      restHint: "Take a break? Your answers are saved automatically.",
+    };
+  }
+  return id;
 }
 
 function useSearchParamsSafe() {

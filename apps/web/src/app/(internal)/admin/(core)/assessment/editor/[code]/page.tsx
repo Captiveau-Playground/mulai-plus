@@ -4,12 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Copy, Eye, FilePlus2, FileUp, GitBranch, GripVertical, Loader2, Plus, Rocket, ShieldCheck, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
+import "katex/dist/katex.min.css";
 
 interface Ver { id: string; versionNumber: number; status: string; configJson?: any; publishedAt?: string | null }
 interface Dim { id: string; code: string; name: string }
@@ -262,6 +263,7 @@ export default function AssessmentDetailPage() {
             <Rule label="Acak urutan pilihan" hint="Urutan opsi jawaban diacak per siswa." type="bool" value={rules.randomize_a === true} onChange={(v) => setRules((r) => ({ ...r, randomize_a: v }))} disabled={!canEdit} />
             <Rule label="Izinkan lanjut kemudian" hint="Siswa boleh berhenti & melanjutkan tes lain waktu." type="bool" value={rules.allow_pause === true} onChange={(v) => setRules((r) => ({ ...r, allow_pause: v }))} disabled={!canEdit} />
             <Rule label="Pembagian bagian soal" hint="Pecah alur tes jadi beberapa bagian dgn checkpoint XP antar bagian." type="select" opts={[["none", "Satu bagian (lurus)"], ["by_dimension", "Per dimensi"], ["chunk:10", "Per 10 soal"], ["chunk:20", "Per 20 soal"]]} value={rules.section_mode ?? "none"} onChange={(v) => setRules((r) => ({ ...r, section_mode: v }))} disabled={!canEdit} />
+            <Rule label="Bahasa antarmuka" hint="Bahasa tombol & label yang dilihat siswa." type="select" opts={[["id", "Indonesia"], ["en", "English"]]} value={rules.lang ?? "id"} onChange={(v) => setRules((r) => ({ ...r, lang: v }))} disabled={!canEdit} />
             <div className="">
               {canEdit ? (
                 <Button size="sm" variant="outline" onClick={() => void mRules.mutateAsync({ versionId, config: rules })} disabled={mRules.isPending}>
@@ -601,6 +603,32 @@ function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId:
   );
 }
 
+function MathPreview({ text }: { text: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const katex = (await import("katex")).default;
+        if (!ref.current || !alive) return;
+        katex.render(text || "\\text{(isi rumus LaTeX di atas…)}", ref.current, { throwOnError: true, displayMode: true });
+        if (alive) setErr(null);
+      } catch (e: any) {
+        if (alive) setErr(e?.message ?? "LaTeX tidak valid");
+      }
+    })();
+    return () => { alive = false; };
+  }, [text]);
+  return (
+    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-3">
+      <p className="font-manrope text-[10px] font-semibold uppercase tracking-wide text-gray-400">Pratinjau LaTeX</p>
+      <div ref={ref} className="mt-1 min-h-[2rem] text-base" />
+      {err && <p className="mt-1 font-manrope text-[10px] text-red-600">⚠ {err}</p>}
+    </div>
+  );
+}
+
 function Rule({ label, hint, type, opts, value, onChange, disabled }: { label: string; hint?: string; type: "number" | "bool" | "select"; opts?: [string, string][]; value: any; onChange: (v: any) => void; disabled: boolean }) {
   return (
     <label className={`block font-manrope text-xs font-semibold text-foreground ${disabled ? "opacity-60" : ""}`}>
@@ -675,6 +703,27 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
         <div className="space-y-3">
           <label className="block font-manrope text-xs font-semibold text-foreground">Teks soal
             <Input className="mt-1" value={form.questionText} onChange={(e) => patch("questionText", e.target.value)} placeholder="cth: Kamu lebih suka bekerja dengan…" />
+          </label>
+          <label className="flex items-center gap-2 font-manrope text-xs font-medium text-gray-700">
+            <input type="checkbox" checked={form.hasMathNotation === true} onChange={(e) => patch("hasMathNotation", e.target.checked)} className="accent-brand-orange" />
+            Soal berisi rumus matematika (LaTeX $…$ — di-parse otomatis)
+          </label>
+          {form.hasMathNotation && <MathPreview text={form.questionText} />}
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block font-manrope text-xs font-semibold text-foreground">Media gambar (URL)
+              <Input className="mt-1" value={form.mediaUrl} onChange={(e) => patch("mediaUrl", e.target.value)} placeholder="https://cdn…/gambar.png" />
+            </label>
+            <label className="block font-manrope text-xs font-semibold text-foreground">Keterangan gambar
+              <Input className="mt-1" value={form.mediaCaption} onChange={(e) => patch("mediaCaption", e.target.value)} placeholder="Gambar 1.1: …" />
+            </label>
+          </div>
+          <label className="block font-manrope text-xs font-semibold text-foreground">Tampilan pilihan
+            <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.presentationMode} onChange={(e) => patch("presentationMode", e.target.value)}>
+              <option value="standard_option_card">Kartu standar (teks)</option>
+              <option value="emoji_option">Emoji (opsi pakai ikon/emoji)</option>
+              <option value="image_option">Gambar per opsi</option>
+              <option value="visual_comparison">Banding visual (grid besar)</option>
+            </select>
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block font-manrope text-xs font-semibold text-foreground">Dimensi
