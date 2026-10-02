@@ -500,7 +500,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             : `Kamu dapat ${xpEarned} XP! ${streak >= 2 ? `Streak ${streak} hari 🔥` : "Ayo lanjutkan streak besok!"}`}
         </p>
 
-        {isInterest && !bothDone && (
+        {!isEngine && isInterest && !bothDone && (
           <div className="mt-4 rounded-2xl bg-violet-50 px-4 py-3 font-manrope text-sm text-violet-700">
             💡 Lanjut ke <b>Test Bakat</b> untuk dapat rekomendasi lengkap!
           </div>
