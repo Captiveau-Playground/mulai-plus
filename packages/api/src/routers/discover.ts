@@ -1,6 +1,7 @@
 import { db, eq, inArray, and, asc, desc } from "@mulai-plus/db/db";
 import { schema } from "@mulai-plus/db/db";
 import { tmbAssessmentResults, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
+import { computeRecommendations, getProdiList } from "./tmb";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
@@ -412,6 +413,8 @@ export const discoverRouter = {
           const diff = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
             ? (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.4 ? "strong" : (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.15 ? "moderate" : "weak"
             : "moderate";
+          const hasH = fam === "minat" ? true : !!existing?.hollandCode;
+          const hasA = fam === "bakat" ? true : !!existing?.abilityScores;
           if (existing) {
             await db.update(tmbAssessmentResults).set({
               ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }),
@@ -422,13 +425,35 @@ export const discoverRouter = {
           } else {
             await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }), differentiation: diff, confidenceScore: String(diffFactor ?? 0.5) });
           }
-          let rank = 0;
-          for (const rec of recos) {
-            rank++;
-            await db.insert(tmbRecommendations).values({ id: uid(), resultId: rid, type: "major", rank, itemName: rec.categoryName, categoryKey: rec.categoryKey ?? null, confidence: String(rec.confidence ?? 0), prodiRefs: [] as any });
-            for (const c of rec.careers ?? []){
-              rank++;
-              await db.insert(tmbRecommendations).values({ id: uid(), resultId: rid, type: "career", rank, itemName: c, categoryKey: null, confidence: String(rec.confidence ?? 0), prodiRefs: [] as any });
+          // Rekomendasi LENGKAP (jurusan+kampus+karir) — pakai mesin yg sama dgn page hasil (kontrak lama)
+          if (existing && hasH && hasA) {
+            const mergedH = { ...((existing as any)?.hollandScores ?? {}), ...(fam === "minat" ? hollandScores : {}) };
+            const mergedA = { ...((existing as any)?.abilityScores ?? {}), ...(fam === "bakat" ? abilityScores : {}) };
+            const lux = Object.fromEntries(
+              Object.entries(mergedA as Record<string, { correct: number; total: number }>).map(([k, v]) => {
+                const pct = v.total ? v.correct / v.total : 0;
+                return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
+              }),
+            );
+            const [prodiList, patterns, careersList] = await Promise.all([
+              getProdiList(),
+              db.query.tmbMajorPatterns.findMany({ where: eq(schema.tmbMajorPatterns.isActive, true) }),
+              db.query.tmbCareerMappings.findMany(),
+            ]);
+            const recoCalc = computeRecommendations(
+              { code: (existing?.hollandCode ?? profileCode) ?? "", scores: mergedH as any },
+              { levels: lux as any },
+              prodiList as any,
+              patterns as any,
+              careersList as any,
+            );
+            for (let i = 0; i < recoCalc.majors.length; i++) {
+              const m = recoCalc.majors[i]!;
+              await db.insert(tmbRecommendations).values({ id: uid(), resultId: rid, type: "major", rank: i + 1, itemName: m.itemName, categoryKey: m.categoryKey ?? null, confidence: String(m.confidence ?? 0), prodiRefs: m.prodiRefs ?? [] });
+            }
+            for (let i = 0; i < recoCalc.careers.length; i++) {
+              const c = recoCalc.careers[i]!;
+              await db.insert(tmbRecommendations).values({ id: uid(), resultId: rid, type: "career", rank: recoCalc.majors.length + i + 1, itemName: c.itemName, categoryKey: c.categoryKey ?? null, confidence: (c as any).confidence ?? null, prodiRefs: [] as any });
             }
           }
         }

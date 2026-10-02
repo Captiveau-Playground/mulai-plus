@@ -236,7 +236,7 @@ function matchCareers(
 let prodiCache: { name: string; level: string | null; university: string; idSms: string; idSp: string }[] | null = null;
 let prodiCacheTs = 0;
 
-async function getProdiList() {
+export async function getProdiList() {
   const now = Date.now();
   if (!prodiCache || now - prodiCacheTs > 86400_000) {
     const rows = await db
@@ -316,7 +316,7 @@ function computeAbility(answers: { question: { dimension: string; answer: string
   return { scores, levels };
 }
 
-function computeRecommendations(
+export function computeRecommendations(
   holland: { code: string; scores: Record<string, number> },
   ability: { levels: Record<string, string> },
   prodiList: { name: string; level: string | null; university: string; idSms: string; idSp: string }[],
