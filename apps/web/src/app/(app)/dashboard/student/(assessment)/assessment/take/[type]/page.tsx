@@ -40,7 +40,7 @@ export default function TmbTestPage() {
 }
 
 function EngineWrapper({ code }: { code: string }) {
-  const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string } | null>(null);
+  const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections: number } | null>(null);
   const [errg, setErrg] = useState("");
   const { data: authSession } = authClient.useSession();
   useEffect(() => {
@@ -51,19 +51,21 @@ function EngineWrapper({ code }: { code: string }) {
         const cfg = (await client.discover.config({ code } as any)) as any;
         let st: any = { sessionId: "" };
         try { st = (await client.discover.start({ code, studentId: sid, versionId: null } as any)) as any; } catch { st = (await client.discover.start({ code, studentId: sid } as any)) as any; }
-        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat", studentId: sid });
+        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat", studentId: sid, sections: (cfg.runSections ?? []).length });
       } catch (e: any) { setErrg(e?.message ?? "Gagal memuat tes"); }
     })();
   }, [code, authSession?.user?.id]);
   if (errg) return <p className="font-manrope text-sm text-red-500">{errg}</p>;
   if (!ready) return <div className="flex min-h-[40vh] items-center justify-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
-  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel, studentId: ready.studentId }} />;
+  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel, studentId: ready.studentId, sections: ready.sections }} />;
 }
 
-function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string } }) {
+function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections?: number } }) {
   const isEngine = !!engine;
   const engineQs = engine?.questions ?? [];
   const [eq, setEq] = useState(0);
+  const [intro, setIntro] = useState(isEngine);
+  const introStarted = useRef(false);
   const params = useParams();
   const router = useRouter();
   const testCode = isEngine
@@ -349,13 +351,17 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
   // auto-start
   useEffect(() => {
-    if (isEngine) { engineBegin(0); return; }
+    if (isEngine) {
+      if (intro) return;
+      if (!introStarted.current) { introStarted.current = true; engineBegin(0); }
+      return;
+    }
     if (isDemo) return; // mode simulasi tidak perlu backend
     if (!attemptId && !startMutation.isPending && !done) {
       startMutation.mutate({ testCode });
     }
     // biome-ignore lint/correctness/useExhaustiveDependencies: deps dibatasi sengaja
-  }, [done, testCode, startMutation.mutate, startMutation.isPending, attemptId, isDemo]);
+  }, [done, testCode, startMutation.mutate, startMutation.isPending, attemptId, isDemo, intro, isEngine]);
 
   // pakai data dari query jika state kosong
   useEffect(() => {
@@ -545,6 +551,28 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       </motion.div>
     );
   }
+  if (isEngine && intro) {
+    const nSec = engine?.sections ?? Math.max(1, new Set(engineQs.map((q) => q.dimensionId)).size);
+    return (
+      <div className="mx-auto max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-lg shadow-brand-navy/5">
+        <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
+          <Image src="/maskot/masko-book.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
+        </span>
+        <h1 className="mt-4 font-bold font-bricolage text-2xl text-gray-900">{engine!.code === "DISCOVER" ? "Tes Minat" : "Tes Bakat"}</h1>
+        <p className="mt-1 font-manrope text-sm text-gray-500">Sebelum mulai, ini info testnya:</p>
+        <div className="mt-4 space-y-2 text-left">
+          <InfoRow label="Jumlah soal" value={`${engineQs.length} soal`} />
+          <InfoRow label="Bagian / part" value={`${nSec} bagian (per dimensi)`} />
+          <InfoRow label="Perkiraan XP" value={`+${nSec * 10 + engineQs.length} XP`} />
+          <InfoRow label="Penyimpanan" value="Auto-simpan tiap jawaban" last />
+        </div>
+        <button onClick={() => { setIntro(false); }} className="mt-6 w-full rounded-2xl bg-brand-navy px-6 py-3.5 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">
+          Mulai Tes →
+        </button>
+      </div>
+    );
+  }
+
   if (isEngine && secStart) {
     return (
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
@@ -924,4 +952,11 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   );
 }
 
-
+function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between rounded-xl px-3 py-2 ${last ? "" : "border-b border-gray-50"}`}>
+      <span className="font-manrope text-xs text-gray-500">{label}</span>
+      <span className="font-manrope text-xs font-semibold text-gray-800">{value}</span>
+    </div>
+  );
+}
