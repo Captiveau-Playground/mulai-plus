@@ -10,7 +10,6 @@ import { FutureCareerMap } from "@/components/front/future-career-map";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
-import { client } from "@/utils/orpc";
 import { buildResultMindMap } from "@/lib/future-career";
 import { printTmbReport } from "@/lib/tmb-report-print";
 import { notify } from "@/lib/toast";
@@ -39,35 +38,6 @@ const LEVEL_COLOR: Record<string, string> = {
   medium: "bg-amber-400",
   low: "bg-red-400",
 };
-
-function EngineResultsCard() {
-  const { data: authSession } = authClient.useSession();
-  const sid = authSession?.user?.id ?? "";
-  const raw = client as any;
-  const qM = useQuery({ queryKey: ["er", "DISCOVER", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "DISCOVER", studentId: sid }) });
-  const qT = useQuery({ queryKey: ["er", "TALENT", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "TALENT", studentId: sid }) });
-  const rows = [qM.data, qT.data].filter((d: any) => d?.present);
-  if (rows.length === 0) return null;
-  return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {rows.map((r: any) => (
-        <div key={r.code} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="font-bold font-bricolage text-sm text-gray-900">{r.name}</p>
-            <span className="rounded-full bg-green-50 px-2 py-0.5 font-manrope text-[10px] font-semibold text-green-700">Engine</span>
-          </div>
-          <p className="mt-2 text-2xl font-bold font-bricolage text-brand-navy">{r.profileCode || "—"}</p>
-          <p className="font-manrope text-[11px] text-gray-400">+{r.xpEarned ?? 0} XP · streak 🔥 {r.streak ?? 0}</p>
-          {(r.recommendations ?? []).slice(0, 3).map((rr: any, i: number) => (
-            <p key={i} className="mt-1 flex items-center justify-between font-manrope text-xs text-gray-600">
-              <span>{rr.categoryName}</span><span className="text-teal-700">{rr.confidence}%</span>
-            </p>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function TmbResultPage() {
   useEffect(() => {
@@ -171,7 +141,6 @@ export default function TmbResultPage() {
 
   return (
     <div className="space-y-5">
-      <EngineResultsCard />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
