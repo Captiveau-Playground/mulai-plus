@@ -429,8 +429,6 @@ export const discoverRouter = {
           const diff = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
             ? (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.4 ? "strong" : (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.15 ? "moderate" : "weak"
             : "moderate";
-          const hasH = fam === "minat" ? true : ((existingForAttempt?.hollandCode ?? "")).length > 0;
-          const hasA = fam === "bakat" ? Object.keys(((existingForAttempt as any)?.abilityScores ?? {})).length > 0 : false;
           if (existingForAttempt) {
             await db.update(tmbAssessmentResults).set({
               ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }),
@@ -441,21 +439,26 @@ export const discoverRouter = {
           } else {
             await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }), differentiation: diff, confidenceScore: String(diffFactor ?? 0.5) });
           }
-          // Rekomendasi LENGKAP (jurusan+kampus+karir) — pakai mesin yg sama dgn page hasil (kontrak lama)
-          if (existingForAttempt && hasH && hasA) {
+          // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
+          // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)
+          if (existingForAttempt) {
             const mergedH = { ...((existingForAttempt as any)?.hollandScores ?? {}), ...(fam === "minat" ? hollandScores : {}) };
             const mergedA = { ...((existingForAttempt as any)?.abilityScores ?? {}), ...(fam === "bakat" ? abilityScores : {}) };
-            const lux = Object.fromEntries(
-              Object.entries(mergedA as Record<string, { correct: number; total: number }>).map(([k, v]) => {
-                const pct = v.total ? v.correct / v.total : 0;
-                return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
-              }),
-            );
             const [prodiList, patterns, careersList] = await Promise.all([
               getProdiList(),
               db.query.tmbMajorPatterns.findMany({ where: eq(schema.tmbMajorPatterns.isActive, true) }),
               db.query.tmbCareerMappings.findMany(),
             ]);
+            const abilityKeys = [
+              ...new Set((patterns as any[]).flatMap((p: any) => Object.keys((p as any)?.abilityWeights ?? {}))),
+            ];
+            const lux = Object.fromEntries(
+              abilityKeys.map((k) => {
+                const v = (mergedA as Record<string, { correct: number; total: number }>)[k];
+                const pct = v && v.total ? v.correct / v.total : 0.5; // netral bila belum dikerjakan
+                return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
+              }),
+            );
             const recoCalc = computeRecommendations(
               { code: (existingForAttempt?.hollandCode ?? profileCode) ?? "", scores: mergedH as any },
               { levels: lux as any },

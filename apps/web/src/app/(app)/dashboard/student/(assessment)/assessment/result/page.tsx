@@ -100,6 +100,7 @@ export default function TmbResultPage() {
   };
   const abilityScores = abilityRaw.scores ?? {};
   const abilityLevels = abilityRaw.levels ?? {};
+  const noAbility = Object.keys(abilityScores).length === 0;
   const hollandCode = result.hollandCode ?? "---";
   const differentiation = result.differentiation ?? "moderate";
 
@@ -218,6 +219,14 @@ export default function TmbResultPage() {
           className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
         >
           <h2 className="font-bold font-bricolage text-gray-900">Profil Kemampuan</h2>
+          {noAbility ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
+              <p className="font-manrope text-sm text-gray-600">
+                Profil kemampuan belum tersedia — selesaikan <b>Tes Bakat</b> dulu, biar rekomendasi jurusan &amp; karir diperkuat.
+              </p>
+              <Link href="/dashboard/student/assessment/take/TALENT" className="mt-3 inline-flex items-center rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjut Tes Bakat →</Link>
+            </div>
+          ) : (
           <div className="mt-4 space-y-3">
             {Object.entries(ABILITY_INFO).map(([key, info]) => {
               const s = abilityScores[key] ?? { correct: 0, total: 0 };
