@@ -157,7 +157,8 @@ async function main() {
   for (let i = 0; i < kKeys.length; i++) {
     const k = kKeys[i]!;
     dimsT[k] = is();
-    await db.insert(schema.assessmentDimensions).values({ id: dimsT[k], versionId: vidT, code: k, name: k === "verbal" ? "Penalaran Verbal" : k === "numerik" ? "Kemampuan Numerik" : k === "logical" ? "Penalaran Logis" : k === "spatial" ? "Penalaran Spasial" : "Kecepatan Perseptual", shortName: k, displayOrder: i, isActive: true, durationSeconds: 120 });
+    const codeT = k === "numerik" ? "numerical" : k;
+    await db.insert(schema.assessmentDimensions).values({ id: dimsT[k], versionId: vidT, code: codeT, name: k === "verbal" ? "Penalaran Verbal" : k === "numerik" ? "Kemampuan Numerik" : k === "logical" ? "Penalaran Logis" : k === "spatial" ? "Penalaran Spasial" : "Kecepatan Perseptual", shortName: k, displayOrder: i, isActive: true, durationSeconds: 120 });
   }
   let order = 0;
   for (const [k, list] of Object.entries(ABILITY)) {
