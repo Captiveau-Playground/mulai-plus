@@ -173,6 +173,13 @@ function TestModal({ editing, busy, onSave, onClose }: { editing?: SummaryItem; 
           <label className="block font-manrope text-xs font-semibold text-foreground">Deskripsi
             <Input className="mt-1" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Sekilas tentang tes ini" />
           </label>
+          <label className="block font-manrope text-xs font-semibold text-foreground">Jenis (badge B2C)
+            <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={family} onChange={(e) => setFamily(e.target.value)}>
+              <option value="">Bebas (B2B / umum)</option>
+              <option value="minat">Tes Minat — max 1 LIVE (B2C)</option>
+              <option value="bakat">Tes Bakat — max 1 LIVE (B2C)</option>
+            </select>
+          </label>
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
