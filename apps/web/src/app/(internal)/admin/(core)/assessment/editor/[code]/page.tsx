@@ -69,6 +69,14 @@ export default function AssessmentDetailPage() {
 
   useEffect(() => { if (selVer) setRules(selVer.configJson ?? {}); }, [selVer?.id]);
 
+  const mMeta = useMutation(orpc.discoverAdmin.updateMeta.mutationOptions({
+    onSuccess: () => { notify.create("Jenis badge diperbarui ✅"); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
+    onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
+  }));
+  const setFamily = (f: string) => {
+    if (!assess) return;
+    void mMeta.mutateAsync({ id: assess.id, name: assess.name, description: assess.description ?? null, family: (f as any) || null });
+  };
   const mDraft = useMutation(orpc.discoverAdmin.versions.createDraft.mutationOptions({
     onSuccess: () => { notify.create("Mode ubah aktif", { description: "Perubahan otomatis tersimpan sebagai draf aman." }); void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
     onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
@@ -256,6 +264,19 @@ export default function AssessmentDetailPage() {
               )}
             </div>
             <div className="md:col-span-3">
+              <div className="mt-3 flex items-center gap-3 border-t border-gray-100 pt-3">
+                <span className="font-manrope text-xs font-semibold text-foreground">Jenis (badge B2C)</span>
+                <select
+                  disabled={!canEdit}
+                  value={(assess as any).family ?? ""}
+                  onChange={(e) => setFamily(e.target.value)}
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 font-manrope text-xs disabled:bg-gray-50"
+                >
+                  <option value="">Bebas (B2B / umum)</option>
+                  <option value="minat">Tes Minat — max 1 LIVE (B2C)</option>
+                  <option value="bakat">Tes Bakat — max 1 LIVE (B2C)</option>
+                </select>
+              </div>
               <div className="border-t border-gray-100 pt-3">
                 <p className="flex items-center gap-1 font-manrope text-xs font-semibold text-foreground">
                   Dimensi ({dims.length}) {!canEdit && <span className="font-normal text-muted-foreground">· hanya baca</span>}
