@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Clock, List, Loader2, Pause, Play, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, List, Loader2, Pause, Play, PlayCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -288,66 +288,37 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
 
         {/* INTRO */}
         {phase === "intro" && (
-          <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-lg shadow-brand-navy/5 sm:p-12">
+          <div className="mx-auto max-w-xl rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-lg shadow-brand-navy/5">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/20 bg-teal-500/5 px-3 py-1 font-manrope text-xs font-semibold text-teal-700">
-              <Sparkles className="h-3.5 w-3.5" /> {codeQ === "DISCOVER" ? "MULAI Discover™ — Tes Minat" : "MULAI Talent™ — Tes Bakat"}
+              <Sparkles className="h-3.5 w-3.5" /> {codeQ === "DISCOVER" ? "Tes Minat · Holland" : "Tes Bakat · Kemampuan"}
             </span>
-            <h1 className="mt-4 font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">{codeQ === "DISCOVER" ? "Kenali Minatmu" : "Kenali Kekuatan Bakatmu"}</h1>
-
-            {sections.map((s) => (
-              <div key={s.id} className="mt-5 rounded-2xl border border-gray-100 bg-gray-50/50 p-5 text-left">
-                <h3 className="flex items-center gap-1.5 font-bold font-bricolage text-sm text-brand-navy">
-                  <List className="h-4 w-4 text-teal-600" /> {s.title}
-                </h3>
-                {s.contentType === "bullet_list" && (
-                  <ul className="mt-2 space-y-1">
-                    {(s.contentJson.items ?? []).map((it, i) => (
-                      <li key={i} className="flex items-start gap-2 font-manrope text-sm text-gray-600">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" /> {it}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {s.contentType === "description" && <p className="mt-2 font-manrope text-sm text-gray-600">{s.contentJson.text}</p>}
-                {s.contentType === "cards" && (
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {(s.contentJson.cards ?? []).map((c, i) => (
-                      <div key={i} className="rounded-xl border border-gray-200 bg-white p-3">
-                        <b className="font-manrope text-xs">{c.title}</b>
-                        <p className="font-manrope text-[11px] text-gray-500">{c.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <h1 className="mt-4 font-bold font-bricolage text-3xl text-brand-navy">{codeQ === "DISCOVER" ? "Kenali Minatmu" : "Kenali Kekuatan Bakatmu"}</h1>
+            <p className="mt-2 font-manrope text-sm text-gray-500">{questions.length} soal{runSections.length > 1 ? ` · ${runSections.length} bagian` : ""} · jawaban tersimpan otomatis</p>
+            {sections.map((sx) => (
+              <div key={sx.id} className="mt-4 rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-left">
+                <p className="font-bold font-bricolage text-sm text-brand-navy">{sx.title}</p>
+                {sx.contentType === "bullet_list" && <ul className="mt-1 space-y-1">{((sx.contentJson ?? {}).items ?? []).map((it: string, ii: number) => <li key={ii} className="flex items-start gap-2 font-manrope text-xs text-gray-600">• {it}</li>)}</ul>}
+                {sx.contentType === "description" && <p className="mt-1 font-manrope text-xs text-gray-600">{(sx.contentJson ?? {}).text}</p>}
               </div>
             ))}
-
             {err && <p className="mt-3 font-manrope text-xs text-red-500">{err}</p>}
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {dims.map((d) => (
-                <span key={d.id} className="rounded-full bg-white/15 px-3 py-1 font-manrope text-[11px] font-semibold text-white">{d.name}</span>
-              ))}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              {dims.map((d) => <span key={d.id} className="rounded-full bg-brand-navy/5 px-3 py-1 font-manrope text-[11px] font-semibold text-brand-navy">{d.name}</span>)}
             </div>
-
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <button onClick={start} disabled={pending} className="inline-flex items-center gap-2 rounded-xl bg-brand-navy px-8 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98] disabled:opacity-60">
-                {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />} {t.start}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button onClick={start} disabled={pending} className="inline-flex items-center gap-2 rounded-xl bg-brand-navy px-8 py-3.5 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:bg-brand-navy-light active:scale-[0.98] disabled:opacity-60">
+                {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <PlayCircle className="h-5 w-5" />} {t.start}
               </button>
               {activeSession && (
-                <button onClick={() => void resume()} className="inline-flex items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-500/5 px-6 py-4 font-bold font-manrope text-sm text-teal-700 transition-all hover:bg-teal-500/10">
+                <button onClick={() => void resume()} className="inline-flex items-center gap-2 rounded-xl border border-teal-500/40 bg-teal-500/5 px-6 py-3.5 font-bold font-manrope text-sm text-teal-700 transition-all hover:bg-teal-500/10">
                   <Play className="h-4 w-4" /> Lanjutkan Tes
                 </button>
               )}
             </div>
-            <p className="mt-3 font-manrope text-[11px] text-gray-400">
-              <Link href="/dashboard/student/assessment" className="text-brand-navy underline underline-offset-2">Ke dashboard</Link>
-              {dims.length > 0 && questions.length > 0 ? ` · ${questions.length} soal · ${dims.length} dimensi` : ""}
-            </p>
           </div>
         )}
 
-        {/* INSTRUCTION PER DIMENSI */}
-        {phase === "instruction" && instDim && (
+{phase === "instruction" && instDim && (
           <div className="rounded-3xl border border-teal-100 bg-teal-50/30 p-8 text-center sm:p-10">
             <span className="rounded-full bg-teal-500/10 px-3 py-1 font-manrope text-xs font-semibold text-teal-700">Bagian {dimsBy.get(instDim)?.name}</span>
             {(() => {
