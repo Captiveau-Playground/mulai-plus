@@ -458,6 +458,22 @@ function TalentAssessmentPage() {
                 <p className="mt-1 font-bold font-bricolage text-3xl text-teal-700">{result.profileCode}</p>
               </div>
             )}
+            {result?.recommendations?.length > 0 && (
+              <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-4 text-left">
+                <p className="font-manrope text-xs font-semibold text-gray-500">Jurusan yang cocok utkmu</p>
+                <div className="mt-2 space-y-1.5">
+                  {(result.recommendations as any[]).slice(0, 5).map((r: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-manrope text-sm font-semibold text-brand-navy">{r.categoryName}</p>
+                        <p className="font-manrope text-[10px] text-gray-400">{r.careers?.slice(0, 3).join(" · ") ?? ""}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-teal-500/10 px-2 py-0.5 font-manrope text-[10px] font-semibold text-teal-700">{r.confidence}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {(result?.xpEarned ?? 0) > 0 && (
               <p className="mt-3 font-manrope text-sm font-semibold text-brand-orange">
                 +{result.xpEarned} XP · streak 🔥 {result.streak} bagian

@@ -5,6 +5,7 @@ import { adminProcedure, publicProcedure } from "../index";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
 import { uploadToR2, deleteFromR2, getPublicUrl, listR2ObjectsDetailed, extractKeyFromUrl } from "@mulai-plus/r2/server";
 import { evaluateTextInput } from "../lib/evaluate-input";
+import { recommendForResult } from "../lib/recommend";
 
 /**
  * Discover™ — Assessment Engine (Fase 0).
@@ -333,6 +334,13 @@ export const discoverRouter = {
       const topN = Number(cfg?.result_dim_count ?? 3);
       const top = rows.slice(0, topN).map((r) => dimByCode.get(r.dimId) ?? r.dimId);
       const profileCode = top.join("-");
+      // Rekomendasi: hybrid Holland (top-2) + ability weights → majors & careers
+      const abilityCodeScores: Record<string, number> = {};
+      for (const [dimId, tt] of scores) {
+        const code = (dimByCode.get(dimId) ?? "").toLowerCase();
+        if (code) abilityCodeScores[code] = tt;
+      }
+      const recos = await recommendForResult({ topCodes: top, abilityScores: abilityCodeScores });
 
       await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
       for (let i = 0; i < rows.length; i++) {
@@ -355,6 +363,7 @@ export const discoverRouter = {
         profileCode,
         topDimensionsJson: top,
         rawScoresJson: Object.fromEntries([...scores.entries()]),
+        recommendationsJson: recos,
       };
       await db.insert(schema.assessmentResults).values(result);
       await db
@@ -362,7 +371,7 @@ export const discoverRouter = {
         .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
         .where(eq(schema.assessmentSessions.id, input.sessionId));
 
-      return { ok: true, profileCode, topDimensions: top, rawScores: result.rawScoresJson, xpEarned, streak: sectionsDone, timedOut, resultId: result.id };
+      return { ok: true, profileCode, topDimensions: top, rawScores: result.rawScoresJson, xpEarned, streak: sectionsDone, timedOut, recommendations: recos, resultId: result.id };
     }),
 
   /** Jeda (pause) → lanjutkan nanti. */

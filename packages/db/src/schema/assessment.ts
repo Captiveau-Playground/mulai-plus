@@ -264,5 +264,6 @@ export const assessmentResults = pgTable("assessment_results", {
   profileCode: varchar("profile_code", { length: 40 }), // misal "S-I-A"
   topDimensionsJson: jsonb("top_dimensions_json"),
   rawScoresJson: jsonb("raw_scores_json"),
+  recommendationsJson: jsonb("recommendations_json"),
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
 });
