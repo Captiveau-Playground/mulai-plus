@@ -194,7 +194,7 @@ export default function AssessmentDetailPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          {live && <a href="/assessment/talent?preview=1" target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 font-manrope text-xs font-semibold text-gray-600 hover:bg-gray-50"><Eye className="h-3.5 w-3.5" /> Lihat sebagai siswa</a>}
+          {live && <a href={`/assessment/talent?preview=1&code=${code}`} target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 font-manrope text-xs font-semibold text-gray-600 hover:bg-gray-50"><Eye className="h-3.5 w-3.5" /> Lihat sebagai siswa</a>}
           <Button disabled={!draft || (gate ? !gate.ok : false)} className={(gate && !gate.ok) || !draft ? "bg-gray-300 hover:bg-gray-300" : "bg-brand-orange hover:bg-brand-orange/90"} onClick={() => draft && setVerify({ vid: draft.id })}>
             <Rocket className="mr-1 h-4 w-4" /> Terbitkan
           </Button>

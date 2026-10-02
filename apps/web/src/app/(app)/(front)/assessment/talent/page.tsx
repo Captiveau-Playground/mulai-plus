@@ -45,6 +45,7 @@ function TalentAssessmentPage() {
   const search = useSearchParams();
   const preview = search?.get("preview") === "1";
   const verIdParam = search?.get("v") ?? null;
+  const codeQ = search?.get("code") ?? "TALENT";
   const [studentId, setStudentId] = useState<string | null>(null);
   const [phase, setPhase] = useState<"load" | "intro" | "instruction" | "run" | "done">("load");
   const [err, setErr] = useState("");
@@ -79,7 +80,7 @@ function TalentAssessmentPage() {
     try {
       const cfg = verIdParam
         ? ((await client.discover.config({ versionId: verIdParam })) as any)
-        : ((await client.discover.config({ code: "TALENT" })) as any);
+        : ((await client.discover.config({ code: codeQ })) as any);
       if (!cfg?.ok) { setErr("Talent belum tersedia."); setPhase("intro"); return; }
       setQuestions((cfg.questions as Q[]).filter((q: any) => q.isActive));
       setDims(cfg.dimensions ?? []);
@@ -105,9 +106,7 @@ function TalentAssessmentPage() {
     if (!uid && !preview) { window.location.href = "/login?callbackUrl=%2Fassessment%2Ftalent"; return; }
     setPending(true);
     try {
-      const r = verIdParam
-        ? ((await client.discover.start({ code: "TALENT", studentId: uid || "preview-" + Math.random().toString(36).slice(2, 9), versionId: verIdParam })) as any)
-        : ((await client.discover.start({ code: "TALENT", studentId: uid || "preview-" + Math.random().toString(36).slice(2, 9) })) as any);
+      const r = (await client.discover.start({ code: codeQ, studentId: uid || "preview-" + Math.random().toString(36).slice(2, 9), versionId: verIdParam ?? undefined })) as any;
       setSessionId(r.sessionId);
       setTimer(r.serverTimer ?? null);
       if (r.serverTimer) setRemaining(deltaSeconds(r.serverTimer));
@@ -281,9 +280,9 @@ function TalentAssessmentPage() {
         {phase === "intro" && (
           <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-lg shadow-brand-navy/5 sm:p-12">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/20 bg-teal-500/5 px-3 py-1 font-manrope text-xs font-semibold text-teal-700">
-              <Sparkles className="h-3.5 w-3.5" /> MULAI Talent™ — Tes Bakat
+              <Sparkles className="h-3.5 w-3.5" /> {codeQ === "DISCOVER" ? "MULAI Discover™ — Tes Minat" : "MULAI Talent™ — Tes Bakat"}
             </span>
-            <h1 className="mt-4 font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">Kenali Kekuatan Bakatmu</h1>
+            <h1 className="mt-4 font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">{codeQ === "DISCOVER" ? "Kenali Minatmu" : "Kenali Kekuatan Bakatmu"}</h1>
 
             {sections.map((s) => (
               <div key={s.id} className="mt-5 rounded-2xl border border-gray-100 bg-gray-50/50 p-5 text-left">
