@@ -21,7 +21,7 @@ export default function AssessmentDetailPage() {
   const code = (useParams().code as string) ?? "";
   const queryClient = useQueryClient();
   const [rules, setRules] = useState<Record<string, any>>({});
-  const [rulesOpen, setRulesOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [branchOpen, setBranchOpen] = useState(false);
   const [verify, setVerify] = useState<{ vid: string } | null>(null);
@@ -169,7 +169,7 @@ export default function AssessmentDetailPage() {
   if (!assess) return <div className="font-manrope text-sm text-muted-foreground">Tes tidak ditemukan.</div>;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -237,8 +237,9 @@ export default function AssessmentDetailPage() {
         )}
       </div>
 
+      <div className="grid items-start gap-6 lg:grid-cols-5">
       {/* Aturan tes */}
-      <div id="aturan" className={`rounded-2xl border bg-white transition-shadow ${hlDim ? "ring-2 ring-brand-orange/60 shadow-lg" : "border-gray-200"}`}>
+      <div id="aturan" className={`rounded-2xl border bg-white transition-shadow lg:order-2 lg:col-span-2 lg:sticky lg:top-20 lg:self-start ${hlDim ? "ring-2 ring-brand-orange/60 shadow-lg" : "border-gray-200"}`}>
         <button onClick={() => setRulesOpen(!rulesOpen)} className="flex w-full items-center justify-between px-5 py-3.5">
           <span className="font-bold font-bricolage text-sm text-brand-navy">Aturan tes</span>
           {rulesOpen ? <ChevronDown className="h-4 w-4 rotate-180 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
@@ -305,7 +306,7 @@ export default function AssessmentDetailPage() {
       </div>
 
       {/* Daftar soal */}
-      <div className="rounded-2xl border border-gray-200 bg-white">
+      <div className="lg:order-1 lg:col-span-3 rounded-2xl border border-gray-200 bg-white lg:self-start">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
           <span className="font-bold font-bricolage text-sm text-brand-navy">
             Daftar soal <span className="ml-1 font-manrope text-[11px] font-normal text-muted-foreground">{questions.length} soal {canEdit ? "" : "· hanya baca"}</span>
@@ -368,6 +369,7 @@ export default function AssessmentDetailPage() {
             );
           })}
         </div>
+      </div>
       </div>
 
       {/* Status rilis */}
