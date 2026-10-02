@@ -102,6 +102,7 @@ export default function AssessmentDetailPage() {
   }));
 
   const questions = (content?.questions ?? []) as Qn[];
+  const busyAny = mDraft.isPending || mRules.isPending || mSaveQ.isPending || mDelQ.isPending || mDupQ.isPending || mReorder.isPending || mDimsAdd.isPending || mDimsDel.isPending || mPub.isPending;
   const dims = (content?.dimensions ?? []) as Dim[];
 
   const startEdit = () => { if (draft) setSelectedId(draft.id); else void mDraft.mutateAsync({ code }); };
@@ -304,7 +305,18 @@ export default function AssessmentDetailPage() {
         )
       )}
 
+      <WorkingOverlay show={busyAny} label={mSaveQ.isPending ? "Menyimpan soal…" : mPub.isPending ? "Menerbitkan…" : mDimsAdd.isPending ? "Menambah dimensi…" : mReorder.isPending ? "Menyimpan urutan…" : "Menyimpan…"} />
+
       {verify && <ReleaseVerifyModal versionId={verify.vid} publish={mPub} onClose={() => setVerify(null)} />}
+    </div>
+  );
+}
+
+function WorkingOverlay({ show, label }: { show: boolean; label: string }) {
+  if (!show) return null;
+  return (
+    <div className="fixed right-5 bottom-5 z-[95] flex items-center gap-2 rounded-full bg-brand-navy px-4 py-2.5 font-manrope text-xs font-semibold text-white shadow-2xl">
+      <Loader2 className="h-4 w-4 animate-spin" /> {label}
     </div>
   );
 }

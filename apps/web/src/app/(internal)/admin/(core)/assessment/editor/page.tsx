@@ -117,6 +117,8 @@ export default function AssessmentEditorIndex() {
         />
       )}
 
+      <WorkingOverlay show={busy} label={mCreate.isPending ? "Membuat tes…" : mRemove.isPending ? "Menghapus tes…" : "Menyimpan…"} />
+
       {del && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
@@ -133,6 +135,15 @@ export default function AssessmentEditorIndex() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function WorkingOverlay({ show, label }: { show: boolean; label: string }) {
+  if (!show) return null;
+  return (
+    <div className="fixed right-5 bottom-5 z-[95] flex items-center gap-2 rounded-full bg-brand-navy px-4 py-2.5 font-manrope text-xs font-semibold text-white shadow-2xl">
+      <Loader2 className="h-4 w-4 animate-spin" /> {label}
     </div>
   );
 }
