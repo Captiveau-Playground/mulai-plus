@@ -9,8 +9,9 @@ import { db, eq, schema } from "@mulai-plus/db";
  */
 export async function recommendForResult(input: {
   topCodes: string[];
-  abilityScores: Record<string, number>; // kunci lowercase (numerical, …)
+  abilityScores: Record<string, number>; // kunci lowercase (numerical, …), sudah dinormalisasi 0–100
   limit?: number;
+  diffFactor?: number; // 0..1 — gap skor teratas vs kedua (makin rapat makin rendah)
 }) {
   const patterns = await db.query.tmbMajorPatterns.findMany({ where: eq(schema.tmbMajorPatterns.isActive, true) });
   const careers = await db.query.tmbCareerMappings.findMany();
@@ -36,7 +37,9 @@ export async function recommendForResult(input: {
         if (s !== undefined && Number.isFinite(s)) { ab += (w ?? 0) * s; abMax += (w ?? 0) * 100; }
       }
       const abPct = abMax > 0 ? Math.min(100, Math.max(0, (ab / abMax) * 100)) : 0;
-      const confidence = Math.round((hol / 2) * 60 + abPct * 0.4);
+      const base = (hol / 2) * 60 + abPct * 0.4;
+      const diffFactor = input.diffFactor ?? 0.5;
+      const confidence = Math.round(base * (0.7 + 0.3 * diffFactor));
       return { categoryName: p.categoryName, categoryKey: p.categoryKey, confidence, hol, abPct: Math.round(abPct) };
     })
     .sort((a, b) => b.confidence - a.confidence)

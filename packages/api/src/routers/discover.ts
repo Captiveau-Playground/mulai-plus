@@ -334,13 +334,19 @@ export const discoverRouter = {
       const topN = Number(cfg?.result_dim_count ?? 3);
       const top = rows.slice(0, topN).map((r) => dimByCode.get(r.dimId) ?? r.dimId);
       const profileCode = top.join("-");
-      // Rekomendasi: hybrid Holland (top-2) + ability weights → majors & careers
+      // Rekomendasi: ability DINORMALISASI per dim (0–100) agar jumlah soal tak bias,
+      // + confidence digeser oleh gap skor teratas (differentiation).
       const abilityCodeScores: Record<string, number> = {};
       for (const [dimId, tt] of scores) {
+        const cnt = counts.get(dimId) ?? 0;
+        const pct = cnt > 0 ? Math.min(100, (tt / cnt) * 100) : 0;
         const code = (dimByCode.get(dimId) ?? "").toLowerCase();
-        if (code) abilityCodeScores[code] = tt;
+        if (code) abilityCodeScores[code] = Math.round(pct);
       }
-      const recos = await recommendForResult({ topCodes: top, abilityScores: abilityCodeScores });
+      const diffFactor = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
+        ? Math.max(0, Math.min(1, ((rows[0]!.total - rows[1]!.total) / rows[0]!.total)))
+        : 1;
+      const recos = await recommendForResult({ topCodes: top, abilityScores: abilityCodeScores, diffFactor });
 
       await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
       for (let i = 0; i < rows.length; i++) {
