@@ -43,8 +43,11 @@ function EngineWrapper({ code }: { code: string }) {
   const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections: number } | null>(null);
   const [errg, setErrg] = useState("");
   const { data: authSession } = authClient.useSession();
+  const startedRef = useRef(false);
   useEffect(() => {
     if (!authSession?.user?.id) return;
+    if (startedRef.current) return; // StrictMode/dev double-mount → jangan start 2x
+    startedRef.current = true;
     (async () => {
       try {
         const sid = authSession!.user!.id;
@@ -249,7 +252,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     if (revealed || !question) return;
     setSelected(option);
     setRevealed(true);
-    void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: option } as any).catch(() => {});
+    void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: option } as any)
+      .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submit ditolak", r); })
+      .catch((e: any) => console.error("[engine] submit gagal:", e?.message ?? e));
     setTimeout(() => engineNext(eq + 1), 360);
   };
 

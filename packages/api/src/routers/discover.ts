@@ -187,6 +187,15 @@ export const discoverRouter = {
           expectedEndISO: new Date(Date.now() + totalSeconds * 1000).toISOString(),
         };
       }
+      // RESUME: pakai lagi sesi in_progress terbaru user utk versi ini (refresh/remount tidak bikin sesi dobel;
+      // jawaban yg sudah diketik tetap tersimpan di sesi yg sama)
+      const existingSess = await db.query.assessmentSessions.findFirst({
+        where: and(eq(schema.assessmentSessions.studentId, input.studentId), eq(schema.assessmentSessions.versionId, v.id), eq(schema.assessmentSessions.status, "in_progress")),
+        orderBy: (t: any) => [desc(t.startedAt)],
+      });
+      if (existingSess) {
+        return { ok: true, sessionId: existingSess.id, versionId: v.id, serverTimer: ((existingSess as any).configJson as any)?.timer ?? null, resume: true } as const;
+      }
       const session = {
         id: uid(),
         studentId: input.studentId,
@@ -564,6 +573,21 @@ export const discoverRouter = {
         if (hReal && aReal) continue; // attempt lengkap disimpan
         await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, r.id));
         await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.id, r.id));
+        purged++;
+      }
+      // sesi engine yang terkatung-katung (in_progress / selesai tanpa 0 jawaban) dibuang juga
+      const stray = await db.query.assessmentSessions.findMany({ where: eq(schema.assessmentSessions.studentId, input.studentId) });
+      const ghost = [] as string[];
+      for (const ss of stray) {
+        const an = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, ss.id), columns: { id: true } });
+        if (an.length > 0 && ss.status === "in_progress") continue; // ada progres → jangan dihapus
+        if (an.length === 0) ghost.push(ss.id);
+      }
+      for (const gid of ghost) {
+        await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, gid));
+        await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, gid));
+        await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, gid));
+        await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, gid));
         purged++;
       }
       return { ok: true, purged } as const;
