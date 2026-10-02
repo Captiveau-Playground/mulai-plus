@@ -376,6 +376,18 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     // biome-ignore lint/correctness/useExhaustiveDependencies: deps dibatasi sengaja
   }, [done, testCode, startMutation.mutate, startMutation.isPending, attemptId, isDemo, intro, isEngine]);
 
+  // ⌨️ Enter = lanjut pada overlay pembuka bagian & perayaan antar bagian
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      if (intro || !isEngine) return;
+      if (secStart) { e.preventDefault(); setSecStart(false); return; }
+      if (secOverlay) { e.preventDefault(); setSecOverlay(null); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [intro, isEngine, secStart, secOverlay]);
+
   // pakai data dari query jika state kosong
   useEffect(() => {
     if (questionQuery.data && !question) {
