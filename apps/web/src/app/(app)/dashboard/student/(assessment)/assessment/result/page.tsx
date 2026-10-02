@@ -263,7 +263,7 @@ export default function TmbResultPage() {
             })}
           </div>
 
-          {Object.entries(ABILITY_INFO).some(([key]) => (abilityLevels[key] ?? "medium") === "low") && (
+          {!noAbility && Object.entries(ABILITY_INFO).some(([key]) => (abilityLevels[key] ?? "medium") === "low") && (
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <p className="font-bold font-bricolage text-gray-900 text-sm">
@@ -282,6 +282,7 @@ export default function TmbResultPage() {
                 <RotateCcw className="h-4 w-4" /> Ulangi Tes Bakat
               </Link>
             </div>
+          )}
           )}
         </motion.div>
       </div>
