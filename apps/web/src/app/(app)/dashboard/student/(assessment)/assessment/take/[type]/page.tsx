@@ -12,7 +12,7 @@ import { EngineRun } from "@/components/assessment/engine-run";
 import { useEffect, useRef, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 type Question = {
   id: string;
@@ -34,7 +34,31 @@ function fireConfetti() {
 
 export default function TmbTestPage() {
   const t = String(useParams().type ?? "");
-  if (t === "DISCOVER" || t === "TALENT") return <EngineTake type={t} />;
+  if (t === "DISCOVER" || t === "TALENT") return <EngineWrapper code={t} />;
+  return <LegacyWizard />;
+}
+
+function EngineWrapper({ code }: { code: string }) {
+  const [ready, setReady] = useState<{ sessionId: string; questions: any[] } | null>(null);
+  const [errg, setErrg] = useState("");
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = (await client.discover.config({ code } as any)) as any;
+        const st = (await client.discover.start({ code, studentId: "preview-" + Math.random().toString(36).slice(2, 9) } as any)) as any;
+        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive) });
+      } catch (e: any) { setErrg(e?.message ?? "Gagal memuat tes"); }
+    })();
+  }, [code]);
+  if (errg) return <p className="font-manrope text-sm text-red-500">{errg}</p>;
+  if (!ready) return <div className="flex min-h-[40vh] items-center justify-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
+  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions }} />;
+}
+
+function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[] } }) {
+  const isEngine = !!engine;
+  const engineQs = engine?.questions ?? [];
+  const [eq, setEq] = useState(0);
   const params = useParams();
   const router = useRouter();
   const testCode = (params.type as string) === "ability" ? "ability" : "interest";
@@ -147,6 +171,30 @@ export default function TmbTestPage() {
     }
   }, []);
 
+  const engineLoad = (i: number) => {
+    const q = engineQs[i];
+    if (!q) { void engineFinish(); return; }
+    setQuestion({ id: q.id, text: q.questionText, dimension: q.dimensionId, optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label } as unknown as Question);
+    setProgress(i + 1);
+    setTotal(engineQs.length);
+    setEq(i);
+  };
+  const engineFinish = async () => {
+    try { const r = (await client.discover.finish({ sessionId: engine!.sessionId } as any)) as any; setXpEarned(r?.xpEarned ?? 0); } catch { /* ok */ }
+    setDone(true);
+    fireConfetti();
+  };
+  const engineSelect = (option: string) => {
+    if (revealed || !question) return;
+    setSelected(option);
+    setRevealed(true);
+    void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: option } as any).catch(() => {});
+    setTimeout(() => {
+      if (eq + 1 >= engineQs.length) { void engineFinish(); }
+      else { engineLoad(eq + 1); setSelected(null); setRevealed(false); }
+    }, 360);
+  };
+
   const startMutation = useMutation({
     ...orpc.tmb.assessment.start.mutationOptions(),
     onSuccess: async (data) => {
@@ -159,7 +207,7 @@ export default function TmbTestPage() {
 
   const questionQuery = useQuery({
     ...orpc.tmb.assessment.question.queryOptions({ input: { attemptId: attemptId ?? "" } }),
-    enabled: !!attemptId && !question,
+    enabled: !isEngine && !!attemptId && !question,
   });
 
   const answerMutation = useMutation({
@@ -237,6 +285,7 @@ export default function TmbTestPage() {
   };
 
   const loadQuestion = async (id: string) => {
+    if (isEngine) return;
     try {
       const q = await queryClient.fetchQuery({
         ...orpc.tmb.assessment.question.queryOptions({ input: { attemptId: id } }),
@@ -257,6 +306,7 @@ export default function TmbTestPage() {
 
   // auto-start
   useEffect(() => {
+    if (isEngine) { engineLoad(0); return; }
     if (isDemo) return; // mode simulasi tidak perlu backend
     if (!attemptId && !startMutation.isPending && !done) {
       startMutation.mutate({ testCode });
@@ -303,6 +353,7 @@ export default function TmbTestPage() {
       }
       return;
     }
+    if (isEngine) { engineSelect(option); return; }
     if (revealed || answerMutation.isPending || !question) return;
     setSelected(option);
 
@@ -315,6 +366,7 @@ export default function TmbTestPage() {
   // interest: jawab → highlight → tampilkan tombol lanjut
 
   const handleConfirmInterest = () => {
+    if (isEngine) { if (selected) engineSelect(selected); return; }
     if (isDemo) {
       if (!selected) return;
       if (demoIdx + 1 >= DEMO_QUESTIONS.length) {
@@ -768,18 +820,4 @@ export default function TmbTestPage() {
   );
 }
 
-function EngineTake({ type }: { type: string }) {
-  return (
-    <div className="space-y-4 pt-2">
-      <div className="flex items-center gap-2">
-        <Link href="/dashboard/student/assessment" className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 font-manrope text-xs font-semibold text-gray-600 hover:bg-gray-50">
-          ← Pilih Test
-        </Link>
-        <span className="font-manrope text-xs text-muted-foreground">Tes {type === "DISCOVER" ? "Minat" : "Bakat"} — jawaban tersimpan otomatis</span>
-      </div>
-      <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>}>
-        <EngineRun code={type} />
-      </Suspense>
-    </div>
-  );
-}
+
