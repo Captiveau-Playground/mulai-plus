@@ -659,6 +659,49 @@ export const discoverAdminRouter = {
       .input(z.object({ versionId: z.string().min(1) }))
       .handler(async ({ input }) => validatePublish(input.versionId)),
 
+    /** Tambah dimensi ke versi (draf) + sesuaikan total_dim di config. */
+    dimsAdd: adminProcedure
+      .input(z.object({ versionId: z.string().min(1), code: z.string().min(1).max(20), name: z.string().min(1).max(80) }))
+      .handler(async ({ input }) => {
+        const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, input.versionId) });
+        const maxOrder = dims.reduce((m, d) => Math.max(m, d.displayOrder ?? 0), 0);
+        const dup = dims.find((d) => d.code.toLowerCase() === input.code.toLowerCase());
+        if (dup) return { ok: false, error: "kode_dimensi_sudah_ada" } as const;
+        await db.insert(schema.assessmentDimensions).values({
+          id: uid(), versionId: input.versionId, code: input.code.toUpperCase(), name: input.name,
+          displayOrder: maxOrder + 1, isActive: true,
+        });
+        const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) });
+        const cfg: any = { ...(v?.configJson ?? {}) };
+        cfg.total_dim = dims.length + 1;
+        if (Number(cfg.result_dim_count ?? 0) > cfg.total_dim) cfg.result_dim_count = cfg.total_dim;
+        if (v) await db.update(schema.assessmentVersions).set({ configJson: cfg }).where(eq(schema.assessmentVersions.id, input.versionId));
+        return { ok: true };
+      }),
+
+    /** Hapus dimensi + seluruh soalnya dari versi (draf). */
+    dimsDelete: adminProcedure
+      .input(z.object({ dimensionId: z.string().min(1) }))
+      .handler(async ({ input }) => {
+        const dim = await db.query.assessmentDimensions.findFirst({ where: eq(schema.assessmentDimensions.id, input.dimensionId) });
+        if (!dim) return { ok: false, error: "dimension_not_found" } as const;
+        const qs = await db.query.questions.findMany({ where: eq(schema.questions.dimensionId, input.dimensionId) });
+        for (const q of qs) {
+          await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, q.id));
+          await db.delete(schema.textInputConfigs).where(eq(schema.textInputConfigs.questionId, q.id));
+        }
+        await db.delete(schema.questions).where(eq(schema.questions.dimensionId, input.dimensionId));
+        await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, input.dimensionId));
+        await db.delete(schema.assessmentDimensions).where(eq(schema.assessmentDimensions.id, input.dimensionId));
+        const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, dim.versionId) });
+        const rem = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, dim.versionId) });
+        const cfg: any = { ...(v?.configJson ?? {}) };
+        cfg.total_dim = rem.length;
+        if (Number(cfg.result_dim_count ?? 0) > cfg.total_dim) cfg.result_dim_count = Math.max(1, cfg.total_dim);
+        if (v) await db.update(schema.assessmentVersions).set({ configJson: cfg }).where(eq(schema.assessmentVersions.id, v.id));
+        return { ok: true };
+      }),
+
     /** Update config versi (opsional: total_dim, result_dim_count, min_q, scoring, timer, dll). */
     configUpdate: adminProcedure
       .input(

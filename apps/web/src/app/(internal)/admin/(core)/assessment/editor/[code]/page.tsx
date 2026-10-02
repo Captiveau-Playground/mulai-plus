@@ -27,6 +27,8 @@ export default function AssessmentDetailPage() {
   const [verify, setVerify] = useState<{ vid: string } | null>(null);
   const [modal, setModal] = useState<{ open: boolean; q?: any } | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dimCode, setDimCode] = useState("");
+  const [dimName, setDimName] = useState("");
 
   const summariesKey = orpc.discoverAdmin.summaries.key();
   const { data: sums } = useQuery(orpc.discoverAdmin.summaries.queryOptions());
@@ -84,6 +86,14 @@ export default function AssessmentDetailPage() {
   }));
   const mReorder = useMutation(orpc.discoverAdmin.versions.contentReorder.mutationOptions({
     onSuccess: () => { void invalidate(); },
+    onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
+  }));
+  const mDimsAdd = useMutation(orpc.discoverAdmin.versions.dimsAdd.mutationOptions({
+    onSuccess: () => { notify.create("Dimensi ditambahkan ✅"); setDimCode(""); setDimName(""); void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
+    onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
+  }));
+  const mDimsDel = useMutation(orpc.discoverAdmin.versions.dimsDelete.mutationOptions({
+    onSuccess: () => { void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
     onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
   }));
   const mPub = useMutation(orpc.discoverAdmin.versions.publish.mutationOptions({
@@ -193,6 +203,28 @@ export default function AssessmentDetailPage() {
               ) : (
                 <Button size="sm" variant="outline" onClick={startEdit} disabled={mDraft.isPending}>{mDraft.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FilePlus2 className="mr-1 h-3.5 w-3.5" />} Ubah aturan</Button>
               )}
+            </div>
+            <div className="md:col-span-3">
+              <div className="border-t border-gray-100 pt-3">
+                <p className="font-manrope text-xs font-semibold text-foreground">Dimensi ({dims.length}) {!canEdit && <span className="font-normal text-muted-foreground">· hanya baca</span>}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {dims.map((d) => (
+                    <span key={d.id} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 font-manrope text-[11px] font-semibold text-gray-700">
+                      {d.name} ({d.code})
+                      {canEdit && <button onClick={() => void mDimsDel.mutateAsync({ dimensionId: d.id })} className="text-red-300 hover:text-red-500" title="Hapus dimensi"><Trash2 className="h-3 w-3" /></button>}
+                    </span>
+                  ))}
+                </div>
+                {canEdit && (
+                  <div className="mt-2 flex gap-2">
+                    <Input className="w-24" placeholder="Kode" value={dimCode} onChange={(e) => setDimCode(e.target.value.toUpperCase().slice(0, 8))} />
+                    <Input className="flex-1" placeholder="Nama dimensi (cth: Realistic)" value={dimName} onChange={(e) => setDimName(e.target.value)} />
+                    <Button size="sm" className="shrink-0 bg-brand-navy hover:bg-brand-navy-light" disabled={!dimCode.trim() || !dimName.trim() || mDimsAdd.isPending} onClick={() => void mDimsAdd.mutateAsync({ versionId, code: dimCode.trim(), name: dimName.trim() })}>
+                      {mDimsAdd.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1 h-3.5 w-3.5" />} Tambah
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -339,6 +371,7 @@ function Rule({ label, type, opts, value, onChange, disabled }: { label: string;
 }
 
 function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; versionId: string; content: Content; onDone: (payload: any) => void; onClose: () => void }) {
+  const dims0 = content.dimensions ?? [];
   const [form, setForm] = useState<any>({
     id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", questionText: q?.questionText ?? "",
     questionType: q?.questionType ?? "multiple_choice", weight: q?.weight ?? 1,
@@ -349,9 +382,14 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
   const patch = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
   const patchOpt = (i: number, k: string, v: any) => setForm((f: any) => { const o = [...f.options]; o[i] = { ...o[i], [k]: v }; return { ...f, options: o }; });
 
+  const issue =
+    !form.questionText.trim() ? "Teks soal wajib diisi"
+    : dims0.length === 0 ? "Belum ada dimensi — tambahkan di 'Aturan tes'."
+    : !form.dimensionId ? "Pilih dimensi untuk soal ini."
+    : form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim()).length < 2 ? "Pilih ganda butuh minimal 2 opsi berlabel."
+    : "";
   const save = () => {
-    if (!form.questionText.trim()) { notify.error("Teks soal wajib diisi"); return; }
-    if (form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim()).length < 2) { notify.error("Butuh minimal 2 pilihan"); return; }
+    if (issue) { notify.error(issue); return; }
     setBusy(true);
     onDone({
       id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
@@ -375,8 +413,9 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block font-manrope text-xs font-semibold text-foreground">Dimensi
-              <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.dimensionId} onChange={(e) => patch("dimensionId", e.target.value)}>
-                {content.dimensions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              <select className={"mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm " + (dims0.length === 0 ? "bg-gray-50 text-gray-400" : "")} value={form.dimensionId} onChange={(e) => patch("dimensionId", e.target.value)}>
+                {dims0.length === 0 && <option value="">— belum ada dimensi —</option>}
+                {dims0.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </label>
             <label className="block font-manrope text-xs font-semibold text-foreground">Jenis jawaban
@@ -431,7 +470,8 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
-        <Button className="bg-brand-navy hover:bg-brand-navy-light" onClick={save} disabled={busy}>
+        {issue && <p className="mr-auto self-center font-manrope text-[11px] font-medium text-red-600">{issue}</p>}
+        <Button className="bg-brand-navy hover:bg-brand-navy-light" onClick={save} disabled={busy || !!issue}>
           {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-1 h-4 w-4" />} Simpan soal
         </Button>
       </div>
