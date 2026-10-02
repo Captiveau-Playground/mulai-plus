@@ -10,7 +10,7 @@ import { ProgressCharts } from "@/components/student/progress-charts";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { orpc } from "@/utils/orpc";
+import { orpc, client } from "@/utils/orpc";
 
 const TEST_META: Record<string, { emoji: string; color: string; desc: string; xp: string; href: string }> = {
   interest: {
@@ -34,6 +34,11 @@ export default function AssessmentHomePage() {
   const gate = useProfileGate();
   const { data, isLoading } = useQuery({
     ...orpc.tmb.assessment.list.queryOptions({ input: {} }),
+  });
+  const { data: liveTests } = useQuery({
+    queryKey: ["assess-live-tests"],
+    queryFn: () => (client as any).discover.liveTests(),
+    staleTime: 30_000,
   });
 
   if (isLoading) {
@@ -199,78 +204,42 @@ export default function AssessmentHomePage() {
       <div>
         <h2 className="mb-3 font-bold font-bricolage text-base text-gray-800 md:text-lg">Pilih Test</h2>
         <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-          {tests.map((test, i) => {
-            const meta = TEST_META[test.code] ?? {
-              emoji: "📝",
-              color: "bg-gray-500",
-              desc: "",
-              xp: "",
-              href: "/dashboard/student/assessment",
-            };
-            const done = status[test.code]?.completed;
-            const inProgress = status[test.code]?.inProgress;
-
+          {((liveTests?.items ?? []) as any[]).map((test: any, i: number) => {
+            const meta =
+              test.family === "minat"
+                ? { emoji: "🧠", color: "from-violet-500 to-purple-600", desc: "Pilih aktivitas yang paling menggambarkanmu — cari tahu tipe minatmu (Holland RIASEC)", xp: `+${test.xp} XP`, href: `/assessment/talent?code=${test.code}` }
+                : { emoji: "💡", color: "from-mentor-teal to-teal-700", desc: "Ukur kemampuan dasar: numerik, verbal, logika, spasial & ketelitian", xp: `+${test.xp} XP`, href: `/assessment/talent?code=${test.code}` };
             return (
               <motion.div
-                key={test.id}
+                key={test.code}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 * i }}
                 className="flex flex-col rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
               >
                 <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-md",
-                      meta.color,
-                    )}
-                  >
+                  <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-md", meta.color)}>
                     {meta.emoji}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="truncate font-bold font-bricolage text-gray-900">{test.name}</h3>
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold font-manrope text-[10px] text-amber-600">
-                        {meta.xp}
-                      </span>
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold font-manrope text-[10px] text-amber-600">{meta.xp}</span>
                     </div>
                     <p className="mt-0.5 font-manrope text-gray-500 text-xs leading-relaxed">{meta.desc}</p>
-                    <p className="mt-1 font-manrope text-[10px] text-gray-400">{test.totalQuestions} soal</p>
+                    <p className="mt-1 font-manrope text-[10px] text-gray-400">{test.questions} soal · {test.sections} bagian</p>
                   </div>
                 </div>
-
                 <div className="mt-4 flex-1" />
-                <div className="mt-3">
-                  {done ? (
-                    <div className="flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3">
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      <span className="flex-1 font-manrope font-semibold text-green-700 text-sm">Selesai! 🎉</span>
-                      <Link
-                        href={meta.href as any}
-                        className="flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 font-bold font-manrope text-gray-600 text-xs shadow-sm"
-                      >
-                        <RotateCcw className="h-3 w-3" /> Ulangi
-                      </Link>
-                    </div>
-                  ) : inProgress ? (
-                    <Link
-                      href={meta.href as any}
-                      className="flex items-center justify-center gap-2 rounded-2xl bg-brand-orange px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-105 active:scale-[0.98]"
-                    >
-                      <PlayCircle className="h-5 w-5" /> Lanjutkan Test
-                    </Link>
-                  ) : (
-                    <Link
-                      href={meta.href as any}
-                      className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]"
-                    >
-                      <PlayCircle className="h-5 w-5" /> Mulai Test
-                    </Link>
-                  )}
-                </div>
+                <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
+                  <PlayCircle className="h-5 w-5" /> Mulai Test
+                </Link>
               </motion.div>
             );
           })}
+          {((liveTests?.items ?? []) as any[]).length === 0 && (
+            <p className="rounded-2xl border border-dashed border-gray-200 p-6 text-center font-manrope text-sm text-gray-400">Belum ada tes B2C yang dirilis — atur lewat Kelola Tes → Terbitkan.</p>
+          )}
         </div>
 
         <p className="mt-2 text-center">

@@ -79,6 +79,25 @@ async function questionsOf(versionId: string): Promise<QuestionRow[]> {
 
 export const discoverRouter = {
   /** Konten asesmen versi LIVE (config + dims + soals). */
+  /** Tes B2C yang sedang LIVE (famil, minat|bakat) utk halaman 'Pilih Test' v2. */
+  liveTests: publicProcedure.handler(async () => {
+    const fam = ["minat", "bakat"];
+    const asses = await db.query.assessments.findMany({ where: inArray(schema.assessments.family, fam), orderBy: asc(schema.assessments.code) });
+    const items: { code: string; name: string; family: string; questions: number; sections: number; xp: number }[] = [];
+    for (const a of asses) {
+      const live = await db.query.assessmentVersions.findFirst({
+        where: and(eq(schema.assessmentVersions.assessmentId, a.id), eq(schema.assessmentVersions.status, "live")),
+      });
+      if (!live) continue;
+      const qs = await db.query.questions.findMany({ where: eq(schema.questions.versionId, live.id), orderBy: asc(schema.questions.displayOrder) });
+      const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, live.id) });
+      const secs = computeRunSections((live.configJson ?? {}) as any, qs as any, dims as any);
+      const n = qs.filter((q) => q.isActive).length;
+      items.push({ code: a.code, name: a.name, family: a.family ?? "bakat", questions: n, sections: secs.length, xp: secs.length * 10 + n });
+    }
+    return { items };
+  }),
+
   config: publicProcedure
     .input(z.object({ code: z.string().optional().default("DISCOVER"), versionId: z.string().optional() }))
     .handler(async ({ input }) => {
