@@ -66,6 +66,12 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [eq, setEq] = useState(0);
   const [intro, setIntro] = useState(isEngine);
   const introStarted = useRef(false);
+  const otherDoneQ = useQuery({
+    queryKey: ["engine-other-done", engine?.code, engine?.studentId],
+    enabled: isEngine && !!engine?.studentId,
+    queryFn: () => (client as any).discover.resultsFor({ code: engine!.otherCode, studentId: engine!.studentId }),
+  });
+  const otherDone = isEngine ? (otherDoneQ.data as any)?.present === true : false;
   const params = useParams();
   const router = useRouter();
   const testCode = isEngine
@@ -515,7 +521,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
           {isEngine ? (
             (() => {
-              const otherDone = typeof window !== "undefined" && !!localStorage.getItem("v2-done:" + engine!.otherCode);
               return otherDone ? (
                 <Link href={"/dashboard/student/assessment/result" as any} className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]">
                   <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
