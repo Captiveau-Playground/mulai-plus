@@ -186,15 +186,35 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setDone(true);
     fireConfetti();
   };
+  const [secDone, setSecDone] = useState(0);
+  const [secStreak, setSecStreak] = useState(0);
+  const [secOverlay, setSecOverlay] = useState<{ nextEq: number; doneName: string; nextName: string } | null>(null);
+
+  const engineNext = (i: number) => {
+    const cur = engineQs[i - 1];
+    const nxt = engineQs[i];
+    const dimName = (id: string) => engine?.dims?.find((d: any) => d.id === id)?.name ?? "Bagian berikutnya";
+    if (nxt && cur && cur.dimensionId !== nxt.dimensionId) {
+      setSecDone((c) => c + 1);
+      setSecStreak((c) => c + 1);
+      setXpFlash(10);
+      try { confetti({ particleCount: 60, spread: 70, origin: { y: 0.4 } }); } catch { /* ignore */ }
+      setSecOverlay({ nextEq: i, doneName: dimName(cur.dimensionId), nextName: dimName(nxt.dimensionId) });
+    } else if (i >= engineQs.length) {
+      void engineFinish();
+    } else {
+      engineLoad(i);
+      setSelected(null);
+      setRevealed(false);
+    }
+  };
+
   const engineSelect = (option: string) => {
     if (revealed || !question) return;
     setSelected(option);
     setRevealed(true);
     void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: option } as any).catch(() => {});
-    setTimeout(() => {
-      if (eq + 1 >= engineQs.length) { void engineFinish(); }
-      else { engineLoad(eq + 1); setSelected(null); setRevealed(false); }
-    }, 360);
+    setTimeout(() => engineNext(eq + 1), 360);
   };
 
   const startMutation = useMutation({
@@ -501,6 +521,34 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 </motion.div>
     );
   }
+  if (isEngine && secOverlay) {
+    return (
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
+          <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
+            <Image src="/maskot/masko-thumb-up.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
+          </span>
+          <p className="mt-3 font-manrope text-xs font-bold tracking-wide text-teal-600 uppercase">Bagian selesai</p>
+          <h2 className="mt-1 font-bold font-bricolage text-2xl text-gray-900">{secOverlay.doneName} — selesai! 🎉</h2>
+          <p className="mt-2 font-manrope text-sm text-gray-500">
+            <span className="font-bold text-brand-orange">+10 XP</span> · streak 🔥 {secStreak} bagian beruntun
+          </p>
+          <div className="mt-5 space-y-2">
+            <button
+              onClick={() => { setSecOverlay(null); setSelected(null); setRevealed(false); engineLoad(secOverlay.nextEq); }}
+              className="w-full rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110"
+            >
+              Lanjut ke {secOverlay.nextName} →
+            </button>
+            <button onClick={() => setSecOverlay(null)} className="w-full rounded-2xl border border-gray-200 px-4 py-3 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50">
+              Istirahat dulu (simpan)
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
 
   // Mode simulasi: pertanyaan lokal (tanpa backend)
   const liveQuestion = isDemo ? (DEMO_QUESTIONS[demoIdx] as unknown as Question) : question;
