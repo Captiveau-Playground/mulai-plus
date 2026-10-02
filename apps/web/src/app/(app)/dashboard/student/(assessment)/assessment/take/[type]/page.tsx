@@ -381,7 +381,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     const h = (e: KeyboardEvent) => {
       if (e.key !== "Enter") return;
       if (intro || !isEngine) return;
-      if (secStart) { e.preventDefault(); setSecStart(false); return; }
+      if (secStart) { e.preventDefault(); setSecStart(null); return; }
       if (secOverlay) { e.preventDefault(); setSecOverlay(null); }
     };
     window.addEventListener("keydown", h);
