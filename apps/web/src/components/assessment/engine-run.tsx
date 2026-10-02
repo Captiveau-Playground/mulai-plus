@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { client } from "@/lib/client";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import confetti from "canvas-confetti";
 import { Latex } from "@/components/assessment/latex";
 
 interface Q {
@@ -67,6 +68,8 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
   const [cp, setCp] = useState<{ next: number; done: number } | null>(null);
   const [lang, setLang] = useState<"id" | "en">("id");
   const t = useMemo(() => dict(lang), [lang]);
+  const [sectionMode, setSectionMode] = useState("none");
+  const lastSec = useRef<number | null>(null);
 
   const dimStart = useRef(0);
   const dimElapsed = useRef<Record<string, number>>({});
@@ -88,6 +91,7 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
       setInstructions(cfg.instructions ?? []);
       setRunSections(cfg.runSections ?? []);
       setLang((cfg.config?.lang as any) === "en" ? "en" : "id");
+      setSectionMode(cfg.config?.section_mode ?? "none");
       setPhase("intro");
     } catch (e) {
       setErr((e as Error)?.message ?? "Gagal memuat");
@@ -112,6 +116,7 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
       if (r.serverTimer) setRemaining(deltaSeconds(r.serverTimer));
       dimStart.current = Date.now();
       renderedDim.current = null;
+      lastSec.current = null;
       setIdx(0);
       enterOrRun(questions[0]!);
     } catch (e) { setErr((e as Error)?.message ?? "Gagal mulai"); } finally { setPending(false); }
@@ -131,6 +136,7 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
       setInstructions(cfgV.instructions ?? []);
       setRunSections(cfgV.runSections ?? []);
       setLang((cfgV.config?.lang as any) === "en" ? "en" : "id");
+      setSectionMode(cfgV.config?.section_mode ?? "none");
       const saved = new Set(det.answers?.map((a: any) => a.questionId) ?? []);
       const map: Record<string, { opt?: string; text?: string }> = {};
       const optsById = new Map<string, string>();
@@ -142,6 +148,7 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
       setTimer(det.session.configJson?.timer ?? null);
       dimStart.current = Date.now();
       renderedDim.current = null;
+      lastSec.current = null;
       const startIdx = firstUnanswered >= 0 ? firstUnanswered : 0;
       setIdx(startIdx);
       enterOrRun(qsV[startIdx]!);
@@ -162,11 +169,13 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
 
   const enterOrRun = (q: Q) => {
     if (!q) { void finishRun(); return; }
-    if (renderedDim.current !== q.dimensionId) {
-      renderedDim.current = q.dimensionId;
+    const secNow = secIndex(q.id === questions[idx]?.id ? idx : 0);
+    if (sectionMode === "by_dimension" && secNow !== lastSec.current) {
+      lastSec.current = secNow;
       setInstDim(q.dimensionId);
       setPhase("instruction");
     } else {
+      lastSec.current = secIndex(idx);
       setPhase("run");
     }
   };
@@ -251,6 +260,7 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
       const r = (await client.discover.finish({ sessionId, durations: dimElapsed.current })) as any;
       setResult(r);
       setPhase("done");
+      try { confetti({ particleCount: 120, spread: 75, origin: { y: 0.6 } }); } catch { /* ignore */ }
     } catch (e) { setErr((e as Error)?.message ?? "Gagal selesai"); } finally { setPending(false); }
   };
 
@@ -315,7 +325,7 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
             {err && <p className="mt-3 font-manrope text-xs text-red-500">{err}</p>}
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {dims.map((d) => (
-                <span key={d.id} className="rounded-full bg-brand-navy/5 px-3 py-1 font-manrope text-[11px] font-semibold text-brand-navy">{d.name}</span>
+                <span key={d.id} className="rounded-full bg-white/15 px-3 py-1 font-manrope text-[11px] font-semibold text-white">{d.name}</span>
               ))}
             </div>
 
