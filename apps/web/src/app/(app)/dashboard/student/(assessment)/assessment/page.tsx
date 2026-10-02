@@ -38,18 +38,21 @@ function EngineProgressCard() {
   const qT = useQuery({ queryKey: ["ep", "TALENT", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "TALENT", studentId: sid }) });
   const minat = (qM.data as any)?.present === true;
   const bakat = (qT.data as any)?.present === true;
+  const lastAt = (d: any) => d?.completedAt ? new Date(d.completedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "";
   if (!sid) return null;
   if (minat && bakat) {
+    const dates = [qM.data, qT.data].map((d: any) => lastAt(d)).filter(Boolean).join(" & ");
     return (
       <div className="rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-md">
         <p className="font-bold font-bricolage text-base">Kedua tes selesai — 🎉</p>
-        <p className="mt-1 font-manrope text-xs text-white/80">Laporan minat &amp; bakatmu sudah siap, lengkap dgn jurusan, kampus, dan karir yang cocok.</p>
+        <p className="mt-1 font-manrope text-xs text-white/80">Terakhir dikerjakan {dates || "—"}. Laporan minat &amp; bakatmu sudah siap{dates ? "" : ""}.</p>
         <Link href="/dashboard/student/assessment/result" className="mt-3 inline-flex items-center gap-1 rounded-xl bg-white px-4 py-2 font-manrope text-xs font-semibold text-teal-700 hover:brightness-95">Lihat Rekomendasi →</Link>
       </div>
     );
   }
   if (minat || bakat) {
     const doneLabel = minat ? "Minat" : "Bakat";
+    void lastAt;
     const next = minat ? { label: "Tes Bakat", href: "/dashboard/student/assessment/take/TALENT" } : { label: "Tes Minat", href: "/dashboard/student/assessment/take/DISCOVER" };
     return (
       <div className="rounded-3xl border border-brand-orange/25 bg-brand-orange/5 p-5">
@@ -59,7 +62,15 @@ function EngineProgressCard() {
       </div>
     );
   }
-  return null;
+  return (
+    <div className="flex items-center justify-between rounded-3xl border border-gray-200 bg-white p-5">
+      <div>
+        <p className="font-bold font-bricolage text-sm text-gray-900">Belum ada tes engine — mulai sekarang yuk 🧠</p>
+        <p className="mt-1 font-manrope text-xs text-gray-500">Selesaikan Minat &amp; Bakat untuk laporan lengkap.</p>
+      </div>
+      <Link href="/dashboard/student/assessment/take/DISCOVER" className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Mulai Tes Minat →</Link>
+    </div>
+  );
 }
 
 export default function AssessmentHomePage() {
