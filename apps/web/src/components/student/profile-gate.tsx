@@ -30,22 +30,33 @@ export function useProfileGate() {
   useEffect(() => {
     let cancel = false;
     setLoading(true);
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 3000); // jangan blok loading >3 dtk
     (async () => {
+      const fallback = () => {
+        const up = userProfile.data as any;
+        return { school: up?.school ?? up?.schoolName ?? null, level: up?.educationLevel ?? null };
+      };
       try {
-        const r = await fetch(`${API}/ai/context`, { credentials: "include" });
+        const r = await fetch(`${API}/ai/context`, { credentials: "include", signal: ac.signal });
         const d = await r.json();
         if (cancel) return;
-        setSchoolLevel(d?.profile ?? null);
+        if (d?.profile?.school || d?.profile?.level) setSchoolLevel(d.profile);
+        else setSchoolLevel(fallback());
       } catch {
-        /* scheme */
+        // layanan AI/suffix tidak tersedia → pakai profil user (non-blocking)
+        if (!cancel) setSchoolLevel(fallback());
       } finally {
+        clearTimeout(timer);
         if (!cancel) setLoading(false);
       }
     })();
     return () => {
       cancel = true;
+      clearTimeout(timer);
+      ac.abort();
     };
-  }, []);
+  }, [userProfile.data]);
 
   return useMemo(() => {
     const schoolOk = !!(schoolLevel?.school && String(schoolLevel.school).trim());
