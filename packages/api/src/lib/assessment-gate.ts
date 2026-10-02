@@ -7,14 +7,15 @@ import { schema } from "@mulai-plus/db/db";
  */
 
 /** Gatekeeper v1 — daftar error actionable; publish ditolak bila ada error. */
-export async function validatePublish(versionId: string): Promise<{ ok: boolean; errors: string[] }> {
+export async function validatePublish(versionId: string): Promise<{ ok: boolean; errors: string[]; details?: { kind: "question" | "dimension" | "config"; id?: string; message: string }[] }> {
   const errors: string[] = [];
+  const details: { kind: "question" | "dimension" | "config"; id?: string; message: string }[] = [];
   const v = await db.query.assessmentVersions.findFirst({
     where: eq(schema.assessmentVersions.id, versionId),
   });
   if (!v) return { ok: false, errors: ["version_not_found"] };
   const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, v.assessmentId) });
-  if (!a || !a.name || !a.code) errors.push("Assessment wajib punya nama & kode.");
+  if (!a || !a.name || !a.code) { errors.push("Assessment wajib punya nama & kode."); details.push({ kind: "config", message: "Assessment wajib punya nama & kode." }); }
   const cfg = (v.configJson ?? {}) as any;
   const totalDim = Number(cfg.total_dim ?? 0);
   const resultCount = Number(cfg.result_dim_count ?? 0);
@@ -35,11 +36,10 @@ export async function validatePublish(versionId: string): Promise<{ ok: boolean;
     : [];
   const orderSeen = new Set<string>();
   for (const q of activeQs) {
-    if (!q.dimensionId) errors.push(`Soal ${q.questionCode ?? q.id} belum punya dimensi.`);
-    if (!q.scaleId && q.questionType === "multiple_choice") errors.push(`Soal ${q.questionCode ?? q.id} belum punya answer scale.`);
+    if (!q.dimensionId) { errors.push(`Soal ${q.questionCode ?? q.id} belum punya dimensi.`); details.push({ kind: "question", id: q.id, message: `Soal ${q.questionCode ?? q.id} belum punya dimensi.` }); }
+    if (!q.scaleId && q.questionType === "multiple_choice") { errors.push(`Soal ${q.questionCode ?? q.id} belum punya answer scale.`); details.push({ kind: "question", id: q.id, message: `Soal ${q.questionCode ?? q.id} belum punya answer scale.` }); }
     const o = opts.filter((x) => x.questionId === q.id);
-    if (q.questionType === "multiple_choice" && o.length < 2)
-      errors.push(`Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`);
+    if (q.questionType === "multiple_choice" && o.length < 2) { errors.push(`Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`); details.push({ kind: "question", id: q.id, message: `Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).` }); }
     if (q.questionType !== "text_input")
       for (const oo of o) if (!oo.label) errors.push(`Opsi pada soal ${q.questionCode ?? q.id} harus punya label.`);
     const key = `${q.dimensionId}:${q.displayOrder}`;

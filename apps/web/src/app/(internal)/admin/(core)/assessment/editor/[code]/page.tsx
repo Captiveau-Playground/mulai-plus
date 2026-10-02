@@ -29,6 +29,10 @@ export default function AssessmentDetailPage() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dimCode, setDimCode] = useState("");
   const [dimName, setDimName] = useState("");
+  const [focusQ, setFocusQ] = useState<string | null>(null);
+  const [focusDim, setFocusDim] = useState(false);
+  const [hlQ, setHlQ] = useState<string | null>(null);
+  const [hlDim, setHlDim] = useState(false);
 
   const summariesKey = orpc.discoverAdmin.summaries.key();
   const { data: sums } = useQuery(orpc.discoverAdmin.summaries.queryOptions());
@@ -100,6 +104,25 @@ export default function AssessmentDetailPage() {
     onSuccess: () => { notify.create("Versi dijadikan rilis 🎉", { description: "Siswa kini menerima versi ini." }); setVerify(null); setSelectedId(null); void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
     onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
   }));
+
+  useEffect(() => {
+    if (focusQ) {
+      const el = document.getElementById("q-" + focusQ);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHlQ(focusQ);
+      const t = setTimeout(() => setHlQ(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [focusQ]);
+  useEffect(() => {
+    if (focusDim) {
+      const el = document.getElementById("aturan");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHlDim(true);
+      const t = setTimeout(() => setHlDim(false), 2200);
+      return () => clearTimeout(t);
+    }
+  }, [focusDim]);
 
   const questions = (content?.questions ?? []) as Qn[];
   const busyAny = mDraft.isPending || mRules.isPending || mSaveQ.isPending || mDelQ.isPending || mDupQ.isPending || mReorder.isPending || mDimsAdd.isPending || mDimsDel.isPending || mPub.isPending;
@@ -183,7 +206,7 @@ export default function AssessmentDetailPage() {
       </div>
 
       {/* Aturan tes */}
-      <div className="rounded-2xl border border-gray-200 bg-white">
+      <div id="aturan" className={`rounded-2xl border bg-white transition-shadow ${hlDim ? "ring-2 ring-brand-orange/60 shadow-lg" : "border-gray-200"}`}>
         <button onClick={() => setRulesOpen(!rulesOpen)} className="flex w-full items-center justify-between px-5 py-3.5">
           <span className="font-bold font-bricolage text-sm text-brand-navy">Aturan tes</span>
           {rulesOpen ? <ChevronDown className="h-4 w-4 rotate-180 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
@@ -270,7 +293,8 @@ export default function AssessmentDetailPage() {
                 onDragOver={(e) => { e.preventDefault(); }}
                 onDrop={() => dragIdx !== null && canEdit && void dropQ(dragIdx, i)}
                 onDragEnd={() => setDragIdx(null)}
-                className={`group flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 ${dragIdx === i ? "opacity-40" : ""}`}
+                id={"q-" + q.id}
+                className={`group flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 transition-all ${dragIdx === i ? "opacity-40" : ""} ${hlQ === q.id ? "bg-brand-orange/10 ring-2 ring-brand-orange/60" : ""}`}
               >
                 <div className="flex min-w-0 items-center gap-2">
                   {canEdit && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-gray-300" />}
@@ -306,8 +330,16 @@ export default function AssessmentDetailPage() {
           </div>
         ) : (
           <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
-            <p className="font-manrope text-sm font-semibold text-red-700">{(gate.errors ?? []).length} hal perlu diperbaiki sebelum terbit:</p>
-            <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-red-700/90">{(gate.errors ?? []).map((e, i) => <li key={i}>{e}</li>)}</ul>
+            <p className="font-manrope text-sm font-semibold text-red-700">{(gate.errors ?? []).length} hal perlu diperbaiki sebelum terbit — klik untuk lompat:</p>
+            <div className="mt-1.5 flex flex-col gap-1">
+              {(gate.details?.length ? gate.details : (gate.errors ?? []).map((e: string) => ({ kind: "config" as const, message: e }))).map((d: any, i: number) => (
+                <button key={i} onClick={() => { if (d.kind === "question" && d.id) setFocusQ(d.id); else if (d.kind === "dimension") setFocusDim(true); }}
+                  className="flex items-start gap-2 rounded-lg bg-white/70 px-2 py-1.5 text-left font-manrope text-[11px] text-red-700/90 transition-all hover:bg-white hover:shadow-sm">
+                  {d.kind === "question" ? "☰ " : d.kind === "dimension" ? "▦ " : "⚙ "}
+                  <span className="underline decoration-dotted underline-offset-2">{d.message}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )
       )}

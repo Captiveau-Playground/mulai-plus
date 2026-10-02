@@ -556,13 +556,31 @@ export const discoverAdminRouter = {
       )
       .handler(async ({ input }) => {
         const { versionId, questionData: q } = input;
+        // Answer scale bawaan bila tidak disebut — skala reusable (value terpisah dr skor)
+        let scaleId = q.scaleId ?? null;
+        if (!scaleId && q.questionType === "multiple_choice") {
+          const def = await db.query.answerScales.findFirst({ where: eq(schema.answerScales.name, "Skala Bawaan (A-F, 1 poin)") });
+          if (def) scaleId = def.id;
+          else {
+            scaleId = uid();
+            await db.insert(schema.answerScales).values({ id: scaleId, name: "Skala Bawaan (A-F, 1 poin)", description: "Skala default: 1 poin utk opsi ke dimensi, 0 utk lainnya." });
+            await db.insert(schema.answerScaleOptions).values([
+              { id: uid(), scaleId, value: "A", score: 1, label: "A" },
+              { id: uid(), scaleId, value: "B", score: 0, label: "B" },
+              { id: uid(), scaleId, value: "C", score: 0, label: "C" },
+              { id: uid(), scaleId, value: "D", score: 0, label: "D" },
+              { id: uid(), scaleId, value: "E", score: 0, label: "E" },
+              { id: uid(), scaleId, value: "F", score: 0, label: "F" },
+            ]);
+          }
+        }
         const qid = q.id ?? uid();
         if (!q.id) {
           await db.insert(schema.questions).values({
             id: qid,
             versionId,
             dimensionId: q.dimensionId,
-            scaleId: q.scaleId ?? null,
+            scaleId,
             questionText: q.questionText,
             questionType: q.questionType as any,
             hasMathNotation: q.hasMathNotation,
@@ -577,7 +595,7 @@ export const discoverAdminRouter = {
             .update(schema.questions)
             .set({
               dimensionId: q.dimensionId,
-              scaleId: q.scaleId ?? null,
+              scaleId,
               questionText: q.questionText,
               questionType: q.questionType as any,
               hasMathNotation: q.hasMathNotation,
