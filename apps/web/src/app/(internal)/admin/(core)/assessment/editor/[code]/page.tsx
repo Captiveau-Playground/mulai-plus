@@ -338,9 +338,18 @@ export default function AssessmentDetailPage() {
           <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
             <p className="font-manrope text-sm font-semibold text-red-700">{(gate.errors ?? []).length} hal perlu diperbaiki sebelum terbit — klik untuk lompat:</p>
             <div className="mt-1.5 flex flex-col gap-1">
-              {(gate.details?.length ? gate.details : (gate.errors ?? []).map((e: string) => ({ kind: "config" as const, message: e }))).map((d: any, i: number) => (
-                <button key={i} onClick={() => { if (d.kind === "question" && d.id) openEdit(d.id); else if (d.kind === "dimension") { setRulesOpen(true); setFocusDim(true); } }}
-                  className="flex items-start gap-2 rounded-lg bg-white/70 px-2 py-1.5 text-left font-manrope text-[11px] text-red-700/90 transition-all hover:bg-white hover:shadow-sm">
+              {((gate.details?.length ? gate.details : (gate.errors ?? []).map((e: string) => {
+                const qm = e.match(/Soal (?:\\|[a-z0-9]{8,24})/i);
+                const qid = e.match(/Soal\s+([a-z0-9]{8,24})/i);
+                if (qid) return { kind: "question" as const, id: qid[1]!, message: e };
+                if (/Dimensi\s+\S/i.test(e) && /butuh minimal/i.test(e)) return { kind: "dimension" as const, message: e };
+                return { kind: "config" as const, message: e };
+              }))).map((d: any, i: number) => (
+                <button
+                  key={i}
+                  onClick={() => { if (d.kind === "question" && d.id) openEdit(d.id); else if (d.kind === "dimension") { setRulesOpen(true); setFocusDim(true); } }}
+                  className="flex items-start gap-2 rounded-lg bg-white/70 px-2 py-1.5 text-left font-manrope text-[11px] text-red-700/90 transition-all hover:bg-white hover:shadow-sm disabled:opacity-60"
+                >
                   {d.kind === "question" ? "☰ " : d.kind === "dimension" ? "▦ " : "⚙ "}
                   <span className="underline decoration-dotted underline-offset-2">{d.message}</span>
                 </button>
