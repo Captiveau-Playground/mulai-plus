@@ -1,5 +1,6 @@
 import { db, eq, inArray, and, asc, desc } from "@mulai-plus/db/db";
 import { schema } from "@mulai-plus/db/db";
+import { tmbAssessmentResults, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
@@ -391,6 +392,49 @@ export const discoverRouter = {
         recommendationsJson: recos,
       };
       await db.insert(schema.assessmentResults).values(result);
+      // ⚙ Backwrite: hasil engine → pipeline hasil LAMA (kontrak tmb) agar page/template hasil yg ada tetap menampilkan
+      try {
+        const ver0 = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, sess.versionId) });
+        const ass0 = ver0 ? await db.query.assessments.findFirst({ where: eq(schema.assessments.id, ver0.assessmentId) }) : null;
+        const fam = ass0?.family ?? null;
+        if (fam && (fam === "minat" || fam === "bakat")) {
+          const existing = await db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.userId, sess.studentId) });
+          const rid = existing?.id ?? uid();
+          const base = existing ? {} : { id: rid, userId: sess.studentId };
+          const hollandScores: Record<string, number> = {};
+          const abilityScores: Record<string, { correct: number; total: number }> = {};
+          for (const [dimId, total] of scores) {
+            const code = (dimByCode.get(dimId) ?? "").toLowerCase();
+            const cnt = counts.get(dimId) ?? 0;
+            if (fam === "minat" && /^[riasec]$/.test(code)) hollandScores[code.toUpperCase()] = Math.round(total);
+            if (fam === "bakat" && code) abilityScores[code] = { correct: Math.round(total), total: cnt };
+          }
+          const diff = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
+            ? (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.4 ? "strong" : (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.15 ? "moderate" : "weak"
+            : "moderate";
+          if (existing) {
+            await db.update(tmbAssessmentResults).set({
+              ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }),
+              differentiation: diff,
+              confidenceScore: String(diffFactor ?? 0.5),
+            }).where(eq(tmbAssessmentResults.id, rid));
+            await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, rid));
+          } else {
+            await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }), differentiation: diff, confidenceScore: String(diffFactor ?? 0.5) });
+          }
+          let rank = 0;
+          for (const rec of recos) {
+            rank++;
+            await db.insert(tmbRecommendations).values({ id: uid(), resultId: rid, type: "major", rank, itemName: rec.categoryName, categoryKey: rec.categoryKey ?? null, confidence: String(rec.confidence ?? 0), prodiRefs: [] as any });
+            for (const c of rec.careers ?? []){
+              rank++;
+              await db.insert(tmbRecommendations).values({ id: uid(), resultId: rid, type: "career", rank, itemName: c, categoryKey: null, confidence: String(rec.confidence ?? 0), prodiRefs: [] as any });
+            }
+          }
+        }
+      } catch {
+        /* backwrite legacy gagal → jangan jatuhkan hasil engine */
+      }
       await db
         .update(schema.assessmentSessions)
         .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
