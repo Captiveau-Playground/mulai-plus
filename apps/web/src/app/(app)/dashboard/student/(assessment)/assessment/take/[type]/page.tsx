@@ -72,6 +72,13 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     queryFn: () => (client as any).discover.resultsFor({ code: engine!.otherCode, studentId: engine!.studentId }),
   });
   const otherDone = isEngine ? (otherDoneQ.data as any)?.present === true : false;
+  const attQ = useQuery({
+    queryKey: ["engine-attempts", engine?.studentId],
+    enabled: isEngine && !!engine?.studentId,
+    queryFn: () => (client as any).discover.attempts({ studentId: engine!.studentId }),
+  });
+  const attempts: any[] = (attQ.data as any)?.attempts ?? [];
+  const attemptNo = attempts.length === 0 ? 1 : attempts[attempts.length - 1]?.complete ? attempts.length + 1 : attempts.length;
   const params = useParams();
   const router = useRouter();
   const testCode = isEngine
@@ -568,6 +575,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         <div className="mt-4 space-y-2 text-left">
           <InfoRow label="Jumlah soal" value={`${engineQs.length} soal`} />
           <InfoRow label="Bagian / part" value={`${nSec} bagian (per dimensi)`} />
+          <InfoRow label="Percobaan" value={`ke-${attemptNo}${attemptNo > 1 ? ` · ${attemptNo} ini belum selesai` : ""}`} />
           <InfoRow label="Perkiraan XP" value={`+${nSec * 10 + engineQs.length} XP`} />
           <InfoRow label="Penyimpanan" value="Auto-simpan tiap jawaban" last />
         </div>

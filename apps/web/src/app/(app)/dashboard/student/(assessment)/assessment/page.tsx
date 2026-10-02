@@ -34,41 +34,39 @@ function EngineProgressCard() {
   const { data: authSession } = authClient.useSession();
   const sid = authSession?.user?.id ?? "";
   const raw = client as any;
-  const qM = useQuery({ queryKey: ["ep", "DISCOVER", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "DISCOVER", studentId: sid }) });
-  const qT = useQuery({ queryKey: ["ep", "TALENT", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "TALENT", studentId: sid }) });
-  const minat = (qM.data as any)?.present === true;
-  const bakat = (qT.data as any)?.present === true;
-  const lastAt = (d: any) => d?.completedAt ? new Date(d.completedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "";
+  const qA = useQuery({ queryKey: ["ep", sid], enabled: !!sid, queryFn: () => raw.discover.attempts({ studentId: sid }) });
+  const attempts: any[] = (qA.data as any)?.attempts ?? [];
   if (!sid) return null;
-  if (minat && bakat) {
-    const dates = [qM.data, qT.data].map((d: any) => lastAt(d)).filter(Boolean).join(" & ");
+  if (attempts.length === 0) {
     return (
-      <div className="rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-md">
-        <p className="font-bold font-bricolage text-base">Kedua tes selesai — 🎉</p>
-        <p className="mt-1 font-manrope text-xs text-white/80">Terakhir dikerjakan {dates || "—"}. Laporan minat &amp; bakatmu sudah siap{dates ? "" : ""}.</p>
-        <Link href="/dashboard/student/assessment/result" className="mt-3 inline-flex items-center gap-1 rounded-xl bg-white px-4 py-2 font-manrope text-xs font-semibold text-teal-700 hover:brightness-95">Lihat Rekomendasi →</Link>
+      <div className="flex items-center justify-between rounded-3xl border border-gray-200 bg-white p-5">
+        <div>
+          <p className="font-bold font-bricolage text-sm text-gray-900">Belum ada attempt — mulai sekarang yuk 🧠</p>
+          <p className="mt-1 font-manrope text-xs text-gray-500">Selesaikan Minat &amp; Bakat untuk laporan lengkap.</p>
+        </div>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Mulai Tes Baru →</Link>
       </div>
     );
   }
-  if (minat || bakat) {
-    const doneLabel = minat ? "Minat" : "Bakat";
-    void lastAt;
-    const next = minat ? { label: "Tes Bakat", href: "/dashboard/student/assessment/take/TALENT" } : { label: "Tes Minat", href: "/dashboard/student/assessment/take/DISCOVER" };
+  const last = attempts[attempts.length - 1];
+  const n = attempts.length;
+  if (!last?.complete) {
+    const needCode = last?.hollandCode ? "TALENT" : "DISCOVER";
+    const needLabel = last?.hollandCode ? "Tes Bakat" : "Tes Minat";
     return (
       <div className="rounded-3xl border border-brand-orange/25 bg-brand-orange/5 p-5">
-        <p className="font-bold font-bricolage text-sm text-gray-900">Kamu sudah test {doneLabel} — lanjut {next.label} yuk! 💪</p>
-        <p className="mt-1 font-manrope text-xs text-gray-500">Dua-duanya dibutuhkan biar rekomendasi jurusan &amp; karirmu lengkap.</p>
-        <Link href={next.href as any} className="mt-3 inline-flex items-center gap-1 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjut ke {next.label} →</Link>
+        <p className="font-bold font-bricolage text-sm text-gray-900">Ada attempt yang belum selesai — lanjutin yuk 💪 <span className="ml-1 rounded-full bg-brand-orange/15 px-2 py-0.5 text-[10px] text-brand-orange">Percobaan ke-{n}</span></p>
+        <p className="mt-1 font-manrope text-xs text-gray-500">{last?.hollandCode ? "Minat ✓" : "Minat –"} · {last?.hasAbility ? "Bakat ✓" : "Bakat –"} — dua-duanya dibutuhkan buat rekomendasi lengkap.</p>
+        <Link href={`/dashboard/student/assessment/take/${needCode}`} className="mt-3 inline-flex items-center gap-1 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjutkan ke {needLabel} →</Link>
       </div>
     );
   }
   return (
-    <div className="flex items-center justify-between rounded-3xl border border-gray-200 bg-white p-5">
-      <div>
-        <p className="font-bold font-bricolage text-sm text-gray-900">Belum ada tes engine — mulai sekarang yuk 🧠</p>
-        <p className="mt-1 font-manrope text-xs text-gray-500">Selesaikan Minat &amp; Bakat untuk laporan lengkap.</p>
-      </div>
-      <Link href="/dashboard/student/assessment/take/DISCOVER" className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Mulai Tes Minat →</Link>
+    <div className="rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-md">
+      <p className="font-bold font-bricolage text-base">Attempt ke-{n} selesai — 🎉</p>
+      <p className="mt-1 font-manrope text-xs text-white/80">{last?.hollandCode ? `${last.hollandCode}` : ""} · Selesai {new Date(last?.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}. Mau coba lebih baik?</p>
+      <Link href="/dashboard/student/assessment/result" className="mt-3 inline-flex items-center gap-1 rounded-xl bg-white px-4 py-2 font-manrope text-xs font-semibold text-teal-700 hover:brightness-95">Lihat Rekomendasi →</Link>
+      <Link href="/dashboard/student/assessment/take/DISCOVER" className="mt-3 ml-2 inline-flex items-center gap-1 rounded-xl border border-white/40 px-4 py-2 font-manrope text-xs font-semibold text-white hover:bg-white/10">Tes Baru (ke-{n + 1})</Link>
     </div>
   );
 }

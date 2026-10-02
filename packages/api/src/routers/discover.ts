@@ -526,6 +526,29 @@ export const discoverRouter = {
       } as const;
     }),
 
+  /** Daftar ATTEMPT (duet minat+bakat) per user, kronologis — utk history & nomor percobaan. */
+  attempts: publicProcedure
+    .input(z.object({ studentId: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const rows = await db.query.tmbAssessmentResults.findMany({
+        where: eq(tmbAssessmentResults.userId, input.studentId),
+        orderBy: (t: any) => [asc(t.createdAt)],
+      });
+      return {
+        ok: true,
+        attempts: rows.map((r) => ({
+          id: r.id,
+          createdAt: r.createdAt,
+          hollandCode: r.hollandCode,
+          hollandMap: (r.hollandScores ?? {}) as Record<string, number>,
+          hasAbility: !!(r as any).abilityScores,
+          differentiation: r.differentiation,
+          confidenceScore: r.confidenceScore,
+          complete: !!r.hollandCode && !!(r as any).abilityScores,
+        })),
+      } as const;
+    }),
+
   /** Detail sesi + jawaban (utk resume/restore posisi). */
   session: publicProcedure
     .input(z.object({ sessionId: z.string().min(1) }))

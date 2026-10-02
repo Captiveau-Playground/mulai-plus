@@ -6,7 +6,55 @@ import { id } from "date-fns/locale";
 import { ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { orpc } from "@/utils/orpc";
+import { authClient } from "@/lib/auth-client";
+import { client, orpc } from "@/utils/orpc";
+
+function EngineAttemptHistory() {
+  const { data: authSession } = authClient.useSession();
+  const sid = authSession?.user?.id ?? "";
+  const raw = client as any;
+  const qA = useQuery({ queryKey: ["eh", sid], enabled: !!sid, queryFn: () => raw.discover.attempts({ studentId: sid }) });
+  const attempts: any[] = (qA.data as any)?.attempts ?? [];
+  if (!sid || attempts.length === 0) return null;
+  return (
+    <div className="mb-5">
+      <p className="mb-2 font-bold font-bricolage text-sm text-gray-800">Percobaan Tes Engine</p>
+      <div className="space-y-2">
+        {[...attempts].reverse().map((r: any, idx: number) => {
+          const n = attempts.length - idx;
+          const parts = [
+            r.hollandCode ? `Minat ${r.hollandCode}` : "Minat –",
+            r.hasAbility ? "Bakat ✓" : "Bakat –",
+          ];
+          return (
+            <div key={r.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="min-w-0">
+                <p className="font-bold font-bricolage text-xs text-gray-900">
+                  Percobaan ke-{n}{" "}
+                  <span className={"ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold " + (r.complete ? "bg-teal-50 text-teal-600" : "bg-amber-50 text-amber-600")}>
+                    {r.complete ? "Lengkap" : "Belum lengkap"}
+                  </span>
+                </p>
+                <p className="mt-0.5 truncate font-manrope text-[11px] text-gray-500">
+                  {parts.join(" · ")} · {new Date(r.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                </p>
+              </div>
+              {r.complete ? (
+                <Link href={`/dashboard/student/assessment/result?resultId=${r.id}`} className="inline-flex shrink-0 items-center gap-1 font-manrope text-xs font-semibold text-brand-navy">
+                  Lihat <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              ) : (
+                <Link href={`/dashboard/student/assessment/take/${r.hollandCode ? "TALENT" : "DISCOVER"}`} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-semibold text-white hover:brightness-110">
+                  Lanjutkan
+                </Link>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function AssessmentHistoryPage() {
   const { data, isLoading } = useQuery({
@@ -41,6 +89,7 @@ export default function AssessmentHistoryPage() {
 
   return (
     <div className="space-y-3">
+      <EngineAttemptHistory />
       {data.map((r: any) => {
         const isBatch = r.source?.kind === "batch";
         return (
