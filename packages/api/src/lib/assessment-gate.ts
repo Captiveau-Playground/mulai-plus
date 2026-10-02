@@ -63,6 +63,18 @@ export async function publishVersion(versionId: string): Promise<{ ok: boolean; 
   if (!v) return { ok: false, errors: ["version_not_found"] };
   const check = await validatePublish(versionId);
   if (!check.ok) return { ok: false, errors: check.errors };
+  // B2C policy: hanya satu versi LIVE per keluarga (minat | bakat)
+  const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, v.assessmentId) });
+  if (a?.family) {
+    const fam = await db.query.assessments.findMany({ where: eq(schema.assessments.family, a.family) });
+    for (const o of fam) {
+      if (o.id === a.id) continue;
+      const ol = await db.query.assessmentVersions.findFirst({
+        where: and(eq(schema.assessmentVersions.assessmentId, o.id), eq(schema.assessmentVersions.status, "live")),
+      });
+      if (ol) return { ok: false, errors: [`Hanya satu tes ${a.family === "minat" ? "Minat" : "Bakat"} yang boleh LIVE untuk pengguna umum (B2C). Tes lain ("${o.name}") masih LIVE — nonaktifkan rilis itu dulu.`] };
+    }
+  }
   await db
     .update(schema.assessmentVersions)
     .set({ status: "archived" })

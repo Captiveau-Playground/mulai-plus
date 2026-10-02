@@ -55,6 +55,7 @@ export const assessmentScoringAggEnum = pgEnum("assessment_scoring_agg", ["corre
 export const assessments = pgTable("assessments", {
   id: varchar("id", { length: 24 }).primaryKey(),
   code: varchar("code", { length: 40 }).notNull().unique(),
+  family: varchar("family", { length: 20 }), // B2C: minat | bakat — hanya satu LIVE per keluarga
   name: varchar("name", { length: 120 }).notNull(),
   description: text("description"),
   defaultConfigJson: jsonb("default_config_json"),

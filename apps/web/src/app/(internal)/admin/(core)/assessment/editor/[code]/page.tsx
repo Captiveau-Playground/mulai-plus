@@ -166,7 +166,10 @@ export default function AssessmentDetailPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/admin/assessment/editor" className="font-manrope text-xs font-semibold text-muted-foreground hover:text-brand-navy">← Semua Tes</Link>
-          <h1 className="font-bold font-bricolage text-xl text-foreground">{assess.name}</h1>
+          <h1 className="flex items-center gap-2 font-bold font-bricolage text-xl text-foreground">
+            {assess.name}
+            {(assess as any).family && <span className="rounded-full bg-gray-100 px-2 py-0.5 font-manrope text-[10px] font-semibold text-gray-500">{(assess as any).family === "minat" ? "Tes Minat · B2C" : "Tes Bakat · B2C"}</span>}
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           {live && <a href="/assessment/talent?preview=1" target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 font-manrope text-xs font-semibold text-gray-600 hover:bg-gray-50"><Eye className="h-3.5 w-3.5" /> Lihat sebagai siswa</a>}

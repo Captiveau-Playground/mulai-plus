@@ -82,7 +82,10 @@ export default function AssessmentEditorIndex() {
                     <Brain className="h-5 w-5 text-brand-navy" />
                   </span>
                   <div>
-                    <p className="font-bold font-bricolage text-base text-foreground group-hover:text-brand-navy">{a.name}</p>
+                    <p className="flex items-center gap-1.5 font-bold font-bricolage text-base text-foreground group-hover:text-brand-navy">
+                      {a.name}
+                      {(a as any).family && <Badge className="border-gray-200 bg-gray-50 text-gray-500">{(a as any).family === "minat" ? "Tes Minat (B2C)" : "Tes Bakat (B2C)"}</Badge>}
+                    </p>
                     <p className="font-manrope text-xs text-muted-foreground">
                       {v.length} versi · {live ? <b className="text-teal-700">● main — aktif utk siswa</b> : "Belum dirilis"} {draft ? "· ada draf" : ""}
                     </p>
