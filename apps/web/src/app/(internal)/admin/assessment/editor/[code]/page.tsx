@@ -76,7 +76,7 @@ export default function AssessmentEditorPage() {
 
   const checkGate = useCallback(async () => {
     if (!draft) { setGate(null); return; }
-    try { setGate(await aClient.discoverAdmin.versions.contentList({ versionId: draft.id })); }
+    try { setGate(await aClient.discoverAdmin.versions.validate({ versionId: draft.id })); }
     catch { setGate(null); }
   }, [draft?.id]);
 
@@ -85,7 +85,7 @@ export default function AssessmentEditorPage() {
   const saveRules = async () => {
     if (!draft) return;
     setBusy("rules");
-    try { await aClient.discoverAdmin.versions.contentList({ versionId: draft.id, config: rules }); notify.create("Aturan disimpan ✅"); }
+    try { await aClient.discoverAdmin.versions.configUpdate({ versionId: draft.id, config: rules }); notify.create("Aturan disimpan ✅"); }
     catch (e) { notify.error("Gagal", { description: (e as Error)?.message?.slice(0, 120) }); } finally { setBusy(""); }
   };
 
@@ -96,15 +96,15 @@ export default function AssessmentEditorPage() {
     const [moved] = qs.splice(from, 1);
     qs.splice(to, 0, moved!);
     setContent({ ...content, questions: qs });
-    await aClient.discoverAdmin.versions.contentList({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
+    await aClient.discoverAdmin.versions.contentReorder({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
     setDragIdx(null);
   };
   const delQ = async (id: string) => {
-    await aClient.discoverAdmin.versions.contentList({ questionId: id });
+    await aClient.discoverAdmin.versions.contentDelete({ questionId: id });
     await reloadContent();
   };
   const dupQ = async (id: string) => {
-    await aClient.discoverAdmin.versions.contentList({ questionId: id });
+    await aClient.discoverAdmin.versions.contentDuplicate({ questionId: id });
     await reloadContent();
     notify.create("Soal disalin");
   };
@@ -114,7 +114,7 @@ export default function AssessmentEditorPage() {
     const j = idx + dir;
     if (j < 0 || j >= qs.length) return;
     [qs[idx], qs[j]] = [qs[j]!, qs[idx]!];
-    await aClient.discoverAdmin.versions.contentList({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
+    await aClient.discoverAdmin.versions.contentReorder({ versionId: draft!.id, orderedIds: qs.map((q) => q.id) });
     await reloadContent();
   };
 
@@ -400,7 +400,7 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
     if (form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim()).length < 2) { notify.error("Butuh minimal 2 pilihan"); return; }
     setBusy(true);
     try {
-      await aClient.discoverAdmin.versions.contentList({
+      await aClient.discoverAdmin.versions.contentSave({
         versionId,
         questionData: {
           id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
