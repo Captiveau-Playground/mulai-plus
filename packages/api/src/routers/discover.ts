@@ -399,9 +399,13 @@ export const discoverRouter = {
         const ass0 = ver0 ? await db.query.assessments.findFirst({ where: eq(schema.assessments.id, ver0.assessmentId) }) : null;
         const fam = ass0?.family ?? null;
         if (fam && (fam === "minat" || fam === "bakat")) {
-          const existing = await db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.userId, sess.studentId) });
-          const rid = existing?.id ?? uid();
-          const base = existing ? {} : { id: rid, userId: sess.studentId };
+          const existing = await db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.userId, sess.studentId), orderBy: (t: any) => [desc(t.createdAt)] });
+          // baris jatuh tempo lengkap (minat+bakat) => ini adalah RETEST → attempt baru (baris baru),
+          // sehingga duet lama tetap tersimpan di history dan yang baru mulai dari bagian ini saja.
+          const fullAttempt = !!existing && !!existing.hollandCode && !!(existing as any).abilityScores;
+          const existingForAttempt = fullAttempt ? null : existing;
+          const rid = existingForAttempt?.id ?? uid();
+          const base = existingForAttempt ? {} : { id: rid, userId: sess.studentId };
           const hollandScores: Record<string, number> = {};
           const abilityScores: Record<string, { correct: number; total: number }> = {};
           for (const [dimId, total] of scores) {
@@ -413,9 +417,9 @@ export const discoverRouter = {
           const diff = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
             ? (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.4 ? "strong" : (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.15 ? "moderate" : "weak"
             : "moderate";
-          const hasH = fam === "minat" ? true : !!existing?.hollandCode;
-          const hasA = fam === "bakat" ? true : !!existing?.abilityScores;
-          if (existing) {
+          const hasH = fam === "minat" ? true : !!existingForAttempt?.hollandCode;
+          const hasA = fam === "bakat" ? true : !!existingForAttempt?.abilityScores;
+          if (existingForAttempt) {
             await db.update(tmbAssessmentResults).set({
               ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }),
               differentiation: diff,
@@ -426,9 +430,9 @@ export const discoverRouter = {
             await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores }), differentiation: diff, confidenceScore: String(diffFactor ?? 0.5) });
           }
           // Rekomendasi LENGKAP (jurusan+kampus+karir) — pakai mesin yg sama dgn page hasil (kontrak lama)
-          if (existing && hasH && hasA) {
-            const mergedH = { ...((existing as any)?.hollandScores ?? {}), ...(fam === "minat" ? hollandScores : {}) };
-            const mergedA = { ...((existing as any)?.abilityScores ?? {}), ...(fam === "bakat" ? abilityScores : {}) };
+          if (existingForAttempt && hasH && hasA) {
+            const mergedH = { ...((existingForAttempt as any)?.hollandScores ?? {}), ...(fam === "minat" ? hollandScores : {}) };
+            const mergedA = { ...((existingForAttempt as any)?.abilityScores ?? {}), ...(fam === "bakat" ? abilityScores : {}) };
             const lux = Object.fromEntries(
               Object.entries(mergedA as Record<string, { correct: number; total: number }>).map(([k, v]) => {
                 const pct = v.total ? v.correct / v.total : 0;
@@ -441,7 +445,7 @@ export const discoverRouter = {
               db.query.tmbCareerMappings.findMany(),
             ]);
             const recoCalc = computeRecommendations(
-              { code: (existing?.hollandCode ?? profileCode) ?? "", scores: mergedH as any },
+              { code: (existingForAttempt?.hollandCode ?? profileCode) ?? "", scores: mergedH as any },
               { levels: lux as any },
               prodiList as any,
               patterns as any,
@@ -501,42 +505,25 @@ export const discoverRouter = {
     .handler(async ({ input }) => {
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: false, error: "assessment_not_found" } as const;
-      const vs = await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) });
-      const sessions = await db.query.assessmentSessions.findMany({
-        where: and(inArray(schema.assessmentSessions.versionId, vs.map((v) => v.id)), eq(schema.assessmentSessions.studentId, input.studentId), eq(schema.assessmentSessions.status, "completed")),
-        orderBy: (t: any) => [desc(t.completedAt)],
-      });
+      // Model ATTEMPT: 1 baris tmb_assessment_results = 1 duet minat+bakat.
+      // "Selesai <X>" = baris attempt TERAKHIR user punya bagian <X> terisi (holland utk DISCOVER,
+      // ability utk TALENT). Retest => attempt baru => baris baru => status bagian lain kosong →
+      // CTA selalu 'lanjut' sampai attempt lengkap.
       const isMinat = String(input.code).toUpperCase() === "DISCOVER";
-      // "selesai" hanya jika skor VALID (profil RIASEC utk minat; ada tscores utk bakat) —
-      // sesi lama/preview yang gagal backwrite (profil kosong) TIDAK dihitung hasil.
-      for (const sess of sessions) {
-        const r = await db.query.assessmentResults.findFirst({ where: eq(schema.assessmentResults.sessionId, sess.id) });
-        if (!r) continue;
-        const hasValid = isMinat
-          ? !!r.profileCode && r.profileCode.length > 0
-          : (() => {
-              const raw = (r.rawScoresJson ?? {}) as Record<string, number>;
-              const dims = (r.topDimensionsJson ?? []) as any[];
-              const sum = Object.values(raw).reduce((x, v) => x + (Number(v) || 0), 0);
-              return dims.length > 0 || sum > 0;
-            })();
-        if (!hasValid) continue; // lewati sesi tak valid, cari yg valid di bawahnya
-        return {
-          ok: true,
-          code: a.code,
-          name: a.name,
-          present: true,
-          profileCode: r.profileCode,
-          topDimensions: r.topDimensionsJson,
-          rawScores: r.rawScoresJson,
-          recommendations: r.recommendationsJson ?? [],
-          xpEarned: r.xpEarned,
-          streak: r.streak,
-          timedOut: r.timedOut,
-          completedAt: sess.completedAt,
-        };
-      }
-      return { ok: true, code: a.code, present: false } as const;
+      const row = await db.query.tmbAssessmentResults.findFirst({
+        where: eq(tmbAssessmentResults.userId, input.studentId),
+        orderBy: (t: any) => [desc(t.createdAt)],
+      });
+      const present = !!row && (isMinat ? !!row.hollandCode && row.hollandCode.length > 0 : !!(row as any).abilityScores);
+      if (!present) return { ok: true, code: a.code, present: false } as const;
+      return {
+        ok: true,
+        code: a.code,
+        name: a.name,
+        present: true,
+        profileCode: row!.hollandCode,
+        completedAt: row!.createdAt,
+      } as const;
     }),
 
   /** Detail sesi + jawaban (utk resume/restore posisi). */
