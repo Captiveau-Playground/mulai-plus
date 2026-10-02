@@ -672,6 +672,75 @@ export const discoverAdminRouter = {
         return { ok: true, questionId: nq };
       }),
 
+    /** Import batch soal dari CSV/Excel (rows JSON hasil parse klien). */
+    importQuestions: adminProcedure
+      .input(
+        z.object({
+          versionId: z.string().min(1),
+          rows: z
+            .array(
+              z.object({
+                text: z.string().min(1),
+                dimension: z.string().min(1), // kode atau nama dimensi
+                type: z.enum(["multiple_choice", "text_input"]).optional(),
+                options: z.array(z.string()).max(6).optional(),
+                key: z.string().optional(), // huruf kunci utk MC (A-F)
+                weight: z.number().optional(),
+                answerKey: z.string().optional(),
+                evalType: z.string().optional(),
+                numericTolerance: z.string().optional(),
+              }),
+            )
+            .max(500),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, input.versionId) });
+        const byCode = new Map(dims.map((d) => [d.code.toLowerCase(), d]));
+        const byName = new Map(dims.map((d) => [d.name.toLowerCase(), d]));
+        const defaultScale = await db.query.answerScales.findFirst({ where: eq(schema.answerScales.name, "Skala Bawaan (A-F, 1 poin)") });
+        let scaleId = defaultScale?.id ?? null;
+        if (!scaleId) {
+          scaleId = "defscale0a0b0c0d0e0f0010";
+          await db.insert(schema.answerScales).values({ id: scaleId, name: "Skala Bawaan (A-F, 1 poin)", description: "default" });
+        }
+        let created = 0;
+        const fail: string[] = [];
+        const maxOrder = (await db.query.questions.findMany({ where: eq(schema.questions.versionId, input.versionId), columns: { displayOrder: true } })).reduce((m, q) => Math.max(m, q.displayOrder ?? 0), 0);
+        let order = maxOrder + 1;
+        for (let ri = 0; ri < input.rows.length; ri++) {
+          const r = input.rows[ri]!;
+          const label = (r.dimension ?? "").trim().toLowerCase();
+          const dim = byCode.get(label) ?? byName.get(label) ?? (r.options?.length ? null : byCode.get(r.dimension.trim()));
+          if (!dim) { fail.push(`Baris ${ri + 2}: dimensi tidak dikenal "${r.dimension}".`); continue; }
+          const typeR = r.type ?? (r.answerKey ? "text_input" : "multiple_choice");
+          const qid = uid();
+          await db.insert(schema.questions).values({
+            id: qid, versionId: input.versionId, dimensionId: dim.id, scaleId: typeR === "multiple_choice" ? scaleId : null,
+            questionText: r.text, questionType: typeR as any, presentationMode: "standard_option_card",
+            weight: r.weight ?? 1, displayOrder: order++, isActive: true,
+          });
+          if (typeR === "multiple_choice") {
+            const opts = r.options?.filter((o) => o.trim().length > 0) ?? [];
+            if (opts.length === 0) { fail.push(`Baris ${ri + 2}: tidak ada opsi utk soal "${r.text.slice(0, 40)}".`); await db.delete(schema.questions).where(eq(schema.questions.id, qid)); continue; }
+            const keyIdx = r.key ? Math.max(0, r.key.toUpperCase().charCodeAt(0) - 65) : 0;
+            for (let oi = 0; oi < opts.length; oi++) {
+              await db.insert(schema.questionOptions).values({
+                id: uid(), questionId: qid, optionValue: String.fromCharCode(65 + oi), targetDimension: dim.id,
+                label: opts[oi]!, score: oi === keyIdx ? 1 : 0, displayOrder: oi,
+              });
+            }
+          } else {
+            await db.insert(schema.textInputConfigs).values({
+              id: uid(), questionId: qid, evaluationType: (r.evalType as any) ?? "numeric_tolerance", answerKey: r.answerKey ?? "",
+              numericTolerance: r.numericTolerance ?? (r.evalType === "numeric_tolerance" ? "0.01" : null),
+            });
+          }
+          created++;
+        }
+        return { ok: true, created, failed: fail };
+      }),
+
     /** Validasi live tanpa publish (gatekeeper). */
     validate: adminProcedure
       .input(z.object({ versionId: z.string().min(1) }))

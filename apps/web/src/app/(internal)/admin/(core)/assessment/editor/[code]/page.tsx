@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Copy, Eye, FilePlus2, GitBranch, GripVertical, Loader2, Plus, Rocket, ShieldCheck, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronUp, Copy, Eye, FilePlus2, FileUp, GitBranch, GripVertical, Loader2, Plus, Rocket, ShieldCheck, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -29,6 +29,7 @@ export default function AssessmentDetailPage() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dimCode, setDimCode] = useState("");
   const [dimName, setDimName] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
   const [focusQ, setFocusQ] = useState<string | null>(null);
   const [focusDim, setFocusDim] = useState(false);
   const [hlQ, setHlQ] = useState<string | null>(null);
@@ -91,6 +92,10 @@ export default function AssessmentDetailPage() {
   const mReorder = useMutation(orpc.discoverAdmin.versions.contentReorder.mutationOptions({
     onSuccess: () => { void invalidate(); },
     onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
+  }));
+  const mImport = useMutation(orpc.discoverAdmin.versions.importQuestions.mutationOptions({
+    onSuccess: () => { void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
+    onError: (e) => notify.error("Impor gagal", { description: e.message?.slice(0, 160) }),
   }));
   const mDimsAdd = useMutation(orpc.discoverAdmin.versions.dimsAdd.mutationOptions({
     onSuccess: () => { notify.create("Dimensi ditambahkan ✅"); setDimCode(""); setDimName(""); void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
@@ -285,7 +290,10 @@ export default function AssessmentDetailPage() {
             Daftar soal <span className="ml-1 font-manrope text-[11px] font-normal text-muted-foreground">{questions.length} soal {canEdit ? "" : "· hanya baca"}</span>
           </span>
           {canEdit ? (
-            <Button size="sm" className="bg-brand-orange hover:bg-brand-orange/90" onClick={() => setModal({ open: true })}><Plus className="mr-1 h-4 w-4" /> Tambah soal</Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} title="Import banyak soal dari CSV/Excel"><FileUp className="mr-1 h-4 w-4" /> Import Soal</Button>
+              <Button size="sm" className="bg-brand-orange hover:bg-brand-orange/90" onClick={() => setModal({ open: true })}><Plus className="mr-1 h-4 w-4" /> Tambah soal</Button>
+            </div>
           ) : (
             <Button size="sm" className="bg-brand-navy hover:bg-brand-navy-light" onClick={startEdit} disabled={mDraft.isPending}>
               {mDraft.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null} Ubah soal
@@ -375,6 +383,8 @@ export default function AssessmentDetailPage() {
 
       <WorkingOverlay show={busyAny} label={mSaveQ.isPending ? "Menyimpan soal…" : mPub.isPending ? "Menerbitkan…" : mDimsAdd.isPending ? "Menambah dimensi…" : mReorder.isPending ? "Menyimpan urutan…" : "Menyimpan…"} />
 
+      {importOpen && canEdit && <ImportModal versionId={versionId} mImport={mImport} onDone={() => setImportOpen(false)} onClose={() => setImportOpen(false)} />}
+
       {verify && <ReleaseVerifyModal versionId={verify.vid} publish={mPub} onClose={() => setVerify(null)} />}
     </div>
   );
@@ -426,6 +436,128 @@ function ReleaseVerifyModal({ versionId, publish, onClose }: { versionId: string
           </Button>
         </div>
         {!checks?.ok && !isPending && <p className="mt-2 text-center font-manrope text-[10px] text-muted-foreground">Perbaiki masalah di versi tersebut sebelum bisa dirilis.</p>}
+      </div>
+    </div>
+  );
+}
+
+function ImportModal({ versionId, mImport, onDone, onClose }: { versionId: string; mImport: any; onDone: () => void; onClose: () => void }) {
+  const [rows, setRows] = useState<any[] | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [result, setResult] = useState<{ created: number; failed: string[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const cols = ["Teks", "Dimensi", "Tipe", "Opsi A", "Opsi B", "Opsi C", "Opsi D", "Opsi E", "Opsi F", "Kunci", "Bobot", "Kunci Isian", "Cara nilai", "Toleransi"];
+
+  const downloadTemplate = async (asCsv: boolean) => {
+    const XLSX: any = await import("xlsx");
+    const sample = {
+      Teks: "Kamu lebih suka bekerja dengan…", Dimensi: "R", Tipe: "pilihan",
+      "Opsi A": "Data dan eksperimen ilmiah", "Opsi B": "Ide kreatif dan visual", "Opsi C": "", "Opsi D": "", "Opsi E": "", "Opsi F": "",
+      Kunci: "A", Bobot: 1, "Kunci Isian": "", "Cara nilai": "", Toleransi: "",
+    };
+    const sample2 = {
+      Teks: "Hitung 3/4 + 0", Dimensi: "NUM", Tipe: "isian", "Opsi A": "", "Opsi B": "", "Opsi C": "", "Opsi D": "", "Opsi E": "", "Opsi F": "",
+      Kunci: "", Bobot: 1, "Kunci Isian": "0.75", "Cara nilai": "angka", Toleransi: "0.01",
+    };
+    const ws = XLSX.utils.aoa_to_sheet([cols, Object.values(sample), Object.values(sample2)]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Soal");
+    const data = asCsv ? XLSX.utils.sheet_to_csv(ws) : (XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer);
+    const blob = new Blob([data], { type: asCsv ? "text/csv;charset=utf-8" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = asCsv ? "template-soal.csv" : "template-soal.xlsx"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const onFile = async (f: File) => {
+    setFileName(f.name); setResult(null);
+    const XLSX: any = await import("xlsx");
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf);
+    const ws = wb.Sheets[wb.SheetNames[0]!];
+    const raw = XLSX.utils.sheet_to_json(ws, { defval: "" }) as Record<string, any>[];
+    const mapType = (v: any) => { const t = String(v ?? "").toLowerCase(); if (t.includes("isian") || t.includes("text") || t.includes("ketik")) return "text_input"; if (t.includes("pilih") || t.includes("ganda") || t === "mc") return "multiple_choice"; return undefined; };
+    const mapEval = (v: any) => { const t = String(v ?? "").toLowerCase(); if (t.includes("kata") || t.includes("keyword")) return "keyword_match"; if (t.includes("pola") || t.includes("regex") || t.includes("pattern")) return "pattern_match"; if (t.includes("persis") || t.includes("exact")) return "exact_match"; return "numeric_tolerance"; };
+    setRows(raw.map((r) => ({
+      text: String(r["Teks"] ?? r["Soal"] ?? ""),
+      dimension: String(r["Dimensi"] ?? ""),
+      type: mapType(r["Tipe"]),
+      options: ["A", "B", "C", "D", "E", "F"].map((l) => String(r["Opsi " + l] ?? r["Opsi" + l] ?? "")).filter((o) => o.trim().length > 0),
+      key: String(r["Kunci"] ?? "A").toUpperCase().slice(0, 1),
+      weight: Number(r["Bobot"]) || 1,
+      answerKey: String(r["Kunci Isian"] ?? r["Jawaban"] ?? ""),
+      evalType: mapEval(r["Cara nilai"]),
+      numericTolerance: String(r["Toleransi"] ?? "0.01"),
+    })).filter((r: any) => r.text.trim()));
+  };
+
+  const doImport = async () => {
+    if (!rows?.length) return;
+    setBusy(true);
+    try {
+      const r = await mImport.mutateAsync({ versionId, rows });
+      setResult({ created: r.created ?? 0, failed: r.failed ?? [] });
+      notify.create(`Impor selesai — ${r.created ?? 0} soal ditambahkan`, { description: (r.failed ?? []).length ? `${r.failed.length} baris dilewati (lihat hasil).` : "Semua baris berhasil." });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold font-bricolage text-base text-brand-navy">Import Soal (CSV/Excel)</h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+        </div>
+        <p className="mt-1 font-manrope text-xs text-muted-foreground">
+          Kolom: Teks · Dimensi (kode/nama) · Tipe (pilihan/isian) · Opsi A–F · Kunci · Bobot · Kunci Isian · Cara nilai · Toleransi.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => void downloadTemplate(false)}>⬇ Unduh template .xlsx</Button>
+          <Button size="sm" variant="outline" onClick={() => void downloadTemplate(true)}>⬇ Unduh template .csv</Button>
+        </div>
+        <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-4 py-6 font-manrope text-sm text-gray-600 hover:border-brand-orange/40 hover:bg-gray-50">
+          <FileUp className="h-5 w-5 text-brand-navy" />
+          {fileName || "Pilih file .csv / .xlsx / .xls"}
+          <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); }} />
+        </label>
+
+        {rows !== null && (
+          <div className="mt-3 max-h-56 overflow-y-auto rounded-xl border border-gray-100">
+            <table className="w-full text-left font-manrope text-[11px]">
+              <thead className="sticky top-0 bg-gray-50 text-gray-500"><tr><th className="px-2 py-1">#</th><th className="px-2 py-1">Teks</th><th className="px-2 py-1">Dimensi</th><th className="px-2 py-1">Tipe</th><th className="px-2 py-1">Opsi</th></tr></thead>
+              <tbody>
+                {rows.slice(0, 50).map((r: any, i: number) => (
+                  <tr key={i} className="border-t border-gray-50">
+                    <td className="px-2 py-1 text-gray-400">{i + 2}</td>
+                    <td className="max-w-[220px] truncate px-2 py-1">{r.text}</td>
+                    <td className="px-2 py-1">{r.dimension}</td>
+                    <td className="px-2 py-1">{r.type ?? "pilihan"}</td>
+                    <td className="px-2 py-1">{r.options.length}{r.options.length ? (` [${r.key}]`) : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.length > 50 && <p className="px-2 py-1 text-[10px] text-gray-400">… +{rows.length - 50} baris</p>}
+          </div>
+        )}
+
+        {result && (
+          <div className="mt-3 rounded-xl border border-teal-100 bg-teal-50/50 p-3">
+            <p className="font-manrope text-xs font-semibold text-teal-700">{result.created} soal berhasil ditambahkan.</p>
+            {result.failed.length > 0 && <ul className="mt-1 max-h-28 overflow-y-auto font-manrope text-[10px] text-red-700">{(result.failed.slice(0, 10)).map((e, i) => <li key={i}>{e}</li>)}</ul>}
+          </div>
+        )}
+
+        <div className="mt-5 flex items-center justify-between gap-2">
+          <p className="font-manrope text-[11px] text-muted-foreground">{rows ? `${rows.length} baris terbaca` : ""}</p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} disabled={busy}>Tutup</Button>
+            <Button className="bg-brand-navy hover:bg-brand-navy-light" disabled={!rows?.length || busy || mImport.isPending} onClick={() => void doImport()}>
+              {busy || mImport.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FileUp className="mr-1 h-4 w-4" />} Impor {rows?.length ?? 0} soal
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
