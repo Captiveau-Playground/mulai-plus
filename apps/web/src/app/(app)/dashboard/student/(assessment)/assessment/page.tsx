@@ -10,6 +10,7 @@ import { ProgressCharts } from "@/components/student/progress-charts";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 import { orpc, client } from "@/utils/orpc";
 
 const TEST_META: Record<string, { emoji: string; color: string; desc: string; xp: string; href: string }> = {
@@ -28,6 +29,38 @@ const TEST_META: Record<string, { emoji: string; color: string; desc: string; xp
     href: "/dashboard/student/assessment/take/ability" as const,
   },
 };
+
+function EngineProgressCard() {
+  const { data: authSession } = authClient.useSession();
+  const sid = authSession?.user?.id ?? "";
+  const raw = client as any;
+  const qM = useQuery({ queryKey: ["ep", "DISCOVER", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "DISCOVER", studentId: sid }) });
+  const qT = useQuery({ queryKey: ["ep", "TALENT", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "TALENT", studentId: sid }) });
+  const minat = (qM.data as any)?.present === true;
+  const bakat = (qT.data as any)?.present === true;
+  if (!sid) return null;
+  if (minat && bakat) {
+    return (
+      <div className="rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-md">
+        <p className="font-bold font-bricolage text-base">Kedua tes selesai — 🎉</p>
+        <p className="mt-1 font-manrope text-xs text-white/80">Laporan minat &amp; bakatmu sudah siap, lengkap dgn jurusan, kampus, dan karir yang cocok.</p>
+        <Link href="/dashboard/student/assessment/result" className="mt-3 inline-flex items-center gap-1 rounded-xl bg-white px-4 py-2 font-manrope text-xs font-semibold text-teal-700 hover:brightness-95">Lihat Rekomendasi →</Link>
+      </div>
+    );
+  }
+  if (minat || bakat) {
+    const doneLabel = minat ? "Minat" : "Bakat";
+    const next = minat ? { label: "Tes Bakat", href: "/dashboard/student/assessment/take/TALENT" } : { label: "Tes Minat", href: "/dashboard/student/assessment/take/DISCOVER" };
+    return (
+      <div className="rounded-3xl border border-brand-orange/25 bg-brand-orange/5 p-5">
+        <p className="font-bold font-bricolage text-sm text-gray-900">Kamu sudah test {doneLabel} — lanjut {next.label} yuk! 💪</p>
+        <p className="mt-1 font-manrope text-xs text-gray-500">Dua-duanya dibutuhkan biar rekomendasi jurusan &amp; karirmu lengkap.</p>
+        <Link href={next.href as any} className="mt-3 inline-flex items-center gap-1 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjut ke {next.label} →</Link>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function AssessmentHomePage() {
   const [infoOpen, setInfoOpen] = useState(true);
@@ -196,6 +229,7 @@ export default function AssessmentHomePage() {
       {/* Test cards */}
       <div>
         <h2 className="mb-3 font-bold font-bricolage text-base text-gray-800 md:text-lg">Pilih Test</h2>
+        <div className="mb-4"><EngineProgressCard /></div>
         <div className="grid gap-3 md:grid-cols-2 md:gap-4">
           {((liveTests?.items ?? []) as any[]).map((test: any, i: number) => {
             const meta =
