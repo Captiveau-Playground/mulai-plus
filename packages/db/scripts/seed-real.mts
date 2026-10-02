@@ -123,26 +123,32 @@ async function main() {
   // ── DISCOVER (minat) ──
   let a = await wipeAssessment("DISCOVER");
   if (!a) { a = { id: is() }; await db.insert(schema.assessments).values({ id: a.id, code: "DISCOVER", family: "minat", name: "MULAI Discover™", description: "Tes Minat — Holland RIASEC" }); }
+  else await db.update(schema.assessments).set({ name: "MULAI Discover™", description: "Tes Minat — Holland RIASEC" }).where(eq(schema.assessments.id, a.id));
   const vid = is();
   const cfgD = { total_dim: 6, result_dim_count: 3, min_q_per_dim: 4, randomize_q: true, randomize_a: true, timer_enabled: false, timer_scope: "none", allow_pause: true, scoring_method: "sum", section_mode: "chunk:15", lang: "id" };
   await db.insert(schema.assessmentVersions).values({ id: vid, assessmentId: a.id, versionNumber: 1, status: "live", configJson: cfgD, publishedAt: new Date() });
   const dimsD: Record<string, string> = {};
   const cols = ["R", "I", "A", "S", "E", "C"] as const;
   for (let i = 0; i < cols.length; i++) { const c = cols[i]!; dimsD[c] = is(); await db.insert(schema.assessmentDimensions).values({ id: dimsD[c], versionId: vid, code: c, name: RIASEC[c], shortName: c, description: RIASEC_DESC[c]!, displayOrder: i, isActive: true }); }
-  for (let i = 0; i < MINAT.length; i++) {
-    const [A, B] = MINAT[i]!;
-    const dA = cols[i % 6]!;
-    const dB = cols[(i % 6) === 4 ? 5 : (i % 6) === 5 ? 0 : i % 6 + 1]!;
-    const qid = is();
-    await db.insert(schema.questions).values({ id: qid, versionId: vid, dimensionId: dimsD[dA]!, scaleId, questionText: `Pilih yang lebih menggambarkanmu:\n${A}\n${B}`, questionType: "multiple_choice", presentationMode: "standard_option_card", displayOrder: i, isActive: true });
-    await db.insert(schema.questionOptions).values({ id: is(), questionId: qid, optionValue: "A", targetDimension: dimsD[dA]!, label: A, score: 1, displayOrder: 0 });
-    await db.insert(schema.questionOptions).values({ id: is(), questionId: qid, optionValue: "B", targetDimension: dimsD[dB]!, label: B, score: 1, displayOrder: 1 });
+  // 30 soal dikelompokkan per dimensi (R×5, I×5, …) → section per dimensi terasa nyata
+  const opDPair: Record<string, string> = { R: "I", I: "A", A: "S", S: "E", E: "C", C: "R" };
+  for (let g = 0; g < cols.length; g++) {
+    const dA = cols[g]!;
+    const dB = opDPair[dA]!;
+    for (let j = 0; j < 5; j++) {
+      const [A, B] = MINAT[g * 5 + j]!;
+      const qid = is();
+      await db.insert(schema.questions).values({ id: qid, versionId: vid, dimensionId: dimsD[dA]!, scaleId, questionText: `Saat dihadapkan dua pilihan ini, mana yang lebih menggambarkanmu?`, questionType: "multiple_choice", presentationMode: "standard_option_card", displayOrder: g * 5 + j, isActive: true });
+      await db.insert(schema.questionOptions).values({ id: is(), questionId: qid, optionValue: "A", targetDimension: dimsD[dA]!, label: A, score: 1, displayOrder: 0 });
+      await db.insert(schema.questionOptions).values({ id: is(), questionId: qid, optionValue: "B", targetDimension: dimsD[dB]!, label: B, score: 1, displayOrder: 1 });
+    }
   }
   console.log("DISCOVER: 30 soal seeded");
 
   // ── TALENT (bakat) ──
   a = await wipeAssessment("TALENT");
   if (!a) { a = { id: is() }; await db.insert(schema.assessments).values({ id: a.id, code: "TALENT", family: "bakat", name: "MULAI Talent™", description: "Tes Bakat — kemampuan dasar" }); }
+  else await db.update(schema.assessments).set({ name: "MULAI Talent™", description: "Tes Bakat — kemampuan dasar" }).where(eq(schema.assessments.id, a.id));
   const vidT = is();
   const cfgT = { total_dim: 5, result_dim_count: 2, min_q_per_dim: 5, randomize_q: true, randomize_a: true, timer_enabled: true, timer_scope: "dimension", allow_pause: true, scoring_method: "sum", section_mode: "by_dimension", lang: "id" };
   await db.insert(schema.assessmentVersions).values({ id: vidT, assessmentId: a.id, versionNumber: 1, status: "live", configJson: cfgT, publishedAt: new Date() });

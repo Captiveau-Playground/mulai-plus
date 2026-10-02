@@ -39,23 +39,23 @@ export default function TmbTestPage() {
 }
 
 function EngineWrapper({ code }: { code: string }) {
-  const [ready, setReady] = useState<{ sessionId: string; questions: any[] } | null>(null);
+  const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string } | null>(null);
   const [errg, setErrg] = useState("");
   useEffect(() => {
     (async () => {
       try {
         const cfg = (await client.discover.config({ code } as any)) as any;
         const st = (await client.discover.start({ code, studentId: "preview-" + Math.random().toString(36).slice(2, 9) } as any)) as any;
-        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive) });
+        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat" });
       } catch (e: any) { setErrg(e?.message ?? "Gagal memuat tes"); }
     })();
   }, [code]);
   if (errg) return <p className="font-manrope text-sm text-red-500">{errg}</p>;
   if (!ready) return <div className="flex min-h-[40vh] items-center justify-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
-  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions }} />;
+  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel }} />;
 }
 
-function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[] } }) {
+function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string } }) {
   const isEngine = !!engine;
   const engineQs = engine?.questions ?? [];
   const [eq, setEq] = useState(0);
@@ -174,7 +174,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const engineLoad = (i: number) => {
     const q = engineQs[i];
     if (!q) { void engineFinish(); return; }
-    setQuestion({ id: q.id, text: q.questionText, dimension: q.dimensionId, optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label } as unknown as Question);
+    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label } as unknown as Question);
     setProgress(i + 1);
     setTotal(engineQs.length);
     setEq(i);
@@ -487,7 +487,16 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             <Home className="h-4 w-4" /> Beranda
           </Link>
         </div>
-      </motion.div>
+              {isEngine && (
+          <Link
+            href={`/dashboard/student/assessment/take/${engine!.otherCode}`}
+            className="mt-3 flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110"
+          >
+            Lanjut ke {engine!.otherLabel} → <ArrowRight className="h-4 w-4" />
+          </Link>
+        )}
+
+</motion.div>
     );
   }
 
