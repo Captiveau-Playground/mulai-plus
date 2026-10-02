@@ -261,9 +261,27 @@ export const discoverRouter = {
       }
       const cfg = (sess.configJson ?? {}) as any;
       const method: string = cfg?.scoring_method ?? "sum";
+      // Timer server-side: lewat deadline → sesi ditandai TIMEOUT (auto-submit klien tetap valid)
+      const timerCfg = (sess.configJson as any)?.timer;
+      const timedOut = !!timerCfg?.expectedEndISO && Date.now() > new Date(timerCfg.expectedEndISO).getTime();
+      // XP/streak: 10 XP per bagian tuntas + 1 XP per jawaban; streak = banyak bagian tuntas
+      const qsAll = await db.query.questions.findMany({
+        where: eq(schema.questions.versionId, sess.versionId),
+        orderBy: asc(schema.questions.displayOrder),
+      });
+      const dimsAll = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, sess.versionId) });
+      const runSecs = computeRunSections((sess.configJson as any), qsAll, dimsAll);
       const purse = await db.query.assessmentAnswers.findMany({
         where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
       });
+      const answeredSet = new Set(purse.map((a) => a.questionId));
+      let sectionsDone = 0;
+      const activeQs = qsAll.filter((q) => q.isActive);
+      for (const sc of runSecs) {
+        const slice = activeQs.slice(sc.from, sc.to + 1);
+        if (slice.length && slice.every((q) => answeredSet.has(q.id))) sectionsDone++;
+      }
+      const xpEarned = sectionsDone * 10 + answeredSet.size;
       const optIds = purse.map((a) => a.selectedOptionId).filter(Boolean) as string[];
       const opts = optIds.length
         ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.id, optIds) })
@@ -328,6 +346,9 @@ export const discoverRouter = {
       const result = {
         id: uid(),
         sessionId: input.sessionId,
+        xpEarned,
+        streak: sectionsDone,
+        timedOut,
         profileCode,
         topDimensionsJson: top,
         rawScoresJson: Object.fromEntries([...scores.entries()]),
@@ -335,10 +356,10 @@ export const discoverRouter = {
       await db.insert(schema.assessmentResults).values(result);
       await db
         .update(schema.assessmentSessions)
-        .set({ status: "completed", completedAt: new Date() })
+        .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
         .where(eq(schema.assessmentSessions.id, input.sessionId));
 
-      return { ok: true, profileCode, topDimensions: top, rawScores: result.rawScoresJson, resultId: result.id };
+      return { ok: true, profileCode, topDimensions: top, rawScores: result.rawScoresJson, xpEarned, streak: sectionsDone, timedOut, resultId: result.id };
     }),
 
   /** Jeda (pause) → lanjutkan nanti. */
@@ -392,6 +413,25 @@ function normalizeEval(v?: string): string {
   if (t.includes("angka") || t.includes("numeric") || t.includes("toler")) return "numeric_tolerance";
   if (t.includes("persis") || t.includes("exact")) return "exact_match";
   return "exact_match";
+}
+
+function computeRunSections(cfg: any, qs: { id: string; dimensionId: string; displayOrder: number; isActive: boolean }[], dims: { id: string; name: string }[]) {
+  const sm = cfg?.section_mode ?? "none";
+  if (sm === "by_dimension") {
+    let pos = 0; const arr: { key: string; title: string; from: number; to: number }[] = [];
+    for (const d of dims) {
+      const cnt = qs.filter((q) => q.dimensionId === d.id).length;
+      if (cnt > 0) { arr.push({ key: d.id, title: d.name, from: pos, to: pos + cnt - 1 }); pos += cnt; }
+    }
+    return arr;
+  }
+  if (sm?.startsWith("chunk")) {
+    const size = Number(sm.split(":")[1] ?? 10) || 10;
+    const arr: { key: string; title: string; from: number; to: number }[] = [];
+    for (let f = 0; f < qs.length; f += size) arr.push({ key: "chunk" + f, title: `Bagian ${arr.length + 1}`, from: f, to: Math.min(f + size - 1, qs.length - 1) });
+    return arr;
+  }
+  return qs.length ? [{ key: "all", title: "Satu Bagian", from: 0, to: qs.length - 1 }] : [];
 }
 
 async function contentOfVersion(versionId: string) {

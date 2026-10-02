@@ -449,6 +449,12 @@ function TalentAssessmentPage() {
                 <p className="mt-1 font-bold font-bricolage text-3xl text-teal-700">{result.profileCode}</p>
               </div>
             )}
+            {(result?.xpEarned ?? 0) > 0 && (
+              <p className="mt-3 font-manrope text-sm font-semibold text-brand-orange">
+                +{result.xpEarned} XP · streak 🔥 {result.streak} bagian
+              </p>
+            )}
+            {result?.timedOut && <p className="mt-2 font-manrope text-[11px] text-amber-600">Waktu habis — jawaban yang terisi otomatis dikirim & diverifikasi.</p>}
             {result?.topDimensions && (
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 {(result.topDimensions as string[]).map((c) => (

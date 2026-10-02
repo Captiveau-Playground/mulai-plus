@@ -258,6 +258,9 @@ export const assessmentResults = pgTable("assessment_results", {
   sessionId: varchar("session_id", { length: 24 })
     .notNull()
     .references(() => assessmentSessions.id, { onDelete: "cascade" }),
+  xpEarned: integer("xp_earned").notNull().default(0),
+  streak: integer("streak").notNull().default(0),
+  timedOut: boolean("timed_out").notNull().default(false),
   profileCode: varchar("profile_code", { length: 40 }), // misal "S-I-A"
   topDimensionsJson: jsonb("top_dimensions_json"),
   rawScoresJson: jsonb("raw_scores_json"),

@@ -629,6 +629,7 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
   const [form, setForm] = useState<any>({
     id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", questionText: q?.questionText ?? "",
     questionType: q?.questionType ?? "multiple_choice", weight: q?.weight ?? 1,
+    hasMathNotation: q?.hasMathNotation ?? false, mediaUrl: q?.mediaUrl ?? "", mediaCaption: q?.mediaCaption ?? "", presentationMode: q?.presentationMode ?? "standard_option_card",
     options: (q?.opts?.length ?? 0) > 0 ? q.opts.map((o: any) => ({ id: o.id, optionValue: o.optionValue, label: o.label, score: o.score })) : [{ optionValue: "A", label: "", score: 1 }, { optionValue: "B", label: "", score: 0 }],
     textEval: { evaluationType: "numeric_tolerance", answerKey: "", numericTolerance: "0.01" },
   });
@@ -650,7 +651,7 @@ function QuestionPanel({ q, versionId, content, onDone, onClose }: { q?: any; ve
     try {
       await onDone({
         id: form.id, dimensionId: form.dimensionId, scaleId: null, questionText: form.questionText,
-        questionType: form.questionType, hasMathNotation: false, mediaUrl: null, mediaCaption: null,
+        questionType: form.questionType, hasMathNotation: !!form.hasMathNotation, mediaUrl: form.mediaUrl || null, mediaCaption: form.mediaCaption || null, presentationMode: form.presentationMode ?? "standard_option_card",
         weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
         options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, targetDimension: form.dimensionId, displayOrder: i })) : [],
         textEval: form.questionType === "text_input" && form.textEval.answerKey ? form.textEval : null,
