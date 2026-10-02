@@ -6,7 +6,34 @@ import { id } from "date-fns/locale";
 import { ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { orpc } from "@/utils/orpc";
+import { authClient } from "@/lib/auth-client";
+import { client, orpc } from "@/utils/orpc";
+
+function EngineHistoryCards() {
+  const { data: authSession } = authClient.useSession();
+  const sid = authSession?.user?.id ?? "";
+  const raw = client as any;
+  const qM = useQuery({ queryKey: ["eh", "DISCOVER", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "DISCOVER", studentId: sid }) });
+  const qT = useQuery({ queryKey: ["eh", "TALENT", sid], enabled: !!sid, queryFn: () => raw.discover.resultsFor({ code: "TALENT", studentId: sid }) });
+  const rows = [qM.data, qT.data].filter((d: any) => d?.present);
+  if (!sid || rows.length === 0) return null;
+  return (
+    <div className="mb-5 space-y-2">
+      <p className="font-bold font-bricolage text-sm text-gray-800">Tes Engine (v2)</p>
+      {rows.map((r: any) => (
+        <div key={r.code} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div>
+            <p className="font-bold font-bricolage text-sm text-gray-900">{r.name}</p>
+            <p className="font-manrope text-xs text-gray-500">{r.profileCode || "—"} · +{r.xpEarned ?? 0} XP{r.timedOut ? " · selesai karena waktu habis" : ""}</p>
+          </div>
+          <Link href="/dashboard/student/assessment/result" className="inline-flex items-center gap-1 font-manrope text-xs font-semibold text-brand-navy">
+            Lihat <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function AssessmentHistoryPage() {
   const { data, isLoading } = useQuery({

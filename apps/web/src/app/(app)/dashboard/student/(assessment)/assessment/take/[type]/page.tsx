@@ -199,7 +199,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     try { const r = (await client.discover.finish({ sessionId: engine!.sessionId } as any)) as any; setXpEarned(r?.xpEarned ?? 0); } catch { /* ok */ }
     setDone(true);
     fireConfetti();
-    try { localStorage.setItem("v2-done:" + engine!.code, "1"); } catch { /* ignore */ }
+    /* completion dicatat di SERVER (resultsFor) — no localStorage */
   };
   const [secDone, setSecDone] = useState(0);
   const [secStreak, setSecStreak] = useState(0);
