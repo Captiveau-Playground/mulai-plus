@@ -78,8 +78,12 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       try {
         const rs = (await (client as any).discover.session({ sessionId: engine!.sessionId })) as any;
         const answered = new Set((rs?.answers ?? []).map((a: any) => a.questionId));
-        const fi = engineQs.findIndex((q) => !answered.has(q.id));
-        resumeStartRef.current = fi >= 0 ? fi : 0; // lanjut dari soal pertama yang belum dijawab
+        if (answered.size > 0) {
+          // RESUME: lewati layar intro — langsung ke pembuka dimensi / posisi belum dijawab
+          const fi = engineQs.findIndex((q) => !answered.has(q.id));
+          resumeStartRef.current = fi >= 0 ? fi : 0;
+          setIntro(false);
+        }
       } catch { /* abaikan — mulai dari awal */ }
     })();
   }, [isEngine, engine?.sessionId]);
