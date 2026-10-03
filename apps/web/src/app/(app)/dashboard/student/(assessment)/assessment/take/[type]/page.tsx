@@ -924,7 +924,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
       {/* Options */}
       <div className="mt-4 space-y-3">
-        {isEngine && (question as any)?.questionType === "text_input" ? (
+        {isEngine && (engineQs[eq] as any)?.questionType === "text_input" ? (
           <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
             <p className="mb-2 font-manrope text-xs font-medium text-gray-500">Tulis jawaban (angka / pecahan)</p>
             <div className="flex gap-2">
