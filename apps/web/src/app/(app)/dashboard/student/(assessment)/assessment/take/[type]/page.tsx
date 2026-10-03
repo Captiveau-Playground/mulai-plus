@@ -930,7 +930,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             <div className="flex gap-2">
               <input
                 type="text" inputMode="decimal" autoFocus value={etv}
-                onChange={(e) => setEtv(e.target.value)}
+                onChange={(e) => setEtv(e.target.value.replace(/[^\d.,/\-]/g, ""))} // numerik/desimal saja — huruf ditolak
                 onKeyDown={(e) => { if (e.key === "Enter") engineSubmitText(); }}
                 placeholder="cth: 19, 0.75, atau 3/4"
                 className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-base outline-none transition-colors focus:border-mentor-teal"
