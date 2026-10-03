@@ -689,7 +689,8 @@ function MediaManager({ onPick, onClose, kind = "question" }: { onPick: (u: stri
 
   const onFile = async (f: File) => {
     const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => { const s = String(r.result ?? ""); res(s.split(",")[1] ?? ""); }; r.onerror = rej; r.readAsDataURL(f); });
-    await mUp.mutateAsync({ dataB64: b64, mime: f.type || "image/png", filename: f.name, kind });
+    const res = await mUp.mutateAsync({ dataB64: b64, mime: f.type || "image/png", filename: f.name, kind });
+    if (res?.url) onPick(res.url); // upload = langsung pasang ke field yang sedang diedit + tutup
   };
 
   return (
