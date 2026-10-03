@@ -112,7 +112,9 @@ function EngineProgressCard() {
 }
 
 export default function AssessmentHomePage() {
-  const [infoOpen, setInfoOpen] = useState(true);
+  // Dialog "masih development" — tampil SEKALI (dismiss tersimpan spt cookie), tidak muncul lagi di kunjungan berikut
+  const [infoOpen, setInfoOpen] = useState(() => typeof window !== "undefined" && localStorage.getItem("mulai-dev-info-v1") !== "1");
+  const closeInfo = () => { try { localStorage.setItem("mulai-dev-info-v1", "1"); } catch { /* abaikan */ } setInfoOpen(false); };
   const { data: authSession } = authClient.useSession();
   const sid = authSession?.user?.id ?? "";
   const gate = useProfileGate();
@@ -153,7 +155,7 @@ export default function AssessmentHomePage() {
   return (
     <div className="space-y-6">
       {/* Info: masih development — dialog brand (bukan base-ui) */}
-      <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+      <Dialog open={infoOpen} onOpenChange={(v) => { if (!v) closeInfo(); else setInfoOpen(true); }}>
         <DialogContent className="overflow-hidden! gap-0! border-border! bg-card! p-0! shadow-2xl! sm:max-w-[26rem]">
           {/* Header brand */}
           <div className="relative overflow-hidden bg-gradient-to-r from-brand-navy to-brand-navy-light px-6 py-5 text-white">
@@ -176,7 +178,7 @@ export default function AssessmentHomePage() {
               <button
                 type="button"
                 aria-label="Tutup"
-                onClick={() => setInfoOpen(false)}
+                onClick={closeInfo}
                 className="flex size-7 shrink-0 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               >
                 ✕
