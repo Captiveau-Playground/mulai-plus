@@ -893,15 +893,18 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                       : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl transition-colors",
-                      isSelected ? "bg-mentor-teal" : "bg-gray-100",
-                    )}
-                  >
-                    {isSelected ? <Check className="h-6 w-6 text-white" /> : i === 0 ? "👷" : "🎨"}
-                  </span>
-                  {oic && <span className="text-xl">{oic}</span>}
+                  {oic ? (
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">{oic}</span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl transition-colors",
+                        isSelected ? "bg-mentor-teal" : "bg-gray-100",
+                      )}
+                    >
+                      {isSelected ? <Check className="h-6 w-6 text-white" /> : i === 0 ? "👷" : "🎨"}
+                    </span>
+                  )}
                 {oi && <img src={oi} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-gray-100 object-cover" />}
                 <span className="font-manrope font-medium text-[15px] text-gray-800">{opt.text}</span>
                 </motion.button>
@@ -956,21 +959,24 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                           : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold font-manrope text-sm",
-                      correct
-                        ? "bg-green-500 text-white"
-                        : wrong
-                          ? "bg-red-400 text-white"
-                          : isSelected
-                            ? "bg-mentor-teal text-white"
-                            : "bg-gray-100 text-gray-500",
-                    )}
-                  >
-                    {key}
-                  </span>
-                  {oic && <span className="text-xl">{oic}</span>}
+                  {oic ? (
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-2xl shadow-sm">{oic}</span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold font-manrope text-sm",
+                        correct
+                          ? "bg-green-500 text-white"
+                          : wrong
+                            ? "bg-red-400 text-white"
+                            : isSelected
+                              ? "bg-mentor-teal text-white"
+                              : "bg-gray-100 text-gray-500",
+                      )}
+                    >
+                      {key}
+                    </span>
+                  )}
                 {oi && <img src={oi} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-gray-100 object-cover" />}
                 <span className="font-manrope font-medium text-[15px] text-gray-800">{opt}</span>
                 </motion.button>

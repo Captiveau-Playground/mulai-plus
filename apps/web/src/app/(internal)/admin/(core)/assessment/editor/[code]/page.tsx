@@ -925,8 +925,11 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
             <div className={`mt-2 ${form.presentationMode === "visual_comparison" ? "grid grid-cols-2 gap-2" : "space-y-1.5"}`}>
               {form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => (
                 <div key={i} className={`flex items-center gap-2 rounded-lg border p-2.5 ${i === 0 ? "border-teal-500/60 bg-teal-500/5" : "border-gray-200 bg-white"}`}>
-                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold ${i === 0 ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}>{o.optionValue || ["A", "B", "C", "D", "E", "F"][i]}</span>
-                  {form.presentationMode === "emoji_option" && o.icon && <span className="text-base">{o.icon}</span>}
+                  {form.presentationMode === "emoji_option" && o.icon ? (
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-base">{o.icon}</span>
+                  ) : (
+                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold ${i === 0 ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}>{o.optionValue || ["A", "B", "C", "D", "E", "F"][i]}</span>
+                  )}
                   {form.presentationMode !== "standard_option_card" && o.imageUrl && <img src={o.imageUrl} alt="" className="h-8 w-11 shrink-0 rounded-md border border-gray-100 object-cover" />}
                   <span className="font-manrope text-xs text-gray-700">{o.label}</span>
                   {rules.scoring_mode === "likert" && <span className="ml-auto rounded bg-brand-navy/5 px-1.5 py-0.5 font-manrope text-[9px] font-bold text-brand-navy">{o.score} pts</span>}

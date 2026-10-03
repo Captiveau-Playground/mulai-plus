@@ -389,9 +389,13 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
                   return (
                     <button key={o.id} onClick={() => answer(o.id)} disabled={pending}
                       className={`group flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all hover:border-teal-500/60 hover:bg-teal-500/5 hover:shadow-md active:scale-[0.99] ${current.presentationMode === "visual_comparison" ? "min-h-28 justify-center" : ""} disabled:opacity-60 ${o.optionValue === "A" ? "border-teal-500 bg-teal-500/5" : "border-gray-100"}`}>
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white font-bold font-manrope text-xs text-gray-500 shadow-sm">{o.optionValue || "•"}</span>
+                      {current.presentationMode === "emoji_option" && o.icon ? (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-2xl shadow-sm">{o.icon}</span>
+                      ) : (
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white font-bold font-manrope text-xs text-gray-500 shadow-sm">{o.optionValue || "•"}</span>
+                      )}
                       {hasImg && <img src={o.imageUrl!} alt="" className="h-12 w-12 rounded-lg object-contain" />}
-                      {emoji && <span className="text-2xl">{emoji}</span>}
+                      {emoji && !o.icon && <span className="text-2xl">{emoji}</span>}
                       <span className="font-manrope text-sm text-gray-700">{o.label}</span>
                     </button>
                   );
