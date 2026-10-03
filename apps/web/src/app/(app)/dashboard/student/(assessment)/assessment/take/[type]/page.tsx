@@ -984,7 +984,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                     </span>
                   )}
                 {oi && <img src={oi} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-gray-100 object-cover" />}
-                <span className="font-manrope font-medium text-[15px] text-gray-800">{opt.text}</span>
+                {String(opt.text || "").trim() && <span className="font-manrope font-medium text-[15px] text-gray-800">{opt.text}</span>}
                 </motion.button>
               );
             })}
@@ -1008,10 +1008,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             </p>
           </>
         ) : (
-          [liveQuestion.optionA, liveQuestion.optionB, liveQuestion.optionC, liveQuestion.optionD]
-            .filter(Boolean)
-            .map((opt, i) => {
-              const key = String.fromCharCode(65 + i);
+          [["A", liveQuestion.optionA], ["B", liveQuestion.optionB], ["C", liveQuestion.optionC], ["D", liveQuestion.optionD]]
+            .filter(([k, t]: any) => String(t ?? "").trim() || (liveQuestion as any)._optImgs?.[(k.charCodeAt(0) - 65)] || (liveQuestion as any)._optIcons?.[(k.charCodeAt(0) - 65)])
+            .map(([key, opt]: any, i: number) => {
               const isSelected = selected === key;
               const oi = (liveQuestion as any)._optImgs?.[i];
               const oic = (liveQuestion as any)._optIcons?.[i];
@@ -1056,7 +1055,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                     </span>
                   )}
                 {oi && <img src={oi} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-gray-100 object-cover" />}
-                <span className="font-manrope font-medium text-[15px] text-gray-800">{opt}</span>
+                {String(opt ?? "").trim() && <span className="font-manrope font-medium text-[15px] text-gray-800">{opt}</span>}
                 </motion.button>
               );
             })
