@@ -334,14 +334,14 @@ export default function AssessmentDetailPage() {
                       {((cfgV as any)?.sections ?? []).map((sc: any, i: number) => (
                         <div key={sc.id ?? i} className="rounded-lg border border-gray-100 bg-gray-50/50 p-2">
                           <div className="flex gap-1.5">
-                            <Input className="flex-1 text-xs" value={sc.title} onChange={(e) => { sc.title = e.target.value; void invalidate(); }} placeholder="Judul pengantar" />
-                            <select className="rounded-lg border border-gray-200 px-2 py-1 font-manrope text-[10px]" value={sc.contentType} onChange={(e) => { sc.contentType = e.target.value as any; void invalidate(); }}>
+                            <DebouncedInput idKey={sc.id ?? "s" + i} className="flex-1 text-xs" placeholder="Judul pengantar" value={sc.title} onCommit={(v) => { sc.title = v; void mSecSave.mutateAsync({ versionId, id: sc.id, title: v, contentType: sc.contentType ?? "description", contentJson: sc.contentJson ?? { text: sc.title ?? "" }, displayOrder: sc.displayOrder, visibility: sc.visibility }); }} />
+                            <select className="rounded-lg border border-gray-200 px-2 py-1 font-manrope text-[10px]" value={sc.contentType} onChange={(e) => { const ct = e.target.value as any; sc.contentType = ct; void mSecSave.mutateAsync({ versionId, id: sc.id, title: sc.title ?? "", contentType: ct, contentJson: sc.contentJson ?? { text: "" }, displayOrder: sc.displayOrder, visibility: sc.visibility }); }}>
                               <option value="description">Deskripsi</option><option value="bullet_list">Poin</option><option value="cards">Kartu</option>
                             </select>
                             <Button size="sm" variant="outline" className="!px-2 !py-0.5 text-[10px]" onClick={() => void mSecSave.mutateAsync({ versionId, id: sc.id, title: sc.title, contentType: sc.contentType, contentJson: sc.contentJson, displayOrder: sc.displayOrder, visibility: sc.visibility })}>Simpan</Button>
                             <button onClick={() => void mSecDel.mutateAsync({ id: sc.id })} className="text-red-400"><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>
-                          <Input className="mt-1.5 w-full text-xs" value={(sc.contentJson?.text ?? "") || (sc.contentJson?.items ?? []).join(" • ")} onChange={(e) => { sc.contentJson = sc.contentType === "description" ? { text: e.target.value } : { items: e.target.value.split("\n") }; void invalidate(); }} placeholder="Isi (deskripsi / satu poin per baris)" />
+                          <DebouncedInput idKey={(sc.id ?? "s" + i) + "-c"} className="mt-1.5 w-full text-xs" placeholder="Isi (deskripsi / satu poin per baris)" value={(sc.contentJson?.text ?? "") || (sc.contentJson?.items ?? []).join(" | ")} onCommit={(v) => { sc.contentJson = sc.contentType === "description" ? { text: v } : { items: v.split("\n") }; void mSecSave.mutateAsync({ versionId, id: sc.id, title: sc.title ?? "", contentType: sc.contentType ?? "description", contentJson: sc.contentJson, displayOrder: sc.displayOrder, visibility: sc.visibility }); }} />
                         </div>
                       ))}
                       <Button size="sm" variant="outline" onClick={() => void mSecSave.mutateAsync({ versionId, title: "Pengantar baru", contentType: "description", contentJson: { text: "Tulis…" } })}><Plus className="mr-1 h-3.5 w-3.5" /> Tambah pengantar</Button>
@@ -352,7 +352,7 @@ export default function AssessmentDetailPage() {
                         return (
                           <div key={d.id} className="grid grid-cols-1 gap-1 rounded-lg border border-gray-100 bg-white p-2">
                             <p className="font-manrope text-[10px] font-semibold text-gray-600">Instruksi · {d.name}</p>
-                            <Input className="text-xs" value={ins?.header ?? ""} onChange={(e) => { const h = e.target.value; void mInstr.mutateAsync({ dimensionId: d.id, id: ins?.id, header: h || d.name, contentType: ins?.contentType ?? "bullet_list", contentJson: ins?.contentJson ?? { items: [] } }); }} placeholder="Judul instruksi (cth: Bagian {d.name})" />
+                            <DebouncedInput idKey={ins?.id ?? d.id} className="text-xs" placeholder="Judul instruksi (cth: Bagian {d.name})" value={ins?.header ?? ""} onCommit={(v) => { void mInstr.mutateAsync({ dimensionId: d.id, id: ins?.id, header: v || d.name, contentType: ins?.contentType ?? "bullet_list", contentJson: ins?.contentJson ?? { items: [] } }); }} />
                           </div>
                         );
                       })}
@@ -953,5 +953,19 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
         </Button>
       </div>
     </div>
+  );
+}
+
+// Input dengan save debounced (700ms idle / blur) — hindari save per ketukan
+function DebouncedInput({ value, onCommit, idKey, className, placeholder, disabled }: { value: string; onCommit: (v: string) => void; idKey?: string; className?: string; placeholder?: string; disabled?: boolean }) {
+  const [v, setV] = useState(value);
+  const t = useRef<any>(null);
+  useEffect(() => { setV(value); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idKey]);
+  const commit = (val: string) => { clearTimeout(t.current); t.current = setTimeout(() => onCommit(val), 700); };
+  return (
+    <Input disabled={disabled} className={className ?? ""} placeholder={placeholder} value={v}
+      onChange={(e) => { const val = e.target.value; setV(val); commit(val); }}
+      onBlur={() => { clearTimeout(t.current); onCommit(v); }} />
   );
 }
