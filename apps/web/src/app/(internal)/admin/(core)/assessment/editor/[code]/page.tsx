@@ -837,12 +837,13 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
             </label>
           </div>
           <label className="block font-manrope text-xs font-semibold text-foreground">Tampilan pilihan
-            <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.presentationMode} onChange={(e) => patch("presentationMode", e.target.value)}>
+            <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.presentationMode} onChange={(e) => { const v = e.target.value; setForm((f: any) => ({ ...f, presentationMode: v, options: v === "standard_option_card" ? f.options.map((o: any) => ({ ...o, imageUrl: null })) : f.options })); }}>
               <option value="standard_option_card">Kartu standar (teks)</option>
-              <option value="emoji_option">Emoji (opsi pakai ikon/emoji)</option>
-              <option value="image_option">Gambar per opsi</option>
-              <option value="visual_comparison">Banding visual (grid besar)</option>
+              <option value="emoji_option">Emoji / ikon (teks + gambar)</option>
+              <option value="image_option">Gambar per opsi (teks + gambar)</option>
+              <option value="visual_comparison">Banding visual besar (teks + gambar)</option>
             </select>
+            <span className="mt-1 block font-manrope text-[10px] text-muted-foreground">{form.presentationMode === "standard_option_card" ? "Opsi berupa teks saja." : "Opsi berisi teks + gambar (upload aset dari galeri)."}</span>
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block font-manrope text-xs font-semibold text-foreground">Bobot soal (utk metode Bobot)
@@ -870,31 +871,25 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
           </div>
           {form.questionType === "multiple_choice" ? (
             <div className="space-y-2">
-              <p className="font-manrope text-xs font-semibold text-foreground">Pilihan · tipe <b>Teks</b> atau <b>Teks + Gambar</b> — pilihan yang dipilih mendapat poin untuk dimensinya, sisanya 0</p>
+              <p className="font-manrope text-xs font-semibold text-foreground">{rules.scoring_mode === "likert" ? `Skala Likert ${rules.likert_min ?? 1}–${rules.likert_max ?? 5} — poin naik linier per pilihan` : form.presentationMode === "standard_option_card" ? "Pilihan teks — pilihan yang dipilih mendapat poin untuk dimensinya, sisanya 0" : "Pilihan teks + gambar — pilihan yang dipilih mendapat poin untuk dimensinya, sisanya 0"}</p>
               {form.options.map((o: any, i: number) => (
                 <div key={i} className="space-y-1.5 rounded-xl border border-gray-200 bg-white p-2">
                   <div className="flex items-center gap-2">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-gray-100 text-[9px] font-bold text-gray-500">{o.optionValue || ["A", "B", "C", "D", "E", "F"][i]}</span>
-                    <select className="rounded-lg border border-gray-200 px-2 py-1 font-manrope text-[11px]" value={o.imageUrl ? "img" : "text"} onChange={(e) => patchOpt(i, "imageUrl", e.target.value === "img" ? "" : null)}>
-                      <option value="text">Teks</option>
-                      <option value="img">Teks + Gambar</option>
-                    </select>
                     <Input className="flex-1" placeholder={`Pilihan ${["A", "B", "C", "D", "E", "F"][i]}`} value={o.label} onChange={(e) => patchOpt(i, "label", e.target.value)} />
                     <Input type="number" className="w-16" title="Bobot (mode Bobot bebas)" value={o.score} onChange={(e) => patchOpt(i, "score", Number(e.target.value))} />
                     {form.options.length > 2 && <button onClick={() => patch("options", form.options.filter((_: any, x: number) => x !== i))} className="text-red-400"><Trash2 className="h-4 w-4" /></button>}
                   </div>
-                  {o.imageUrl ? (
+                  {form.presentationMode !== "standard_option_card" && (o.imageUrl ? (
                     <div className="flex items-center gap-2">
                       <img src={o.imageUrl} alt="" className="h-10 w-14 rounded-lg border border-gray-200 object-cover" />
                       <Input className="flex-1" value={o.imageUrl} onChange={(e) => patchOpt(i, "imageUrl", e.target.value)} placeholder="URL gambar…" />
                       {openPicker && <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u))} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-teal-600 px-2 py-1 font-manrope text-[10px] font-semibold text-white hover:bg-teal-700">📁 Galeri</button>}
-                      {o.imageUrl && <button onClick={() => patchOpt(i, "imageUrl", null)} className="text-gray-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>}
+                      <button onClick={() => patchOpt(i, "imageUrl", null)} className="text-gray-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
                     </div>
                   ) : (
-                    <>
-                    {openPicker && <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u))} className="inline-flex items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 + pilih gambar utk opsi ini</button>}
-                    </>
-                  )}
+                    openPicker ? <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u))} className="inline-flex items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 + pilih gambar utk opsi ini</button> : null
+                  ))}
                 </div>
               ))}
               {rules.scoring_mode === "likert" && (
