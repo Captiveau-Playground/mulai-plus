@@ -788,7 +788,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
     !form.questionText.trim() ? "Teks soal wajib diisi"
     : dims0.length === 0 ? "Belum ada dimensi — tambahkan di 'Aturan tes'."
     : !form.dimensionId ? "Pilih dimensi untuk soal ini."
-    : form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim()).length < 2 ? "Pilih ganda butuh minimal 2 opsi berlabel."
+    : form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).length < 2 ? "Pilih ganda butuh minimal 2 opsi (teks/gambar)."
     : "";
   const [formErr, setFormErr] = useState<string[]>([]);
   const save = async () => {
@@ -932,7 +932,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
           )}
           {form.questionType === "multiple_choice" ? (
             <div className={`mt-2 ${form.presentationMode === "visual_comparison" ? "grid grid-cols-2 gap-2" : "space-y-1.5"}`}>
-              {form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => (
+              {form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).map((o: any, i: number) => (
                 <div key={i} className={`flex items-center gap-2 rounded-lg border p-2.5 ${i === 0 ? "border-teal-500/60 bg-teal-500/5" : "border-gray-200 bg-white"}`}>
                   {form.presentationMode === "emoji_option" && o.icon ? (
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-base">{o.icon}</span>
