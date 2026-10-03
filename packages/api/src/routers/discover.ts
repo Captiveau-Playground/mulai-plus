@@ -582,6 +582,29 @@ export const discoverRouter = {
       } as const;
     }),
 
+  /** Buang partial sesi in_progress TERBARU user utk tes (abas 'Mulai ulang' di kartu). */
+  abandon: publicProcedure
+    .input(z.object({ studentId: z.string().min(1), code: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
+      if (!a) return { ok: true, dropped: 0 } as const;
+      const vs = await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) });
+      const sess = await db.query.assessmentSessions.findFirst({
+        where: and(
+          inArray(schema.assessmentSessions.versionId, vs.map((v) => v.id)),
+          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.status, "in_progress"),
+        ),
+        orderBy: (t: any) => [desc(t.startedAt)],
+      });
+      if (!sess) return { ok: true, dropped: 0 } as const;
+      await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, sess.id));
+      await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, sess.id));
+      await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, sess.id));
+      await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, sess.id));
+      return { ok: true, dropped: 1, sessionId: sess.id } as const;
+    }),
+
   /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */
   pending: publicProcedure
     .input(z.object({ studentId: z.string().min(1), code: z.string().min(1) }))

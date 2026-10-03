@@ -55,9 +55,12 @@ function TestCard({ test, pid }: { test: any; pid: string }) {
       </div>
       <div className="mt-4 flex-1" />
       {pd ? (
-        <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-orange px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
-          <PlayCircle className="h-5 w-5" /> Lanjutkan · {pd.answered}/{pd.total} soal
-        </Link>
+        <div className="space-y-1.5">
+          <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-orange px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
+            <PlayCircle className="h-5 w-5" /> Lanjutkan · {pd.answered}/{pd.total} soal
+          </Link>
+          <button onClick={() => { void raw.discover.abandon({ studentId: pid, code: test.code }).then(() => qP.refetch()); }} className="w-full text-center font-manrope text-[10px] text-gray-400 hover:text-red-500">Bukan ini? Mulai ulang (buang progres)</button>
+        </div>
       ) : (
         <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
           <PlayCircle className="h-5 w-5" /> Mulai Test
