@@ -582,6 +582,28 @@ export const discoverRouter = {
       } as const;
     }),
 
+  /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */
+  pending: publicProcedure
+    .input(z.object({ studentId: z.string().min(1), code: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
+      if (!a) return { ok: true, present: false } as const;
+      const vs = await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) });
+      const sess = await db.query.assessmentSessions.findFirst({
+        where: and(
+          inArray(schema.assessmentSessions.versionId, vs.map((v) => v.id)),
+          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.status, "in_progress"),
+        ),
+        orderBy: (t: any) => [desc(t.startedAt)],
+      });
+      if (!sess) return { ok: true, present: false } as const;
+      const answered = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, sess.id), columns: { id: true } });
+      if (answered.length === 0) return { ok: true, present: false } as const;
+      const total = await db.query.questions.findMany({ where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)), columns: { id: true } });
+      return { ok: true, present: true, sessionId: sess.id, answered: answered.length, total: total.length } as const;
+    }),
+
   /** Bersihkan row attempt yang TIDAK lengkap (junk/abandon) utk user — dipanggil saat 'Tes Baru'. */
   purgeIncomplete: publicProcedure
     .input(z.object({ studentId: z.string().min(1) }))

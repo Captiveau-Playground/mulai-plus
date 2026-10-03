@@ -30,6 +30,43 @@ const TEST_META: Record<string, { emoji: string; color: string; desc: string; xp
   },
 };
 
+function TestCard({ test, pid }: { test: any; pid: string }) {
+  const raw = client as any;
+  const qP = useQuery({ queryKey: ["pend", test.code, pid], enabled: !!pid, queryFn: () => raw.discover.pending({ studentId: pid, code: test.code }) });
+  const pd = (qP.data as any)?.present === true ? qP.data as any : null;
+  const meta =
+    test.family === "minat"
+      ? { emoji: "🧠", color: "from-violet-500 to-purple-600", desc: "Pilih aktivitas yang paling menggambarkanmu — cari tahu tipe minatmu (Holland RIASEC)", xp: `+${test.xp} XP`, href: `/dashboard/student/assessment/take/${test.code}` }
+      : { emoji: "💡", color: "from-mentor-teal to-teal-700", desc: "Ukur kemampuan dasar: numerik, verbal, logika, spasial & ketelitian", xp: `+${test.xp} XP`, href: `/dashboard/student/assessment/take/${test.code}` };
+  return (
+    <div className="flex flex-col rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-md", meta.color)}>
+          {meta.emoji}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate font-bold font-bricolage text-gray-900">{test.name}</h3>
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold font-manrope text-[10px] text-amber-600">{meta.xp}</span>
+          </div>
+          <p className="mt-0.5 font-manrope text-gray-500 text-xs leading-relaxed">{meta.desc}</p>
+          <p className="mt-1 font-manrope text-[10px] text-gray-400">{test.questions} soal · {test.sections} bagian</p>
+        </div>
+      </div>
+      <div className="mt-4 flex-1" />
+      {pd ? (
+        <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-orange px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
+          <PlayCircle className="h-5 w-5" /> Lanjutkan · {pd.answered}/{pd.total} soal
+        </Link>
+      ) : (
+        <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
+          <PlayCircle className="h-5 w-5" /> Mulai Test
+        </Link>
+      )}
+    </div>
+  );
+}
+
 function EngineProgressCard() {
   const { data: authSession } = authClient.useSession();
   const sid = authSession?.user?.id ?? "";
@@ -73,6 +110,8 @@ function EngineProgressCard() {
 
 export default function AssessmentHomePage() {
   const [infoOpen, setInfoOpen] = useState(true);
+  const { data: authSession } = authClient.useSession();
+  const sid = authSession?.user?.id ?? "";
   const gate = useProfileGate();
   const { data } = useQuery({
     ...orpc.tmb.assessment.list.queryOptions({ input: {} }),
@@ -240,39 +279,11 @@ export default function AssessmentHomePage() {
         <h2 className="mb-3 font-bold font-bricolage text-base text-gray-800 md:text-lg">Pilih Test</h2>
         <div className="mb-4"><EngineProgressCard /></div>
         <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-          {((liveTests?.items ?? []) as any[]).map((test: any, i: number) => {
-            const meta =
-              test.family === "minat"
-                ? { emoji: "🧠", color: "from-violet-500 to-purple-600", desc: "Pilih aktivitas yang paling menggambarkanmu — cari tahu tipe minatmu (Holland RIASEC)", xp: `+${test.xp} XP`, href: `/dashboard/student/assessment/take/${test.code}` }
-                : { emoji: "💡", color: "from-mentor-teal to-teal-700", desc: "Ukur kemampuan dasar: numerik, verbal, logika, spasial & ketelitian", xp: `+${test.xp} XP`, href: `/dashboard/student/assessment/take/${test.code}` };
-            return (
-              <motion.div
-                key={test.code}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 * i }}
-                className="flex flex-col rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-md", meta.color)}>
-                    {meta.emoji}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="truncate font-bold font-bricolage text-gray-900">{test.name}</h3>
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold font-manrope text-[10px] text-amber-600">{meta.xp}</span>
-                    </div>
-                    <p className="mt-0.5 font-manrope text-gray-500 text-xs leading-relaxed">{meta.desc}</p>
-                    <p className="mt-1 font-manrope text-[10px] text-gray-400">{test.questions} soal · {test.sections} bagian</p>
-                  </div>
-                </div>
-                <div className="mt-4 flex-1" />
-                <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
-                  <PlayCircle className="h-5 w-5" /> Mulai Test
-                </Link>
-              </motion.div>
-            );
-          })}
+          {((liveTests?.items ?? []) as any[]).map((test: any, i: number) => (
+            <motion.div key={test.code} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }}>
+              <TestCard test={test} pid={sid} />
+            </motion.div>
+          ))}
           {((liveTests?.items ?? []) as any[]).length === 0 && (
             <p className="rounded-2xl border border-dashed border-gray-200 p-6 text-center font-manrope text-sm text-gray-400">Belum ada tes B2C yang dirilis — atur lewat Kelola Tes → Terbitkan.</p>
           )}
