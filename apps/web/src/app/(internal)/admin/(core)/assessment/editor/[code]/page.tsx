@@ -939,8 +939,11 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
             </div>
           ) : (
             <div className="mt-2">
-              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 font-manrope text-xs text-gray-400">Jawaban siswa di sini…</div>
-              {form.textEval.answerKey && <p className="mt-1.5 font-manrope text-[10px] text-gray-400">Kunci: {form.textEval.answerKey} (toleransi {form.textEval.numericTolerance || "0.01"})</p>}
+              <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                <input type="text" inputMode="decimal" placeholder={form.textEval.evaluationType === "numeric" ? "Ketik angka… (cth 0.75)" : "Ketik jawaban…"} className="flex-1 rounded-md border border-gray-100 bg-gray-50 px-2.5 py-1.5 font-manrope text-xs outline-none focus:border-teal-400" />
+                <span className="rounded-md bg-brand-navy px-3 py-1.5 font-manrope text-[10px] font-semibold text-white">Jawab</span>
+              </div>
+              {form.textEval.answerKey && <p className="mt-1.5 font-manrope text-[10px] text-gray-400">Kunci: {form.textEval.answerKey} (toleransi {form.textEval.numericTolerance || "0.01"}) · tipe {form.textEval.evaluationType}</p>}
             </div>
           )}
         </div>

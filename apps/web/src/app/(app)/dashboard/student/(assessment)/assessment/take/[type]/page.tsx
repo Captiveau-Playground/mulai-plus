@@ -293,6 +293,16 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setTimeout(() => engineNext(eq + 1), 360);
   };
 
+  const [etv, setEtv] = useState("");
+  const engineSubmitText = () => {
+    if (revealed || !question || !etv.trim()) return;
+    setRevealed(true);
+    void client.discover.submitText({ sessionId: engine!.sessionId, questionId: question.id, text: etv.trim() } as any)
+      .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submitText ditolak", r); })
+      .catch((e: any) => console.error("[engine] submitText gagal:", e?.message ?? e));
+    setTimeout(() => engineNext(eq + 1), 360);
+  };
+
   const startMutation = useMutation({
     ...orpc.tmb.assessment.start.mutationOptions(),
     onSuccess: async (data) => {
@@ -914,7 +924,24 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
       {/* Options */}
       <div className="mt-4 space-y-3">
-        {isInterest ? (
+        {isEngine && (question as any)?.questionType === "text_input" ? (
+          <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
+            <p className="mb-2 font-manrope text-xs font-medium text-gray-500">Tulis jawaban (angka / pecahan)</p>
+            <div className="flex gap-2">
+              <input
+                type="text" inputMode="decimal" autoFocus value={etv}
+                onChange={(e) => setEtv(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") engineSubmitText(); }}
+                placeholder="cth: 19, 0.75, atau 3/4"
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-base outline-none transition-colors focus:border-mentor-teal"
+              />
+              <button onClick={engineSubmitText} disabled={!etv.trim() || revealed} className="shrink-0 rounded-xl bg-brand-navy px-5 py-3 font-bold font-manrope text-sm text-white transition-all hover:brightness-110 disabled:opacity-50">
+                Jawab
+              </button>
+            </div>
+            <p className="mt-2 font-manrope text-[10px] text-gray-400">Gunakan titik (.) utk desimal — Enter untuk mengirim.</p>
+          </div>
+        ) : isInterest ? (
           <>
             {[
               { key: "A", text: liveQuestion.optionA },
