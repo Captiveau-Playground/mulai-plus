@@ -202,7 +202,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     if (!q) { void engineFinish(); return; }
     lastDimRef.current = q.dimensionId;
     optsRef.current = q.opts ?? [];
-    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label } as unknown as Question);
+    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null) } as unknown as Question);
     setProgress(i + 1);
     setTotal(engineQs.length);
     setEq(i);
@@ -876,6 +876,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
               { key: "B", text: liveQuestion.optionB },
             ].map((opt, i) => {
               const isSelected = selected === opt.key;
+              const oi = (liveQuestion as any)._optImgs?.[i];
               return (
                 <motion.button
                   key={opt.key}
@@ -899,7 +900,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                   >
                     {isSelected ? <Check className="h-6 w-6 text-white" /> : i === 0 ? "👷" : "🎨"}
                   </span>
-                  <span className="font-manrope font-medium text-[15px] text-gray-800">{opt.text}</span>
+                  {oi && <img src={oi} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-gray-100 object-cover" />}
+                <span className="font-manrope font-medium text-[15px] text-gray-800">{opt.text}</span>
                 </motion.button>
               );
             })}
@@ -928,6 +930,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             .map((opt, i) => {
               const key = String.fromCharCode(65 + i);
               const isSelected = selected === key;
+              const oi = (liveQuestion as any)._optImgs?.[i];
               const isAnswered = revealed && isSelected;
               const correct = isAnswered && lastCorrect === true;
               const wrong = isAnswered && lastCorrect === false;
@@ -964,7 +967,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                   >
                     {key}
                   </span>
-                  <span className="font-manrope font-medium text-[15px] text-gray-800">{opt}</span>
+                  {oi && <img src={oi} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-gray-100 object-cover" />}
+                <span className="font-manrope font-medium text-[15px] text-gray-800">{opt}</span>
                 </motion.button>
               );
             })
