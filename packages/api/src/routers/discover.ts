@@ -854,6 +854,7 @@ export const discoverAdminRouter = {
             dimensionId: z.string().min(1),
             scaleId: z.string().optional().nullable(),
             questionText: z.string().min(1),
+            presentationMode: z.string().optional().nullable(),
             questionType: z.enum(["multiple_choice", "text_input"]).default("multiple_choice"),
             hasMathNotation: z.boolean().default(false),
             mediaUrl: z.string().optional().nullable(),
@@ -869,6 +870,8 @@ export const discoverAdminRouter = {
                   label: z.string().min(1),
                   score: z.number().optional().default(0),
                   targetDimension: z.string().optional().nullable(),
+                  imageUrl: z.string().optional().nullable(),
+                  icon: z.string().optional().nullable(),
                   displayOrder: z.number().optional().default(0),
                 }),
               )
@@ -910,6 +913,7 @@ export const discoverAdminRouter = {
             questionText: q.questionText,
             questionType: q.questionType as any,
             hasMathNotation: q.hasMathNotation,
+            presentationMode: (q.presentationMode ?? "standard_option_card") as any,
             mediaUrl: q.mediaUrl ?? null,
             mediaCaption: q.mediaCaption ?? null,
             weight: q.weight,
@@ -925,6 +929,7 @@ export const discoverAdminRouter = {
               questionText: q.questionText,
               questionType: q.questionType as any,
               hasMathNotation: q.hasMathNotation,
+              presentationMode: (q.presentationMode ?? "standard_option_card") as any,
               mediaUrl: q.mediaUrl ?? null,
               mediaCaption: q.mediaCaption ?? null,
               weight: q.weight,
@@ -943,6 +948,8 @@ export const discoverAdminRouter = {
             targetDimension: o.targetDimension ?? q.dimensionId,
             label: o.label,
             score: o.score,
+            imageUrl: o.imageUrl ?? null,
+            icon: o.icon ?? null,
             displayOrder: o.displayOrder,
           });
         }

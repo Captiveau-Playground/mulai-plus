@@ -187,6 +187,7 @@ export const questionOptions = pgTable("question_options", {
   targetDimension: varchar("target_dimension", { length: 24 }), // dimension yg di-scoring (mendukung pair/reverse)
   label: text("label").notNull(), // HTML/LaTeX
   hasMathNotation: boolean("has_math_notation").notNull().default(false),
+  icon: text("icon"), // emoji / ikon utk mode emoji_option
   imageUrl: text("image_url"),
   imageCaption: text("image_caption"),
   score: integer("score").notNull().default(0),
