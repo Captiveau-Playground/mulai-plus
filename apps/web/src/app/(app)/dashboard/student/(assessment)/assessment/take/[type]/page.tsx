@@ -247,7 +247,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const engineBegin = (i: number) => {
     const q = engineQs[i];
     if (!q) { void engineFinish(); return; }
-    if (lastDimRef.current !== q.dimensionId && (secStart || secOverlay || i === 0)) {
+    // Tampilkan opening dimensi saat mulai (termasuk RESUME di dimensi mana pun) & di tiap perpindahan dimensi
+    if (lastDimRef.current !== q.dimensionId && (secStart || secOverlay || !lastDimRef.current)) {
       setSecStart({ eqIndex: i, name: dimNameOf(q.dimensionId) });
       lastDimRef.current = q.dimensionId;
       return;
