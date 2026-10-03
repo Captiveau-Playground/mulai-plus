@@ -624,8 +624,9 @@ export const discoverRouter = {
       const ghost = [] as string[];
       for (const ss of stray) {
         const an = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, ss.id), columns: { id: true } });
-        if (an.length > 0 && ss.status === "in_progress") continue; // ada progres → jangan dihapus
-        if (an.length === 0) ghost.push(ss.id);
+        // 'Tes Baru' = mulai bersih: partial in_progress (sensi sengaja/pause) JUG S dibuang
+        if (ss.status === "in_progress") ghost.push(ss.id);
+        else if (an.length === 0) ghost.push(ss.id);
       }
       for (const gid of ghost) {
         await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, gid));
