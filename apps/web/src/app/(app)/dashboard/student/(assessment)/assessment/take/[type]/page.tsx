@@ -222,7 +222,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     if (!q) { void engineFinish(); return; }
     lastDimRef.current = q.dimensionId;
     optsRef.current = q.opts ?? [];
-    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null) } as unknown as Question);
+    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null } as unknown as Question);
     setProgress(i + 1);
     setTotal(engineQs.length);
     setEq(i);
@@ -920,6 +920,12 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           {isInterest ? `Minat • ${liveQuestion.dimension}` : `Kemampuan • ${liveQuestion.dimension}`}
         </p>
         <h2 className="mt-2 font-bold font-bricolage text-gray-900 text-lg leading-snug">{liveQuestion.text}</h2>
+        {isEngine && (liveQuestion as any)._media && (
+          <figure className="mt-3">
+            <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-56 rounded-xl border border-gray-100 object-contain" />
+            {(liveQuestion as any)._mediaCap && <figcaption className="mt-1 text-center font-manrope text-[11px] text-gray-400">{(liveQuestion as any)._mediaCap}</figcaption>}
+          </figure>
+        )}
       </motion.div>
 
       {/* Options */}
