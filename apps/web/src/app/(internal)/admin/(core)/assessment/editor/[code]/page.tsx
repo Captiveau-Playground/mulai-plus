@@ -692,7 +692,7 @@ function MediaManager({ onPick, onClose, kind = "question" }: { onPick: (u: stri
   const onFile = async (f: File) => {
     const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => { const s = String(r.result ?? ""); res(s.split(",")[1] ?? ""); }; r.onerror = rej; r.readAsDataURL(f); });
     const res = (await mUp.mutateAsync({ dataB64: b64, mime: f.type || "image/png", filename: f.name, kind })) as any;
-    if (res?.url) onPick(res.url); // upload = langsung pasang ke field yang sedang diedit + tutup
+    if (res?.url) { notify.create(kind === "question" ? "Gambar soal dipasang ✅ — cek preview di kanan" : "Gambar opsi dipasang ✅ — cek preview di kanan"); onPick(res.url); } // upload = langsung pasang + tutup
   };
 
   return (
@@ -918,11 +918,13 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
           <p className="font-manrope text-[10px] font-semibold uppercase tracking-wide text-teal-600">Tampilan siswa</p>
           <p className="mt-2 font-manrope text-[10px] text-gray-400">{content.dimensions.find((d) => d.id === form.dimensionId)?.name ?? "Dimensi"}</p>
           <h4 className="mt-1 font-bold font-bricolage text-sm text-gray-900 leading-snug">{form.hasMathNotation ? <MathPreview text={form.questionText} /> : form.questionText || "Teks soal…"}</h4>
-          {form.mediaUrl && (
+          {form.mediaUrl ? (
             <figure className="mt-2">
               <img src={form.mediaUrl} alt={form.mediaCaption ?? "Gambar soal"} className="mx-auto max-h-40 rounded-xl border border-gray-100 object-contain" />
               {form.mediaCaption && <figcaption className="mt-1 text-center font-manrope text-[10px] text-gray-400">{form.mediaCaption}</figcaption>}
             </figure>
+          ) : (
+            <p className="mt-2 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center font-manrope text-[10px] text-gray-400">Gambar soal belum dipasang — klik “📁 Galeri gambar soal” lalu pilih / unggah.</p>
           )}
           {form.questionType === "multiple_choice" ? (
             <div className={`mt-2 ${form.presentationMode === "visual_comparison" ? "grid grid-cols-2 gap-2" : "space-y-1.5"}`}>
