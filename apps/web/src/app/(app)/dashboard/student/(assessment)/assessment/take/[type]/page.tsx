@@ -233,6 +233,13 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [secStart, setSecStart] = useState<{ eqIndex: number; name: string } | null>(null);
   const lastDimRef = useRef<string | null>(null);
   const dimNameOf = (dimId: string) => engine?.dims?.find((d: any) => d.id === dimId)?.name ?? "Bagian berikutnya";
+  // indeks dimensi (0-based) utk posisi soal eq: berapa dimensi berbeda sebelum eq
+  const dimIdxOf = (eqI: number) => {
+    const seen = new Set<string>();
+    for (let k = 0; k < eqI; k++) { const d = engineQs[k]?.dimensionId; if (d) seen.add(d); }
+    return seen.size;
+  };
+  const totalDims = new Set(engineQs.map((q: any) => q.dimensionId).filter(Boolean)).size || engine?.sections || 1;
   const engineBegin = (i: number) => {
     const q = engineQs[i];
     if (!q) { void engineFinish(); return; }
@@ -628,12 +635,14 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           >
             Mulai bagian →
           </button>
-          <button
-            onClick={() => router.push("/dashboard/student/assessment")}
-            className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50"
-          >
-            Berhenti dulu — lanjut kapan saja (progres tersimpan)
-          </button>
+          {dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
+            <button
+              onClick={() => router.push("/dashboard/student/assessment")}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50"
+            >
+              Berhenti dulu — lanjut kapan saja (progres tersimpan)
+            </button>
+          )}
         </div>
       </motion.div>
     );
@@ -658,12 +667,14 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             >
               Lanjut ke {secOverlay.nextName} →
             </button>
-            <button
-              onClick={() => router.push("/dashboard/student/assessment")}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50"
-            >
-              ⏸ Berhenti di sini — lanjut nanti dari bagian ini
-            </button>
+            {dimIdxOf(secOverlay.nextEq) < totalDims && (
+              <button
+                onClick={() => router.push("/dashboard/student/assessment")}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50"
+              >
+                ⏸ Berhenti di sini — lanjut nanti dari bagian ini
+              </button>
+            )}
           </div>
           <p className="mt-2 font-manrope text-[10px] text-gray-400">Jawabanmu tersimpan otomatis; kembali kapan saja untuk melanjutkan.</p>
         </div>
