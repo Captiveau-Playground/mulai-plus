@@ -828,16 +828,19 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
             Soal berisi rumus matematika (LaTeX $…$ — di-parse otomatis)
           </label>
           {form.hasMathNotation && <MathPreview text={form.questionText} />}
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block font-manrope text-xs font-semibold text-foreground">Media gambar (URL)
-              <Input className="mt-1" value={form.mediaUrl} onChange={(e) => patch("mediaUrl", e.target.value)} placeholder="https://cdn…/gambar.png" />
-              {openPicker && <button type="button" onClick={() => openPicker((u) => patch("mediaUrl", u), "question")} className="mt-1 inline-flex items-center gap-1 rounded-md bg-teal-600 px-2 py-1 font-manrope text-[10px] font-semibold text-white hover:bg-teal-700">
-                📁 Galeri gambar soal
-              </button>}
-            </label>
-            <label className="block font-manrope text-xs font-semibold text-foreground">Keterangan gambar
-              <Input className="mt-1" value={form.mediaCaption} onChange={(e) => patch("mediaCaption", e.target.value)} placeholder="Gambar 1.1: …" />
-            </label>
+          <div className="rounded-xl border border-teal-200/70 bg-teal-50/40 p-3">
+            <p className="flex items-center gap-1.5 font-manrope text-[10px] font-bold tracking-wide text-teal-700 uppercase">🖼️ Gambar SOAL <span className="font-normal normal-case text-teal-600/70">— hanya utk teks soal (bukan jawaban)</span></p>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <label className="block font-manrope text-xs font-semibold text-foreground">URL gambar soal
+                <Input className="mt-1" value={form.mediaUrl} onChange={(e) => patch("mediaUrl", e.target.value)} placeholder="https://cdn…/soal.png" />
+                {openPicker && <button type="button" onClick={() => openPicker((u) => patch("mediaUrl", u), "question")} className="mt-1 inline-flex items-center gap-1 rounded-md bg-teal-600 px-2 py-1 font-manrope text-[10px] font-semibold text-white hover:bg-teal-700">
+                  📁 Galeri gambar soal
+                </button>}
+              </label>
+              <label className="block font-manrope text-xs font-semibold text-foreground">Keterangan gambar
+                <Input className="mt-1" value={form.mediaCaption} onChange={(e) => patch("mediaCaption", e.target.value)} placeholder="Gambar 1.1: …" />
+              </label>
+            </div>
           </div>
           <label className="block font-manrope text-xs font-semibold text-foreground">Tampilan pilihan
             <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.presentationMode} onChange={(e) => { const v = e.target.value; setForm((f: any) => ({ ...f, presentationMode: v, options: v === "standard_option_card" ? f.options.map((o: any) => ({ ...o, imageUrl: null })) : f.options })); }}>
@@ -874,6 +877,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
           </div>
           {form.questionType === "multiple_choice" ? (
             <div className="space-y-2">
+              <p className="font-manrope text-[10px] font-bold tracking-wide text-orange-600 uppercase">🖼️ Gambar JAWABAN — per pilihan (A/B/C/D), terpisah dr gambar soal</p>
               <p className="font-manrope text-xs font-semibold text-foreground">{rules.scoring_mode === "likert" ? `Skala Likert ${rules.likert_min ?? 1}–${rules.likert_max ?? 5} — poin naik linier per pilihan` : form.presentationMode === "standard_option_card" ? "Pilihan teks — pilihan yang dipilih mendapat poin untuk dimensinya, sisanya 0" : "Pilihan teks + gambar — pilihan yang dipilih mendapat poin untuk dimensinya, sisanya 0"}</p>
               {form.options.map((o: any, i: number) => (
                 <div key={i} className="space-y-1.5 rounded-xl border border-gray-200 bg-white p-2">
@@ -890,11 +894,11 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
                     <div className="flex items-center gap-2">
                       <img src={o.imageUrl} alt="" className="h-10 w-14 rounded-lg border border-gray-200 object-cover" />
                       <Input className="flex-1" value={o.imageUrl} onChange={(e) => patchOpt(i, "imageUrl", e.target.value)} placeholder="URL gambar…" />
-                      {openPicker && <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u), "option")} className="inline-flex shrink-0 items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 Galeri jawaban</button>}
+                      {openPicker && <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u), "option")} className="inline-flex shrink-0 items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 Gambar jawaban {o.optionValue || ["A", "B", "C", "D", "E", "F"][i]}</button>}
                       <button onClick={() => patchOpt(i, "imageUrl", null)} className="text-gray-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
                     </div>
                   ) : (
-                    openPicker ? <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u), "option")} className="inline-flex items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 + pilih gambar jawaban utk opsi ini</button> : null
+                    openPicker ? <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u), "option")} className="inline-flex items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 + pasang gambar jawaban utk opsi ini</button> : null
                   ))}
                 </div>
               ))}
