@@ -69,6 +69,20 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [eq, setEq] = useState(0);
   const [intro, setIntro] = useState(isEngine);
   const introStarted = useRef(false);
+  const resumeStartRef = useRef(0);
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (!isEngine || !engine?.sessionId || resumedRef.current) return;
+    resumedRef.current = true;
+    (async () => {
+      try {
+        const rs = (await (client as any).discover.session({ sessionId: engine!.sessionId })) as any;
+        const answered = new Set((rs?.answers ?? []).map((a: any) => a.questionId));
+        const fi = engineQs.findIndex((q) => !answered.has(q.id));
+        resumeStartRef.current = fi >= 0 ? fi : 0; // lanjut dari soal pertama yang belum dijawab
+      } catch { /* abaikan — mulai dari awal */ }
+    })();
+  }, [isEngine, engine?.sessionId]);
   const otherDoneQ = useQuery({
     queryKey: ["engine-other-done", engine?.code, engine?.studentId],
     enabled: isEngine && !!engine?.studentId,
@@ -378,7 +392,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   useEffect(() => {
     if (isEngine) {
       if (intro) return;
-      if (!introStarted.current) { introStarted.current = true; engineBegin(0); }
+      if (!introStarted.current) { introStarted.current = true; engineBegin(resumeStartRef.current); }
       return;
     }
     if (isDemo) return; // mode simulasi tidak perlu backend
@@ -614,6 +628,12 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           >
             Mulai bagian →
           </button>
+          <button
+            onClick={() => router.push("/dashboard/student/assessment")}
+            className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50"
+          >
+            Berhenti dulu — lanjut kapan saja (progres tersimpan)
+          </button>
         </div>
       </motion.div>
     );
@@ -638,7 +658,14 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             >
               Lanjut ke {secOverlay.nextName} →
             </button>
+            <button
+              onClick={() => router.push("/dashboard/student/assessment")}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50"
+            >
+              ⏸ Berhenti di sini — lanjut nanti dari bagian ini
+            </button>
           </div>
+          <p className="mt-2 font-manrope text-[10px] text-gray-400">Jawabanmu tersimpan otomatis; kembali kapan saja untuk melanjutkan.</p>
         </div>
       </motion.div>
     );
