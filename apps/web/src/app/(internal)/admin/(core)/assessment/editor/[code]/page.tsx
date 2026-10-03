@@ -32,7 +32,7 @@ export default function AssessmentDetailPage() {
   const [dimCode, setDimCode] = useState("");
   const [dimName, setDimName] = useState("");
   const [importOpen, setImportOpen] = useState(false);
-  const [gal, setGal] = useState<{ open: boolean; cb: (u: string) => void } | null>(null);
+  const [gal, setGal] = useState<{ open: boolean; cb: (u: string) => void; kind: "question" | "option" } | null>(null);
   const [focusQ, setFocusQ] = useState<string | null>(null);
   const [focusDim, setFocusDim] = useState(false);
   const [hlQ, setHlQ] = useState<string | null>(null);
@@ -386,7 +386,7 @@ export default function AssessmentDetailPage() {
 
         {modal?.open && selVer && content && (
           <div id="q-panel" className="border-b border-teal-100 bg-teal-50/20 px-4 py-4">
-            <QuestionPanel q={modal.q} versionId={versionId} content={content} rules={rules} openPicker={(cb) => setGal({ open: true, cb })} onDone={async (qid) => { const id = modal.q?.id; await mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
+            <QuestionPanel q={modal.q} versionId={versionId} content={content} rules={rules} openPicker={(cb, kind) => setGal({ open: true, cb, kind: kind ?? "question" })} onDone={async (qid) => { const id = modal.q?.id; await mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
           </div>
         )}
 
@@ -667,11 +667,11 @@ function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId:
   );
 }
 
-function MediaManager({ onPick, onClose }: { onPick: (u: string) => void; onClose: () => void }) {
+function MediaManager({ onPick, onClose, kind = "question" }: { onPick: (u: string) => void; onClose: () => void; kind?: "question" | "option" }) {
   const aClient = client as any;
   const qc = useQueryClient();
-  const key = ["assess-media"];
-  const { data, isPending } = useQuery({ queryKey: key, queryFn: () => aClient.discoverAdmin.media.list() });
+  const key = ["assess-media", kind];
+  const { data, isPending } = useQuery({ queryKey: key, queryFn: () => aClient.discoverAdmin.media.list({ kind }) });
   const items: { key: string; url: string; name: string; size: number }[] = data?.items ?? [];
 
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
@@ -689,18 +689,18 @@ function MediaManager({ onPick, onClose }: { onPick: (u: string) => void; onClos
 
   const onFile = async (f: File) => {
     const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => { const s = String(r.result ?? ""); res(s.split(",")[1] ?? ""); }; r.onerror = rej; r.readAsDataURL(f); });
-    await mUp.mutateAsync({ dataB64: b64, mime: f.type || "image/png", filename: f.name });
+    await mUp.mutateAsync({ dataB64: b64, mime: f.type || "image/png", filename: f.name, kind });
   };
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
       <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold font-bricolage text-base text-brand-navy">Galeri Media Soal (R2)</h3>
+          <h3 className="font-bold font-bricolage text-base text-brand-navy">{kind === "question" ? "Galeri Media — Gambar Soal" : "Galeri Media — Gambar Jawaban/Opsi"} (R2)</h3>
           <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
         </div>
         <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-4 py-4 font-manrope text-sm text-gray-600 hover:border-brand-orange/40">
-          <Plus className="h-4 w-4 text-brand-navy" /> Unggah gambar baru
+          <Plus className="h-4 w-4 text-brand-navy" /> Unggah gambar {kind === "question" ? "soal" : "jawaban/opsi"} baru
           <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); }} />
         </label>
         {isPending && <p className="mt-2 font-manrope text-xs text-muted-foreground">Memuat…</p>}
@@ -768,7 +768,7 @@ function Rule({ label, hint, type, opts, value, onChange, disabled }: { label: s
   );
 }
 
-function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPicker }: { q?: any; versionId: string; content: Content; rules?: any; onDone: (payload: any) => void; onClose: () => void; openPicker?: (cb: (u: string) => void) => void }) {
+function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPicker }: { q?: any; versionId: string; content: Content; rules?: any; onDone: (payload: any) => void; onClose: () => void; openPicker?: (cb: (u: string) => void, kind?: "question" | "option") => void }) {
   const dims0 = content.dimensions ?? [];
   const [form, setForm] = useState<any>({
     id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", scaleId: q?.scaleId ?? null, questionText: q?.questionText ?? "",
@@ -828,8 +828,8 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
           <div className="grid grid-cols-2 gap-3">
             <label className="block font-manrope text-xs font-semibold text-foreground">Media gambar (URL)
               <Input className="mt-1" value={form.mediaUrl} onChange={(e) => patch("mediaUrl", e.target.value)} placeholder="https://cdn…/gambar.png" />
-              {openPicker && <button type="button" onClick={() => openPicker((u) => patch("mediaUrl", u))} className="mt-1 inline-flex items-center gap-1 rounded-md bg-teal-600 px-2 py-1 font-manrope text-[10px] font-semibold text-white hover:bg-teal-700">
-                📁 Galeri media
+              {openPicker && <button type="button" onClick={() => openPicker((u) => patch("mediaUrl", u), "question")} className="mt-1 inline-flex items-center gap-1 rounded-md bg-teal-600 px-2 py-1 font-manrope text-[10px] font-semibold text-white hover:bg-teal-700">
+                📁 Galeri gambar soal
               </button>}
             </label>
             <label className="block font-manrope text-xs font-semibold text-foreground">Keterangan gambar
@@ -884,11 +884,11 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
                     <div className="flex items-center gap-2">
                       <img src={o.imageUrl} alt="" className="h-10 w-14 rounded-lg border border-gray-200 object-cover" />
                       <Input className="flex-1" value={o.imageUrl} onChange={(e) => patchOpt(i, "imageUrl", e.target.value)} placeholder="URL gambar…" />
-                      {openPicker && <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u))} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-teal-600 px-2 py-1 font-manrope text-[10px] font-semibold text-white hover:bg-teal-700">📁 Galeri</button>}
+                      {openPicker && <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u), "option")} className="inline-flex shrink-0 items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 Galeri jawaban</button>}
                       <button onClick={() => patchOpt(i, "imageUrl", null)} className="text-gray-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
                     </div>
                   ) : (
-                    openPicker ? <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u))} className="inline-flex items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 + pilih gambar utk opsi ini</button> : null
+                    openPicker ? <button type="button" onClick={() => openPicker((u: string) => patchOpt(i, "imageUrl", u), "option")} className="inline-flex items-center gap-1 font-manrope text-[10px] font-semibold text-teal-600 hover:text-teal-700">📁 + pilih gambar jawaban utk opsi ini</button> : null
                   ))}
                 </div>
               ))}
@@ -911,16 +911,24 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
         <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
           <p className="font-manrope text-[10px] font-semibold uppercase tracking-wide text-teal-600">Tampilan siswa</p>
           <p className="mt-2 font-manrope text-[10px] text-gray-400">{content.dimensions.find((d) => d.id === form.dimensionId)?.name ?? "Dimensi"}</p>
-          <h4 className="mt-1 font-bold font-bricolage text-sm text-gray-900 leading-snug">{form.questionText || "Teks soal…"}</h4>
+          <h4 className="mt-1 font-bold font-bricolage text-sm text-gray-900 leading-snug">{form.hasMathNotation ? <MathPreview text={form.questionText} /> : form.questionText || "Teks soal…"}</h4>
+          {form.mediaUrl && (
+            <figure className="mt-2">
+              <img src={form.mediaUrl} alt={form.mediaCaption ?? "Gambar soal"} className="mx-auto max-h-40 rounded-xl border border-gray-100 object-contain" />
+              {form.mediaCaption && <figcaption className="mt-1 text-center font-manrope text-[10px] text-gray-400">{form.mediaCaption}</figcaption>}
+            </figure>
+          )}
           {form.questionType === "multiple_choice" ? (
-            <div className="mt-2 space-y-1.5">
+            <div className={`mt-2 ${form.presentationMode === "visual_comparison" ? "grid grid-cols-2 gap-2" : "space-y-1.5"}`}>
               {form.options.filter((o: any) => String(o.label || "").trim()).map((o: any, i: number) => (
                 <div key={i} className={`flex items-center gap-2 rounded-lg border p-2.5 ${i === 0 ? "border-teal-500/60 bg-teal-500/5" : "border-gray-200 bg-white"}`}>
                   <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold ${i === 0 ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}>{o.optionValue || ["A", "B", "C", "D", "E", "F"][i]}</span>
-                  {o.imageUrl && <img src={o.imageUrl} alt="" className="h-8 w-11 shrink-0 rounded-md border border-gray-100 object-cover" />}
+                  {form.presentationMode !== "standard_option_card" && o.imageUrl && <img src={o.imageUrl} alt="" className="h-8 w-11 shrink-0 rounded-md border border-gray-100 object-cover" />}
                   <span className="font-manrope text-xs text-gray-700">{o.label}</span>
+                  {rules.scoring_mode === "likert" && <span className="ml-auto rounded bg-brand-navy/5 px-1.5 py-0.5 font-manrope text-[9px] font-bold text-brand-navy">{o.score} pts</span>}
                 </div>
               ))}
+              {rules.scoring_mode === "likert" && form.options.length === 0 && <p className="font-manrope text-[10px] text-gray-400">Klik "Isi otomatis skala Likert" utk membuat pilihan skala.</p>}
             </div>
           ) : (
             <div className="mt-2">

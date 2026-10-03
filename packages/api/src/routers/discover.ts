@@ -706,18 +706,22 @@ async function removeAssessment(assessmentId: string) {
 
 export const discoverAdminRouter = {
   media: {
-    list: adminProcedure.handler(async () => {
-      const items = await listR2ObjectsDetailed("assessment-media/");
-      return {
-        items: items.map((o) => ({ key: o.key, url: getPublicUrl(o.key), size: o.size, uploadedAt: o.lastModified ?? null, name: o.key.split("/").pop() ?? o.key })),
-      };
-    }),
+    // kind: "question" = gambar utk teks soal · "option" = gambar utk pilihan/jawaban (folder R2 terpisah)
+    list: adminProcedure
+      .input(z.object({ kind: z.enum(["question", "option"]).optional() }))
+      .handler(async ({ input }) => {
+        const prefix = input.kind ? `assessment-media/${input.kind}/` : "assessment-media/";
+        const items = await listR2ObjectsDetailed(prefix);
+        return {
+          items: items.map((o) => ({ key: o.key, url: getPublicUrl(o.key), size: o.size, uploadedAt: o.lastModified ?? null, name: o.key.split("/").pop() ?? o.key })),
+        };
+      }),
     upload: adminProcedure
-      .input(z.object({ dataB64: z.string().min(10), mime: z.string().max(80).optional().default("image/png"), filename: z.string().max(120).optional() }))
+      .input(z.object({ dataB64: z.string().min(10), mime: z.string().max(80).optional().default("image/png"), filename: z.string().max(120).optional(), kind: z.enum(["question", "option"]).optional().default("question") }))
       .handler(async ({ input }) => {
         const buf = Buffer.from(input.dataB64, "base64");
         const ext = (input.mime.split("/")[1] ?? "png").replace(/[^a-z0-9]/gi, "").slice(0, 5) || "png";
-        const res = await uploadToR2(buf, { filename: input.filename ?? `media.${ext}`, mimeType: input.mime || "image/png", path: "assessment-media" });
+        const res = await uploadToR2(buf, { filename: input.filename ?? `media.${ext}`, mimeType: input.mime || "image/png", path: `assessment-media/${input.kind}` });
         return { ok: true, key: res.key, url: res.url, size: res.size };
       }),
     delete: adminProcedure
