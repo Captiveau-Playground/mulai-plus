@@ -67,7 +67,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const isEngine = !!engine;
   const engineQs = engine?.questions ?? [];
   const [eq, setEq] = useState(0);
-  const [intro, setIntro] = useState(isEngine);
+  const [intro, setIntro] = useState<boolean | null>(isEngine ? null : false); // null = masih cek resume → jangan render intro dulu
   const introStarted = useRef(false);
   const resumeStartRef = useRef(0);
   const resumedRef = useRef(false);
@@ -83,8 +83,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           const fi = engineQs.findIndex((q) => !answered.has(q.id));
           resumeStartRef.current = fi >= 0 ? fi : 0;
           setIntro(false);
+        } else {
+          setIntro(true); // tes baru → tampilkan info sebelum mulai
         }
-      } catch { /* abaikan — mulai dari awal */ }
+      } catch { setIntro(true); }
     })();
   }, [isEngine, engine?.sessionId]);
   const otherDoneQ = useQuery({
@@ -403,7 +405,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   // auto-start
   useEffect(() => {
     if (isEngine) {
-      if (intro) return;
+      if (intro !== false) return; // null (cek resume) / true (layar info) → tunggu
       if (!introStarted.current) { introStarted.current = true; engineBegin(resumeStartRef.current); }
       return;
     }
@@ -601,7 +603,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       </motion.div>
     );
   }
-  if (isEngine && intro) {
+  if (isEngine && intro === true) {
     const nSec = engine?.sections ?? Math.max(1, new Set(engineQs.map((q) => q.dimensionId)).size);
     return (
       <div className="mx-auto max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-lg shadow-brand-navy/5">
