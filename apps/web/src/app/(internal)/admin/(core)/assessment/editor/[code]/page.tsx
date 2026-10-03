@@ -710,7 +710,7 @@ function MediaManager({ onPick, onClose, kind = "question" }: { onPick: (u: stri
         <div className="mt-3 grid max-h-80 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
           {items.map((o) => (
             <button key={o.key} onClick={() => onPick(o.url)} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
-              <img src={o.url} alt={o.name} className="h-24 w-full object-cover" />
+              <img src={o.url} alt={o.name} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} className="h-24 w-full object-cover" />
               <span className="absolute inset-x-0 bottom-0 hidden bg-black/50 px-1 py-0.5 font-manrope text-[9px] text-white group-hover:block">{o.name}</span>
               <span onClick={(e) => { e.stopPropagation(); if (confirm("Hapus gambar ini?")) void mDel.mutateAsync({ key: o.key }); }} className="absolute top-1 right-1 rounded-md bg-red-500 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"><Trash2 className="h-3 w-3" /></span>
             </button>
@@ -920,7 +920,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
           <h4 className="mt-1 font-bold font-bricolage text-sm text-gray-900 leading-snug">{form.hasMathNotation ? <MathPreview text={form.questionText} /> : form.questionText || "Teks soal…"}</h4>
           {form.mediaUrl ? (
             <figure className="mt-2">
-              <img src={form.mediaUrl} alt={form.mediaCaption ?? "Gambar soal"} className="mx-auto max-h-40 rounded-xl border border-gray-100 object-contain" />
+              <img src={form.mediaUrl} alt={form.mediaCaption ?? "Gambar soal"} onError={(e) => { (e.currentTarget as HTMLImageElement).src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='60'><rect width='100%25' height='100%25' fill='%23f5f5f5'/><text x='50%25' y='55%25' font-size='11' fill='%23b0b0b0' text-anchor='middle' font-family='sans-serif'>GAMBAR RUSAK</text></svg>"; }} className="mx-auto max-h-40 rounded-xl border border-gray-100 object-contain" />
               {form.mediaCaption && <figcaption className="mt-1 text-center font-manrope text-[10px] text-gray-400">{form.mediaCaption}</figcaption>}
             </figure>
           ) : (
@@ -935,7 +935,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
                   ) : (
                     <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold ${i === 0 ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}>{o.optionValue || ["A", "B", "C", "D", "E", "F"][i]}</span>
                   )}
-                  {o.imageUrl && <img src={o.imageUrl} alt="" className="h-8 w-11 shrink-0 rounded-md border border-gray-100 object-cover" />}
+                  {o.imageUrl && <img src={o.imageUrl} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} className="h-8 w-11 shrink-0 rounded-md border border-gray-100 object-cover" />}
                   {String(o.label || "").trim() && <span className="font-manrope text-xs text-gray-700">{o.label}</span>}
                   {rules.scoring_mode === "likert" && <span className="ml-auto rounded bg-brand-navy/5 px-1.5 py-0.5 font-manrope text-[9px] font-bold text-brand-navy">{o.score} pts</span>}
                 </div>
