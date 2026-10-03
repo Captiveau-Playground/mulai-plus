@@ -24,7 +24,9 @@ export default function AssessmentDetailPage() {
   const rawClient = client as any;
   const [rules, setRules] = useState<Record<string, any>>({});
   const [rulesOpen, setRulesOpen] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Ingat versi yg sedang diedit (refresh tidak pindah versi → data gambar yg tersimpan tetap tampil)
+  const [selectedId, setSelectedId] = useState<string | null>(() => typeof window !== "undefined" ? localStorage.getItem("assess-editor-ver") : null);
+  const pickVer = (id: string | null) => { setSelectedId(id); try { if (id) localStorage.setItem("assess-editor-ver", id); else localStorage.removeItem("assess-editor-ver"); } catch { /* abaikan */ } };
   const [branchOpen, setBranchOpen] = useState(false);
   const [verify, setVerify] = useState<{ vid: string } | null>(null);
   const [modal, setModal] = useState<{ open: boolean; q?: any } | null>(null);
@@ -127,7 +129,7 @@ export default function AssessmentDetailPage() {
     onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
   }));
   const mPub = useMutation(orpc.discoverAdmin.versions.publish.mutationOptions({
-    onSuccess: () => { notify.create("Versi dijadikan rilis 🎉", { description: "Siswa kini menerima versi ini." }); setVerify(null); setSelectedId(null); void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
+    onSuccess: () => { notify.create("Versi dijadikan rilis 🎉", { description: "Siswa kini menerima versi ini." }); setVerify(null); pickVer(null); void invalidate(); void queryClient.invalidateQueries({ queryKey: summariesKey }); },
     onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
   }));
 
@@ -154,7 +156,7 @@ export default function AssessmentDetailPage() {
   const busyAny = mDraft.isPending || mRules.isPending || mSaveQ.isPending || mDelQ.isPending || mDupQ.isPending || mReorder.isPending || mDimsAdd.isPending || mDimsDel.isPending || mPub.isPending;
   const dims = (content?.dimensions ?? []) as Dim[];
 
-  const startEdit = () => { if (draft) setSelectedId(draft.id); else void mDraft.mutateAsync({ code }); };
+  const startEdit = () => { if (draft) pickVer(draft.id); else void mDraft.mutateAsync({ code }); };
   const moveQ = useCallback((idx: number, dir: number) => {
     const j = idx + dir;
     if (j < 0 || j >= questions.length) return;
@@ -222,7 +224,7 @@ export default function AssessmentDetailPage() {
                   const selected = selVer?.id === v.id;
                   return (
                     <div key={v.id} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${selected ? "border-teal-500/40 bg-teal-500/5" : "border-gray-100 bg-gray-50/50"}`}>
-                      <button onClick={() => { setSelectedId(v.id); }} className="min-w-0 flex-1 text-left" title="Lihat isi versi ini">
+                      <button onClick={() => { pickVer(v.id); }} className="min-w-0 flex-1 text-left" title="Lihat isi versi ini">
                         <p className="font-manrope text-[11px] font-semibold text-gray-800">
                           v{v.versionNumber} {v.versionNumber === 1 ? "" : `· ${v.versionNumber === vers.length ? "terbaru" : ""}`}
                           {isLive ? <span className="ml-1 rounded-full bg-teal-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-teal-700">● main · aktif utk siswa</span>
@@ -884,7 +886,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
                     <Input type="number" className="w-16" title="Bobot (mode Bobot bebas)" value={o.score} onChange={(e) => patchOpt(i, "score", Number(e.target.value))} />
                     {form.options.length > 2 && <button onClick={() => patch("options", form.options.filter((_: any, x: number) => x !== i))} className="text-red-400"><Trash2 className="h-4 w-4" /></button>}
                   </div>
-                  {form.presentationMode !== "standard_option_card" && (o.imageUrl ? (
+                  {(o.imageUrl || true) && (o.imageUrl ? (
                     <div className="flex items-center gap-2">
                       <img src={o.imageUrl} alt="" className="h-10 w-14 rounded-lg border border-gray-200 object-cover" />
                       <Input className="flex-1" value={o.imageUrl} onChange={(e) => patchOpt(i, "imageUrl", e.target.value)} placeholder="URL gambar…" />
