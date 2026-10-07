@@ -779,6 +779,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const liveTotal = isDemo ? DEMO_QUESTIONS.length : total;
   const _livePct = liveTotal > 0 ? (liveProgress / liveTotal) * 100 : 0;
 
+  const _imgOptions = isEngine && !!(effQs[eq] as any)?.opts?.some((o: any) => o.imageUrl);
   if (!liveQuestion) {
     if (isDemo) return null;
     return (
@@ -795,8 +796,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const progressPct = liveTotal > 0 ? (liveProgress / liveTotal) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-[70] h-dvh overflow-y-auto bg-bg-light">
-      <div className="mx-auto w-full max-w-2xl px-4 py-6">
+    <div className="fixed inset-0 z-[70] h-dvh overflow-hidden bg-bg-light">
+      <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 pt-6 pb-5">
       <div className="flex flex-col">
       {showGuide && (
         <motion.div
@@ -886,7 +887,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       )}
 
             {/* TOP BAR DUOLINGO-STYLE: keluar + segment per bagian + metrik */}
-      <div className="mb-4 flex items-center gap-2.5">
+      <div className="mb-4 flex shrink-0 items-center gap-2.5">
         <button
           type="button"
           onClick={() => setExitOpen(true)}
@@ -1014,39 +1015,36 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         </motion.div>
       )}
 
-      {/* QUESTION — bubble chat maskot bertanya (posisi lebih turun, ramah thumb mobile) */}
-      <div className="mt-8 mb-6 flex items-end gap-3">
-        <div className={cn("h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-gray-100", lastEval === false && "animate-shake-soft")}>
+      {/* QUESTION — bubble chat maskot bertanya (tanpa label duplikat; maskot polos & lebih besar) */}
+      <div className="mt-6 mb-4 flex shrink-0 items-end gap-3">
+        <div className={cn("h-16 w-16 shrink-0 overflow-hidden", lastEval === false && "animate-shake-soft")}>
           <Image
             src={lastEval === false ? "/maskot/masko-confuse.webp" : "/maskot/masko-book.webp"}
             alt="Maskot bertanya"
-            width={56}
-            height={56}
-            className="h-full w-full object-cover"
+            width={64}
+            height={64}
+            className="h-full w-full object-contain"
           />
         </div>
         <motion.div
           key={liveQuestion.id}
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative flex-1 rounded-3xl rounded-bl-md border border-gray-100 bg-white p-5 shadow-sm"
+          className="relative flex-1 rounded-3xl rounded-bl-md border border-gray-100 bg-white px-5 pb-4 pt-4 shadow-sm"
         >
           <span className="absolute top-4 -left-1.5 h-3 w-3 rotate-45 border-b border-l border-gray-100 bg-white" />
-          <p className="font-manrope font-semibold text-mentor-teal text-xs uppercase tracking-wide">
-            {isInterest ? `Minat • ${liveQuestion.dimension}` : `Kemampuan • ${liveQuestion.dimension}`}
-          </p>
-          <h2 className="mt-2 font-bold font-bricolage text-gray-900 text-lg leading-snug">{liveQuestion.text}</h2>
+          <h2 className="font-bold font-bricolage text-gray-900 text-lg leading-snug">{liveQuestion.text}</h2>
           {isEngine && (liveQuestion as any)._media && (
             <figure className="mt-3">
-              <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-56 rounded-xl border border-gray-100 object-contain" />
+              <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-[34vh] rounded-xl border border-gray-100 object-contain" />
               {(liveQuestion as any)._mediaCap && <figcaption className="mt-1 text-center font-manrope text-[11px] text-gray-400">{(liveQuestion as any)._mediaCap}</figcaption>}
             </figure>
           )}
         </motion.div>
       </div>
 
-      {/* Options */}
-      <div className="mt-2 space-y-3">
+      {/* Options — bila ada gambar jawaban: 2×2 grid & isi sisa tinggi (tanpa scroll) */}
+      <div className={`min-h-0 flex-1 overflow-y-auto ${_imgOptions ? "grid grid-cols-2 content-center gap-3 pb-4" : "mt-2 space-y-3"}`}>
         {isEngine && (effQs[eq] as any)?.questionType === "text_input" ? (
           <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
             <p className="mb-2 font-manrope text-xs font-medium text-gray-500">Tulis jawaban (angka / pecahan)</p>
@@ -1083,6 +1081,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                   onClick={() => handleSelect(opt.key)}
                   className={cn(
                     "flex w-full items-center gap-4 rounded-2xl border-2 bg-white p-4 text-left transition-all",
+                    _imgOptions && "flex-col justify-center gap-2 p-3 text-center",
                     isSelected
                       ? "border-mentor-teal bg-mentor-teal/5 shadow-md"
                       : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
@@ -1100,7 +1099,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                       {isSelected ? <Check className="h-6 w-6 text-white" /> : i === 0 ? "👷" : "🎨"}
                     </span>
                   )}
-                {oi && <img src={oi} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-gray-100 object-cover" />}
+                {oi && <img src={oi} alt="" className={cn("shrink-0 rounded-lg border border-gray-100 object-cover", _imgOptions ? "h-24 w-24" : "h-10 w-14")} />}
                 {String(opt.text || "").trim() && <span className="font-manrope font-medium text-[15px] text-gray-800">{opt.text}</span>}
                 </motion.button>
               );
@@ -1144,6 +1143,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                   onClick={() => handleSelect(key)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-2xl border-2 bg-white p-4 text-left transition-all",
+                    _imgOptions && "flex-col justify-center gap-2 p-3 text-center",
                     correct
                       ? "border-green-500 bg-green-50"
                       : wrong
@@ -1171,7 +1171,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                       {key}
                     </span>
                   )}
-                {oi && <img src={oi} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-gray-100 object-cover" />}
+                {oi && <img src={oi} alt="" className={cn("shrink-0 rounded-lg border border-gray-100 object-cover", _imgOptions ? "h-24 w-24" : "h-10 w-14")} />}
                 {String(opt ?? "").trim() && <span className="font-manrope font-medium text-[15px] text-gray-800">{opt}</span>}
                 </motion.button>
               );
