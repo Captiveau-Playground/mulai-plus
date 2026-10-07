@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Check, Flame, Home, Sparkles, Timer, X } from "lucide-react";
 import Image from "next/image";
 import { createPortal } from "react-dom";
+import { Latex } from "@/components/assessment/latex";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -249,7 +250,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setEtv(sv?.text ?? "");
     setLastEval(null);
     setSavedFlash(false);
-    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null } as unknown as Question);
+    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null, _math: q.hasMathNotation === true, _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true) } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
     setEq(i);
@@ -1037,7 +1038,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           className="relative flex-1 rounded-3xl rounded-bl-md border border-gray-100 bg-white px-5 pb-4 pt-4 shadow-sm"
         >
           <span className="absolute top-4 -left-1.5 h-3 w-3 rotate-45 border-b border-l border-gray-100 bg-white" />
-          <h2 className="font-bold font-bricolage text-gray-900 text-lg leading-snug">{liveQuestion.text}</h2>
+          <h2 className="font-bold font-bricolage text-gray-900 text-lg leading-snug">
+            {(liveQuestion as any)._math ? <Latex text={liveQuestion.text} /> : liveQuestion.text}
+          </h2>
           {isEngine && (liveQuestion as any)._media && (
             <figure className="mt-3">
               <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-[34vh] rounded-xl border border-gray-100 object-contain" />
@@ -1104,7 +1107,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                     </span>
                   )}
                 {oi && <img src={oi} alt="" className={cn("shrink-0 rounded-lg border border-gray-100 object-cover", _imgOptions ? "h-24 w-24" : "h-10 w-14")} />}
-                {String(opt.text || "").trim() && <span className="font-manrope font-medium text-[15px] text-gray-800">{opt.text}</span>}
+                {String(opt.text || "").trim() && (
+                  <span className="font-manrope font-medium text-[15px] text-gray-800">{(liveQuestion as any)._optMath?.[i] ? <Latex text={opt.text} /> : opt.text}</span>
+                )}
                 </motion.button>
               );
             })}
@@ -1176,7 +1181,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                     </span>
                   )}
                 {oi && <img src={oi} alt="" className={cn("shrink-0 rounded-lg border border-gray-100 object-cover", _imgOptions ? "h-24 w-24" : "h-10 w-14")} />}
-                {String(opt ?? "").trim() && <span className="font-manrope font-medium text-[15px] text-gray-800">{opt}</span>}
+                {String(opt ?? "").trim() && (
+                  <span className="font-manrope font-medium text-[15px] text-gray-800">{(liveQuestion as any)._optMath?.[i] ? <Latex text={opt} /> : opt}</span>
+                )}
                 </motion.button>
               );
             })
