@@ -158,7 +158,13 @@ test.describe("Assessment logic — Pilih Test", () => {
     // PETA REKOMENDASI (SCR) — dibangun dari majors/careers, tanpa AI
     await expect(page.getByText("Peta Rekomendasi")).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/klik node prodi/)).toBeVisible({ timeout: 15000 });
-    // Ringkasan AI — informatif (butuh AI worker & kunci); log saja bila ada
+    // ——— REALISME ANGKA & RINGKASAN ———
+    const pcts = await page.evaluate(() => Array.from(document.body.innerText.matchAll(/(\d+(?:\.\d+)?)%/g)).map((m) => parseFloat(m[1] ?? "0")));
+    console.log("[debug:result] persen =", pcts.join(","));
+    expect(Math.max(0, ...pcts)).toBeLessThanOrEqual(100); // tidak ada kecocokan > 100% (regresi 333%)
+    // Ringkasan AI: fallback deber-grounded (bukan cheerleader 'kombinasi unik')
+    await page.waitForTimeout(2500);
+    await expect.poll(() => page.evaluate(() => document.body.innerText)).not.toContain("kombinasi unik");
     const aiSec = await page.getByText("Ringkasan AI").count();
     console.log("[debug:result] bagian Ringkasan AI hadir =", aiSec);
     await page.goto("/dashboard/student/assessment");
