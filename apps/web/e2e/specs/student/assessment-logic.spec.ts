@@ -133,8 +133,25 @@ test.describe("Assessment logic — Pilih Test", () => {
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(1500);
-    await expect(page.getByText("Lihat Rekomendasi")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Lihat Rekomendasi")).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Mulai Test").first()).toBeVisible(); // kartu kedua tes = Mulai Test
+
+    // ——— SYNC ke halaman hasil v1: konten harus TERISI ———
+    await page.goto("/dashboard/student/assessment/result");
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(3000);
+    console.log("[debug:result] url=", page.url());
+    await expect(async () => {
+      const t = await page.evaluate(() => document.body.innerText);
+      if (!t.includes("Jurusan yang Cocok")) throw new Error("belum: " + t.slice(0, 300));
+    }).toPass({ timeout: 20000 });
+    await expect(page.getByText("Karier yang Cocok")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText("Profil Kemampuan")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/belum tersedia/)).not.toBeVisible({ timeout: 5000 }); // ability terisi, bukan placeholder
+    const hit = await page.locator("text=/Kedokteran|Teknik|Ekonomi|Manajemen|Keperawatan|Informatika|Hukum/").count();
+    console.log("[debug:result] nama jurusan tampil =", hit);
+    expect(hit).toBeGreaterThan(0);
+    await page.goto("/dashboard/student/assessment");
 
     // STATE 3 — pause: attempt baru minat 3/30
     const ses = await partial(studentId, "DISCOVER", 3);
