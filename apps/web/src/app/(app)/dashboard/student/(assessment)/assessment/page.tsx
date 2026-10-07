@@ -10,6 +10,7 @@ import { ProgressCharts } from "@/components/student/progress-charts";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { StreakFlame } from "@/components/assessment/streak-flame";
 import { authClient } from "@/lib/auth-client";
 import { orpc, client } from "@/utils/orpc";
 
@@ -291,10 +292,16 @@ export default function AssessmentHomePage() {
               transition={{ duration: 0.6 }}
             />
           </div>
+          <div className="mt-1 flex items-center gap-1.5">
+            {[0.25, 0.5, 0.75, 1].map((q, i) => (
+              <span key={i} className={cn("h-1.5 rounded-full transition-colors", levelProgress >= q * 100 ? "bg-brand-orange" : "bg-gray-200")} style={{ width: i === 3 ? 16 : 10 }} />
+            ))}
+            <span className="font-manrope text-[9px] font-medium text-gray-400">→ Level {stats.level + 1}</span>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 font-manrope text-[11px] font-bold text-orange-600">🔥 {stats.streak}</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 font-manrope text-[11px] font-bold text-teal-600">✅ {stats.testsCompleted}</span>
+          <StreakFlame days={stats.streak} />
+          <span className="hidden items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 font-manrope text-[11px] font-bold text-teal-600 sm:inline-flex">✅ {stats.testsCompleted}</span>
         </div>
       </motion.div>
 

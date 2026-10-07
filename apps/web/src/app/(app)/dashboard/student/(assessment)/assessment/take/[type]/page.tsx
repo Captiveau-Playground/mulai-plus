@@ -7,6 +7,7 @@ import { ArrowRight, Check, Flame, Home, Sparkles, Timer, X } from "lucide-react
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { Latex } from "@/components/assessment/latex";
+import { StreakFlame } from "@/components/assessment/streak-flame";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -260,6 +261,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setDone(true);
     blip(1318, 0.22);
     fireConfetti();
+    setTimeout(() => setAchPop(true), 500);
     /* completion dicatat di SERVER (resultsFor) — no localStorage */
   };
   const [secDone, setSecDone] = useState(0);
@@ -363,6 +365,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [exitOpen, setExitOpen] = useState(false); // konfirmasi keluar ala Duolingo
   const [mapOpen, setMapOpen] = useState(false); // panel Peta Soal (bottom sheet)
   const [savedFlash, setSavedFlash] = useState(false); // chip "tersimpan" singkat
+  const [achPop, setAchPop] = useState(false); // modal perayaan brand saat tes selesai
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
@@ -683,6 +686,28 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           </Link>
         </div>
       </motion.div>
+
+      {/* MODAL PERAYAAN brand (hand-built) */}
+      {achPop && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setAchPop(false)}>
+          <motion.div initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 22 }} className="w-full max-w-sm overflow-hidden rounded-3xl bg-brand-navy text-center text-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="relative px-6 pt-8 pb-6">
+              <span className="absolute -top-8 -right-6 h-28 w-28 rounded-full bg-brand-orange/25 blur-2xl" />
+              <div className="relative mx-auto h-24 w-24 overflow-hidden">
+                <Image src={bothDone ? "/maskot/masko-found.webp" : "/maskot/masko-thumb-up.webp"} alt="Selamat" width={96} height={96} className="h-full w-full object-contain" />
+              </div>
+              <p className="mt-4 font-manrope text-[10px] font-bold tracking-widest text-brand-orange uppercase">Pencapaian</p>
+              <h3 className="mt-1 font-bold font-bricolage text-2xl">{bothDone ? "Semua Tes Selesai!" : "Test Selesai!"}</h3>
+              <p className="mt-2 font-manrope text-sm text-white/80">
+                +{xpEarned} <b className="text-amber-400">XP</b> · streak 🔥 {streak} hari — pertahankan!
+              </p>
+              <button onClick={() => setAchPop(false)} className="mt-5 w-full rounded-2xl bg-brand-orange px-5 py-3 font-bold font-bricolage text-sm text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]">
+                Siap, lanjut!
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
       </div>
     );
   }
@@ -931,9 +956,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
               <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
                 <Timer className="h-3 w-3" />{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
               </span>
-              <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold", streak >= 2 ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-400")}>
-                <Flame className="h-3 w-3" />{streak}
-              </span>
+              <StreakFlame days={streak} showDots={false} showLabel={false} />
               <span className="font-semibold text-gray-400">{liveProgress}/{liveTotal}</span>
             </span>
           </div>
