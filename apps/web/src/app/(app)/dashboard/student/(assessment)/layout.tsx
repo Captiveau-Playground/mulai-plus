@@ -4,6 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+const PAGE_TITLE: Record<string, string> = {
+  "/dashboard/student/assessment": "Test Minat & Bakat",
+  "/dashboard/student/assessment/result": "Hasil",
+  "/dashboard/student/assessment/future-career": "Karir Impian",
+  "/dashboard/student/assessment/history": "History",
+};
+
 const ASSESSMENT_NAV = [
   { href: "/dashboard/student/assessment" as const, label: "Test", icon: "🧭", exact: true },
   { href: "/dashboard/student/assessment/result" as const, label: "Hasil", icon: "📊" },
@@ -16,14 +23,14 @@ export default function AssessmentLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pb-8 lg:p-8">
-      {/* Header + sub-menu */}
-      <div className="flex flex-col gap-2">
-        <p className="font-manrope font-semibold text-[11px] text-mentor-teal uppercase tracking-wide">Assessment</p>
-        <h1 className="font-bold font-bricolage text-3xl text-brand-navy md:text-4xl">Test Minat Bakat</h1>
-        <p className="font-manrope text-base text-text-muted-custom">
-          Kenali minat (Holland) & bakatmu — dapatkan rekomendasi jurusan dan karier.
-        </p>
-      </div>
+      {/* Header KOMPAK ala Duolingo — judul singkat per halaman, tanpa deskripsi boros */}
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-manrope font-semibold text-[10px] text-mentor-teal uppercase tracking-widest">Assessment</p>
+          <h1 className="truncate font-bold font-bricolage text-xl text-brand-navy md:text-2xl">{PAGE_TITLE[pathname] ?? "Test Minat Bakat"}</h1>
+        </div>
+        <span className="shrink-0 rounded-2xl bg-white px-3 py-2 text-lg shadow-sm">🎯</span>
+      </header>
 
       {/* Tabs — DESKTOP; mobile memakai bottom app bar ala Duolingo */}
       <div className="hidden gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-sm md:flex">
