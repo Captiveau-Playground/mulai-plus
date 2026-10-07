@@ -60,8 +60,8 @@ function EngineWrapper({ code }: { code: string }) {
       } catch (e: any) { setErrg(e?.message ?? "Gagal memuat tes"); }
     })();
   }, [code, authSession?.user?.id]);
-  if (errg) return <p className="font-manrope text-sm text-red-500">{errg}</p>;
-  if (!ready) return <div className="flex min-h-[40vh] items-center justify-center"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
+  if (errg) return <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light p-4"><p className="font-manrope text-sm text-red-500">{errg}</p></div>;
+  if (!ready) return <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
   return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel, studentId: ready.studentId, sections: ready.sections }} />;
 }
 
@@ -914,8 +914,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                   className={cn("h-2.5 flex-1 overflow-hidden rounded-full", activeS ? "bg-orange-100" : "bg-gray-100")}
                 >
                   <div
-                    className={cn("h-full rounded-full transition-all duration-300", idx < curSec ? "bg-gradient-to-r from-mentor-teal to-teal-500" : pct > 0 ? "bg-teal-400" : "bg-transparent")}
-                    style={{ width: `${Math.max(pct * 100, idx < curSec ? 100 : 0)}%` }}
+                    className={cn("h-full rounded-full transition-all duration-500", pct > 0 ? "bg-gradient-to-r from-mentor-teal to-teal-500" : "bg-transparent")}
+                    style={{ width: `${pct > 0 ? Math.max(pct * 100, 5) : 0}%` }}
                   />
                 </div>
               );
@@ -1022,9 +1022,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
       {/* QUESTION — bubble chat maskot bertanya (tanpa label duplikat; maskot polos & lebih besar) */}
       <div className="mt-6 mb-4 flex shrink-0 items-end gap-3">
-        <div className={cn("h-16 w-16 shrink-0 overflow-hidden", lastEval === false && "animate-shake-soft")}>
+        <div className="h-16 w-16 shrink-0 overflow-hidden">
           <Image
-            src={lastEval === false ? "/maskot/masko-confuse.webp" : "/maskot/masko-book.webp"}
+            src={_mascotNow}
             alt="Maskot bertanya"
             width={64}
             height={64}
@@ -1139,9 +1139,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
               const isSelected = selected === key;
               const oi = (liveQuestion as any)._optImgs?.[i];
               const oic = (liveQuestion as any)._optIcons?.[i];
-              const isAnswered = revealed && isSelected;
-              const correct = isAnswered && lastCorrect === true;
-              const wrong = isAnswered && lastCorrect === false;
               return (
                 <motion.button
                   key={key}
@@ -1153,13 +1150,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                   className={cn(
                     "flex w-full items-center gap-3 rounded-2xl border-2 bg-white p-4 text-left transition-all",
                     _imgOptions && "flex-col justify-center gap-2 p-3 text-center",
-                    correct
-                      ? "border-green-500 bg-green-50"
-                      : wrong
-                        ? "border-red-400 bg-red-50"
-                        : isSelected
-                          ? "border-mentor-teal bg-mentor-teal/5"
-                          : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
+                    isSelected
+                      ? "border-mentor-teal bg-mentor-teal/5 shadow-md"
+                      : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
                   )}
                 >
                   {oic ? (
@@ -1168,13 +1161,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                     <span
                       className={cn(
                         "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold font-manrope text-sm",
-                        correct
-                          ? "bg-green-500 text-white"
-                          : wrong
-                            ? "bg-red-400 text-white"
-                            : isSelected
-                              ? "bg-mentor-teal text-white"
-                              : "bg-gray-100 text-gray-500",
+                        isSelected
+                          ? "bg-mentor-teal text-white"
+                          : "bg-gray-100 text-gray-500",
                       )}
                     >
                       {key}
@@ -1195,11 +1184,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         {savedFlash && (
           <p className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-3 py-1.5 font-manrope text-xs font-semibold text-teal-700 animate-in fade-in">
             <span className="text-sm">✓</span> Jawaban tersimpan
-          </p>
-        )}
-        {savedFlash === false && lastEval !== null && (effQs[eq] as any)?.questionType === "text_input" && (
-          <p className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 font-manrope text-xs font-semibold ${lastEval ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>
-            <span className="text-sm">{lastEval ? "✅" : "🤔"}</span> {lastEval ? "Benar!" : "Belum tepat — jawaban disimpan"}
           </p>
         )}
       </div>
