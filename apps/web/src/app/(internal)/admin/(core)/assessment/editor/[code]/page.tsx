@@ -34,7 +34,7 @@ export default function AssessmentDetailPage() {
   const [dimCode, setDimCode] = useState("");
   const [dimName, setDimName] = useState("");
   const [importOpen, setImportOpen] = useState(false);
-  const [gal, setGal] = useState<{ open: boolean; cb: (u: string) => void; kind: "question" | "option" } | null>(null);
+  const [gal, setGal] = useState<{ open: boolean; cb: (u: string) => void; kind: "question" | "option"; code: string } | null>(null);
   const [focusQ, setFocusQ] = useState<string | null>(null);
   const [focusDim, setFocusDim] = useState(false);
   const [hlQ, setHlQ] = useState<string | null>(null);
@@ -388,7 +388,7 @@ export default function AssessmentDetailPage() {
 
         {modal?.open && selVer && content && (
           <div id="q-panel" className="border-b border-teal-100 bg-teal-50/20 px-4 py-4">
-            <QuestionPanel q={modal.q} versionId={versionId} content={content} rules={rules} openPicker={(cb, kind) => setGal({ open: true, cb, kind: kind ?? "question" })} onDone={async (qid) => { const id = modal.q?.id; await mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
+            <QuestionPanel q={modal.q} versionId={versionId} content={content} rules={rules} openPicker={(cb, kind) => setGal({ open: true, cb, kind: kind ?? "question", code })} onDone={async (qid) => { const id = modal.q?.id; await mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId, questionData: qid as any }); setModal(null); }} onClose={() => setModal(null)} />
           </div>
         )}
 
@@ -467,7 +467,7 @@ export default function AssessmentDetailPage() {
         </div>
       )}
 
-      {gal?.open && <MediaManager onPick={(u) => { gal.cb(u); setGal(null); }} onClose={() => setGal(null)} />}
+      {gal?.open && <MediaManager kind={gal.kind} code={gal.code} onPick={(u) => { gal.cb(u); setGal(null); }} onClose={() => setGal(null)} />}
 
       <WorkingOverlay show={busyAny} label={mSaveQ.isPending ? "Menyimpan soal…" : mPub.isPending ? "Menerbitkan…" : mDimsAdd.isPending ? "Menambah dimensi…" : mReorder.isPending ? "Menyimpan urutan…" : "Menyimpan…"} />
 
@@ -669,11 +669,11 @@ function ImportModal({ versionId, dims, mImport, onDone, onClose }: { versionId:
   );
 }
 
-function MediaManager({ onPick, onClose, kind = "question" }: { onPick: (u: string) => void; onClose: () => void; kind?: "question" | "option" }) {
+function MediaManager({ onPick, onClose, kind = "question", code = "" }: { onPick: (u: string) => void; onClose: () => void; kind?: "question" | "option"; code?: string }) {
   const aClient = client as any;
   const qc = useQueryClient();
-  const key = ["assess-media", kind];
-  const { data, isPending } = useQuery({ queryKey: key, queryFn: () => aClient.discoverAdmin.media.list({ kind }) });
+  const key = ["assess-media", code, kind];
+  const { data, isPending } = useQuery({ queryKey: key, queryFn: () => aClient.discoverAdmin.media.list({ kind, code }) });
   const items: { key: string; url: string; name: string; size: number }[] = data?.items ?? [];
 
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
@@ -691,7 +691,7 @@ function MediaManager({ onPick, onClose, kind = "question" }: { onPick: (u: stri
 
   const onFile = async (f: File) => {
     const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => { const s = String(r.result ?? ""); res(s.split(",")[1] ?? ""); }; r.onerror = rej; r.readAsDataURL(f); });
-    const res = (await mUp.mutateAsync({ dataB64: b64, mime: f.type || "image/png", filename: f.name, kind })) as any;
+    const res = (await mUp.mutateAsync({ dataB64: b64, mime: f.type || "image/png", filename: f.name, kind, code })) as any;
     if (res?.url) { notify.create(kind === "question" ? "Gambar soal dipasang ✅ — cek preview di kanan" : "Gambar opsi dipasang ✅ — cek preview di kanan"); onPick(res.url); } // upload = langsung pasang + tutup
   };
 
@@ -699,7 +699,7 @@ function MediaManager({ onPick, onClose, kind = "question" }: { onPick: (u: stri
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
       <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold font-bricolage text-base text-brand-navy">{kind === "question" ? "Galeri Media — Gambar Soal" : "Galeri Media — Gambar Jawaban/Opsi"} (R2)</h3>
+          <h3 className="font-bold font-bricolage text-base text-brand-navy">{kind === "question" ? "Galeri Gambar Soal" : "Galeri Gambar Jawaban/Opsi"} <span className="text-brand-navy/60">· {code || "test"} (R2)</span></h3>
           <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"><X className="h-4 w-4" /></button>
         </div>
         <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 px-4 py-4 font-manrope text-sm text-gray-600 hover:border-brand-orange/40">
