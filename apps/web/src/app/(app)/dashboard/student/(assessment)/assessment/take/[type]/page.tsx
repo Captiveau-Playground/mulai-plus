@@ -671,7 +671,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
   if (isEngine && secStart) {
     const __el = (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex items-center justify-center bg-bg-light p-4">
         <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
             <Image src="/maskot/masko-book.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
@@ -702,7 +702,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   }
   if (isEngine && secOverlay) {
     const __el = (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex items-center justify-center bg-bg-light p-4">
         <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
             <Image src="/maskot/masko-thumb-up.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
