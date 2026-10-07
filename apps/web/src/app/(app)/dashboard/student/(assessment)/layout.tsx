@@ -21,6 +21,11 @@ const ASSESSMENT_NAV = [
 export default function AssessmentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  // Route ujian (take/*): JANGAN render header/tab/bottom modul — biar halaman imersif sendiri (anti-glitch sebelum overlay)
+  if (pathname.startsWith("/dashboard/student/assessment/take/")) {
+    return <div className="flex flex-1">{children}</div>;
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pb-8 lg:p-8">
       {/* Header KOMPAK ala Duolingo — judul singkat per halaman, tanpa deskripsi boros */}
