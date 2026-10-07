@@ -15,7 +15,7 @@ export default function AssessmentLayout({ children }: { children: React.ReactNo
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 pb-24 md:p-6 md:pb-8 lg:p-8">
+    <div className="flex flex-1 flex-col gap-6 p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:p-6 md:pb-8 lg:p-8">
       {/* Header + sub-menu */}
       <div className="flex flex-col gap-2">
         <p className="font-manrope font-semibold text-[11px] text-mentor-teal uppercase tracking-wide">Assessment</p>
@@ -50,7 +50,7 @@ export default function AssessmentLayout({ children }: { children: React.ReactNo
       {/* BOTTOM APP BAR ala Duolingo — khusus modul Assessment (mobile) */}
       <nav
         className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/95 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur-md md:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 10px)", paddingTop: 4 }}
       >
         <div className="mx-auto flex max-w-md items-stretch justify-around px-2 py-1.5">
           {ASSESSMENT_NAV.map((item) => {
