@@ -95,7 +95,7 @@ function EngineProgressCard() {
           <p className="font-bold font-bricolage text-sm text-gray-900">Mulai dari Tes Minat 🧠</p>
           <p className="mt-1 font-manrope text-xs text-gray-500">Selesaikan Minat &amp; Bakat untuk laporan lengkap.</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/DISCOVER" className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Mulai Tes Minat →</Link>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Mulai Tes Minat →</Link>
       </div>
     );
   }
@@ -106,7 +106,7 @@ function EngineProgressCard() {
           <p className="font-bold font-bricolage text-sm text-gray-900">Tes Minat selesai ✓ — lanjutkan Tes Bakat yuk!</p>
           <p className="mt-1 font-manrope text-xs text-gray-500">Keduanya dibutuhkan untuk rekomendasi yang lengkap.</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/TALENT" className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjutkan Tes Bakat →</Link>
+        <Link href="/dashboard/student/assessment/take/TALENT" onClick={() => window.location.assign("/dashboard/student/assessment/take/TALENT")} className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjutkan Tes Bakat →</Link>
       </div>
     );
   }
@@ -117,7 +117,7 @@ function EngineProgressCard() {
           <p className="font-bold font-bricolage text-sm text-gray-900">Tes Bakat selesai ✓ — lanjutkan Tes Minat yuk!</p>
           <p className="mt-1 font-manrope text-xs text-gray-500">Keduanya dibutuhkan untuk rekomendasi yang lengkap.</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/DISCOVER" className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjutkan Tes Minat →</Link>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjutkan Tes Minat →</Link>
       </div>
     );
   }
@@ -127,7 +127,7 @@ function EngineProgressCard() {
         <p className="font-bold font-bricolage text-base">Kedua tes selesai — 🎉</p>
         <p className="mt-1 font-manrope text-xs text-white/80">Laporan minat &amp; bakatmu sudah siap, lengkap dengan jurusan, kampus, dan karir.</p>
       </div>
-      <Link href="/dashboard/student/assessment/result" className="shrink-0 rounded-xl bg-white px-4 py-2 font-manrope text-xs font-semibold text-teal-700 hover:brightness-95">Lihat Rekomendasi →</Link>
+      <Link href="/dashboard/student/assessment/result" onClick={() => window.location.assign("/dashboard/student/assessment/result")} className="shrink-0 rounded-xl bg-white px-4 py-2 font-manrope text-xs font-semibold text-teal-700 hover:brightness-95">Lihat Rekomendasi →</Link>
     </div>
   );
 }
