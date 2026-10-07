@@ -1,0 +1,161 @@
+// E2E — Logika Pilih Test (notice 4 state + kartu pause/30-30)
+// Menciptakan user unik via API, login via UI, mendorong state engine via RPC (public), lalu memeriksa UI.
+import { expect, test, type Page } from "@playwright/test";
+
+const RPC = "http://localhost:3000/rpc";
+const EMAIL_D = (s: string) => `e2e-${s}@test.local`;
+
+async function rpc(path: string, input: unknown) {
+  const res = await fetch(`${RPC}/${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ json: input }) });
+  const raw = await res.text();
+  let j: any = null;
+  try { j = JSON.parse(raw); } catch { /* noop */ }
+  return j?.json ?? j ?? { http: res.status, raw: raw.slice(0, 120) };
+}
+
+async function completeTest(sid: string, code: string) {
+  const cfg = await rpc("discover/config", { code });
+  const qs: any[] = (cfg.questions ?? []).filter((q: any) => q.isActive);
+  const types = new Set(qs.map((q) => q.questionType));
+  console.log(`[debug:${code}] types=${[...types].join(",")} nQs=${qs.length} optsSample=${JSON.stringify(qs[0]?.opts?.slice(0, 1) ?? null)}`);
+  const st = await rpc("discover/start", { code, studentId: sid });
+  let subOK = 0;
+  for (const q of qs) {
+    const o = q.opts?.[0];
+    if (o) { const r = await rpc("discover/submit", { sessionId: st.sessionId, questionId: q.id, optionId: o.id }); if (r?.ok) subOK++; }
+  }
+  const fin = await rpc("discover/finish", { sessionId: st.sessionId });
+  console.log(`[debug:${code}] submitted=${subOK}/${qs.length} finish=${JSON.stringify(fin)?.slice(0, 260)}`);
+}
+
+async function partial(sid: string, code: string, n: number): Promise<string> {
+  const cfg = await rpc("discover/config", { code });
+  const qs: any[] = (cfg.questions ?? []).filter((q: any) => q.isActive);
+  const st = await rpc("discover/start", { code, studentId: sid });
+  for (let i = 0; i < n; i++) {
+    const q = qs[i];
+    const o = q?.opts?.[0];
+    if (o) await rpc("discover/submit", { sessionId: st.sessionId, questionId: q.id, optionId: o.id });
+  }
+  return st.sessionId;
+}
+
+async function createUser(tag: string) {
+  const email = EMAIL_D(tag);
+  const res = await fetch("http://localhost:3000/api/auth/sign-up/email", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "http://localhost:3001" },
+    body: JSON.stringify({ name: "E2E " + tag, email, password: "E2ePass!234" }),
+  });
+  const raw = await res.text();
+  let j: any = null;
+  try { j = JSON.parse(raw); } catch { /* noop */ }
+  const user = j?.user ?? {};
+  return { email, password: "E2ePass!234", id: user?.id ?? "", raw: raw.slice(0, 200) };
+}
+
+async function dismissCookie(page: Page) {
+  const dlg = page.getByRole("dialog", { name: "Persetujuan cookie" });
+  try {
+    if (await dlg.isVisible({ timeout: 2500 })) {
+      const btn = dlg.locator("button").first();
+      await btn.click({ timeout: 5000 });
+    }
+  } catch { /* tidak ada dialog */ }
+}
+
+async function loginUI(page: Page, email: string, password: string) {
+  await page.goto("/login");
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForTimeout(1200);
+  await dismissCookie(page);
+  // mungkin redirect kalau sudah login (fresh context → form tampil)
+  const emailField = page.locator('input[name="email"]').first();
+  await emailField.fill(email, { timeout: 10000 });
+  await page.locator('input[name="password"]').first().fill(password);
+  await page.locator('button[type="submit"]').first().click();
+  // tunggu login sukses → dashboard atau muncul menu user
+  await page.waitForTimeout(2500);
+  await page.goto("/dashboard");
+  await page.waitForTimeout(1200);
+}
+
+async function dismissDevDialog(page: Page) {
+  const x = page.getByRole("button", { name: "Tutup" }).first();
+  try { if (await x.isVisible({ timeout: 2000 })) await x.click(); } catch { /* none */ }
+}
+
+test.describe("Assessment logic — Pilih Test", () => {
+  test("notice 4 states & kartu pause/30-30", async ({ page }) => {
+    test.setTimeout(180000);
+    const tag = Date.now().toString();
+    const created = await createUser(tag);
+    const { email, password } = created;
+    const studentId: string = created.id ?? "";
+    expect(studentId, `signup gagal — respons: ${created.raw}`).toBeTruthy();
+
+    await loginUI(page, email, password);
+
+    await page.goto("/dashboard/student/assessment");
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1500);
+    // lewati gerbang profil: seed sekolah+jenjang & 1 sosial (via RPC dengan cookie sesi)
+    await page.evaluate(async () => {
+      const h = { "content-type": "application/json" };
+      await fetch("http://localhost:3000/rpc/user/updateProfile", { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ json: { school: "SMA Negeri 1 Jakarta", educationLevel: "SMA" } }) });
+      await fetch("http://localhost:3000/rpc/user/updateProfile", { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ json: { socialMedia: { instagram: "https://instagram.com/e2e-test" } } }) });
+    });
+    await page.reload();
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1500);
+    await dismissDevDialog(page);
+
+    const gateVisible = await page.getByText("Langkah 1 dari 2").isVisible().catch(() => false);
+    if (gateVisible) {
+      const dump = await page.evaluate(() => document.body.innerText.slice(0, 400));
+      throw new Error("Gerbang profil masih tampil: " + dump);
+    }
+
+    // STATE 0 — belum ada tes
+    await expect(page.getByText("Mulai dari Tes Minat")).toBeVisible({ timeout: 20000 });
+
+    // STATE 1 — minat selesai
+    await completeTest(studentId, "DISCOVER");
+    await page.reload();
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1500);
+    await expect(page.getByText(/Lanjutkan Tes Bakat/)).toBeVisible({ timeout: 15000 });
+
+    // STATE 2 — keduanya selesai → Lihat Rekomendasi
+    await completeTest(studentId, "TALENT");
+    const dbg = await rpc("discover/attempts", { studentId });
+    console.log("[debug] attempts:", JSON.stringify(dbg)?.slice(0, 400));
+    await page.reload();
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1500);
+    await expect(page.getByText("Lihat Rekomendasi")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Mulai Test").first()).toBeVisible(); // kartu kedua tes = Mulai Test
+
+    // STATE 3 — pause: attempt baru minat 3/30
+    const ses = await partial(studentId, "DISCOVER", 3);
+    await page.reload();
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1500);
+    await expect(page.getByText(/Lanjutkan · 3\/30/)).toBeVisible({ timeout: 15000 });
+
+    // STATE 4 — isi sampai 30 tanpa finish → 'Selesaikan Test · 30/30'
+    const cfg = await rpc("discover/config", { code: "DISCOVER" });
+    const qs: any[] = (cfg.questions ?? []).filter((q: any) => q.isActive);
+    for (let i = 3; i < qs.length; i++) {
+      const o = qs[i]?.opts?.[0];
+      if (o) await rpc("discover/submit", { sessionId: ses, questionId: qs[i].id, optionId: o.id });
+    }
+    await page.reload();
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1500);
+    await expect(page.getByText(/Selesaikan Test · 30\/30/)).toBeVisible({ timeout: 15000 });
+
+    // bersihkan partial
+    await rpc("discover/abandon", { studentId, code: "DISCOVER" });
+  });
+});

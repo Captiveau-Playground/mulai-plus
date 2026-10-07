@@ -359,6 +359,16 @@ export const discoverRouter = {
         where: eq(schema.assessmentDimensions.versionId, sess.versionId),
       });
       const dimByCode = new Map(dims.map((d) => [d.id, d.code]));
+      // Fallback: targetDimension opsi bisa menunjuk dimensi VERSI LAMA (salinan draft tidak selalu remap)
+      // → cari code-nya di semua versi agar skor/profil tetap benar.
+      const missingDimIds = [...scores.keys()].filter((x) => !dimByCode.has(x));
+      if (missingDimIds.length > 0) {
+        const extra = await db.query.assessmentDimensions.findMany({
+          where: inArray(schema.assessmentDimensions.id, missingDimIds),
+          columns: { id: true, code: true },
+        });
+        for (const d of extra) if (d.code && !dimByCode.has(d.id)) dimByCode.set(d.id, d.code);
+      }
       const durations = input.durations ?? {};
       const rows = [...scores.entries()].map(([dimId, total]) => ({ dimId, total, time: durations[dimId] ?? Number.MAX_SAFE_INTEGER }));
       rows.sort(
@@ -369,7 +379,7 @@ export const discoverRouter = {
       );
       const topN = Number(cfg?.result_dim_count ?? 3);
       const top = rows.slice(0, topN).map((r) => dimByCode.get(r.dimId) ?? r.dimId);
-      const profileCode = top.join("-");
+      const profileCode = top.join("-").slice(0, 40); // varchar(40) di tmb_assessment_results
       // Rekomendasi: ability DINORMALISASI per dim (0–100) agar jumlah soal tak bias,
       // + confidence digeser oleh gap skor teratas (differentiation).
       const abilityCodeScores: Record<string, number> = {};
@@ -875,7 +885,7 @@ export const discoverAdminRouter = {
               id: uid(),
               questionId: nq,
               optionValue: o.optionValue,
-              targetDimension: o.targetDimension,
+              targetDimension: dimMap.get(o.targetDimension) ?? o.targetDimension,
               label: o.label,
               hasMathNotation: o.hasMathNotation,
               imageUrl: o.imageUrl,
