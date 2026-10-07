@@ -785,8 +785,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const _mascotNow = _MASKOTS[eq % _MASKOTS.length] ?? "/maskot/masko-book.webp";
   if (!liveQuestion) {
     if (isDemo) return null;
+    // Loader juga full-screen (tanpa flash layout dashboard di belakang sebelum intro muncul)
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center">
+      <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-center bg-bg-light">
         <div className="h-24 w-24 overflow-hidden rounded-2xl bg-white shadow-sm">
           <Image src="/maskot/masko-hi.webp" alt="" width={96} height={96} className="h-full w-full object-cover" />
         </div>
