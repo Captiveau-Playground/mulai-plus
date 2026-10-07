@@ -710,27 +710,28 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   }
 
   if (isEngine && secStart) {
+    const __secCount = secs[dimIdxOf(secStart.eqIndex)]?.count ?? effQs.length; // dinamis dr data
+    const __secIdx = dimIdxOf(secStart.eqIndex);
     const __el = (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex items-center justify-center bg-bg-light p-4">
-        <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
-          <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
-            <Image src="/maskot/masko-book.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
-          </span>
-          <p className="mt-3 font-manrope text-xs font-bold tracking-wide text-teal-600 uppercase">Bagian berikutnya</p>
-          <h2 className="mt-1 font-bold font-bricolage text-2xl text-gray-900">{secStart.name}</h2>
-          <p className="mt-1 font-manrope text-sm text-gray-500">Kamu akan mengerjakan {5} soal pada bagian ini.</p>
-          <button
-            onClick={() => { setSecStart(null); setSelected(null); setRevealed(false); engineLoad(secStart.eqIndex); }}
-            className="mt-5 w-full rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110"
-          >
-            Mulai bagian →
-          </button>
+      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-light px-6 py-10 text-center">
+        <div className="h-24 w-24 overflow-hidden">
+          <Image src="/maskot/masko-book.webp" alt="Maskot" width={96} height={96} className="h-full w-full object-contain" />
+        </div>
+        <p className="mt-5 font-manrope text-xs font-bold tracking-widest text-teal-600 uppercase">Bagian {__secIdx + 1} dari {totalDims}</p>
+        <h2 className="mt-1 font-bold font-bricolage text-3xl text-gray-900">{secStart.name}</h2>
+        <p className="mt-2 font-manrope text-sm text-gray-500">Kamu akan mengerjakan <b>{__secCount} soal</b> pada bagian ini.</p>
+        <button
+          onClick={() => { setSecStart(null); setSelected(null); setRevealed(false); engineLoad(secStart.eqIndex); }}
+          className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
+        >
+          Mulai bagian →
+        </button>
           {dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
             <button
               onClick={() => router.push("/dashboard/student/assessment")}
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50"
+              className="mt-3 text-sm font-manrope font-semibold text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
             >
-              Berhenti dulu — lanjut kapan saja (progres tersimpan)
+              Berhenti dulu — lanjut kapan saja
             </button>
           )}
         </div>
