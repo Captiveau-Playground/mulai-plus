@@ -17,10 +17,21 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
   // Asisten: area chat mengisi sisa tinggi viewport (scroll di dalam chat),
   // tapi header/footer dashboard & tombol toggle sidebar TETAP ada (konsisten dgn page lain).
   const fullVh = pathname.startsWith("/dashboard/student/assistant");
+  // TEST (take/*): MODE UJIAN IMERSIF — sidebar (Test/Hasil/Karir/History), header & footer disembunyikan
+  // → fokus penuh mengerjakan soal; navigasi kembali normal setelah selesai/keluar.
+  const isTest = pathname.startsWith("/dashboard/student/assessment/take/");
 
   const handleNavigate = () => {
     setOpenMobile(false);
   };
+
+  if (isTest) {
+    return (
+      <div className="min-h-screen bg-bg-light">
+        <MaintenanceGate>{children}</MaintenanceGate>
+      </div>
+    );
+  }
 
   return (
     <>
