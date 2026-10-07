@@ -66,6 +66,9 @@ function EngineWrapper({ code }: { code: string }) {
 function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections?: number } }) {
   const isEngine = !!engine;
   const engineQs = engine?.questions ?? [];
+  const [orderIds, setOrderIds] = useState<string[] | null>(null); // urutan soal sesi (ujian) — stabil utk resume & grid
+  const [answeredSet, setAnsweredSet] = useState<Set<string> | null>(null);
+  const effQs: any[] = orderIds ? orderIds.map((id) => engineQs.find((q: any) => q.id === id)).filter(Boolean) : engineQs;
   const [eq, setEq] = useState(0);
   const [intro, setIntro] = useState<boolean | null>(isEngine ? null : false); // null = masih cek resume → jangan render intro dulu
   const introStarted = useRef(false);
@@ -77,14 +80,17 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     (async () => {
       try {
         const rs = (await (client as any).discover.session({ sessionId: engine!.sessionId })) as any;
-        const answered = new Set((rs?.answers ?? []).map((a: any) => a.questionId));
-        if (answered.size > 0) {
-          // RESUME: lewati layar intro — langsung ke pembuka dimensi / posisi belum dijawab
-          const fi = engineQs.findIndex((q) => !answered.has(q.id));
+        const answeredSetNow: Set<string> = new Set((rs?.answers ?? []).map((a: any) => String(a.questionId)));
+        setAnsweredSet(answeredSetNow);
+        if (rs?.orderIds?.length) setOrderIds(rs.orderIds); // urutan SAMA dgn saat jawab (konsep ujian)
+        if (answeredSetNow.size > 0) {
+          // RESUME: lewati intro → posisi soal pertama yg belum dijawab sesuai urutan sesi
+          const order: string[] = (rs?.orderIds ?? []).length ? rs.orderIds : engineQs.map((q2: any) => q2.id);
+          const fi = order.findIndex((id: string) => !answeredSetNow.has(id));
           resumeStartRef.current = fi >= 0 ? fi : 0;
           setIntro(false);
         } else {
-          setIntro(true); // tes baru → tampilkan info sebelum mulai
+          setIntro(true);
         }
       } catch { setIntro(true); }
     })();
@@ -218,13 +224,13 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
   const optsRef = useRef<any[] | null>(null);
   const engineLoad = (i: number) => {
-    const q = engineQs[i];
+    const q = effQs[i];
     if (!q) { void engineFinish(); return; }
     lastDimRef.current = q.dimensionId;
     optsRef.current = q.opts ?? [];
     setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null } as unknown as Question);
     setProgress(i + 1);
-    setTotal(engineQs.length);
+    setTotal(effQs.length);
     setEq(i);
   };
   const engineFinish = async () => {
@@ -242,12 +248,12 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   // indeks dimensi (0-based) utk posisi soal eq: berapa dimensi berbeda sebelum eq
   const dimIdxOf = (eqI: number) => {
     const seen = new Set<string>();
-    for (let k = 0; k < eqI; k++) { const d = engineQs[k]?.dimensionId; if (d) seen.add(d); }
+    for (let k = 0; k < eqI; k++) { const d = effQs[k]?.dimensionId; if (d) seen.add(d); }
     return seen.size;
   };
-  const totalDims = new Set(engineQs.map((q: any) => q.dimensionId).filter(Boolean)).size || engine?.sections || 1;
+  const totalDims = new Set(effQs.map((q: any) => q.dimensionId).filter(Boolean)).size || engine?.sections || 1;
   const engineBegin = (i: number) => {
-    const q = engineQs[i];
+    const q = effQs[i];
     if (!q) { void engineFinish(); return; }
     // Tampilkan opening dimensi saat mulai (termasuk RESUME di dimensi mana pun) & di tiap perpindahan dimensi
     if (lastDimRef.current !== q.dimensionId && (secStart || secOverlay || !lastDimRef.current)) {
@@ -259,8 +265,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   };
 
   const engineNext = (i: number) => {
-    const cur = engineQs[i - 1];
-    const nxt = engineQs[i];
+    const cur = effQs[i - 1];
+    const nxt = effQs[i];
     const dimName = (id: string) => engine?.dims?.find((d: any) => d.id === id)?.name ?? "Bagian berikutnya";
     if (nxt && cur && cur.dimensionId !== nxt.dimensionId) {
       setSecDone((c) => c + 1);
@@ -269,7 +275,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       try { confetti({ particleCount: 60, spread: 70, origin: { y: 0.4 } }); } catch { /* ignore */ }
       setSecOverlay({ nextEq: i, doneName: dimName(cur.dimensionId), nextName: dimName(nxt.dimensionId) });
       setSecStart(null);
-    } else if (i >= engineQs.length) {
+    } else if (i >= effQs.length) {
       void engineFinish();
     } else {
       engineLoad(i);
@@ -614,7 +620,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     );
   }
   if (isEngine && intro === true) {
-    const nSec = engine?.sections ?? Math.max(1, new Set(engineQs.map((q) => q.dimensionId)).size);
+    const nSec = engine?.sections ?? Math.max(1, new Set(effQs.map((q) => q.dimensionId)).size);
     return (
       <div className="mx-auto max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-lg shadow-brand-navy/5">
         <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
@@ -623,10 +629,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         <h1 className="mt-4 font-bold font-bricolage text-2xl text-gray-900">{engine!.code === "DISCOVER" ? "Tes Minat" : "Tes Bakat"}</h1>
         <p className="mt-1 font-manrope text-sm text-gray-500">Sebelum mulai, ini info testnya:</p>
         <div className="mt-4 space-y-2 text-left">
-          <InfoRow label="Jumlah soal" value={`${engineQs.length} soal`} />
+          <InfoRow label="Jumlah soal" value={`${effQs.length} soal`} />
           <InfoRow label="Bagian / part" value={`${nSec} bagian (per dimensi)`} />
           <InfoRow label="Percobaan" value={`ke-${attemptNo}${attemptNo > 1 ? ` · ${attemptNo} ini belum selesai` : ""}`} />
-          <InfoRow label="Perkiraan XP" value={`+${nSec * 10 + engineQs.length} XP`} />
+          <InfoRow label="Perkiraan XP" value={`+${nSec * 10 + effQs.length} XP`} />
           <InfoRow label="Penyimpanan" value="Auto-simpan tiap jawaban" last />
         </div>
         <button onClick={() => { setIntro(false); }} className="mt-6 w-full rounded-2xl bg-brand-navy px-6 py-3.5 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">
@@ -810,6 +816,32 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         </motion.div>
       )}
 
+      {/* Grid nomor soal (konsep ujian): hijau=terjawab · abu=belum · outline=posisi */}
+      {isEngine && (
+        <div className="mb-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="font-manrope text-[10px] font-bold text-gray-500 uppercase tracking-wide">Navigasi Soal</p>
+            <p className="font-manrope text-[10px] text-gray-400">{answeredSet?.size ?? 0}/{effQs.length} terjawab</p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {effQs.map((q: any, i: number) => {
+              const done = answeredSet?.has(q.id) ?? false;
+              const active = eq === i;
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => { if (eq !== i) { setSelected(null); setRevealed(false); setEtv(""); engineLoad(i); } }}
+                  title={`Soal ${i + 1}`}
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg font-manrope text-[11px] font-bold transition-all ${done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"} ${active ? "ring-2 ring-brand-orange" : ""} hover:brightness-95`}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Progress bar */}
       {/* Progress bar */}
       <div className="mb-4 flex items-center gap-2.5">
@@ -930,7 +962,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
       {/* Options */}
       <div className="mt-4 space-y-3">
-        {isEngine && (engineQs[eq] as any)?.questionType === "text_input" ? (
+        {isEngine && (effQs[eq] as any)?.questionType === "text_input" ? (
           <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
             <p className="mb-2 font-manrope text-xs font-medium text-gray-500">Tulis jawaban (angka / pecahan)</p>
             <div className="flex gap-2">

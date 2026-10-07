@@ -196,12 +196,18 @@ export const discoverRouter = {
       if (existingSess) {
         return { ok: true, sessionId: existingSess.id, versionId: v.id, serverTimer: ((existingSess as any).configJson as any)?.timer ?? null, resume: true } as const;
       }
+      // Snapshot urutan soal utk sesi ini (konsep ujian: nomor stabil, resume di posisi benar)
+      const orderQs = await db.query.questions.findMany({
+        where: and(eq(schema.questions.versionId, v.id), eq(schema.questions.isActive, true)),
+        columns: { id: true },
+        orderBy: asc(schema.questions.displayOrder),
+      });
       const session = {
         id: uid(),
         studentId: input.studentId,
         versionId: v.id,
         status: "in_progress",
-        configJson: { ...v.configJson, timer: serverTimer },
+        configJson: { ...v.configJson, timer: serverTimer, questionOrderIds: orderQs.map((q) => q.id) },
       };
       await db.insert(schema.assessmentSessions).values(session as any);
       return { ok: true, sessionId: session.id, versionId: v.id, serverTimer };
@@ -669,7 +675,8 @@ export const discoverRouter = {
       if (!sess) return { ok: false, error: "session_not_found" } as const;
       const answered = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, input.sessionId) });
       const byQ = answered.map((a) => ({ questionId: a.questionId, optionId: a.selectedOptionId, text: a.textAnswer }));
-      return { ok: true, session: sess, status: sess.status, answers: byQ };
+      const orderIds = ((sess.configJson as any)?.questionOrderIds ?? null) as string[] | null;
+      return { ok: true, session: sess, status: sess.status, answers: byQ, orderIds };
     }),
 };
 
