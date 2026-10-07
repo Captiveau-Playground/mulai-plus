@@ -611,10 +611,11 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
   if (done) {
     return (
+      <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center overflow-y-auto bg-bg-light px-6 py-10">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center justify-center px-6 py-16 text-center"
+        className="flex w-full max-w-sm flex-col items-center justify-center text-center"
       >
         <motion.div
           initial={{ scale: 0 }}
@@ -682,29 +683,28 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           </Link>
         </div>
       </motion.div>
+      </div>
     );
   }
   if (isEngine && intro === true) {
     const nSec = engine?.sections ?? Math.max(1, new Set(effQs.map((q) => q.dimensionId)).size);
     return (
-      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-bg-light p-4">
-      <div className="mx-auto max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-lg shadow-brand-navy/5">
-        <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
-          <Image src="/maskot/masko-book.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
-        </span>
-        <h1 className="mt-4 font-bold font-bricolage text-2xl text-gray-900">{engine!.code === "DISCOVER" ? "Tes Minat" : "Tes Bakat"}</h1>
-        <p className="mt-1 font-manrope text-sm text-gray-500">Sebelum mulai, ini info testnya:</p>
-        <div className="mt-4 space-y-2 text-left">
-          <InfoRow label="Jumlah soal" value={`${effQs.length} soal`} />
-          <InfoRow label="Bagian / part" value={`${nSec} bagian (per dimensi)`} />
-          <InfoRow label="Percobaan" value={`ke-${attemptNo}${attemptNo > 1 ? ` · ${attemptNo} ini belum selesai` : ""}`} />
-          <InfoRow label="Perkiraan XP" value={`+${nSec * 10 + effQs.length} XP`} />
-          <InfoRow label="Penyimpanan" value="Auto-simpan tiap jawaban" last />
+      <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-light px-6 py-10 text-center">
+        <div className="h-24 w-24 overflow-hidden">
+          <Image src="/maskot/masko-book.webp" alt="Maskot" width={96} height={96} className="h-full w-full object-contain" />
         </div>
-        <button onClick={() => { setIntro(false); }} className="mt-6 w-full rounded-2xl bg-brand-navy px-6 py-3.5 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">
+        <h1 className="mt-5 font-bold font-bricolage text-3xl text-gray-900">{engine!.code === "DISCOVER" ? "Tes Minat" : "Tes Bakat"}</h1>
+        <p className="mt-2 font-manrope text-sm text-gray-500">Sebelum mulai, ini info testnya:</p>
+        <div className="mt-5 flex w-full max-w-sm flex-wrap items-center justify-center gap-2">
+          <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 shadow-sm">📝 {effQs.length} soal</span>
+          <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 shadow-sm">🗂 {nSec} bagian</span>
+          <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 shadow-sm">Percobaan #{attemptNo}</span>
+          <span className="rounded-xl bg-amber-50 px-3 py-2 font-manrope text-xs font-bold text-amber-600 shadow-sm">+{nSec * 10 + effQs.length} XP</span>
+          <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-500 shadow-sm">💾 auto-simpan</span>
+        </div>
+        <button onClick={() => { setIntro(false); }} className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]">
           Mulai Tes →
         </button>
-      </div>
       </div>
     );
   }
