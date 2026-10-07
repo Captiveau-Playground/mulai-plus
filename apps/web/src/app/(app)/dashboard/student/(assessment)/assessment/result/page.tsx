@@ -66,6 +66,7 @@ export default function TmbResultPage() {
   const recommendations = data?.recommendations ?? [];
   const majors = useMemo(() => recommendations.filter((r: any) => r.type === "major"), [recommendations]);
   const careers = useMemo(() => recommendations.filter((r: any) => r.type === "career"), [recommendations]);
+  const hasRecos = majors.length > 0;
 
   if (isLoading) {
     return (
@@ -89,6 +90,35 @@ export default function TmbResultPage() {
         >
           Mulai Test
         </Link>
+      </div>
+    );
+  }
+
+  // Jika hasil belum lengkap (belum ada rekomendasi): tampilkan CTA tes, bukan seksi-seksi kosong
+  if (!hasRecos) {
+    const minatDone = (result.hollandCode ?? "").length > 0;
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-col items-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
+          <span className="text-5xl">🧭</span>
+          <h1 className="mt-4 font-bold font-bricolage text-gray-900 text-xl">Hasil belum lengkap</h1>
+          <p className="mt-2 max-w-sm font-manrope text-gray-500 text-sm">
+            {minatDone
+              ? "Tes Minat sudah selesai. Selesaikan Tes Bakat agar jurusan, karier, dan peta rekomendasi muncul."
+              : "Kerjakan Tes Minat & Tes Bakat untuk mendapatkan rekomendasi jurusan dan karier."}
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <Link href="/dashboard/student/assessment/take/TALENT" className="rounded-2xl bg-brand-orange px-6 py-3.5 font-bold font-bricolage text-white shadow-md transition-all hover:brightness-110">
+              {minatDone ? "Lanjut Tes Bakat →" : "Mulai Tes Bakat →"}
+            </Link>
+            {!minatDone && (
+              <Link href="/dashboard/student/assessment/take/DISCOVER" className="rounded-2xl border border-gray-200 px-6 py-3.5 font-manrope font-semibold text-gray-600 hover:bg-gray-50">
+                Mulai Tes Minat →
+              </Link>
+            )}
+          </div>
+          <p className="mt-4 font-manrope text-[11px] text-gray-400">Hasil akan muncul otomatis setelah kedua tes selesai. Progresmu tersimpan.</p>
+        </div>
       </div>
     );
   }
