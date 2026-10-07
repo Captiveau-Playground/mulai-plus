@@ -755,20 +755,22 @@ export const discoverAdminRouter = {
   media: {
     // kind: "question" = gambar utk teks soal · "option" = gambar utk pilihan/jawaban (folder R2 terpisah)
     list: adminProcedure
-      .input(z.object({ kind: z.enum(["question", "option"]).optional() }))
+      .input(z.object({ code: z.string().optional(), kind: z.enum(["question", "option"]).optional() }))
       .handler(async ({ input }) => {
-        const prefix = input.kind ? `assessment-media/${input.kind}/` : "assessment-media/";
+        // rapi per test: assessment-media/{CODE}/question|option/
+        const prefix = input.code ? `assessment-media/${input.code}/${input.kind ?? ""}` : input.kind ? `assessment-media/${input.kind}/` : "assessment-media/";
         const items = await listR2ObjectsDetailed(prefix);
         return {
           items: items.map((o) => ({ key: o.key, url: getPublicUrl(o.key), size: o.size, uploadedAt: o.lastModified ?? null, name: o.key.split("/").pop() ?? o.key })),
         };
       }),
     upload: adminProcedure
-      .input(z.object({ dataB64: z.string().min(10), mime: z.string().max(80).optional().default("image/png"), filename: z.string().max(120).optional(), kind: z.enum(["question", "option"]).optional().default("question") }))
+      .input(z.object({ dataB64: z.string().min(10), mime: z.string().max(80).optional().default("image/png"), filename: z.string().max(120).optional(), kind: z.enum(["question", "option"]).optional().default("question"), code: z.string().optional() }))
       .handler(async ({ input }) => {
         const buf = Buffer.from(input.dataB64, "base64");
         const ext = (input.mime.split("/")[1] ?? "png").replace(/[^a-z0-9]/gi, "").slice(0, 5) || "png";
-        const res = await uploadToR2(buf, { filename: input.filename ?? `media.${ext}`, mimeType: input.mime || "image/png", path: `assessment-media/${input.kind}` });
+        const path = input.code ? `assessment-media/${input.code}/${input.kind}` : `assessment-media/${input.kind}`;
+        const res = await uploadToR2(buf, { filename: input.filename ?? `media.${ext}`, mimeType: input.mime || "image/png", path });
         return { ok: true, key: res.key, url: res.url, size: res.size };
       }),
     delete: adminProcedure
@@ -914,7 +916,7 @@ export const discoverAdminRouter = {
                 z.object({
                   id: z.string().optional(),
                   optionValue: z.string().optional(),
-                  label: z.string().min(1),
+                  label: z.string().optional(), // boleh kosong — opsi gambar saja
                   score: z.number().optional().default(0),
                   targetDimension: z.string().optional().nullable(),
                   imageUrl: z.string().optional().nullable(),
@@ -993,7 +995,7 @@ export const discoverAdminRouter = {
             questionId: qid,
             optionValue: o.optionValue || String.fromCharCode(65 + oi),
             targetDimension: o.targetDimension ?? q.dimensionId,
-            label: o.label,
+            label: o.label ?? "",
             score: o.score,
             imageUrl: o.imageUrl ?? null,
             icon: o.icon ?? null,
