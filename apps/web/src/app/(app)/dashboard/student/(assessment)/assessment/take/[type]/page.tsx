@@ -1014,27 +1014,39 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         </motion.div>
       )}
 
-      {/* Question */}
-      <motion.div
-        key={liveQuestion.id}
-        initial={{ opacity: 0, x: 24 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="rounded-3xl bg-white p-5 shadow-sm"
-      >
-        <p className="font-manrope font-semibold text-mentor-teal text-xs uppercase tracking-wide">
-          {isInterest ? `Minat • ${liveQuestion.dimension}` : `Kemampuan • ${liveQuestion.dimension}`}
-        </p>
-        <h2 className="mt-2 font-bold font-bricolage text-gray-900 text-lg leading-snug">{liveQuestion.text}</h2>
-        {isEngine && (liveQuestion as any)._media && (
-          <figure className="mt-3">
-            <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-56 rounded-xl border border-gray-100 object-contain" />
-            {(liveQuestion as any)._mediaCap && <figcaption className="mt-1 text-center font-manrope text-[11px] text-gray-400">{(liveQuestion as any)._mediaCap}</figcaption>}
-          </figure>
-        )}
-      </motion.div>
+      {/* QUESTION — bubble chat maskot bertanya (posisi lebih turun, ramah thumb mobile) */}
+      <div className="mt-8 mb-6 flex items-end gap-3">
+        <div className={cn("h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-gray-100", lastEval === false && "animate-shake-soft")}>
+          <Image
+            src={lastEval === false ? "/maskot/masko-confuse.webp" : "/maskot/masko-book.webp"}
+            alt="Maskot bertanya"
+            width={56}
+            height={56}
+            className="h-full w-full object-cover"
+          />
+        </div>
+        <motion.div
+          key={liveQuestion.id}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative flex-1 rounded-3xl rounded-bl-md border border-gray-100 bg-white p-5 shadow-sm"
+        >
+          <span className="absolute top-4 -left-1.5 h-3 w-3 rotate-45 border-b border-l border-gray-100 bg-white" />
+          <p className="font-manrope font-semibold text-mentor-teal text-xs uppercase tracking-wide">
+            {isInterest ? `Minat • ${liveQuestion.dimension}` : `Kemampuan • ${liveQuestion.dimension}`}
+          </p>
+          <h2 className="mt-2 font-bold font-bricolage text-gray-900 text-lg leading-snug">{liveQuestion.text}</h2>
+          {isEngine && (liveQuestion as any)._media && (
+            <figure className="mt-3">
+              <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-56 rounded-xl border border-gray-100 object-contain" />
+              {(liveQuestion as any)._mediaCap && <figcaption className="mt-1 text-center font-manrope text-[11px] text-gray-400">{(liveQuestion as any)._mediaCap}</figcaption>}
+            </figure>
+          )}
+        </motion.div>
+      </div>
 
       {/* Options */}
-      <div className="mt-4 space-y-3">
+      <div className="mt-2 space-y-3">
         {isEngine && (effQs[eq] as any)?.questionType === "text_input" ? (
           <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
             <p className="mb-2 font-manrope text-xs font-medium text-gray-500">Tulis jawaban (angka / pecahan)</p>
