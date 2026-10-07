@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { EngineRun } from "@/components/assessment/engine-run";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
@@ -247,6 +247,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setSelected(sv?.letter ?? null);
     setRevealed(false);
     setEtv(sv?.text ?? "");
+    setLastEval(null);
+    setSavedFlash(false);
     setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
@@ -255,6 +257,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const engineFinish = async () => {
     try { const r = (await client.discover.finish({ sessionId: engine!.sessionId } as any)) as any; setXpEarned(r?.xpEarned ?? 0); } catch { /* ok */ }
     setDone(true);
+    blip(1318, 0.22);
     fireConfetti();
     /* completion dicatat di SERVER (resultsFor) — no localStorage */
   };
@@ -271,6 +274,34 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     return seen.size;
   };
   const totalDims = new Set(effQs.map((q: any) => q.dimensionId).filter(Boolean)).size || engine?.sections || 1;
+  // Segmen top-bar per bagian (Duolingo-style) — dari urutan sesi
+  const secs = useMemo(() => {
+    const out: { name: string; ids: string[]; count: number }[] = [];
+    for (const q of effQs as any[]) {
+      const nm = dimNameOf(q?.dimensionId);
+      const last = out[out.length - 1];
+      if (last && last.name === nm) { last.count++; last.ids.push(q.id); }
+      else out.push({ name: nm, ids: [q.id], count: 1 });
+    }
+    return out;
+  }, [effQs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const curSec = Math.min(dimIdxOf(eq), Math.max(0, secs.length - 1));
+  const curSecName = secs[curSec]?.name ?? "";
+  // Suara mikro (tanpa berkas) — WebAudio
+  const blip = (freq = 660, dur = 0.09) => {
+    try {
+      const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + dur);
+    } catch { /* hening */ }
+  };
   const engineBegin = (i: number) => {
     const q = effQs[i];
     if (!q) { void engineFinish(); return; }
@@ -294,6 +325,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       try { confetti({ particleCount: 60, spread: 70, origin: { y: 0.4 } }); } catch { /* ignore */ }
       setSecOverlay({ nextEq: i, doneName: dimName(cur.dimensionId), nextName: dimName(nxt.dimensionId) });
       setSecStart(null);
+      blip(932, 0.16);
     } else if (i >= effQs.length) {
       void engineFinish();
     } else {
@@ -319,19 +351,26 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submit ditolak", r); })
       .catch((e: any) => console.error("[engine] submit gagal:", e?.message ?? e));
     markAnswered(question.id);
-    setTimeout(() => engineNext(nextUn(eq + 1)), 360);
+    setSavedFlash(true);
+    blip(660, 0.09);
+    setTimeout(() => { setSavedFlash(false); }, 700);
+    setTimeout(() => engineNext(nextUn(eq + 1)), 500);
   };
 
   const [etv, setEtv] = useState("");
   const [savedByQ, setSavedByQ] = useState<Record<string, { letter?: string; text?: string }>>({}); // jawaban tersimpan per soal (resume)
+  const [exitOpen, setExitOpen] = useState(false); // konfirmasi keluar ala Duolingo
+  const [mapOpen, setMapOpen] = useState(false); // panel Peta Soal (bottom sheet)
+  const [savedFlash, setSavedFlash] = useState(false); // chip "tersimpan" singkat
+  const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
     setRevealed(true);
     markAnswered(question.id);
     void client.discover.submitText({ sessionId: engine!.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
-      .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submitText ditolak", r); })
+      .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submitText ditolak", r); else if (r) { setLastEval(r.correct === true); blip(r.correct ? 1046 : 330, 0.12); } })
       .catch((e: any) => console.error("[engine] submitText gagal:", e?.message ?? e));
-    setTimeout(() => engineNext(nextUn(eq + 1)), 360);
+    setTimeout(() => engineNext(nextUn(eq + 1)), 950);
   };
 
   const startMutation = useMutation({
@@ -846,108 +885,112 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         </motion.div>
       )}
 
-      {/* Grid nomor soal (konsep ujian): hijau=terjawab · abu=belum · outline=posisi */}
-      {isEngine && (
-        <div className="mb-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-          <div className="mb-1.5 flex items-center justify-between">
-            <p className="font-manrope text-[10px] font-bold text-gray-500 uppercase tracking-wide">Navigasi Soal</p>
-            <p className="font-manrope text-[10px] text-gray-400">{answeredSet?.size ?? 0}/{effQs.length} terjawab</p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {effQs.map((q: any, i: number) => {
-              const done = answeredSet?.has(q.id) ?? false;
-              const active = eq === i;
-              return (
-                <button
-                  key={q.id}
-                  onClick={() => { if (eq !== i) { setSelected(null); setRevealed(false); setEtv(""); engineLoad(i); } }}
-                  title={`Soal ${i + 1}`}
-                  className={`flex h-7 w-7 items-center justify-center rounded-lg font-manrope text-[11px] font-bold transition-all ${done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"} ${active ? "ring-2 ring-brand-orange" : ""} hover:brightness-95`}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Progress bar */}
-      {/* Progress bar */}
+            {/* TOP BAR DUOLINGO-STYLE: keluar + segment per bagian + metrik */}
       <div className="mb-4 flex items-center gap-2.5">
         <button
           type="button"
-          onClick={() => router.push("/dashboard/student/assessment")}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500"
+          onClick={() => setExitOpen(true)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
           aria-label="Keluar test"
         >
           <X className="h-4 w-4" />
         </button>
-
-        {/* Maskot avatar */}
-        <div
-          className={cn(
-            "relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white shadow-sm",
-            lastCorrect === true && "animate-bounce",
-            lastCorrect === false && "animate-shake-soft",
-          )}
-        >
-          <Image
-            src={
-              lastCorrect === false
-                ? "/maskot/masko-confuse.webp"
-                : lastCorrect === true
-                  ? "/maskot/masko-thumb-up.webp"
-                  : "/maskot/masko-hi.webp"
-            }
-            alt="Maskot"
-            width={48}
-            height={48}
-            className="h-full w-full object-cover"
-          />
-          {xpFlash > 0 && (
-            <span className="absolute -top-1 -right-1 rounded-full bg-amber-400 px-1.5 py-0.5 font-bold font-manrope text-[9px] text-white shadow">
-              +{xpFlash}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1">
+            {secs.map((sc, idx) => {
+              const done = sc.ids.filter((id) => answeredSet?.has(id)).length;
+              const pct = sc.count ? done / sc.count : 0;
+              const activeS = idx === curSec;
+              return (
+                <div
+                  key={idx}
+                  title={sc.name}
+                  className={cn("h-2.5 flex-1 overflow-hidden rounded-full", activeS ? "bg-orange-100" : "bg-gray-100")}
+                >
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-300", idx < curSec ? "bg-gradient-to-r from-mentor-teal to-teal-500" : pct > 0 ? "bg-teal-400" : "bg-transparent")}
+                    style={{ width: `${Math.max(pct * 100, idx < curSec ? 100 : 0)}%` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-1 flex items-center justify-between font-manrope text-[10px] text-gray-500">
+            <span className="truncate font-semibold text-gray-600">{curSecName || "Mulai"}</span>
+            <span className="flex shrink-0 items-center gap-1.5">
+              <span className="font-bold text-amber-600">+{xpEarned} XP</span>
+              <button onClick={() => setMapOpen(true)} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-bold text-gray-600 transition-colors hover:bg-gray-100">
+                🗺 {answeredSet?.size ?? 0}/{effQs.length}
+              </button>
+              <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
+                <Timer className="h-3 w-3" />{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
+              </span>
+              <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold", streak >= 2 ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-400")}>
+                <Flame className="h-3 w-3" />{streak}
+              </span>
+              <span className="font-semibold text-gray-400">{liveProgress}/{liveTotal}</span>
             </span>
-          )}
+          </div>
         </div>
-
-        <div className="h-3 flex-1 overflow-hidden rounded-full bg-gray-100">
-          <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-mentor-teal to-teal-500"
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPct}%` }}
-            transition={{ duration: 0.4 }}
-          />
-        </div>
-
-        <span className="font-bold font-manrope text-gray-500 text-xs">
-          {liveProgress}/{liveTotal}
-        </span>
-
-        {/* Timer */}
-        <span
-          className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 font-manrope font-semibold text-[10px] text-slate-500 tabular-nums"
-          title="Waktu dihabiskan"
-        >
-          <Timer className="h-3 w-3" />
-          {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
-        </span>
-
-        {/* Streak */}
-        <span
-          className={cn(
-            "flex items-center gap-1 rounded-full px-2 py-1 font-bold font-manrope text-xs",
-            streak >= 2 ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-400",
-          )}
-          title="Streak harian"
-        >
-          <Flame className="h-3.5 w-3.5" />
-          {streak}
-        </span>
       </div>
 
-      {/* Combo bubble */}
+      {/* PETA SOAL (bottom sheet) — grid lengkap, dibuka via tombol 🗺 */}
+      {mapOpen && (
+        <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setMapOpen(false)}>
+          <div className="max-h-[72vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="font-bold font-bricolage text-gray-900">🗺 Peta Soal</p>
+              <div className="flex items-center gap-2">
+                <span className="font-manrope text-[11px] text-gray-400">{answeredSet?.size ?? 0}/{effQs.length} terjawab</span>
+                <button onClick={() => setMapOpen(false)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+              </div>
+            </div>
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-full rounded-full bg-gradient-to-r from-mentor-teal to-teal-500 transition-all" style={{ width: `${progressPct}%` }} />
+            </div>
+            <div className="mt-4 space-y-3">
+              {secs.map((sc, si) => (
+                <div key={si}>
+                  <p className="mb-1.5 font-manrope text-[10px] font-bold text-gray-400 uppercase tracking-wide">{sc.name}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {sc.ids.map((id, ii) => {
+                      const gi = effQs.findIndex((q: any) => q.id === id);
+                      const done = answeredSet?.has(id) ?? false;
+                      const active = eq === gi;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => { setSelected(null); setRevealed(false); setEtv(""); engineLoad(gi); setMapOpen(false); }}
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg font-manrope text-[11px] font-bold transition-all ${done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"} ${active ? "ring-2 ring-brand-orange" : ""} hover:brightness-95`}
+                        >
+                          {gi + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KONFIRMASI KELUAR (Duolingo-style): progres aman */}
+      {exitOpen && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-bg-light/60 backdrop-blur-sm" onClick={() => setExitOpen(false)}>
+          <div className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10 text-2xl">💾</span>
+            <h3 className="mt-3 font-bold font-bricolage text-lg text-gray-900">Progresmu aman</h3>
+            <p className="mt-1 font-manrope text-sm text-gray-500">Jawaban tersimpan otomatis — lanjutkan kapan saja dari posisi terakhir.</p>
+            <div className="mt-5 space-y-2">
+              <button onClick={() => setExitOpen(false)} className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">Lanjut Test</button>
+              <button onClick={() => router.push("/dashboard/student/assessment")} className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50">Keluar & Simpan</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* Combo bubble */}
       {comboPop >= 3 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.6, y: 8 }}
@@ -1123,6 +1166,18 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             })
         )}
       </div>
+
+      {/* Feedback singkat (Duolingo-style) */}
+      {savedFlash && (
+        <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-3 py-2 font-manrope text-xs font-semibold text-teal-700 animate-in fade-in">
+          <span className="text-sm">✓</span> Jawaban tersimpan
+        </p>
+      )}
+      {isEngine && lastEval !== null && (effQs[eq] as any)?.questionType === "text_input" && (
+        <p className={`mt-3 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 font-manrope text-xs font-semibold ${lastEval ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>
+          <span className="text-sm">{lastEval ? "✅" : "🤔"}</span> {lastEval ? "Benar!" : "Belum tepat — jawaban disimpan, pelajari lagi nanti"}
+        </p>
+      )}
       </div>
       </div>
     </div>
