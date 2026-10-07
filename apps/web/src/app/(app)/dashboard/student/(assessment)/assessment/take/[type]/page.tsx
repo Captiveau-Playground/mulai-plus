@@ -1179,17 +1179,19 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         )}
       </div>
 
-      {/* Feedback singkat (Duolingo-style) */}
-      {savedFlash && (
-        <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-3 py-2 font-manrope text-xs font-semibold text-teal-700 animate-in fade-in">
-          <span className="text-sm">✓</span> Jawaban tersimpan
-        </p>
-      )}
-      {isEngine && lastEval !== null && (effQs[eq] as any)?.questionType === "text_input" && (
-        <p className={`mt-3 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 font-manrope text-xs font-semibold ${lastEval ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>
-          <span className="text-sm">{lastEval ? "✅" : "🤔"}</span> {lastEval ? "Benar!" : "Belum tepat — jawaban disimpan, pelajari lagi nanti"}
-        </p>
-      )}
+      {/* Feedback singkat (Duolingo-style) — wadah tinggi TETAP agar tidak menggeser layout */}
+      <div className="flex h-10 shrink-0 items-center justify-center">
+        {savedFlash && (
+          <p className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-3 py-1.5 font-manrope text-xs font-semibold text-teal-700 animate-in fade-in">
+            <span className="text-sm">✓</span> Jawaban tersimpan
+          </p>
+        )}
+        {savedFlash === false && lastEval !== null && (effQs[eq] as any)?.questionType === "text_input" && (
+          <p className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 font-manrope text-xs font-semibold ${lastEval ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>
+            <span className="text-sm">{lastEval ? "✅" : "🤔"}</span> {lastEval ? "Benar!" : "Belum tepat — jawaban disimpan"}
+          </p>
+        )}
+      </div>
       </div>
       </div>
     </div>
