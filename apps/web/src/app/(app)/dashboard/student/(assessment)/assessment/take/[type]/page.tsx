@@ -646,6 +646,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   if (isEngine && intro === true) {
     const nSec = engine?.sections ?? Math.max(1, new Set(effQs.map((q) => q.dimensionId)).size);
     return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-bg-light p-4">
       <div className="mx-auto max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-lg shadow-brand-navy/5">
         <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
           <Image src="/maskot/masko-book.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
@@ -662,6 +663,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         <button onClick={() => { setIntro(false); }} className="mt-6 w-full rounded-2xl bg-brand-navy px-6 py-3.5 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">
           Mulai Tes →
         </button>
+      </div>
       </div>
     );
   }
@@ -752,7 +754,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const progressPct = liveTotal > 0 ? (liveProgress / liveTotal) * 100 : 0;
 
   return (
-    <div className="flex flex-col">
+    <div className="fixed inset-0 z-[70] h-dvh overflow-y-auto bg-bg-light">
+      <div className="mx-auto w-full max-w-2xl px-4 py-6">
+      <div className="flex flex-col">
       {showGuide && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -1116,6 +1120,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
               );
             })
         )}
+      </div>
+      </div>
       </div>
     </div>
   );
