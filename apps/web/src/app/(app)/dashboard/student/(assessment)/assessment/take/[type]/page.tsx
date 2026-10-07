@@ -84,6 +84,17 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         const answeredSetNow: Set<string> = new Set((rs?.answers ?? []).map((a: any) => String(a.questionId)));
         setAnsweredSet(answeredSetNow);
         answeredRef.current = answeredSetNow;
+        // jawaban per soal → ur-UI (pilihan: huruf; isian: teks)
+        const letterById = new Map<string, string>();
+        for (const qq of engineQs) for (const oo of qq?.opts ?? []) letterById.set(oo.id, oo.optionValue ?? "");
+        const map: Record<string, { letter?: string; text?: string }> = {};
+        for (const a of rs?.answers ?? []) {
+          map[String(a.questionId)] = {
+            ...(a.optionId && letterById.get(String(a.optionId)) ? { letter: letterById.get(String(a.optionId)) } : {}),
+            ...(typeof a.text === "string" && a.text ? { text: String(a.text) } : {}),
+          };
+        }
+        setSavedByQ(map);
         if (rs?.orderIds?.length) setOrderIds(rs.orderIds); // urutan SAMA dgn saat jawab (konsep ujian)
         if (answeredSetNow.size > 0) {
           // RESUME: lewati intro → posisi soal pertama yg belum dijawab sesuai urutan sesi
@@ -230,6 +241,11 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     if (!q) { void engineFinish(); return; }
     lastDimRef.current = q.dimensionId;
     optsRef.current = q.opts ?? [];
+    // Per-SOAL: pulihkan jawaban yg sudah tersimpan utk soal ini (konsep ujian, beda soal beda jawaban)
+    const sv = savedByQ[q.id];
+    setSelected(sv?.letter ?? null);
+    setRevealed(false);
+    setEtv(sv?.text ?? "");
     setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
@@ -306,6 +322,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   };
 
   const [etv, setEtv] = useState("");
+  const [savedByQ, setSavedByQ] = useState<Record<string, { letter?: string; text?: string }>>({}); // jawaban tersimpan per soal (resume)
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
     setRevealed(true);
