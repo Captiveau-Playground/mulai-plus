@@ -36,6 +36,7 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
   const pd = (qP.data as any)?.present === true ? qP.data as any : null;
   const lastA = attempts[attempts.length - 1];
   const sideDone = test.family === "minat" ? !!lastA?.hollandCode : !!lastA?.hasAbility;
+  const [retestOpen, setRetestOpen] = useState(false);
   const meta =
     test.family === "minat"
       ? { emoji: "🧠", color: "from-violet-500 to-purple-600", desc: "Pilih aktivitas yang paling menggambarkanmu — cari tahu tipe minatmu (Holland RIASEC)", xp: `+${test.xp} XP`, href: `/dashboard/student/assessment/take/${test.code}` }
@@ -57,7 +58,7 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
       </div>
       <div className="mt-4 flex-1" />
       {sideDone ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-50 px-4 py-3.5 font-bold font-manrope text-sm text-teal-700">
+        <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-50 px-4 py-3 font-bold font-manrope text-sm text-teal-700">
           ✓ {test.family === "minat" ? "Tes Minat" : "Tes Bakat"} Selesai
         </div>
       ) : pd ? (
@@ -77,6 +78,26 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
         <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
           <PlayCircle className="h-5 w-5" /> Mulai Test
         </Link>
+      )}
+      {sideDone && (
+        <button onClick={() => setRetestOpen(true)} className="mt-2 w-full text-center font-manrope text-[11px] font-semibold text-gray-400 transition-colors hover:text-brand-navy">
+          🔄 Tes Ulang
+        </button>
+      )}
+
+      {/* Konfirmasi retest */}
+      {retestOpen && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setRetestOpen(false)}>
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <span className="text-4xl">🔄</span>
+            <h3 className="mt-2 font-bold font-bricolage text-lg text-gray-900">Ulangi {test.family === "minat" ? "Tes Minat" : "Tes Bakat"}?</h3>
+            <p className="mt-1 font-manrope text-sm text-gray-500">Ini memulai percobaan baru. Hasil lama tetap tersimpan di History.</p>
+            <div className="mt-5 space-y-2">
+              <button onClick={() => { setRetestOpen(false); window.location.assign(meta.href); }} className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">Ya, Tes Ulang</button>
+              <button onClick={() => setRetestOpen(false)} className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50">Batal</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
