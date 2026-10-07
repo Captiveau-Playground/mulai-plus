@@ -5,6 +5,7 @@ import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, Flame, Home, Sparkles, Timer, X } from "lucide-react";
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -669,8 +670,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   }
 
   if (isEngine && secStart) {
-    return (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+    const __el = (
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
         <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
             <Image src="/maskot/masko-book.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
@@ -695,11 +696,13 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         </div>
       </motion.div>
     );
-  }
 
+
+    return typeof document === 'undefined' ? null : createPortal(__el, document.body);
+  }
   if (isEngine && secOverlay) {
-    return (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+    const __el = (
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
         <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
             <Image src="/maskot/masko-thumb-up.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
@@ -729,9 +732,8 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         </div>
       </motion.div>
     );
+    return typeof document === 'undefined' ? null : createPortal(__el, document.body);
   }
-
-
   // Mode simulasi: pertanyaan lokal (tanpa backend)
   const liveQuestion = isDemo ? (DEMO_QUESTIONS[demoIdx] as unknown as Question) : question;
   const liveProgress = isDemo ? demoIdx + 1 : progress;
