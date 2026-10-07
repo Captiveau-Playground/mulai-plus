@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { type EventData, Joyride, STATUS, type Step, type TooltipRenderProps } from "react-joyride";
 
 const STORAGE_KEY = "mulaiplus-student-onboarding-done";
@@ -143,8 +144,12 @@ function TourTooltip({
 }
 
 export function StudentOnboardingTour() {
+  const pathname = usePathname();
   const [run, setRun] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  // Layar ujian imersif: jangan jalankan tour (spotlight/modal mengambang mengganggu)
+  const isTest = typeof pathname === "string" && pathname.startsWith("/dashboard/student/assessment/take/");
+  if (isTest) return null;
 
   useEffect(() => {
     setIsMounted(true);
