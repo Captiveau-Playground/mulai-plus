@@ -147,11 +147,11 @@ export function StudentOnboardingTour() {
   const pathname = usePathname();
   const [run, setRun] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  // Layar ujian imersif: jangan jalankan tour (spotlight/modal mengambang mengganggu)
   const isTest = typeof pathname === "string" && pathname.startsWith("/dashboard/student/assessment/take/");
-  if (isTest) return null;
 
   useEffect(() => {
+    // Layar ujian imersif: jangan jalankan tour (spotlight/modal mengambang mengganggu) — tanpa mengubah urutan hooks
+    if (isTest) return;
     setIsMounted(true);
     const done = localStorage.getItem(STORAGE_KEY);
     if (!done) {
