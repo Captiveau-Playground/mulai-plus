@@ -1021,7 +1021,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       )}
 
       {/* QUESTION — bubble chat maskot bertanya (tanpa label duplikat; maskot polos & lebih besar) */}
-      <div className="mt-6 mb-4 flex shrink-0 items-end gap-3">
+      <div className="mb-4 flex min-h-0 items-end gap-3">
         <div className="h-16 w-16 shrink-0 overflow-hidden">
           <Image
             src={_mascotNow}
@@ -1043,7 +1043,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           </h2>
           {isEngine && (liveQuestion as any)._media && (
             <figure className="mt-3">
-              <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-[34vh] rounded-xl border border-gray-100 object-contain" />
+              <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-[24vh] w-auto rounded-xl border border-gray-100 object-contain" />
               {(liveQuestion as any)._mediaCap && <figcaption className="mt-1 text-center font-manrope text-[11px] text-gray-400">{(liveQuestion as any)._mediaCap}</figcaption>}
             </figure>
           )}
