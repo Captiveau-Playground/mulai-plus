@@ -42,29 +42,29 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
       ? { emoji: "🧠", color: "from-violet-500 to-purple-600", desc: "Pilih aktivitas yang paling menggambarkanmu — cari tahu tipe minatmu (Holland RIASEC)", xp: `+${test.xp} XP`, href: `/dashboard/student/assessment/take/${test.code}` }
       : { emoji: "💡", color: "from-mentor-teal to-teal-700", desc: "Ukur kemampuan dasar: numerik, verbal, logika, spasial & ketelitian", xp: `+${test.xp} XP`, href: `/dashboard/student/assessment/take/${test.code}` };
   return (
-    <div className="flex flex-col rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div className="flex flex-col rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl shadow-md", meta.color)}>
+        <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl shadow-sm", meta.color)}>
           {meta.emoji}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate font-bold font-bricolage text-gray-900">{test.name}</h3>
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold font-manrope text-[10px] text-amber-600">{meta.xp}</span>
+            <h3 className="truncate font-bold font-bricolage text-sm text-gray-900">{test.name}</h3>
+            <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 font-bold font-manrope text-[9px] text-amber-600">{meta.xp}</span>
           </div>
-          <p className="mt-0.5 font-manrope text-gray-500 text-xs leading-relaxed">{meta.desc}</p>
-          <p className="mt-1 font-manrope text-[10px] text-gray-400">{test.questions} soal · {test.sections} bagian</p>
+          <p className="mt-0.5 line-clamp-2 font-manrope text-[11px] text-gray-500 leading-snug">{meta.desc}</p>
+          <p className="mt-0.5 font-manrope text-[10px] text-gray-400">{test.questions} soal · {test.sections} bagian</p>
         </div>
       </div>
-      <div className="mt-4 flex-1" />
+      <div className="mt-3 flex-1" />
       {sideDone ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-50 px-4 py-3 font-bold font-manrope text-sm text-teal-700">
+        <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-50 px-4 py-2.5 font-bold font-manrope text-sm text-teal-700">
           ✓ {test.family === "minat" ? "Tes Minat" : "Tes Bakat"} Selesai
         </div>
       ) : pd ? (
         <div className="space-y-1.5">
           {pd.fullyAnswered ? (
-            <button onClick={async () => { try { await raw.discover.finish({ sessionId: pd.sessionId }); } catch { /* biarkan */ } window.location.href = "/dashboard/student/assessment/result"; }} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
+            <button onClick={async () => { try { await raw.discover.finish({ sessionId: pd.sessionId }); } catch { /* biarkan */ } window.location.href = "/dashboard/student/assessment/result"; }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 font-bold font-manrope text-sm text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98]">
               <CheckCircle2 className="h-5 w-5" /> Selesaikan Test · {pd.answered}/{pd.total}
             </button>
           ) : (
@@ -75,7 +75,7 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
           <button onClick={() => { void raw.discover.abandon({ studentId: pid, code: test.code }).then(() => qP.refetch()); }} className="w-full text-center font-manrope text-[10px] text-gray-400 hover:text-red-500">Bukan ini? Mulai ulang (buang progres)</button>
         </div>
       ) : (
-        <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
+        <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-xl bg-brand-navy px-4 py-2.5 font-bold font-manrope text-sm text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98]">
           <PlayCircle className="h-5 w-5" /> Mulai Test
         </Link>
       )}
@@ -114,44 +114,42 @@ function EngineProgressCard({ attempts = [] }: { attempts?: any[] }) {
   // Logika sederhana: test selesai → arahkan ke test satunya; keduanya → rekomendasi; belum ada → mulai
   if (!last) {
     return (
-      <div className="flex items-center justify-between rounded-3xl border border-gray-200 bg-white p-5">
+      <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5">
         <div>
-          <p className="font-bold font-bricolage text-sm text-gray-900">Mulai dari Tes Minat 🧠</p>
-          <p className="mt-1 font-manrope text-xs text-gray-500">Selesaikan Minat &amp; Bakat untuk laporan lengkap.</p>
+          <p className="truncate font-bold font-bricolage text-sm text-gray-900">Mulai dari Tes Minat 🧠</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Mulai Tes Minat →</Link>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Mulai Tes Minat →</Link>
       </div>
     );
   }
   if (minatDone && !bakatDone) {
     return (
-      <div className="flex items-center justify-between rounded-3xl border border-brand-orange/25 bg-brand-orange/5 p-5">
+      <div className="flex items-center gap-3 rounded-2xl border border-brand-orange/25 bg-brand-orange/5 px-3.5 py-2.5">
         <div>
-          <p className="font-bold font-bricolage text-sm text-gray-900">Tes Minat selesai ✓ — lanjutkan Tes Bakat yuk!</p>
-          <p className="mt-1 font-manrope text-xs text-gray-500">Keduanya dibutuhkan untuk rekomendasi yang lengkap.</p>
+          <p className="truncate font-bold font-bricolage text-sm text-gray-900">Tes Minat ✓ — lanjutkan Tes Bakat yuk!</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/TALENT" onClick={() => window.location.assign("/dashboard/student/assessment/take/TALENT")} className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjutkan Tes Bakat →</Link>
+        <Link href="/dashboard/student/assessment/take/TALENT" onClick={() => window.location.assign("/dashboard/student/assessment/take/TALENT")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Lanjutkan Tes Bakat →</Link>
       </div>
     );
   }
   if (!minatDone && bakatDone) {
     return (
-      <div className="flex items-center justify-between rounded-3xl border border-brand-orange/25 bg-brand-orange/5 p-5">
+      <div className="flex items-center gap-3 rounded-2xl border border-brand-orange/25 bg-brand-orange/5 px-3.5 py-2.5">
         <div>
-          <p className="font-bold font-bricolage text-sm text-gray-900">Tes Bakat selesai ✓ — lanjutkan Tes Minat yuk!</p>
-          <p className="mt-1 font-manrope text-xs text-gray-500">Keduanya dibutuhkan untuk rekomendasi yang lengkap.</p>
+          <p className="truncate font-bold font-bricolage text-sm text-gray-900">Tes Bakat ✓ — lanjutkan Tes Minat yuk!</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjutkan Tes Minat →</Link>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Lanjutkan Tes Minat →</Link>
       </div>
     );
   }
   return (
-    <div className="flex items-center justify-between rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-md">
-      <div>
-        <p className="font-bold font-bricolage text-base">Kedua tes selesai — 🎉</p>
-        <p className="mt-1 font-manrope text-xs text-white/80">Laporan minat &amp; bakatmu sudah siap, lengkap dengan jurusan, kampus, dan karir.</p>
+    <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-teal-600 to-teal-700 px-3.5 py-2.5 text-white shadow-sm">
+      <span className="shrink-0 text-lg">🎉</span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-bold font-bricolage text-sm">Kedua tes selesai</p>
+        <p className="truncate font-manrope text-[11px] text-white/80">Laporan jurusan, kampus &amp; karir siap.</p>
       </div>
-      <Link href="/dashboard/student/assessment/result" onClick={() => window.location.assign("/dashboard/student/assessment/result")} className="shrink-0 rounded-xl bg-white px-4 py-2 font-manrope text-xs font-semibold text-teal-700 hover:brightness-95">Lihat Rekomendasi →</Link>
+      <Link href="/dashboard/student/assessment/result" onClick={() => window.location.assign("/dashboard/student/assessment/result")} className="shrink-0 rounded-lg bg-white px-3 py-1.5 font-manrope text-[11px] font-bold text-teal-700 hover:brightness-95">Lihat →</Link>
     </div>
   );
 }
