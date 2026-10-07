@@ -155,6 +155,12 @@ test.describe("Assessment logic — Pilih Test", () => {
     const hit = await page.locator("text=/Kedokteran|Teknik|Ekonomi|Manajemen|Keperawatan|Informatika|Hukum/").count();
     console.log("[debug:result] nama jurusan tampil =", hit);
     expect(hit).toBeGreaterThan(0);
+    // PETA REKOMENDASI (SCR) — dibangun dari majors/careers, tanpa AI
+    await expect(page.getByText("Peta Rekomendasi")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/klik node prodi/)).toBeVisible({ timeout: 15000 });
+    // Ringkasan AI — informatif (butuh AI worker & kunci); log saja bila ada
+    const aiSec = await page.getByText("Ringkasan AI").count();
+    console.log("[debug:result] bagian Ringkasan AI hadir =", aiSec);
     await page.goto("/dashboard/student/assessment");
 
     // STATE 3 — pause: attempt baru minat 3/30
