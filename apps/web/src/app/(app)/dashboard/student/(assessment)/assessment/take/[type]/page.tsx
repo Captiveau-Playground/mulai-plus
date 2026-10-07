@@ -734,7 +734,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
               Berhenti dulu — lanjut kapan saja
             </button>
           )}
-        </div>
       </motion.div>
     );
 
