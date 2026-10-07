@@ -780,6 +780,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const _livePct = liveTotal > 0 ? (liveProgress / liveTotal) * 100 : 0;
 
   const _imgOptions = isEngine && !!(effQs[eq] as any)?.opts?.some((o: any) => o.imageUrl);
+  // Maskot beragam per soal (rotasi dari koleksi assets) — nanimal di samping pertanyaan
+  const _MASKOTS = ["/maskot/masko-book.webp", "/maskot/masko-compass.webp", "/maskot/masko-found.webp", "/maskot/masko-hi.webp", "/maskot/masko-thumb-up.webp"];
+  const _mascotNow = _MASKOTS[eq % _MASKOTS.length] ?? "/maskot/masko-book.webp";
   if (!liveQuestion) {
     if (isDemo) return null;
     return (
