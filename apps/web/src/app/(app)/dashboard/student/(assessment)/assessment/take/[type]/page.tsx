@@ -7,10 +7,6 @@ import { ArrowRight, Check, Flame, Home, Sparkles, Timer, X } from "lucide-react
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { Latex } from "@/components/assessment/latex";
-import { StreakBadge } from "@/components/ui/streak-badge";
-import { PointsBadge } from "@/components/ui/points-badge";
-import { PointsBoost } from "@/components/ui/points-boost";
-import { AchievementUnlocked } from "@/components/ui/achievement-unlocked";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -264,7 +260,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setDone(true);
     blip(1318, 0.22);
     fireConfetti();
-    setAchOpen(true);
     /* completion dicatat di SERVER (resultsFor) — no localStorage */
   };
   const [secDone, setSecDone] = useState(0);
@@ -368,7 +363,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [exitOpen, setExitOpen] = useState(false); // konfirmasi keluar ala Duolingo
   const [mapOpen, setMapOpen] = useState(false); // panel Peta Soal (bottom sheet)
   const [savedFlash, setSavedFlash] = useState(false); // chip "tersimpan" singkat
-  const [achOpen, setAchOpen] = useState(false); // perayaan AchievementUnlocked saat tes selesai
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
@@ -689,19 +683,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           </Link>
         </div>
       </motion.div>
-      {isEngine && (
-        <AchievementUnlocked
-          open={achOpen}
-          onOpenChange={setAchOpen}
-          achievement={{
-            id: "tests-done",
-            name: bothDone ? "Semua Tes Selesai" : "Test Selesai",
-            description: bothDone ? "Minat & Bakat tuntas — hasil & rekomendasi kamu siap." : "Tes selesai — lanjutkan satunya lagi untuk hasil lengkap.",
-          }}
-          secondaryActionLabel="Lihat Beranda"
-          onSecondaryActionClick={() => { setAchOpen(false); window.location.assign("/dashboard/student/assessment"); }}
-        />
-      )}
       </div>
     );
   }
@@ -768,10 +749,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           </span>
           <p className="mt-3 font-manrope text-xs font-bold tracking-wide text-teal-600 uppercase">Bagian selesai</p>
           <h2 className="mt-1 font-bold font-bricolage text-2xl text-gray-900">{secOverlay.doneName} — selesai! 🎉</h2>
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <PointsBadge name="XP" total={10} size="sm" />
-            <StreakBadge length={secStreak} size="sm" />
-          </div>
+          <p className="mt-2 font-manrope text-sm text-gray-500">
+            <span className="font-bold text-brand-orange">+10 XP</span> · streak 🔥 {secStreak} bagian beruntun
+          </p>
           <div className="mt-5 space-y-2">
             <button
               onClick={() => { setSecOverlay(null); setSelected(null); setRevealed(false); engineBegin(secOverlay.nextEq); }}
@@ -944,14 +924,16 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           <div className="mt-1 flex items-center justify-between font-manrope text-[10px] text-gray-500">
             <span className="truncate font-semibold text-gray-600">{curSecName || "Mulai"}</span>
             <span className="flex shrink-0 items-center gap-1.5">
-              <PointsBadge name="XP" total={xpEarned} size="sm" />
+              <span className="font-bold text-amber-600">+{xpEarned} XP</span>
               <button onClick={() => setMapOpen(true)} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-bold text-gray-600 transition-colors hover:bg-gray-100">
                 🗺 {answeredSet?.size ?? 0}/{effQs.length}
               </button>
               <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
                 <Timer className="h-3 w-3" />{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
               </span>
-              <StreakBadge length={streak} size="sm" />
+              <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold", streak >= 2 ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-400")}>
+                <Flame className="h-3 w-3" />{streak}
+              </span>
               <span className="font-semibold text-gray-400">{liveProgress}/{liveTotal}</span>
             </span>
           </div>

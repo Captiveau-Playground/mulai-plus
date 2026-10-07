@@ -81,12 +81,6 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --rank-1: oklch(0.80 0.13 84);
-  --rank-2: oklch(0.73 0.03 250);
-  --rank-3: oklch(0.63 0.07 60);
-  --color-rank-1: var(--rank-1);
-  --color-rank-2: var(--rank-2);
-  --color-rank-3: var(--rank-3);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);

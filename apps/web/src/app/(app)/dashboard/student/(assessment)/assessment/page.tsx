@@ -10,8 +10,6 @@ import { ProgressCharts } from "@/components/student/progress-charts";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { StreakBadge } from "@/components/ui/streak-badge";
-import { PointsBadge } from "@/components/ui/points-badge";
 import { authClient } from "@/lib/auth-client";
 import { orpc, client } from "@/utils/orpc";
 
@@ -295,8 +293,8 @@ export default function AssessmentHomePage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <StreakBadge length={stats.streak} size="sm" />
-          <span className="hidden items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 font-manrope text-[11px] font-bold text-teal-600 sm:inline-flex">✅ {stats.testsCompleted}</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 font-manrope text-[11px] font-bold text-orange-600">🔥 {stats.streak}</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 font-manrope text-[11px] font-bold text-teal-600">✅ {stats.testsCompleted}</span>
         </div>
       </motion.div>
 
