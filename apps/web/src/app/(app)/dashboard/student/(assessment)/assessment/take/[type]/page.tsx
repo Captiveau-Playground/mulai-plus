@@ -68,6 +68,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const engineQs = engine?.questions ?? [];
   const [orderIds, setOrderIds] = useState<string[] | null>(null); // urutan soal sesi (ujian) — stabil utk resume & grid
   const [answeredSet, setAnsweredSet] = useState<Set<string> | null>(null);
+  const answeredRef = useRef<Set<string> | null>(null);
   const effQs: any[] = orderIds ? orderIds.map((id) => engineQs.find((q: any) => q.id === id)).filter(Boolean) : engineQs;
   const [eq, setEq] = useState(0);
   const [intro, setIntro] = useState<boolean | null>(isEngine ? null : false); // null = masih cek resume → jangan render intro dulu
@@ -82,6 +83,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         const rs = (await (client as any).discover.session({ sessionId: engine!.sessionId })) as any;
         const answeredSetNow: Set<string> = new Set((rs?.answers ?? []).map((a: any) => String(a.questionId)));
         setAnsweredSet(answeredSetNow);
+        answeredRef.current = answeredSetNow;
         if (rs?.orderIds?.length) setOrderIds(rs.orderIds); // urutan SAMA dgn saat jawab (konsep ujian)
         if (answeredSetNow.size > 0) {
           // RESUME: lewati intro → posisi soal pertama yg belum dijawab sesuai urutan sesi
@@ -284,6 +286,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     }
   };
 
+  const markAnswered = (qid: string) => { answeredRef.current = new Set([...(answeredRef.current ?? []), qid]); setAnsweredSet((prev) => new Set([...(prev ?? []), qid])); };
+  // Lanjut hanya ke soal yg BELUM dijawab (konsep ujian: jangan isi ulang yg sudah)
+  const nextUn = (from: number) => { const a = answeredRef.current; for (let j = from; j < effQs.length; j++) if (!(a?.has(effQs[j]?.id))) return j; return effQs.length; };
   const engineSelect = (option: string) => {
     if (revealed || !question) return;
     setSelected(option);
@@ -296,17 +301,19 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: optId } as any)
       .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submit ditolak", r); })
       .catch((e: any) => console.error("[engine] submit gagal:", e?.message ?? e));
-    setTimeout(() => engineNext(eq + 1), 360);
+    markAnswered(question.id);
+    setTimeout(() => engineNext(nextUn(eq + 1)), 360);
   };
 
   const [etv, setEtv] = useState("");
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
     setRevealed(true);
-    void client.discover.submitText({ sessionId: engine!.sessionId, questionId: question.id, text: etv.trim() } as any)
+    markAnswered(question.id);
+    void client.discover.submitText({ sessionId: engine!.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
       .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submitText ditolak", r); })
       .catch((e: any) => console.error("[engine] submitText gagal:", e?.message ?? e));
-    setTimeout(() => engineNext(eq + 1), 360);
+    setTimeout(() => engineNext(nextUn(eq + 1)), 360);
   };
 
   const startMutation = useMutation({
