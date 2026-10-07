@@ -118,9 +118,14 @@ function EngineProgressCard() {
 }
 
 export default function AssessmentHomePage() {
-  // Dialog "masih development" — tampil SEKALI (dismiss tersimpan spt cookie), tidak muncul lagi di kunjungan berikut
-  const [infoOpen, setInfoOpen] = useState(() => typeof window !== "undefined" && localStorage.getItem("mulai-dev-info-v1") !== "1");
-  const closeInfo = () => { try { localStorage.setItem("mulai-dev-info-v1", "1"); } catch { /* abaikan */ } setInfoOpen(false); };
+  // Dialog "masih development" — tampil SEKALI: dismiss disimpan di COOKIE + localStorage (lintas origin/subdomain)
+  const devDismissed = () => {
+    if (typeof document === "undefined") return false;
+    try { if (document.cookie.split(";").some((c) => c.trim().startsWith("mulai-dev-info=1"))) return true; if (localStorage.getItem("mulai-dev-info-v1") === "1") return true; } catch { /* abaikan */ }
+    return false;
+  };
+  const [infoOpen, setInfoOpen] = useState(() => !devDismissed());
+  const closeInfo = () => { try { document.cookie = "mulai-dev-info=1; path=/; max-age=31536000"; localStorage.setItem("mulai-dev-info-v1", "1"); } catch { /* abaikan */ } setInfoOpen(false); };
   const { data: authSession } = authClient.useSession();
   const sid = authSession?.user?.id ?? "";
   const gate = useProfileGate();
