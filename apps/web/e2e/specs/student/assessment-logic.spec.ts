@@ -23,6 +23,10 @@ async function completeTest(sid: string, code: string) {
   for (const q of qs) {
     const o = q.opts?.[0];
     if (o) { const r = await rpc("discover/submit", { sessionId: st.sessionId, questionId: q.id, optionId: o.id }); if (r?.ok) subOK++; }
+    else if (q?.questionType === "text_input") { // soal isian: jawab angka → tersimpan & terhitung
+      const r = await rpc("discover/submitText", { sessionId: st.sessionId, questionId: q.id, textAnswer: "1" });
+      if (r?.ok) subOK++;
+    }
   }
   const fin = await rpc("discover/finish", { sessionId: st.sessionId });
   console.log(`[debug:${code}] submitted=${subOK}/${qs.length} finish=${JSON.stringify(fin)?.slice(0, 260)}`);
