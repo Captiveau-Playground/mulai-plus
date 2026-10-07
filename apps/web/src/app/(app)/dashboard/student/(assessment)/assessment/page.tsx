@@ -253,63 +253,34 @@ export default function AssessmentHomePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Hero + stat */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-navy to-brand-navy-light p-6 text-white lg:col-span-2"
-        >
-          <div className="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-mentor-teal/20 blur-2xl" />
-          <div className="absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-brand-orange/20 blur-2xl" />
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-manrope text-[11px] text-white/60 uppercase tracking-wide">Level {stats.level}</p>
-                <h2 className="font-bold font-bricolage text-2xl md:text-3xl">
-                  Halo, petualang! <span className="inline-block animate-bounce">👋</span>
-                </h2>
-              </div>
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-3xl backdrop-blur">
-                🏆
-              </div>
-            </div>
-            <div className="mt-5">
-              <div className="flex justify-between font-manrope text-white/70 text-xs">
-                <span>{stats.xp} XP</span>
-                <span>{xpToNext} XP</span>
-              </div>
-              <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-white/15">
-                <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-brand-orange to-amber-400"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${levelProgress}%` }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                />
-              </div>
-            </div>
+      {/* Hero + stat — KOMPAK minimalis (satu baris: level+XP+chips) */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-navy/5 text-2xl">🏆</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="font-bold font-bricolage text-sm text-gray-900">Level {stats.level}</p>
+            <p className="font-manrope text-[10px] text-gray-400">
+              {stats.xp} / {xpToNext} XP
+            </p>
           </div>
-        </motion.div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { icon: "🔥", label: "Streak", value: `${stats.streak} hari`, cls: "from-orange-50 to-amber-50" },
-            { icon: "✅", label: "Test Selesai", value: `${stats.testsCompleted}`, cls: "from-green-50 to-teal-50" },
-          ].map((s, i) => (
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
             <motion.div
-              key={s.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * i }}
-              className={cn("rounded-3xl bg-gradient-to-br p-4", s.cls)}
-            >
-              <p className="text-2xl">{s.icon}</p>
-              <p className="mt-1 font-bold font-bricolage text-gray-800 text-lg">{s.value}</p>
-              <p className="font-manrope text-gray-500 text-xs">{s.label}</p>
-            </motion.div>
-          ))}
+              className="h-full rounded-full bg-gradient-to-r from-brand-orange to-amber-400"
+              initial={{ width: 0 }}
+              animate={{ width: `${levelProgress}%` }}
+              transition={{ duration: 0.6 }}
+            />
+          </div>
         </div>
-      </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 font-manrope text-[11px] font-bold text-orange-600">🔥 {stats.streak}</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 font-manrope text-[11px] font-bold text-teal-600">✅ {stats.testsCompleted}</span>
+        </div>
+      </motion.div>
 
       {/* Test cards */}
       <div>
