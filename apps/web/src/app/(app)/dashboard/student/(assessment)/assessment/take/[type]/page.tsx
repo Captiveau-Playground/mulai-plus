@@ -10,6 +10,7 @@ import { Latex } from "@/components/assessment/latex";
 import { StreakBadge } from "@/components/ui/streak-badge";
 import { PointsBadge } from "@/components/ui/points-badge";
 import { PointsBoost } from "@/components/ui/points-boost";
+import { AchievementUnlocked } from "@/components/ui/achievement-unlocked";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -263,6 +264,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setDone(true);
     blip(1318, 0.22);
     fireConfetti();
+    setAchOpen(true);
     /* completion dicatat di SERVER (resultsFor) — no localStorage */
   };
   const [secDone, setSecDone] = useState(0);
@@ -366,6 +368,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [exitOpen, setExitOpen] = useState(false); // konfirmasi keluar ala Duolingo
   const [mapOpen, setMapOpen] = useState(false); // panel Peta Soal (bottom sheet)
   const [savedFlash, setSavedFlash] = useState(false); // chip "tersimpan" singkat
+  const [achOpen, setAchOpen] = useState(false); // perayaan AchievementUnlocked saat tes selesai
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
@@ -686,6 +689,19 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           </Link>
         </div>
       </motion.div>
+      {isEngine && (
+        <AchievementUnlocked
+          open={achOpen}
+          onOpenChange={setAchOpen}
+          achievement={{
+            id: "tests-done",
+            name: bothDone ? "Semua Tes Selesai" : "Test Selesai",
+            description: bothDone ? "Minat & Bakat tuntas — hasil & rekomendasi kamu siap." : "Tes selesai — lanjutkan satunya lagi untuk hasil lengkap.",
+          }}
+          secondaryActionLabel="Lihat Beranda"
+          onSecondaryActionClick={() => { setAchOpen(false); window.location.assign("/dashboard/student/assessment"); }}
+        />
+      )}
       </div>
     );
   }
@@ -752,9 +768,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           </span>
           <p className="mt-3 font-manrope text-xs font-bold tracking-wide text-teal-600 uppercase">Bagian selesai</p>
           <h2 className="mt-1 font-bold font-bricolage text-2xl text-gray-900">{secOverlay.doneName} — selesai! 🎉</h2>
-          <p className="mt-2 font-manrope text-sm text-gray-500">
-            <span className="font-bold text-brand-orange">+10 XP</span> · streak 🔥 {secStreak} bagian beruntun
-          </p>
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <PointsBadge name="XP" total={10} size="sm" />
+            <StreakBadge length={secStreak} size="sm" />
+          </div>
           <div className="mt-5 space-y-2">
             <button
               onClick={() => { setSecOverlay(null); setSelected(null); setRevealed(false); engineBegin(secOverlay.nextEq); }}
