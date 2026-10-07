@@ -631,7 +631,7 @@ export const discoverRouter = {
       const answered = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, sess.id), columns: { id: true } });
       if (answered.length === 0) return { ok: true, present: false } as const;
       const total = await db.query.questions.findMany({ where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)), columns: { id: true } });
-      return { ok: true, present: true, sessionId: sess.id, answered: answered.length, total: total.length } as const;
+      return { ok: true, present: true, sessionId: sess.id, answered: answered.length, total: total.length, fullyAnswered: answered.length >= total.length } as const;
     }),
 
   /** Bersihkan row attempt yang TIDAK lengkap (junk/abandon) utk user — dipanggil saat 'Tes Baru'. */
