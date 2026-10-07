@@ -30,10 +30,12 @@ const TEST_META: Record<string, { emoji: string; color: string; desc: string; xp
   },
 };
 
-function TestCard({ test, pid }: { test: any; pid: string }) {
+function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attempts?: any[] }) {
   const raw = client as any;
   const qP = useQuery({ queryKey: ["pend", test.code, pid], enabled: !!pid, queryFn: () => raw.discover.pending({ studentId: pid, code: test.code }) });
   const pd = (qP.data as any)?.present === true ? qP.data as any : null;
+  const lastA = attempts[attempts.length - 1];
+  const sideDone = test.family === "minat" ? !!lastA?.hollandCode : !!lastA?.hasAbility;
   const meta =
     test.family === "minat"
       ? { emoji: "🧠", color: "from-violet-500 to-purple-600", desc: "Pilih aktivitas yang paling menggambarkanmu — cari tahu tipe minatmu (Holland RIASEC)", xp: `+${test.xp} XP`, href: `/dashboard/student/assessment/take/${test.code}` }
@@ -54,7 +56,11 @@ function TestCard({ test, pid }: { test: any; pid: string }) {
         </div>
       </div>
       <div className="mt-4 flex-1" />
-      {pd ? (
+      {sideDone ? (
+        <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-50 px-4 py-3.5 font-bold font-manrope text-sm text-teal-700">
+          ✓ {test.family === "minat" ? "Tes Minat" : "Tes Bakat"} Selesai
+        </div>
+      ) : pd ? (
         <div className="space-y-1.5">
           {pd.fullyAnswered ? (
             <button onClick={async () => { try { await raw.discover.finish({ sessionId: pd.sessionId }); } catch { /* biarkan */ } window.location.href = "/dashboard/student/assessment/result"; }} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]">
@@ -76,12 +82,9 @@ function TestCard({ test, pid }: { test: any; pid: string }) {
   );
 }
 
-function EngineProgressCard() {
+function EngineProgressCard({ attempts = [] }: { attempts?: any[] }) {
   const { data: authSession } = authClient.useSession();
   const sid = authSession?.user?.id ?? "";
-  const raw = client as any;
-  const qA = useQuery({ queryKey: ["ep", sid], enabled: !!sid, queryFn: () => raw.discover.attempts({ studentId: sid }) });
-  const attempts: any[] = (qA.data as any)?.attempts ?? [];
   if (!sid) return null;
   const last = attempts[attempts.length - 1];
   const minatDone = !!last?.hollandCode;
@@ -144,6 +147,9 @@ export default function AssessmentHomePage() {
   const { data: authSession } = authClient.useSession();
   const sid = authSession?.user?.id ?? "";
   const gate = useProfileGate();
+  const raw2 = client as any;
+  const qAtt = useQuery({ queryKey: ["ep", sid], enabled: !!sid, queryFn: () => raw2.discover.attempts({ studentId: sid }) });
+  const attempts: any[] = (qAtt.data as any)?.attempts ?? [];
   const { data } = useQuery({
     ...orpc.tmb.assessment.list.queryOptions({ input: {} }),
     enabled: true,
@@ -308,11 +314,11 @@ export default function AssessmentHomePage() {
       {/* Test cards */}
       <div>
         <h2 className="mb-3 font-bold font-bricolage text-base text-gray-800 md:text-lg">Pilih Test</h2>
-        <div className="mb-4"><EngineProgressCard /></div>
+        <div className="mb-4"><EngineProgressCard attempts={attempts} /></div>
         <div className="grid gap-3 md:grid-cols-2 md:gap-4">
           {((liveTests?.items ?? []) as any[]).map((test: any, i: number) => (
             <motion.div key={test.code} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }}>
-              <TestCard test={test} pid={sid} />
+              <TestCard test={test} pid={sid} attempts={attempts} />
             </motion.div>
           ))}
           {((liveTests?.items ?? []) as any[]).length === 0 && (
