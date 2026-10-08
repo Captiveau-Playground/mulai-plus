@@ -165,26 +165,45 @@ export const discoverRouter = {
       let serverTimer: Record<string, unknown> | undefined;
       if (c?.timer_enabled === true) {
         const scope = c?.timer_scope ?? "none";
-        let totalSeconds = 0;
-        if (scope === "dimension") {
-          const dims = await db.query.assessmentDimensions.findMany({
-            where: eq(schema.assessmentDimensions.versionId, v.id),
-            columns: { durationSeconds: true },
-          });
-          totalSeconds = dims.reduce((s, d) => s + (d.durationSeconds ?? 0), 0);
-        } else if (scope === "question") {
-          const qs = await db.query.questions.findMany({
-            where: eq(schema.questions.versionId, v.id),
-            columns: { id: true },
-          });
-          const perQ = Number(c?.time_per_question ?? 30);
-          totalSeconds = qs.length * perQ;
+        const now = Date.now();
+        // DIMENSION: deadline kumulatif per dimensi (urutan bagian)
+        // QUESTION: deadline kumulatif per soal (urutan displayOrder aktif)
+        const dimsR = await db.query.assessmentDimensions.findMany({
+          where: eq(schema.assessmentDimensions.versionId, v.id),
+          columns: { id: true, durationSeconds: true },
+          orderBy: asc(schema.assessmentDimensions.displayOrder),
+        });
+        const qsR = await db.query.questions.findMany({
+          where: and(eq(schema.questions.versionId, v.id), eq(schema.questions.isActive, true)),
+          columns: { id: true },
+          orderBy: asc(schema.questions.displayOrder),
+        });
+        const perQ = Number(c?.time_per_question ?? 30);
+        const dims: { id: string; startISO: string; endISO: string; durationSeconds: number }[] = [];
+        let cursor = now;
+        for (const d of dimsR) {
+          const dur = scope === "dimension" ? Number(d.durationSeconds ?? 0) : 0;
+          if (scope === "dimension" && dur > 0) {
+            dims.push({ id: d.id, startISO: new Date(cursor).toISOString(), endISO: new Date(cursor + dur * 1000).toISOString(), durationSeconds: dur });
+            cursor += dur * 1000;
+          }
         }
+        const qEnds: string[] = [];
+        if (scope === "question") {
+          let qc = now;
+          for (const _q of qsR) { qc += perQ * 1000; qEnds.push(new Date(qc).toISOString()); }
+        }
+        const qPerMs = perQ * 1000;
+        const totalSeconds = scope === "dimension" ? dims.reduce((a, d) => a + d.durationSeconds, 0) : scope === "question" ? qsR.length * perQ : 0;
+        const expectedEndISO = new Date(now + (totalSeconds > 0 ? totalSeconds * 1000 : 0)).toISOString();
         serverTimer = {
           scope,
           totalSeconds,
-          serverNowISO: new Date().toISOString(),
-          expectedEndISO: new Date(Date.now() + totalSeconds * 1000).toISOString(),
+          serverNowISO: new Date(now).toISOString(),
+          expectedEndISO,
+          dims,
+          qEnds,
+          qPerMs,
         };
       }
       // RESUME: pakai lagi sesi in_progress terbaru user utk versi ini (refresh/remount tidak bikin sesi dobel;
@@ -228,6 +247,15 @@ export const discoverRouter = {
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
+      // ANTI-TAMPER: tolak submit bila dimensi aktif (scope dimension) sudah lewat deadline server
+      const timerS = ((sess.configJson as any)?.timer ?? null) as any;
+      if (timerS && timerS.scope === "dimension" && (timerS.dims ?? []).length) {
+        const qFor = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId), columns: { id: true, dimensionId: true } });
+        const dEnd = (timerS.dims as any[]).find((d: any) => d.id === qFor?.dimensionId)?.endISO;
+        if (dEnd && Date.now() >= new Date(dEnd).getTime()) {
+          return { ok: false, error: "dimension_timed_out" } as const;
+        }
+      }
       const opt = await db.query.questionOptions.findFirst({
         where: eq(schema.questionOptions.id, input.optionId),
       });
@@ -619,6 +647,42 @@ export const discoverRouter = {
       await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, sess.id));
       await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, sess.id));
       return { ok: true, dropped: 1, sessionId: sess.id } as const;
+    }),
+
+  /** Heartbeat timer — otoritas SERVER: current_time + deadline aktif + status timeout/lock. */
+  timerState: publicProcedure
+    .input(z.object({ sessionId: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const sess = await db.query.assessmentSessions.findFirst({ where: eq(schema.assessmentSessions.id, input.sessionId) });
+      if (!sess) return { ok: false, error: "session_not_found" } as const;
+      const timer = ((sess.configJson as any)?.timer ?? null) as any;
+      if (!timer || timer.scope === "none") return { ok: true, scope: "none", serverNow: Date.now() } as const;
+      const now = Date.now();
+      const scope = timer.scope as string;
+      if (scope === "dimension") {
+        const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map((d: any) => ({
+          id: d.id,
+          endISO: d.endISO,
+          durationSeconds: Number(d.durationSeconds ?? 0),
+          expired: now >= new Date(d.endISO).getTime(),
+        }));
+        const active = dims.find((d) => !d.expired);
+        return {
+          ok: true,
+          scope,
+          serverNow: now,
+          dims,
+          activeDimId: active?.id ?? null,
+          timedOut: !active, // semua dimensi habis / sesi timeout
+        } as const;
+      }
+      if (scope === "question") {
+        const qEnds = (timer.qEnds ?? []) as string[];
+        const idx = qEnds.findIndex((iso) => now < new Date(iso).getTime());
+        const qPerMs = Math.max(1000, Number(timer.qPerMs ?? 30000));
+        return { ok: true, scope, serverNow: now, qEnds, qPerMs, activeIndex: idx === -1 ? qEnds.length : idx, timedOut: idx === -1 } as const;
+      }
+      return { ok: true, scope, serverNow: now, timedOut: now >= new Date(timer.expectedEndISO).getTime() } as const;
     }),
 
   /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */

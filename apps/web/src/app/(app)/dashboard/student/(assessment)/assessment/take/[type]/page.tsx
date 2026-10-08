@@ -343,6 +343,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const nextUn = (from: number) => { const a = answeredRef.current; for (let j = from; j < effQs.length; j++) if (!(a?.has(effQs[j]?.id))) return j; return effQs.length; };
   const engineSelect = (option: string) => {
     if (revealed || !question) return;
+    if (dimExpiredNow()) { setTimerNotice("⏳ Waktu bagian ini habis — tidak bisa dijawab lagi"); setTimeout(() => setTimerNotice(null), 2500); return; }
     setSelected(option);
     setRevealed(true);
     // huruf/teks → id opsi ASLI (q.opts[i].id) — submit butuh optionId valid
@@ -366,9 +367,43 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [mapOpen, setMapOpen] = useState(false); // panel Peta Soal (bottom sheet)
   const [savedFlash, setSavedFlash] = useState(false); // chip "tersimpan" singkat
   const [achPop, setAchPop] = useState(false); // modal perayaan brand saat tes selesai
+  const [timerSt, setTimerSt] = useState<any | null>(null); // heartbeat timer (otoritas server)
+  const [timerNotice, setTimerNotice] = useState<string | null>(null); // banner "waktu habis"
+  const [, setTick] = useState(0); // re-render tiap detik utk countdown
+  const jumpRef = useRef<string>(""); // cegah lompat dobel
+
+  // ⏱ auto-jump saat deadline lewat (dimension/question) + guard
+  const dimExpiredNow = () => {
+    if (timerSt?.scope !== "dimension") return false;
+    const cur = effQs[eq]?.dimensionId;
+    return !!(timerSt.dims ?? []).find((d: any) => d.id === cur)?.expired;
+  };
+  const timerJump = (target: number) => {
+    if (target < 0 || target >= effQs.length) { void engineFinish(); return; }
+    setSelected(null); setRevealed(false); setEtv(""); setLastEval?.(null as any);
+    engineLoad(target);
+  };
+  useEffect(() => {
+    if (!isEngine || !timerSt?.ok || timerSt.scope === "none") return;
+    if (timerSt.scope === "dimension") {
+      const expired = new Set((timerSt.dims ?? []).filter((d: any) => d.expired).map((d: any) => d.id));
+      const cur = effQs[eq]?.dimensionId;
+      if (cur && expired.has(cur)) {
+        const target = effQs.findIndex((q: any) => !expired.has(q.dimensionId));
+        const key = `dim:${target}`;
+        if (jumpRef.current !== key) { jumpRef.current = key; setTimerNotice("⏳ Waktu bagian ini habis — lanjut otomatis"); timerJump(target); setTimeout(() => setTimerNotice(null), 3000); }
+      }
+    } else if (timerSt.scope === "question") {
+      const ai = Number(timerSt.activeIndex ?? 0);
+      if (ai >= effQs.length) { void engineFinish(); return; }
+      if (ai > eq) { const key = `q:${ai}`; if (jumpRef.current !== key) { jumpRef.current = key; setTimerNotice("⏳ Waktu soal habis — lanjut otomatis"); timerJump(ai); setTimeout(() => setTimerNotice(null), 2500); } }
+    }
+  }, [timerSt, eq]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
+    if (dimExpiredNow()) { setTimerNotice("⏳ Waktu bagian ini habis — tidak bisa dijawab lagi"); setTimeout(() => setTimerNotice(null), 2500); return; }
     setRevealed(true);
     markAnswered(question.id);
     void client.discover.submitText({ sessionId: engine!.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
@@ -376,6 +411,22 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       .catch((e: any) => console.error("[engine] submitText gagal:", e?.message ?? e));
     setTimeout(() => engineNext(nextUn(eq + 1)), 950);
   };
+
+  // ⏱ HEARTBEAT timer (server-authoritative) — sinkron tiap 12s + tick 1s utk UI
+  useEffect(() => {
+    if (!isEngine || !engine?.sessionId) return;
+    let alive = true;
+    const sync = async () => {
+      try {
+        const r = (await (client as any).discover.timerState({ sessionId: engine!.sessionId })) as any;
+        if (alive && r?.ok) setTimerSt(r);
+      } catch { /* offline: biarkan state terakhir */ }
+    };
+    void sync();
+    const iv = setInterval(sync, 12000);
+    const tk = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => { alive = false; clearInterval(iv); clearInterval(tk); };
+  }, [isEngine, engine?.sessionId]);
 
   const startMutation = useMutation({
     ...orpc.tmb.assessment.start.mutationOptions(),
@@ -825,6 +876,27 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
   const progressPct = liveTotal > 0 ? (liveProgress / liveTotal) * 100 : 0;
 
+  // ⏱ Countdown dari deadline SERVER (offset clock) + tone visual (Duolingo-style 20%/10%)
+  const _off = timerSt?.serverNow ? Date.now() - Number(timerSt.serverNow) : 0;
+  let _remainMs: number | null = null;
+  let _ratio = 1;
+  if (timerSt?.ok && timerSt.scope && timerSt.scope !== "none") {
+    if (timerSt.scope === "dimension") {
+      const d = (timerSt.dims ?? []).find((x: any) => !x.expired);
+      _remainMs = d ? new Date(d.endISO).getTime() - (Date.now() - _off) : 0;
+      _ratio = d?.durationSeconds ? Math.max(0, _remainMs) / (Number(d.durationSeconds) * 1000) : 0;
+    } else if (timerSt.scope === "question") {
+      const endIso = (timerSt.qEnds ?? [])[eq];
+      _remainMs = endIso ? new Date(endIso).getTime() - (Date.now() - _off) : null;
+      _ratio = _remainMs != null ? Math.max(0, _remainMs) / (Number(timerSt.qPerMs) || 30000) : 1;
+    }
+  }
+  const _tone: "none" | "normal" | "warn" | "crit" = _remainMs == null ? "none" : _ratio <= 0.1 ? "crit" : _ratio <= 0.2 ? "warn" : "normal";
+  const _mmss = _remainMs != null
+    ? `${String(Math.max(0, Math.floor(_remainMs / 60000))).padStart(2, "0")}:${String(Math.max(0, Math.floor((_remainMs % 60000) / 1000))).padStart(2, "0")}`
+    : null;
+  const _expiredDims = new Set((timerSt?.dims ?? []).filter((d: any) => d.expired).map((d: any) => d.id));
+
   return (
     <div className="fixed inset-0 z-[70] h-dvh overflow-hidden bg-bg-light">
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 pt-6 pb-5">
@@ -936,7 +1008,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                 <div
                   key={idx}
                   title={sc.name}
-                  className={cn("h-2.5 flex-1 overflow-hidden rounded-full", activeS ? "bg-orange-100" : "bg-gray-100")}
+                  className={cn("h-2.5 flex-1 overflow-hidden rounded-full", sc.ids.some((id: string) => _expiredDims.has(effQs.find((q: any) => q.id === id)?.dimensionId)) ? "bg-red-100" : activeS ? "bg-orange-100" : "bg-gray-100")}
                 >
                   <div
                     className={cn("h-full rounded-full transition-all duration-500", pct > 0 ? "bg-gradient-to-r from-mentor-teal to-teal-500" : "bg-transparent")}
@@ -953,9 +1025,15 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
               <button onClick={() => setMapOpen(true)} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-bold text-gray-600 transition-colors hover:bg-gray-100">
                 🗺 {answeredSet?.size ?? 0}/{effQs.length}
               </button>
-              <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
-                <Timer className="h-3 w-3" />{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
-              </span>
+              {_mmss ? (
+                <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-manrope text-[11px] font-bold tabular-nums", _tone === "crit" ? "animate-pulse bg-red-100 text-red-600" : _tone === "warn" ? "bg-amber-100 text-amber-600" : "bg-sky-100 text-sky-600")}>
+                  <Timer className="h-3 w-3" />{_mmss}
+                </span>
+              ) : (
+                <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
+                  <Timer className="h-3 w-3" />{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
+                </span>
+              )}
               <StreakFlame days={streak} showDots={false} showLabel={false} />
               <span className="font-semibold text-gray-400">{liveProgress}/{liveTotal}</span>
             </span>
@@ -986,13 +1064,16 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                       const gi = effQs.findIndex((q: any) => q.id === id);
                       const done = answeredSet?.has(id) ?? false;
                       const active = eq === gi;
+                      const locked = _expiredDims.has(effQs[gi]?.dimensionId);
                       return (
                         <button
                           key={id}
+                          disabled={locked}
+                          title={locked ? "Waktu bagian ini habis" : `Soal ${gi + 1}`}
                           onClick={() => { setSelected(null); setRevealed(false); setEtv(""); engineLoad(gi); setMapOpen(false); }}
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg font-manrope text-[11px] font-bold transition-all ${done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"} ${active ? "ring-2 ring-brand-orange" : ""} hover:brightness-95`}
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg font-manrope text-[11px] font-bold transition-all ${locked ? "cursor-not-allowed bg-red-50 text-red-300" : done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"} ${active ? "ring-2 ring-brand-orange" : ""} hover:brightness-95`}
                         >
-                          {gi + 1}
+                          {locked ? "⏳" : gi + 1}
                         </button>
                       );
                     })}
@@ -1041,6 +1122,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           <Image src="/maskot/masko-thumb-up.webp" alt="" width={24} height={24} className="h-6 w-6 rounded-full" />
           <span className="font-manrope font-semibold text-violet-700 text-xs">{banner}</span>
         </motion.div>
+      )}
+
+      {timerNotice && (
+        <div className="mb-2 shrink-0 rounded-xl bg-amber-50 px-3 py-2 text-center font-manrope text-[11px] font-semibold text-amber-700">{timerNotice}</div>
       )}
 
       {/* QUESTION — bubble chat maskot bertanya (tanpa label duplikat; maskot polos & lebih besar) */}
