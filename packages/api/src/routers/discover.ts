@@ -469,6 +469,24 @@ export const discoverRouter = {
           const existing = await db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.userId, sess.studentId), orderBy: (t: any) => [desc(t.createdAt)] });
           // baris jatuh tempo lengkap (minat+bakat) => ini adalah RETEST → attempt baru (baris baru),
           // sehingga duet lama tetap tersimpan di history dan yang baru mulai dari bagian ini saja.
+          // 📊 Statistik per dimensi (utk catatan hasil: waktu habis / paling lama)
+          const dimStats = await (async () => {
+            const dimsAll2 = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, sess.versionId), orderBy: asc(schema.assessmentDimensions.displayOrder) });
+            const qsAll2 = await db.query.questions.findMany({ where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)), columns: { id: true, dimensionId: true } });
+            const ansAll = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, input.sessionId) });
+            const ansByQ = new Map(ansAll.map((a) => [a.questionId, a]));
+            const timerCfg = ((sess.configJson as any)?.timer ?? null) as any;
+            return dimsAll2.map((d) => {
+              const qs = qsAll2.filter((q) => q.dimensionId === d.id);
+              const times = qs.map((q) => ansByQ.get(q.id)?.answeredAt).filter(Boolean).map((t) => new Date(t as any).getTime()).sort((a, b) => a - b);
+              const seconds = times.length >= 2 ? Math.round((times[times.length - 1]! - times[0]!) / 1000) : 0;
+              const answered = qs.filter((q) => ansByQ.has(q.id)).length;
+              const dEnd = (timerCfg?.dims ?? []).find((x: any) => x.id === d.id)?.endISO;
+              const timedOut = !!dEnd && Date.now() >= new Date(dEnd).getTime() && answered < qs.length;
+              return { dimId: d.id, code: d.code, name: d.name, total: qs.length, answered, seconds, timedOut };
+            });
+          })();
+
           const hReal = !!existing && (existing.hollandCode ?? "").length > 0;
           const aReal = !!existing && Object.keys(((existing as any).abilityScores ?? {})).length > 0;
           // Kawin hanya bila row punya TEPAT SATU sisi nyata (minat✓/bakat kosong → lanjut).
@@ -505,10 +523,11 @@ export const discoverRouter = {
               ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }),
               differentiation: diff,
               confidenceScore: confScore,
+              dimStats: dimStats as any,
             }).where(eq(tmbAssessmentResults.id, rid));
             await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, rid));
           } else {
-            await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }), differentiation: diff, confidenceScore: confScore });
+            await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }), differentiation: diff, confidenceScore: confScore, dimStats: dimStats as any });
           }
           // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
           // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)

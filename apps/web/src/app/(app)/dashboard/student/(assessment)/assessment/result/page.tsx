@@ -319,6 +319,40 @@ export default function TmbResultPage() {
         </motion.div>
       </div>
 
+      {/* Catatan Pengerjaan — dimensi yg waktu habis / paling lama (coaching + CTA) */}
+      {(() => {
+        const stats: any[] = ((result as any).dimStats ?? []) as any[];
+        if (!stats.length) return null;
+        const timedOut = stats.filter((d) => d.timedOut || (d.answered ?? 0) < (d.total ?? 0));
+        const slowest = [...stats].filter((d) => (d.seconds ?? 0) > 60 && !timedOut.includes(d)).sort((a, b) => (b.seconds ?? 0) - (a.seconds ?? 0))[0];
+        if (!timedOut.length && !slowest) return null;
+        return (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-amber-200 bg-amber-50/60 p-5">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⏱</span>
+              <h2 className="font-bold font-bricolage text-gray-900">Catatan Pengerjaan</h2>
+            </div>
+            <ul className="mt-3 space-y-1.5">
+              {timedOut.map((d) => (
+                <li key={d.dimId} className="font-manrope text-sm text-amber-800">
+                  • <b>{d.name}</b>: waktu habis — {d.answered}/{d.total} soal terjawab (bagian ini belum selesai).
+                </li>
+              ))}
+              {slowest && (
+                <li className="font-manrope text-sm text-amber-800">
+                  • <b>{slowest.name}</b>: kamu paling lama di bagian ini ({slowest.seconds}s). Coba lebih tenang & cepat.
+                </li>
+              )}
+            </ul>
+            <p className="mt-3 font-manrope text-xs text-amber-700">Jawabanmu tetap tersimpan. Ulangi tes untuk hasil yang lebih akurat.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/dashboard/student/assessment/take/TALENT" className="rounded-xl bg-brand-orange px-5 py-2.5 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">Ulangi Tes Bakat →</Link>
+              <Link href="/dashboard/student/assessment/take/DISCOVER" className="rounded-xl border border-amber-300 bg-white px-5 py-2.5 font-manrope text-sm font-semibold text-amber-800 hover:bg-amber-50">Ulangi Tes Minat</Link>
+            </div>
+          </motion.div>
+        );
+      })()}
+
       {/* AI Summary */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}

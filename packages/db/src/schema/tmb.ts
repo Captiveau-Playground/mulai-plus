@@ -96,6 +96,7 @@ export const tmbAssessmentResults = pgTable("tmb_assessment_results", {
   abilityScores: jsonb("ability_scores"), // { numerical: { correct: 2, total: 2 }, ... }
   differentiation: text("differentiation"), // strong / moderate / weak
   confidenceScore: text("confidence_score"),
+  dimStats: jsonb("dim_stats"), // [{ dimId, code, name, total, answered, seconds, timedOut }]
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

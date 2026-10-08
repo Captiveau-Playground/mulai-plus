@@ -155,6 +155,13 @@
       "when": 1730000000000,
       "tag": "0026_assessment_option_icon",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0027_assessment_dim_stats",
+      "breakpoints": true
     }
   ]
 }
