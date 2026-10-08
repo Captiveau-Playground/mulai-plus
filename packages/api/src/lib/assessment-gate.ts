@@ -7,13 +7,14 @@ import { schema } from "@mulai-plus/db/db";
  */
 
 /** Gatekeeper v1 — daftar error actionable; publish ditolak bila ada error. */
-export async function validatePublish(versionId: string): Promise<{ ok: boolean; errors: string[]; details?: { kind: "question" | "dimension" | "config"; id?: string; message: string }[] }> {
+export async function validatePublish(versionId: string): Promise<{ ok: boolean; errors: string[]; warnings: string[]; details?: { kind: "question" | "dimension" | "config"; id?: string; message: string }[] }> {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const details: { kind: "question" | "dimension" | "config"; id?: string; message: string }[] = [];
   const v = await db.query.assessmentVersions.findFirst({
     where: eq(schema.assessmentVersions.id, versionId),
   });
-  if (!v) return { ok: false, errors: ["version_not_found"] };
+  if (!v) return { ok: false, errors: ["version_not_found"], warnings: [] };
   const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, v.assessmentId) });
   if (!a || !a.name || !a.code) { errors.push("Assessment wajib punya nama & kode."); details.push({ kind: "config", message: "Assessment wajib punya nama & kode." }); }
   const cfg = (v.configJson ?? {}) as any;
@@ -27,6 +28,18 @@ export async function validatePublish(versionId: string): Promise<{ ok: boolean;
   const activeDims = dims.filter((d) => d.isActive);
   if (activeDims.length !== totalDim)
     errors.push(`Dimensi aktif (${activeDims.length}) harus sesuai total_dim (${totalDim}).`);
+
+  // ⚠️ Warnings (tidak memblok publish): timer per-bagian butuh durasi tiap dimensi; pengantar/instrusi disarankan
+  if (cfg.timer_enabled === true && cfg.timer_scope === "dimension") {
+    const noDur = activeDims.filter((d) => !d.durationSeconds || d.durationSeconds <= 0);
+    if (noDur.length) {
+      warnings.push(`Timer per bagian aktif, tapi ${noDur.length} dimensi belum punya durasi (detik).`);
+      details.push({ kind: "config", message: `Durasi dimensi belum diisi: ${noDur.map((d) => d.name).join(", ")}` });
+    }
+  }
+  if (cfg.timer_enabled === true && cfg.timer_scope === "question" && !(Number(cfg.time_per_question) > 0)) {
+    warnings.push("Timer per soal aktif, tapi 'detik per soal' belum diisi (default 30s).");
+  }
 
   const questions = await db.query.questions.findMany({ where: eq(schema.questions.versionId, versionId) });
   const activeQs = questions.filter((q) => q.isActive);
@@ -54,7 +67,7 @@ export async function validatePublish(versionId: string): Promise<{ ok: boolean;
       if (n < minQ) errors.push(`Dimensi ${d.name} (${d.code}) butuh minimal ${minQ} soal aktif (kini ${n}).`);
     }
   }
-  return { ok: errors.length === 0, errors };
+  return { ok: errors.length === 0, errors, warnings };
 }
 
 /** Publish versi → live; versi live lain → archived. Gatekeeper dulu. */

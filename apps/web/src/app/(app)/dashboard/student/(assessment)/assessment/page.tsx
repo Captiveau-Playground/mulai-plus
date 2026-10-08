@@ -58,11 +58,7 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
         </div>
       </div>
       <div className="mt-3 flex-1" />
-      {sideDone ? (
-        <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-50 px-4 py-2.5 font-bold font-manrope text-sm text-teal-700">
-          ✓ {test.family === "minat" ? "Tes Minat" : "Tes Bakat"} Selesai
-        </div>
-      ) : pd ? (
+      {pd ? (
         <div className="space-y-1.5">
           {pd.fullyAnswered ? (
             <button onClick={async () => { try { await raw.discover.finish({ sessionId: pd.sessionId }); } catch { /* biarkan */ } window.location.href = "/dashboard/student/assessment/result"; }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 font-bold font-manrope text-sm text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98]">
@@ -75,12 +71,16 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
           )}
           <button onClick={() => { void raw.discover.abandon({ studentId: pid, code: test.code }).then(() => qP.refetch()); }} className="w-full text-center font-manrope text-[10px] text-gray-400 hover:text-red-500">Bukan ini? Mulai ulang (buang progres)</button>
         </div>
+      ) : sideDone ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-50 px-4 py-2.5 font-bold font-manrope text-sm text-teal-700">
+          ✓ {test.family === "minat" ? "Tes Minat" : "Tes Bakat"} Selesai
+        </div>
       ) : (
         <Link href={meta.href as any} className="flex items-center justify-center gap-2 rounded-xl bg-brand-navy px-4 py-2.5 font-bold font-manrope text-sm text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98]">
           <PlayCircle className="h-5 w-5" /> Mulai Test
         </Link>
       )}
-      {sideDone && (
+      {sideDone && !pd && (
         <button onClick={() => setRetestOpen(true)} className="mt-2 w-full text-center font-manrope text-[11px] font-semibold text-gray-400 transition-colors hover:text-brand-navy">
           🔄 Tes Ulang
         </button>

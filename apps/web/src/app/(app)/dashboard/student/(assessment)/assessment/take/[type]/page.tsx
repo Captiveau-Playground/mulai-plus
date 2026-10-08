@@ -43,7 +43,7 @@ export default function TmbTestPage() {
 }
 
 function EngineWrapper({ code }: { code: string }) {
-  const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections: number } | null>(null);
+  const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections: number; secData?: any[]; instr?: any[] } | null>(null);
   const [errg, setErrg] = useState("");
   const { data: authSession } = authClient.useSession();
   const startedRef = useRef(false);
@@ -57,16 +57,16 @@ function EngineWrapper({ code }: { code: string }) {
         const cfg = (await client.discover.config({ code } as any)) as any;
         let st: any = { sessionId: "" };
         try { st = (await client.discover.start({ code, studentId: sid, versionId: null } as any)) as any; } catch { st = (await client.discover.start({ code, studentId: sid } as any)) as any; }
-        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat", studentId: sid, sections: (cfg.runSections ?? []).length });
+        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat", studentId: sid, sections: (cfg.runSections ?? []).length, secData: cfg.sections ?? [], instr: cfg.instructions ?? [] });
       } catch (e: any) { setErrg(e?.message ?? "Gagal memuat tes"); }
     })();
   }, [code, authSession?.user?.id]);
   if (errg) return <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light p-4"><p className="font-manrope text-sm text-red-500">{errg}</p></div>;
   if (!ready) return <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
-  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel, studentId: ready.studentId, sections: ready.sections }} />;
+  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel, studentId: ready.studentId, sections: ready.sections, secData: ready.secData ?? [], instr: ready.instr ?? [] }} />;
 }
 
-function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections?: number } }) {
+function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections?: number; secData?: any[]; instr?: any[] } }) {
   const isEngine = !!engine;
   const engineQs = engine?.questions ?? [];
   const [orderIds, setOrderIds] = useState<string[] | null>(null); // urutan soal sesi (ujian) — stabil utk resume & grid
@@ -785,6 +785,20 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                 : "⏱ Tanpa batas waktu"}
           </span>
         </div>
+        {(engine.secData ?? []).length > 0 && (
+          <div className="mt-4 w-full max-w-sm space-y-2 text-left">
+            {(engine.secData ?? []).map((sc: any, i: number) => {
+              const cj = sc.contentJson ?? {};
+              const body = cj.text ?? (Array.isArray(cj.items) ? cj.items.join(" · ") : "");
+              return (
+                <div key={sc.id ?? i} className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+                  <p className="font-manrope text-[11px] font-bold text-gray-800">{sc.title}</p>
+                  {body && <p className="mt-0.5 font-manrope text-[11px] text-gray-500 leading-snug">{body}</p>}
+                </div>
+              );
+            })}
+          </div>
+        )}
         {timerSt?.scope && timerSt.scope !== "none" && (
           <div className="mt-4 w-full max-w-sm rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-left">
             <p className="font-manrope text-[11px] font-bold text-sky-800">Aturan waktu</p>
@@ -813,6 +827,23 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         <p className="mt-5 font-manrope text-xs font-bold tracking-widest text-teal-600 uppercase">Bagian {__secIdx + 1} dari {totalDims}</p>
         <h2 className="mt-1 font-bold font-bricolage text-3xl text-gray-900">{secStart.name}</h2>
         <p className="mt-2 font-manrope text-sm text-gray-500">Kamu akan mengerjakan <b>{__secCount} soal</b> pada bagian ini.</p>
+        {(() => {
+          const dimId = effQs[secStart.eqIndex]?.dimensionId;
+          const ins = (engine?.instr ?? []).find((x: any) => x.dimensionId === dimId);
+          if (!ins) return null;
+          const cj = ins.contentJson ?? {};
+          const items: string[] = Array.isArray(cj.items) ? cj.items : cj.text ? [cj.text] : [];
+          return (
+            <div className="mt-4 w-full max-w-sm rounded-2xl border border-teal-100 bg-teal-50/50 px-4 py-3 text-left">
+              <p className="font-manrope text-[11px] font-bold text-teal-800">{ins.header ?? "Instruksi"}</p>
+              {items.length > 0 && (
+                <ul className="mt-1 space-y-0.5 font-manrope text-[11px] text-teal-700">
+                  {items.map((it, i) => (<li key={i}>• {it}</li>))}
+                </ul>
+              )}
+            </div>
+          );
+        })()}
         <button
           onClick={() => { setSecStart(null); setSelected(null); setRevealed(false); engineLoad(secStart.eqIndex); }}
           className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"

@@ -113,6 +113,7 @@ export default function AssessmentDetailPage() {
     onSuccess: () => { void invalidate(); },
     onError: (e) => notify.error("Gagal", { description: e.message?.slice(0, 120) }),
   }));
+  const mDimsUpd = useMutation({ mutationFn: (i: any) => rawClient.discoverAdmin.versions.dimsUpdate(i), onSuccess: () => { notify.create("Dimensi diperbarui ✅"); void invalidate(); }, onError: (e: any) => notify.error("Gagal", { description: e?.message?.slice(0, 120) }) });
   const mSecSave = useMutation({ mutationFn: (i: any) => rawClient.discoverAdmin.versions.sectionSave(i), onSuccess: () => { void invalidate(); notify.create("Pengantar disimpan ✅"); }, onError: (e: any) => notify.error("Gagal", { description: e?.message?.slice(0, 120) }) });
   const mSecDel = useMutation({ mutationFn: (i: any) => rawClient.discoverAdmin.versions.sectionDelete(i), onSuccess: () => { void invalidate(); }, onError: (e: any) => notify.error("Gagal", { description: e?.message?.slice(0, 120) }) });
   const mInstr = useMutation({ mutationFn: (i: any) => rawClient.discoverAdmin.versions.instrSave(i), onSuccess: () => { notify.create("Instruksi disimpan ✅"); void invalidate(); }, onError: (e: any) => notify.error("Gagal", { description: e?.message?.slice(0, 120) }) });
@@ -275,7 +276,16 @@ export default function AssessmentDetailPage() {
             <div className="grid gap-3">
             <Rule label="Tampilkan hasil N kode teratas" hint="Berapa peringkat teratas yang ditampilkan ke siswa (cth 3 → S-I-A)." type="number" value={rules.result_dim_count ?? ""} onChange={(v) => setRules((r) => ({ ...r, result_dim_count: Number(v) }))} disabled={!canEdit} />
             <Rule label="Min. soal per dimensi" hint="Syarat jumlah soal per dimensi agar versi bisa dirilis." type="number" value={rules.min_q_per_dim ?? ""} onChange={(v) => setRules((r) => ({ ...r, min_q_per_dim: Number(v) }))} disabled={!canEdit} />
-            <Rule label="Cara nilai" hint="Jumlah poin = skor dijumlah; Rata-rata = dibagi banyak soal; Bobot = dikali bobot soal." type="select" opts={[["sum", "Jumlah poin"], ["average", "Rata-rata"], ["weighted", "Bobot soal"]]} value={rules.scoring_method ?? "sum"} onChange={(v) => setRules((r) => ({ ...r, scoring_method: v }))} disabled={!canEdit} />
+            <Rule label="Timer" hint="Batasi waktu pengerjaan (server-authoritative; jeda/refresh tetap berjalan)." type="bool" value={rules.timer_enabled === true} onChange={(v) => setRules((r) => ({ ...r, timer_enabled: !!v }))} disabled={!canEdit} />
+          {rules.timer_enabled === true && (
+            <>
+              <Rule label="Scope timer" hint="Per bagian = waktu tiap dimensi (isi durasi di daftar Dimensi); Per soal = countdown tiap soal; Tanpa = bebas." type="select" opts={[["none", "Tanpa batas"], ["dimension", "Per bagian (dimensi)"], ["question", "Per soal"]]} value={rules.timer_scope ?? "dimension"} onChange={(v) => setRules((r) => ({ ...r, timer_scope: v }))} disabled={!canEdit} />
+              {rules.timer_scope === "question" && (
+                <Rule label="Detik per soal" hint="Dipakai saat scope = Per soal." type="number" value={rules.time_per_question ?? 30} onChange={(v) => setRules((r) => ({ ...r, time_per_question: Number(v) }))} disabled={!canEdit} />
+              )}
+            </>
+          )}
+          <Rule label="Cara nilai" hint="Jumlah poin = skor dijumlah; Rata-rata = dibagi banyak soal; Bobot = dikali bobot soal." type="select" opts={[["sum", "Jumlah poin"], ["average", "Rata-rata"], ["weighted", "Bobot soal"]]} value={rules.scoring_method ?? "sum"} onChange={(v) => setRules((r) => ({ ...r, scoring_method: v }))} disabled={!canEdit} />
             <Rule label="Acak urutan soal" hint="Urutan soal diacak setiap siswa memulai." type="bool" value={rules.randomize_q === true} onChange={(v) => setRules((r) => ({ ...r, randomize_q: v }))} disabled={!canEdit} />
             <Rule label="Acak urutan pilihan" hint="Urutan opsi jawaban diacak per siswa." type="bool" value={rules.randomize_a === true} onChange={(v) => setRules((r) => ({ ...r, randomize_a: v }))} disabled={!canEdit} />
             <Rule label="Izinkan lanjut kemudian" hint="Siswa boleh berhenti & melanjutkan tes lain waktu." type="bool" value={rules.allow_pause === true} onChange={(v) => setRules((r) => ({ ...r, allow_pause: v }))} disabled={!canEdit} />
@@ -312,6 +322,17 @@ export default function AssessmentDetailPage() {
                   {dims.map((d) => (
                     <span key={d.id} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 font-manrope text-[11px] font-semibold text-gray-700">
                       {d.name} ({d.code})
+                      {canEdit && (
+                        <span className="inline-flex items-center gap-0.5 rounded-md bg-gray-50 px-1 py-0.5 text-gray-500" title="Durasi timer bagian ini (detik)">
+                          <input
+                            type="number"
+                            defaultValue={(d as any).durationSeconds ?? 0}
+                            onBlur={(e) => { const v = Math.max(0, Math.min(3600, Number(e.target.value) || 0)); if (v !== ((d as any).durationSeconds ?? 0)) void mDimsUpd.mutateAsync({ dimensionId: d.id, durationSeconds: v }); }}
+                            className="w-11 bg-transparent text-right font-manrope text-[10px] outline-none"
+                          />
+                          <span className="text-[9px]">s</span>
+                        </span>
+                      )}
                       {canEdit && <button onClick={() => void mDimsDel.mutateAsync({ dimensionId: d.id })} className="text-red-300 hover:text-red-500" title="Hapus dimensi"><Trash2 className="h-3 w-3" /></button>}
                     </span>
                   ))}

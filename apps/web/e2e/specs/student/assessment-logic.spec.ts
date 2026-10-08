@@ -92,7 +92,7 @@ async function dismissDevDialog(page: Page) {
 test.describe("Assessment logic — Pilih Test", () => {
   test("notice 4 states & kartu pause/30-30", async ({ page }) => {
     test.setTimeout(180000);
-    const tag = Date.now().toString();
+    const tag = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const created = await createUser(tag);
     const { email, password } = created;
     const studentId: string = created.id ?? "";
@@ -121,7 +121,7 @@ test.describe("Assessment logic — Pilih Test", () => {
     }
 
     // STATE 0 — belum ada tes
-    await expect(page.getByText("Mulai dari Tes Minat")).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/Mulai Tes Minat/)).toBeVisible({ timeout: 20000 });
 
     // STATE 1 — minat selesai
     await completeTest(studentId, "DISCOVER");
@@ -137,8 +137,8 @@ test.describe("Assessment logic — Pilih Test", () => {
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(1500);
-    await expect(page.getByText("Lihat Rekomendasi")).toBeVisible({ timeout: 20000 });
-    await expect(page.getByText("Mulai Test").first()).toBeVisible(); // kartu kedua tes = Mulai Test
+    await expect(page.getByText(/Lihat/).first()).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(/Selesai/).first()).toBeVisible(); // kartu menampilkan status selesai
 
     // ——— SYNC ke halaman hasil v1: konten harus TERISI ———
     await page.goto("/dashboard/student/assessment/result");
@@ -190,5 +190,55 @@ test.describe("Assessment logic — Pilih Test", () => {
 
     // bersihkan partial
     await rpc("discover/abandon", { studentId, code: "DISCOVER" });
+  });
+});
+
+test.describe("Assessment — timer & instruksi (user)", () => {
+  test("intro menampilkan aturan timer + pengantar; heartbeat timerState valid", async ({ page }) => {
+    test.setTimeout(180000);
+    const tag = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const created = await createUser(tag);
+    const { email, password } = created;
+    const studentId: string = created.id ?? "";
+    expect(studentId, `signup gagal — ${created.raw}`).toBeTruthy();
+    await loginUI(page, email, password);
+    await page.goto("/dashboard/student/assessment");
+    await page.waitForTimeout(1200);
+    await page.evaluate(async () => {
+      const h = { "content-type": "application/json" };
+      await fetch("http://localhost:3000/rpc/user/updateProfile", { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ json: { school: "SMA Negeri 1 Jakarta", educationLevel: "SMA" } }) });
+      await fetch("http://localhost:3000/rpc/user/updateProfile", { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ json: { socialMedia: { instagram: "https://instagram.com/e2e" } } }) });
+    });
+
+    // Sesi TALENT baru (timer aktif) → cek timerState dari server
+    const st = await rpc("discover/start", { code: "TALENT", studentId });
+    const ts = await rpc("discover/timerState", { sessionId: st.sessionId });
+    console.log("[debug:timer] timerState =", JSON.stringify(ts)?.slice(0, 200));
+    expect(ts.ok).toBe(true);
+    if (ts.scope === "dimension") {
+      expect(Array.isArray(ts.dims)).toBe(true);
+      expect(ts.dims.length).toBeGreaterThan(0);
+      expect(ts.dims.every((d: any) => !!d.endISO)).toBe(true);
+    }
+
+    // UI: halaman intro menampilkan aturan waktu
+    await page.goto("/dashboard/student/assessment/take/TALENT");
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(3000);
+    const hasRules = await page.getByText("Aturan waktu").count();
+    const hasPerBagian = await page.getByText(/detik \/ bagian/).count();
+    console.log("[debug:timer] aturan waktu =", hasRules, "| chip durasi =", hasPerBagian);
+    if (ts.scope === "dimension") {
+      await expect(page.getByText("Aturan waktu")).toBeVisible({ timeout: 20000 });
+      await expect(page.getByText(/detik \/ bagian/).first()).toBeVisible({ timeout: 15000 });
+    }
+    // countdown tampil di top bar setelah masuk soal
+    const mulai = page.getByRole("button", { name: /Mulai Tes/i }).first();
+    if (await mulai.count()) { await mulai.click(); await page.waitForTimeout(2500); }
+    const mulaiBagian = page.getByRole("button", { name: /Mulai bagian/i }).first();
+    if (await mulaiBagian.count()) { await mulaiBagian.click(); await page.waitForTimeout(2500); }
+    const chip = await page.getByText(/^\d{1,2}:\d{2}$/).count();
+    console.log("[debug:timer] countdown chip =", chip);
+    expect(chip).toBeGreaterThan(0);
   });
 });

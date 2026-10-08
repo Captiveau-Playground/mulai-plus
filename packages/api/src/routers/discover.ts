@@ -1339,6 +1339,23 @@ export const discoverAdminRouter = {
         return { ok: true };
       }),
 
+    /** Update dimensi: nama/kode/durasi (durasi dipakai timer scope dimension). */
+    dimsUpdate: adminProcedure
+      .input(z.object({ dimensionId: z.string().min(1), name: z.string().min(1).max(80).optional(), code: z.string().min(1).max(20).optional(), durationSeconds: z.number().int().min(0).max(3600).optional() }))
+      .handler(async ({ input }) => {
+        const dim = await db.query.assessmentDimensions.findFirst({ where: eq(schema.assessmentDimensions.id, input.dimensionId) });
+        if (!dim) return { ok: false, error: "dimension_not_found" } as const;
+        await db
+          .update(schema.assessmentDimensions)
+          .set({
+            ...(input.name ? { name: input.name } : {}),
+            ...(input.code ? { code: input.code.toUpperCase() } : {}),
+            ...(input.durationSeconds !== undefined ? { durationSeconds: input.durationSeconds } : {}),
+          })
+          .where(eq(schema.assessmentDimensions.id, input.dimensionId));
+        return { ok: true } as const;
+      }),
+
     /** Hapus dimensi + seluruh soalnya dari versi (draf). */
     dimsDelete: adminProcedure
       .input(z.object({ dimensionId: z.string().min(1) }))
