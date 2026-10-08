@@ -343,7 +343,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const nextUn = (from: number) => { const a = answeredRef.current; for (let j = from; j < effQs.length; j++) if (!(a?.has(effQs[j]?.id))) return j; return effQs.length; };
   const engineSelect = (option: string) => {
     if (revealed || !question) return;
-    if (dimExpiredNow()) { setTimerNotice("⏳ Waktu bagian ini habis — tidak bisa dijawab lagi"); setTimeout(() => setTimerNotice(null), 2500); return; }
+    if (dimExpiredNow()) { setTimerNotice("⏱ Bagian ini terkunci waktu — tidak bisa dijawab"); setTimeout(() => setTimerNotice(null), 2500); return; }
     setSelected(option);
     setRevealed(true);
     // huruf/teks → id opsi ASLI (q.opts[i].id) — submit butuh optionId valid
@@ -391,19 +391,19 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       if (cur && expired.has(cur)) {
         const target = effQs.findIndex((q: any) => !expired.has(q.dimensionId));
         const key = `dim:${target}`;
-        if (jumpRef.current !== key) { jumpRef.current = key; setTimerNotice("⏳ Waktu bagian ini habis — lanjut otomatis"); timerJump(target); setTimeout(() => setTimerNotice(null), 3000); }
+        if (jumpRef.current !== key) { jumpRef.current = key; setTimerNotice("⏱ Waktu bagian habis — lanjut otomatis"); timerJump(target); setTimeout(() => setTimerNotice(null), 3000); }
       }
     } else if (timerSt.scope === "question") {
       const ai = Number(timerSt.activeIndex ?? 0);
       if (ai >= effQs.length) { void engineFinish(); return; }
-      if (ai > eq) { const key = `q:${ai}`; if (jumpRef.current !== key) { jumpRef.current = key; setTimerNotice("⏳ Waktu soal habis — lanjut otomatis"); timerJump(ai); setTimeout(() => setTimerNotice(null), 2500); } }
+      if (ai > eq) { const key = `q:${ai}`; if (jumpRef.current !== key) { jumpRef.current = key; setTimerNotice("⏱ Waktu soal habis — lanjut otomatis"); timerJump(ai); setTimeout(() => setTimerNotice(null), 2500); } }
     }
   }, [timerSt, eq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
-    if (dimExpiredNow()) { setTimerNotice("⏳ Waktu bagian ini habis — tidak bisa dijawab lagi"); setTimeout(() => setTimerNotice(null), 2500); return; }
+    if (dimExpiredNow()) { setTimerNotice("⏱ Bagian ini terkunci waktu — tidak bisa dijawab"); setTimeout(() => setTimerNotice(null), 2500); return; }
     setRevealed(true);
     markAnswered(question.id);
     void client.discover.submitText({ sessionId: engine!.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
@@ -777,7 +777,24 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 shadow-sm">Percobaan #{attemptNo}</span>
           <span className="rounded-xl bg-amber-50 px-3 py-2 font-manrope text-xs font-bold text-amber-600 shadow-sm">+{nSec * 10 + effQs.length} XP</span>
           <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-500 shadow-sm">💾 auto-simpan</span>
+          <span className="rounded-xl bg-sky-50 px-3 py-2 font-manrope text-xs font-bold text-sky-700 shadow-sm">
+            {timerSt?.scope === "dimension"
+              ? `⏱ ${Number(timerSt?.dims?.[0]?.durationSeconds ?? 0)} detik / bagian`
+              : timerSt?.scope === "question"
+                ? `⏱ ${Math.round(Number(timerSt?.qPerMs ?? 0) / 1000)} detik / soal`
+                : "⏱ Tanpa batas waktu"}
+          </span>
         </div>
+        {timerSt?.scope && timerSt.scope !== "none" && (
+          <div className="mt-4 w-full max-w-sm rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-left">
+            <p className="font-manrope text-[11px] font-bold text-sky-800">Aturan waktu</p>
+            <ul className="mt-1 space-y-0.5 font-manrope text-[11px] text-sky-700">
+              <li>• Waktu berjalan di server — keluar/jeda tetap berjalan, lanjut kapan saja posisi tersimpan.</li>
+              <li>• Warna: biru normal · <b className="text-amber-600">kuning ≤20%</b> · <b className="text-red-600">merah ≤10%</b>.</li>
+              <li>• Waktu habis → jawaban tersimpan, bagian terkunci & lanjut otomatis.</li>
+            </ul>
+          </div>
+        )}
         <button onClick={() => { setIntro(false); }} className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]">
           Mulai Tes →
         </button>
