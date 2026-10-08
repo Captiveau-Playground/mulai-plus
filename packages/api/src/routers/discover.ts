@@ -162,7 +162,7 @@ export const discoverRouter = {
         : await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
       const c = (v.configJson ?? {}) as any;
-      let serverTimer: Record<string, unknown> | undefined;
+      const buildTimer = async (): Promise<Record<string, unknown> | undefined> => {
       if (c?.timer_enabled === true) {
         const scope = c?.timer_scope ?? "none";
         const now = Date.now();
@@ -196,7 +196,7 @@ export const discoverRouter = {
         const qPerMs = perQ * 1000;
         const totalSeconds = scope === "dimension" ? dims.reduce((a, d) => a + d.durationSeconds, 0) : scope === "question" ? qsR.length * perQ : 0;
         const expectedEndISO = new Date(now + (totalSeconds > 0 ? totalSeconds * 1000 : 0)).toISOString();
-        serverTimer = {
+        return {
           scope,
           totalSeconds,
           serverNowISO: new Date(now).toISOString(),
@@ -206,6 +206,9 @@ export const discoverRouter = {
           qPerMs,
         };
       }
+      return undefined;
+      };
+      const serverTimer = await buildTimer();
       // RESUME: pakai lagi sesi in_progress terbaru user utk versi ini (refresh/remount tidak bikin sesi dobel;
       // jawaban yg sudah diketik tetap tersimpan di sesi yg sama)
       const existingSess = await db.query.assessmentSessions.findFirst({
@@ -213,7 +216,18 @@ export const discoverRouter = {
         orderBy: (t: any) => [desc(t.startedAt)],
       });
       if (existingSess) {
-        return { ok: true, sessionId: existingSess.id, versionId: v.id, serverTimer: ((existingSess as any).configJson as any)?.timer ?? null, resume: true } as const;
+        let t = ((existingSess as any).configJson as any)?.timer ?? null;
+        if (!t && c?.timer_enabled === true) {
+          // Sesi lama (dibuat sebelum timer aktif) → lampirkan deadline dari SEKARANG (server-authoritative)
+          t = await buildTimer();
+          if (t) {
+            await db
+              .update(schema.assessmentSessions)
+              .set({ configJson: { ...(((existingSess as any).configJson ?? {}) as any), timer: t } })
+              .where(eq(schema.assessmentSessions.id, existingSess.id));
+          }
+        }
+        return { ok: true, sessionId: existingSess.id, versionId: v.id, serverTimer: t, resume: true } as const;
       }
       // Snapshot urutan soal utk sesi ini (konsep ujian: nomor stabil, resume di posisi benar)
       const orderQs = await db.query.questions.findMany({

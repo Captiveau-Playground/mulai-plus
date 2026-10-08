@@ -419,7 +419,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     const sync = async () => {
       try {
         const r = (await (client as any).discover.timerState({ sessionId: engine!.sessionId })) as any;
-        if (alive && r?.ok) setTimerSt(r);
+        if (alive && r?.ok) setTimerSt({ ...r, _localAt: Date.now() });
       } catch { /* offline: biarkan state terakhir */ }
     };
     void sync();
@@ -877,17 +877,17 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const progressPct = liveTotal > 0 ? (liveProgress / liveTotal) * 100 : 0;
 
   // ⏱ Countdown dari deadline SERVER (offset clock) + tone visual (Duolingo-style 20%/10%)
-  const _off = timerSt?.serverNow ? Date.now() - Number(timerSt.serverNow) : 0;
+  const _nowServer = timerSt?.serverNow ? Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now())) : Date.now();
   let _remainMs: number | null = null;
   let _ratio = 1;
   if (timerSt?.ok && timerSt.scope && timerSt.scope !== "none") {
     if (timerSt.scope === "dimension") {
       const d = (timerSt.dims ?? []).find((x: any) => !x.expired);
-      _remainMs = d ? new Date(d.endISO).getTime() - (Date.now() - _off) : 0;
+      _remainMs = d ? new Date(d.endISO).getTime() - _nowServer : 0;
       _ratio = d?.durationSeconds ? Math.max(0, _remainMs) / (Number(d.durationSeconds) * 1000) : 0;
     } else if (timerSt.scope === "question") {
       const endIso = (timerSt.qEnds ?? [])[eq];
-      _remainMs = endIso ? new Date(endIso).getTime() - (Date.now() - _off) : null;
+      _remainMs = endIso ? new Date(endIso).getTime() - _nowServer : null;
       _ratio = _remainMs != null ? Math.max(0, _remainMs) / (Number(timerSt.qPerMs) || 30000) : 1;
     }
   }
@@ -1035,7 +1035,6 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                 </span>
               )}
               <StreakFlame days={streak} showDots={false} showLabel={false} />
-              <span className="font-semibold text-gray-400">{liveProgress}/{liveTotal}</span>
             </span>
           </div>
         </div>

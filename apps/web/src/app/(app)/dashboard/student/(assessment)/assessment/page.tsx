@@ -50,7 +50,7 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate font-bold font-bricolage text-sm text-gray-900">{test.name}</h3>
+            <h3 className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">{test.name}</h3>
             <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 font-bold font-manrope text-[9px] text-amber-600">{meta.xp}</span>
           </div>
           <p className="mt-0.5 line-clamp-2 font-manrope text-[11px] text-gray-500 leading-snug">{meta.desc}</p>
@@ -115,31 +115,31 @@ function EngineProgressCard({ attempts = [] }: { attempts?: any[] }) {
   // Logika sederhana: test selesai → arahkan ke test satunya; keduanya → rekomendasi; belum ada → mulai
   if (!last) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5">
         <div>
-          <p className="truncate font-bold font-bricolage text-sm text-gray-900">Mulai dari Tes Minat 🧠</p>
+          <p className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">Mulai dari Tes Minat 🧠</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Mulai Tes Minat →</Link>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Mulai Minat →</Link>
       </div>
     );
   }
   if (minatDone && !bakatDone) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-brand-orange/25 bg-brand-orange/5 px-3.5 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-brand-orange/25 bg-brand-orange/5 px-3.5 py-2.5">
         <div>
-          <p className="truncate font-bold font-bricolage text-sm text-gray-900">Tes Minat ✓ — lanjutkan Tes Bakat yuk!</p>
+          <p className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">Tes Minat ✓ — lanjutkan Tes Bakat yuk!</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/TALENT" onClick={() => window.location.assign("/dashboard/student/assessment/take/TALENT")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Lanjutkan Tes Bakat →</Link>
+        <Link href="/dashboard/student/assessment/take/TALENT" onClick={() => window.location.assign("/dashboard/student/assessment/take/TALENT")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Tes Bakat →</Link>
       </div>
     );
   }
   if (!minatDone && bakatDone) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-brand-orange/25 bg-brand-orange/5 px-3.5 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-brand-orange/25 bg-brand-orange/5 px-3.5 py-2.5">
         <div>
-          <p className="truncate font-bold font-bricolage text-sm text-gray-900">Tes Bakat ✓ — lanjutkan Tes Minat yuk!</p>
+          <p className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">Tes Bakat ✓ — lanjutkan Tes Minat yuk!</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Lanjutkan Tes Minat →</Link>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Tes Minat →</Link>
       </div>
     );
   }
