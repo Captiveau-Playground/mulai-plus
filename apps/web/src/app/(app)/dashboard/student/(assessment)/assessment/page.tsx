@@ -117,9 +117,9 @@ function EngineProgressCard({ attempts = [] }: { attempts?: any[] }) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5">
         <div>
-          <p className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">Mulai dari Tes Minat 🧠</p>
+          <p className="min-w-0 flex-1 truncate font-bold font-bricolage text-sm text-gray-900">Mulai Tes Minat 🧠</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Mulai Minat →</Link>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Mulai →</Link>
       </div>
     );
   }
@@ -127,9 +127,9 @@ function EngineProgressCard({ attempts = [] }: { attempts?: any[] }) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-brand-orange/25 bg-brand-orange/5 px-3.5 py-2.5">
         <div>
-          <p className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">Tes Minat ✓ — lanjutkan Tes Bakat yuk!</p>
+          <p className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">Minat selesai ✓</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/TALENT" onClick={() => window.location.assign("/dashboard/student/assessment/take/TALENT")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Tes Bakat →</Link>
+        <Link href="/dashboard/student/assessment/take/TALENT" onClick={() => window.location.assign("/dashboard/student/assessment/take/TALENT")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Bakat →</Link>
       </div>
     );
   }
@@ -137,9 +137,9 @@ function EngineProgressCard({ attempts = [] }: { attempts?: any[] }) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-brand-orange/25 bg-brand-orange/5 px-3.5 py-2.5">
         <div>
-          <p className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">Tes Bakat ✓ — lanjutkan Tes Minat yuk!</p>
+          <p className="min-w-0 flex-1 font-bold font-bricolage text-sm text-gray-900">Bakat selesai ✓</p>
         </div>
-        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Tes Minat →</Link>
+        <Link href="/dashboard/student/assessment/take/DISCOVER" onClick={() => window.location.assign("/dashboard/student/assessment/take/DISCOVER")} className="shrink-0 rounded-lg bg-brand-navy px-3 py-1.5 font-manrope text-[11px] font-bold text-white hover:brightness-110">Minat →</Link>
       </div>
     );
   }
