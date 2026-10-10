@@ -251,7 +251,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setEtv(sv?.text ?? "");
     setLastEval(null);
     setSavedFlash(false);
-    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null, _math: q.hasMathNotation === true, _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true) } as unknown as Question);
+    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null, _math: q.hasMathNotation === true, _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true), _optLabels: (q.opts ?? []).map((x: any) => x.label ?? "") } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
     setEq(i);
@@ -348,7 +348,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setRevealed(true);
     // huruf/teks → id opsi ASLI (q.opts[i].id) — submit butuh optionId valid
     const oList = optsRef.current ?? [];
-    const idx = ["A", "B", "C", "D"].indexOf(option);
+    const idx = ["A", "B", "C", "D", "E", "F"].indexOf(option);
     const optId = idx >= 0 ? oList[idx]?.id : oList.find((o: any) => o.id === option)?.id;
     if (!optId) { console.warn("[engine] opsi tanpa id:", option, oList); return; }
     void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: optId } as any)
@@ -631,11 +631,14 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       const keySeq = ["a", "b", "c", "d"];
       const idx = keySeq.indexOf(letter) !== -1 ? keySeq.indexOf(letter) : ["1", "2", "3", "4"].indexOf(e.key);
       if (idx === -1) return;
-      const opts = isInterest
-        ? [liveQ.optionA, liveQ.optionB]
-        : [liveQ.optionA, liveQ.optionB, liveQ.optionC, liveQ.optionD];
+      const likeQ = isEngine && ((liveQ as any).questionType === "likert" || ((liveQ as any)._optLabels?.length ?? 0) > 4);
+      const opts = likeQ
+        ? Array.from({ length: Math.min(5, (liveQ as any)._optLabels?.length ?? 5) }, (_, j) => (liveQ as any)[`option${"ABCDE"[j]}`])
+        : isInterest
+          ? [liveQ.optionA, liveQ.optionB]
+          : [liveQ.optionA, liveQ.optionB, liveQ.optionC, liveQ.optionD];
       if (idx >= opts.filter(Boolean).length) return;
-      const optKey = isInterest ? ["A", "B"][idx] : ["A", "B", "C", "D"][idx];
+      const optKey = likeQ ? "ABCDE"[idx]! : isInterest ? ["A", "B"][idx]! : ["A", "B", "C", "D"][idx]!;
       if (!revealed) handleSelect(optKey);
     };
     const onEnter = (e: KeyboardEvent) => {
@@ -1223,6 +1226,27 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
               </button>
             </div>
             <p className="mt-2 font-manrope text-[10px] text-gray-400">Gunakan titik (.) utk desimal — Enter untuk mengirim.</p>
+          </div>
+        ) : (effQs[eq] as any)?.questionType === "likert" ? (
+          <div className="grid grid-cols-5 gap-2">
+            {((liveQuestion as any)._optLabels ?? []).slice(0, 5).map((lab: string, i: number) => {
+              const key = "ABCDE"[i]!;
+              const isSel = selected === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => engineSelect(key)}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 rounded-2xl border-2 bg-white py-4 shadow-sm transition-all active:scale-[0.98]",
+                    isSel ? "border-mentor-teal bg-mentor-teal/5 shadow-md" : "border-gray-200 hover:border-gray-300",
+                  )}
+                >
+                  <span className={cn("font-bold", /^\d+$/.test(String(lab)) ? "font-bricolage text-2xl text-gray-900" : "text-3xl")}>{lab}</span>
+                  <span className="font-manrope text-[10px] text-gray-400">{i + 1}</span>
+                </button>
+              );
+            })}
           </div>
         ) : isInterest ? (
           <>

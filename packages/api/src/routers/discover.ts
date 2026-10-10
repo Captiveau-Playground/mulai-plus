@@ -1018,7 +1018,7 @@ export const discoverAdminRouter = {
             scaleId: z.string().optional().nullable(),
             questionText: z.string().min(1),
             presentationMode: z.string().optional().nullable(),
-            questionType: z.enum(["multiple_choice", "text_input"]).default("multiple_choice"),
+            questionType: z.enum(["multiple_choice", "text_input", "likert"]).default("multiple_choice"),
             hasMathNotation: z.boolean().default(false),
             mediaUrl: z.string().optional().nullable(),
             mediaCaption: z.string().optional().nullable(),

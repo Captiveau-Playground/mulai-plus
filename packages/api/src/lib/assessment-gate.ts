@@ -55,6 +55,7 @@ export async function validatePublish(versionId: string): Promise<{ ok: boolean;
     if (q.questionType === "multiple_choice" && o.length < 2) { errors.push(`Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`); details.push({ kind: "question", id: q.id, message: `Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).` }); }
     if (q.questionType !== "text_input")
       for (const oo of o) if (!oo.label && !oo.imageUrl && !oo.icon) errors.push(`Opsi pada soal ${q.questionCode ?? q.id} harus punya teks atau gambar/ikon.`);
+      if (q.questionType === "likert" && o.length < 2) errors.push(`Skala Likert pada soal ${q.questionCode ?? q.id} butuh minimal 2 titik skala.`);
     const key = `${q.dimensionId}:${q.displayOrder}`;
     if (orderSeen.has(key)) { errors.push(`Soal "${q.questionCode ?? q.id}" punya nomor urut sama dgn soal lain dalam dimensi — rapikan urutan pakai tombol ↑↓ / drag.`); details.push({ kind: "question", id: q.id, message: `Nomor urut soal "${q.questionCode ?? q.id}" bertabrakan dengan soal lain — rapikan urutan.` }); }
     orderSeen.add(key);

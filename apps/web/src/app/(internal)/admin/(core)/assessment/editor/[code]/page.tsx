@@ -809,7 +809,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
     !form.questionText.trim() ? "Teks soal wajib diisi"
     : dims0.length === 0 ? "Belum ada dimensi — tambahkan di 'Aturan tes'."
     : !form.dimensionId ? "Pilih dimensi untuk soal ini."
-    : form.questionType === "multiple_choice" && form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).length < 2 ? "Pilih ganda butuh minimal 2 opsi (teks/gambar)."
+    : form.questionType !== "text_input" && form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).length < 2 ? "Butuh minimal 2 opsi/skala."
     : "";
   const [formErr, setFormErr] = useState<string[]>([]);
   const save = async () => {
@@ -821,7 +821,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
         id: form.id, dimensionId: form.dimensionId, scaleId: form.scaleId ?? null, questionText: form.questionText,
         questionType: form.questionType, hasMathNotation: !!form.hasMathNotation, mediaUrl: form.mediaUrl || null, mediaCaption: form.mediaCaption || null, presentationMode: form.presentationMode ?? "standard_option_card",
         weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
-        options: form.questionType === "multiple_choice" ? form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, imageUrl: o.imageUrl ?? null, icon: o.icon ?? null, targetDimension: form.dimensionId, displayOrder: i })) : [],
+        options: form.questionType !== "text_input" ? form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, imageUrl: o.imageUrl ?? null, icon: o.icon ?? null, targetDimension: form.dimensionId, displayOrder: i })) : [],
         textEval: form.questionType === "text_input" && form.textEval.answerKey ? form.textEval : null,
       });
     } catch (e: any) {
@@ -892,11 +892,13 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
             </label>
             <label className="block font-manrope text-xs font-semibold text-foreground">Jenis jawaban
               <select className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm" value={form.questionType} onChange={(e) => patch("questionType", e.target.value)}>
-                <option value="multiple_choice">Pilihan ganda</option><option value="text_input">Mengetik jawaban</option>
+                <option value="multiple_choice">Pilihan ganda</option>
+                <option value="likert">Skala Likert 1–5 (kuisioner)</option>
+                <option value="text_input">Mengetik jawaban</option>
               </select>
             </label>
           </div>
-          {form.questionType === "multiple_choice" ? (
+          {form.questionType !== "text_input" ? (
             <div className="space-y-2">
               <p className="font-manrope text-[10px] font-bold tracking-wide text-orange-600 uppercase">🖼️ Gambar JAWABAN — per pilihan (A/B/C/D), terpisah dr gambar soal</p>
               <p className="font-manrope text-xs font-semibold text-foreground">{rules.scoring_mode === "likert" ? `Skala Likert ${rules.likert_min ?? 1}–${rules.likert_max ?? 5} — poin naik linier per pilihan` : form.presentationMode === "standard_option_card" ? "Pilihan teks — pilihan yang dipilih mendapat poin untuk dimensinya, sisanya 0" : "Pilihan teks + gambar — pilihan yang dipilih mendapat poin untuk dimensinya, sisanya 0"}</p>
@@ -923,6 +925,13 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
                   ))}
                 </div>
               ))}
+              {form.questionType === "likert" && (
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => { const lv = [1,2,3,4,5].map((v, i) => ({ optionValue: "ABCDEF"[i], label: String(v), score: v, imageUrl: null, icon: null })); patch("options", lv); }} className="rounded-lg border border-dashed border-brand-navy/30 bg-brand-navy/5 px-3 py-2 font-manrope text-[11px] font-semibold text-brand-navy hover:bg-brand-navy/10">🔢 Skala angka 1–5 (bobot = angka)</button>
+                  <button type="button" onClick={() => { const emo = ["😡","🙁","😐","🙂","😍"]; const lv = emo.map((e, i) => ({ optionValue: "ABCDEF"[i], label: e, score: i + 1, imageUrl: null, icon: e })); patch("options", lv); }} className="rounded-lg border border-dashed border-brand-orange/40 bg-brand-orange/5 px-3 py-2 font-manrope text-[11px] font-semibold text-brand-orange hover:bg-brand-orange/10">😍 Skala emoticon (bobot 1–5)</button>
+                  <span className="self-center font-manrope text-[10px] text-gray-400">label = tampilan, bobot = nilai skala</span>
+                </div>
+              )}
               {rules.scoring_mode === "likert" && (
                 <button type="button" onClick={() => { const mn = Number(rules.likert_min ?? 1); const mx = Number(rules.likert_max ?? 5); const lv: any[] = []; for (let v = mn; v <= mx; v++) lv.push({ optionValue: "ABCDEF"[lv.length], label: String(v), score: v - mn + 1, imageUrl: null, icon: null }); patch("options", lv); }} className="w-full rounded-lg border border-dashed border-brand-orange/40 bg-brand-orange/5 px-3 py-2 font-manrope text-[11px] font-semibold text-brand-orange hover:bg-brand-orange/10">⚖ Isi otomatis skala Likert {rules.likert_min ?? 1}–{rules.likert_max ?? 5} (poin naik linier)</button>
               )}
@@ -951,7 +960,16 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
           ) : (
             <p className="mt-2 rounded-lg border border-dashed border-gray-200 px-3 py-2 text-center font-manrope text-[10px] text-gray-400">Gambar soal belum dipasang — klik “📁 Galeri gambar soal” lalu pilih / unggah.</p>
           )}
-          {form.questionType === "multiple_choice" ? (
+          {form.questionType === "likert" ? (
+            <div className="mt-2 grid grid-cols-5 gap-1.5">
+              {form.options.slice(0, 5).map((o: any, i: number) => (
+                <div key={i} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white py-3">
+                  <span className={/^\d+$/.test(String(o.label || "")) ? "font-bold font-bricolage text-lg text-gray-900" : "text-xl"}>{o.label || i + 1}</span>
+                  <span className="font-manrope text-[9px] text-gray-400">{o.score} pt</span>
+                </div>
+              ))}
+            </div>
+          ) : form.questionType === "multiple_choice" ? (
             <div className={`mt-2 ${form.presentationMode === "visual_comparison" ? "grid grid-cols-2 gap-2" : "space-y-1.5"}`}>
               {form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).map((o: any, i: number) => (
                 <div key={i} className={`flex items-center gap-2 rounded-lg border p-2.5 ${i === 0 ? "border-teal-500/60 bg-teal-500/5" : "border-gray-200 bg-white"}`}>

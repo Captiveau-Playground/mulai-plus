@@ -18,7 +18,7 @@ export const assessmentVersionStatusEnum = pgEnum("assessment_version_status", [
 
 export const assessmentContentTypeEnum = pgEnum("assessment_content_type", ["description", "bullet_list", "cards"]);
 
-export const assessmentQuestionTypeEnum = pgEnum("assessment_question_type", ["multiple_choice", "text_input"]);
+export const assessmentQuestionTypeEnum = pgEnum("assessment_question_type", ["multiple_choice", "text_input", "likert"]);
 
 export const assessmentPresentationModeEnum = pgEnum("assessment_presentation_mode", [
   "standard_option_card",
