@@ -251,7 +251,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setEtv(sv?.text ?? "");
     setLastEval(null);
     setSavedFlash(false);
-    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null, _math: q.hasMathNotation === true, _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true), _optLabels: (q.opts ?? []).map((x: any) => x.label ?? "") } as unknown as Question);
+    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null, _math: q.hasMathNotation === true, _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true), _optLabels: (q.opts ?? []).map((x: any) => x.label ?? ""), _optCaps: (q.opts ?? []).map((x: any) => x.imageCaption ?? "") } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
     setEq(i);
@@ -1243,7 +1243,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
                   )}
                 >
                   <span className={cn("font-bold", /^\d+$/.test(String(lab)) ? "font-bricolage text-2xl text-gray-900" : "text-3xl")}>{lab}</span>
-                  <span className="font-manrope text-[10px] text-gray-400">{i + 1}</span>
+                  {((liveQuestion as any)._optCaps?.[i] ?? "") && (
+                    <span className="px-1 text-center font-manrope text-[9px] text-gray-400 leading-tight">{(liveQuestion as any)._optCaps[i]}</span>
+                  )}
                 </button>
               );
             })}

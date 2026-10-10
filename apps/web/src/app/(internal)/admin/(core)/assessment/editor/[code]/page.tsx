@@ -798,7 +798,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
     id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", scaleId: q?.scaleId ?? null, questionText: q?.questionText ?? "",
     questionType: q?.questionType ?? "multiple_choice", weight: q?.weight ?? 1,
     hasMathNotation: q?.hasMathNotation ?? false, mediaUrl: q?.mediaUrl ?? "", mediaCaption: q?.mediaCaption ?? "", presentationMode: q?.presentationMode ?? "standard_option_card",
-    options: (q?.opts?.length ?? 0) > 0 ? q.opts.map((o: any) => ({ id: o.id, optionValue: o.optionValue, label: o.label, score: o.score, imageUrl: o.imageUrl ?? null, icon: o.icon ?? null })) : [{ optionValue: "A", label: "", score: 1, icon: null }, { optionValue: "B", label: "", score: 0, icon: null }],
+    options: (q?.opts?.length ?? 0) > 0 ? q.opts.map((o: any) => ({ id: o.id, optionValue: o.optionValue, label: o.label, score: o.score, imageUrl: o.imageUrl ?? null, imageCaption: o.imageCaption ?? null, icon: o.icon ?? null })) : [{ optionValue: "A", label: "", score: 1, icon: null }, { optionValue: "B", label: "", score: 0, icon: null }],
     textEval: { evaluationType: "numeric_tolerance", answerKey: "", numericTolerance: "0.01" },
   });
   const [busy, setBusy] = useState(false);
@@ -821,7 +821,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
         id: form.id, dimensionId: form.dimensionId, scaleId: form.scaleId ?? null, questionText: form.questionText,
         questionType: form.questionType, hasMathNotation: !!form.hasMathNotation, mediaUrl: form.mediaUrl || null, mediaCaption: form.mediaCaption || null, presentationMode: form.presentationMode ?? "standard_option_card",
         weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
-        options: form.questionType !== "text_input" ? form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, imageUrl: o.imageUrl ?? null, icon: o.icon ?? null, targetDimension: form.dimensionId, displayOrder: i })) : [],
+        options: form.questionType !== "text_input" ? form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, imageUrl: o.imageUrl ?? null, imageCaption: o.imageCaption ?? null, icon: o.icon ?? null, targetDimension: form.dimensionId, displayOrder: i })) : [],
         textEval: form.questionType === "text_input" && form.textEval.answerKey ? form.textEval : null,
       });
     } catch (e: any) {
@@ -910,7 +910,11 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
                       <input value={o.icon ?? ""} onChange={(e) => patchOpt(i, "icon", e.target.value)} placeholder="😀" title="Emoji / ikon utk opsi ini" className="w-12 rounded-lg border border-gray-200 px-1 py-1 text-center font-manrope text-sm" />
                     )}
                     <Input className="flex-1" placeholder={`Pilihan ${["A", "B", "C", "D", "E", "F"][i]} (kosongkan bila hanya gambar)`} value={o.label} onChange={(e) => patchOpt(i, "label", e.target.value)} />
-                    <Input type="number" className="w-16" title="Bobot (mode Bobot bebas)" value={o.score} onChange={(e) => patchOpt(i, "score", Number(e.target.value))} />
+                    {form.questionType === "likert" ? (
+                      <Input className="w-40" placeholder="Label skala (cth: Sangat suka)" value={o.imageCaption ?? ""} onChange={(e) => patchOpt(i, "imageCaption", e.target.value)} />
+                    ) : (
+                      <Input type="number" className="w-16" title="Bobot (mode Bobot bebas)" value={o.score} onChange={(e) => patchOpt(i, "score", Number(e.target.value))} />
+                    )}
                     {form.options.length > 2 && <button onClick={() => patch("options", form.options.filter((_: any, x: number) => x !== i))} className="text-red-400"><Trash2 className="h-4 w-4" /></button>}
                   </div>
                   {(o.imageUrl || true) && (o.imageUrl ? (
@@ -927,9 +931,9 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
               ))}
               {form.questionType === "likert" && (
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => { const lv = [1,2,3,4,5].map((v, i) => ({ optionValue: "ABCDEF"[i], label: String(v), score: v, imageUrl: null, icon: null })); patch("options", lv); }} className="rounded-lg border border-dashed border-brand-navy/30 bg-brand-navy/5 px-3 py-2 font-manrope text-[11px] font-semibold text-brand-navy hover:bg-brand-navy/10">🔢 Skala angka 1–5 (bobot = angka)</button>
-                  <button type="button" onClick={() => { const emo = ["😡","🙁","😐","🙂","😍"]; const lv = emo.map((e, i) => ({ optionValue: "ABCDEF"[i], label: e, score: i + 1, imageUrl: null, icon: e })); patch("options", lv); }} className="rounded-lg border border-dashed border-brand-orange/40 bg-brand-orange/5 px-3 py-2 font-manrope text-[11px] font-semibold text-brand-orange hover:bg-brand-orange/10">😍 Skala emoticon (bobot 1–5)</button>
-                  <span className="self-center font-manrope text-[10px] text-gray-400">label = tampilan, bobot = nilai skala</span>
+                  <button type="button" onClick={() => { const cap = ["Sangat tidak suka","Tidak suka","Netral","Suka","Sangat suka"]; const lv = [1,2,3,4,5].map((v, i) => ({ optionValue: "ABCDEF"[i], label: String(v), imageCaption: cap[i], score: v, imageUrl: null, icon: null })); patch("options", lv); }} className="rounded-lg border border-dashed border-brand-navy/30 bg-brand-navy/5 px-3 py-2 font-manrope text-[11px] font-semibold text-brand-navy hover:bg-brand-navy/10">🔢 Skala angka 1–5 + label</button>
+                  <button type="button" onClick={() => { const cap = ["Sangat tidak suka","Tidak suka","Netral","Suka","Sangat suka"]; const emo = ["😡","🙁","😐","🙂","😍"]; const lv = emo.map((e, i) => ({ optionValue: "ABCDEF"[i], label: e, imageCaption: cap[i], score: i + 1, imageUrl: null, icon: e })); patch("options", lv); }} className="rounded-lg border border-dashed border-brand-orange/40 bg-brand-orange/5 px-3 py-2 font-manrope text-[11px] font-semibold text-brand-orange hover:bg-brand-orange/10">😍 Skala emoticon + label</button>
+                  <span className="self-center font-manrope text-[10px] text-gray-400">label bawah = tampilan; bobot tersembunyi</span>
                 </div>
               )}
               {rules.scoring_mode === "likert" && (
@@ -965,7 +969,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
               {form.options.slice(0, 5).map((o: any, i: number) => (
                 <div key={i} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white py-3">
                   <span className={/^\d+$/.test(String(o.label || "")) ? "font-bold font-bricolage text-lg text-gray-900" : "text-xl"}>{o.label || i + 1}</span>
-                  <span className="font-manrope text-[9px] text-gray-400">{o.score} pt</span>
+                  {o.imageCaption && <span className="mt-0.5 px-0.5 text-center font-manrope text-[8px] text-gray-400 leading-tight">{o.imageCaption}</span>}
                 </div>
               ))}
             </div>

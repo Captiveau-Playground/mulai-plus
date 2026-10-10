@@ -1034,6 +1034,7 @@ export const discoverAdminRouter = {
                   score: z.number().optional().default(0),
                   targetDimension: z.string().optional().nullable(),
                   imageUrl: z.string().optional().nullable(),
+                  imageCaption: z.string().optional().nullable(),
                   icon: z.string().optional().nullable(),
                   displayOrder: z.number().optional().default(0),
                 }),
@@ -1112,6 +1113,7 @@ export const discoverAdminRouter = {
             label: o.label ?? "",
             score: o.score,
             imageUrl: o.imageUrl ?? null,
+            imageCaption: o.imageCaption ?? null,
             icon: o.icon ?? null,
             displayOrder: o.displayOrder,
           });
