@@ -3,6 +3,13 @@
 // Bila env kosong → suite di-skip (agar tidak memblok CI tanpa kredensial).
 import { expect, test, type Page } from "@playwright/test";
 
+const API = "http://localhost:3000/rpc";
+async function rpc(path: string, input: unknown) {
+  const r = await fetch(`${API}/${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ json: input }) });
+  const t = await r.text();
+  try { const j = JSON.parse(t); return j?.json ?? j; } catch { return { http: r.status }; }
+}
+
 const EMAIL = process.env.E2E_ADMIN_EMAIL ?? "";
 const PASS = process.env.E2E_ADMIN_PASSWORD ?? "";
 test.skip(!EMAIL || !PASS, "Butuh E2E_ADMIN_EMAIL & E2E_ADMIN_PASSWORD (jalankan e2e/setup-admin.mts)");
@@ -63,5 +70,51 @@ test.describe("Admin — Assessment editor v2 (timer & instruksi)", () => {
 
     // Instruksi per dimensi tampil (Pengantar & Instruksi)
     await expect(page.getByText(/Pengantar &/i).first()).toBeVisible({ timeout: 15000 });
+
+    // ——— 3 STRATEGI TIMER ———
+    // (a) dropdown scope punya 3 opsi
+    const scopeSel = page.locator("select").filter({ hasText: /Per bagian|Per soal|Tanpa batas/ }).first();
+    if (await scopeSel.count()) {
+      const opts = await scopeSel.locator("option").allInnerTexts();
+      console.log("[debug:admin] scope timer options =", opts.join(" | "));
+      // (b) pilih Per soal → input default detik per soal tampil
+      await scopeSel.selectOption({ label: "Per soal" });
+      await page.waitForTimeout(1200);
+      const perQ = await page.getByText(/Detik per soal/i).count();
+      console.log("[debug:admin] label 'Detik per soal' =", perQ);
+      expect(perQ).toBeGreaterThan(0);
+      // simpan aturan (scope question) ke draft agar bisa diverifikasi via API
+      const saveRules = page.getByRole("button", { name: /Simpan aturan/i }).first();
+      if (await saveRules.count()) { await saveRules.click(); await page.waitForTimeout(2000); }
+      // (c) buka modal soal pertama → input durasi PER SOAL (custom per item) tampil
+      const qRow = page.locator("button").filter({ hasText: /bobot/i }).first();
+      if (await qRow.count()) {
+        await qRow.click({ force: true });
+        await page.waitForTimeout(1500);
+        const perItem = await page.getByText(/Detik soal ini/i).count();
+        console.log("[debug:admin] label 'Detik soal ini (per item)' =", perItem);
+        expect(perItem).toBeGreaterThan(0);
+        await page.keyboard.press("Escape");
+        await page.waitForTimeout(500);
+      }
+      // (d) VERIFIKASI API: draft version dengan scope question → qEnds per soal terisi
+      const draft = await page.evaluate(async () => {
+        const r = await fetch("http://localhost:3000/rpc/discoverAdmin/versions/list", { method: "POST", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ json: { code: "TALENT" } }) });
+        const j = await r.json();
+        const items = j?.json?.items ?? j?.items ?? [];
+        return (items.find((v: any) => v.status === "draft") ?? items[0])?.id ?? null;
+      });
+      if (draft) {
+        const st = await rpc("discover/start", { code: "TALENT", studentId: `e2e-timer-${Date.now()}`, versionId: draft });
+        const ts = await rpc("discover/timerState", { sessionId: st.sessionId });
+        console.log("[debug:admin] timerState(draft) scope =", ts?.scope, "qEnds =", (ts?.qEnds ?? []).length);
+        if (ts?.scope === "question") expect((ts?.qEnds ?? []).length).toBeGreaterThan(0);
+      }
+      // balikkan ke Per bagian + simpan (agar draft staging kembali seperti semula)
+      await scopeSel.selectOption({ label: "Per bagian (dimensi)" }).catch(() => {});
+      await page.waitForTimeout(600);
+      const saveBack = page.getByRole("button", { name: /Simpan aturan/i }).first();
+      if (await saveBack.count()) { await saveBack.click(); await page.waitForTimeout(1500); }
+    }
   });
 });

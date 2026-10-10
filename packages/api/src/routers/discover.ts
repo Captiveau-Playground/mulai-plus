@@ -175,7 +175,7 @@ export const discoverRouter = {
         });
         const qsR = await db.query.questions.findMany({
           where: and(eq(schema.questions.versionId, v.id), eq(schema.questions.isActive, true)),
-          columns: { id: true },
+          columns: { id: true, durationSeconds: true },
           orderBy: asc(schema.questions.displayOrder),
         });
         const perQ = Number(c?.time_per_question ?? 30);
@@ -190,11 +190,16 @@ export const discoverRouter = {
         }
         const qEnds: string[] = [];
         if (scope === "question") {
+          // Durasi PER SOAL (custom); fallback ke time_per_question/30s bila kosong
           let qc = now;
-          for (const _q of qsR) { qc += perQ * 1000; qEnds.push(new Date(qc).toISOString()); }
+          for (const qq of qsR) { const secs = Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ; qc += secs * 1000; qEnds.push(new Date(qc).toISOString()); }
         }
         const qPerMs = perQ * 1000;
-        const totalSeconds = scope === "dimension" ? dims.reduce((a, d) => a + d.durationSeconds, 0) : scope === "question" ? qsR.length * perQ : 0;
+        const totalSeconds = scope === "dimension"
+          ? dims.reduce((a, d) => a + d.durationSeconds, 0)
+          : scope === "question"
+            ? qsR.reduce((a, qq) => a + (Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ), 0)
+            : 0;
         const expectedEndISO = new Date(now + (totalSeconds > 0 ? totalSeconds * 1000 : 0)).toISOString();
         return {
           scope,
@@ -261,13 +266,21 @@ export const discoverRouter = {
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
-      // ANTI-TAMPER: tolak submit bila dimensi aktif (scope dimension) sudah lewat deadline server
+      // ANTI-TAMPER: tolak submit bila deadline (dimensi ATAU soal) sudah lewat di server
       const timerS = ((sess.configJson as any)?.timer ?? null) as any;
       if (timerS && timerS.scope === "dimension" && (timerS.dims ?? []).length) {
         const qFor = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId), columns: { id: true, dimensionId: true } });
         const dEnd = (timerS.dims as any[]).find((d: any) => d.id === qFor?.dimensionId)?.endISO;
         if (dEnd && Date.now() >= new Date(dEnd).getTime()) {
           return { ok: false, error: "dimension_timed_out" } as const;
+        }
+      }
+      if (timerS && timerS.scope === "question" && (timerS.qEnds ?? []).length) {
+        const order: string[] = (timerS.questionOrderIds ?? (sess.configJson as any)?.questionOrderIds ?? []) as string[];
+        const qi = order.indexOf(input.questionId);
+        const qEnd = qi >= 0 ? (timerS.qEnds as string[])[qi] : undefined;
+        if (qEnd && Date.now() >= new Date(qEnd).getTime()) {
+          return { ok: false, error: "question_timed_out" } as const;
         }
       }
       const opt = await db.query.questionOptions.findFirst({
@@ -1023,6 +1036,7 @@ export const discoverAdminRouter = {
             mediaUrl: z.string().optional().nullable(),
             mediaCaption: z.string().optional().nullable(),
             weight: z.number().optional().default(1),
+            durationSeconds: z.number().int().min(0).max(3600).optional().nullable(),
             displayOrder: z.number().optional().default(0),
             isActive: z.boolean().optional().default(true),
             options: z
@@ -1081,6 +1095,7 @@ export const discoverAdminRouter = {
             mediaUrl: q.mediaUrl ?? null,
             mediaCaption: q.mediaCaption ?? null,
             weight: q.weight,
+            durationSeconds: q.durationSeconds ?? null,
             displayOrder: q.displayOrder,
             isActive: q.isActive,
           });
@@ -1097,6 +1112,7 @@ export const discoverAdminRouter = {
               mediaUrl: q.mediaUrl ?? null,
               mediaCaption: q.mediaCaption ?? null,
               weight: q.weight,
+              durationSeconds: q.durationSeconds ?? null,
               displayOrder: q.displayOrder,
               isActive: q.isActive,
             })

@@ -169,6 +169,7 @@ export const questions = pgTable(
     questionType: assessmentQuestionTypeEnum("question_type").notNull().default("multiple_choice"),
     presentationMode: assessmentPresentationModeEnum("presentation_mode").notNull().default("standard_option_card"),
     weight: integer("weight").notNull().default(1),
+    durationSeconds: integer("duration_seconds"), // timer per SOAL (scope question) — null = pakai default
     displayOrder: integer("display_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at").defaultNow().notNull(),

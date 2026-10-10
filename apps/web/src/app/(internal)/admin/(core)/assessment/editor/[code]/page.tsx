@@ -434,7 +434,7 @@ export default function AssessmentDetailPage() {
                   {canEdit && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-gray-300" />}
                   <div className="min-w-0">
                     <p className="truncate font-manrope text-sm font-medium text-gray-800"><span className="mr-2 text-xs text-gray-400">{i + 1}.</span>{q.questionText}</p>
-                    <p className="font-manrope text-[11px] text-muted-foreground">{dim?.name ?? "—"} · {q.questionType === "text_input" ? `Isian (${tc?.evaluationType ?? "?"})` : `${opts.length} pilihan`} · bobot {q.weight ?? 1} {q.hasMathNotation ? "· LaTeX" : ""}</p>
+                    <p className="font-manrope text-[11px] text-muted-foreground">{(q as any).durationSeconds ? `⏱ ${(q as any).durationSeconds}s · ` : ""}{dim?.name ?? "—"} · {q.questionType === "text_input" ? `Isian (${tc?.evaluationType ?? "?"})` : `${opts.length} pilihan`} · bobot {q.weight ?? 1} {q.hasMathNotation ? "· LaTeX" : ""}</p>
                   </div>
                 </div>
                 {canEdit && (
@@ -797,7 +797,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
   const [form, setForm] = useState<any>({
     id: q?.id, dimensionId: q?.dimensionId ?? content.dimensions[0]?.id ?? "", scaleId: q?.scaleId ?? null, questionText: q?.questionText ?? "",
     questionType: q?.questionType ?? "multiple_choice", weight: q?.weight ?? 1,
-    hasMathNotation: q?.hasMathNotation ?? false, mediaUrl: q?.mediaUrl ?? "", mediaCaption: q?.mediaCaption ?? "", presentationMode: q?.presentationMode ?? "standard_option_card",
+    hasMathNotation: q?.hasMathNotation ?? false, mediaUrl: q?.mediaUrl ?? "", mediaCaption: q?.mediaCaption ?? "", presentationMode: q?.presentationMode ?? "standard_option_card", durationSeconds: q?.durationSeconds ?? 0,
     options: (q?.opts?.length ?? 0) > 0 ? q.opts.map((o: any) => ({ id: o.id, optionValue: o.optionValue, label: o.label, score: o.score, imageUrl: o.imageUrl ?? null, imageCaption: o.imageCaption ?? null, icon: o.icon ?? null })) : [{ optionValue: "A", label: "", score: 1, icon: null }, { optionValue: "B", label: "", score: 0, icon: null }],
     textEval: { evaluationType: "numeric_tolerance", answerKey: "", numericTolerance: "0.01" },
   });
@@ -819,7 +819,7 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
     try {
       await onDone({
         id: form.id, dimensionId: form.dimensionId, scaleId: form.scaleId ?? null, questionText: form.questionText,
-        questionType: form.questionType, hasMathNotation: !!form.hasMathNotation, mediaUrl: form.mediaUrl || null, mediaCaption: form.mediaCaption || null, presentationMode: form.presentationMode ?? "standard_option_card",
+        questionType: form.questionType, hasMathNotation: !!form.hasMathNotation, mediaUrl: form.mediaUrl || null, mediaCaption: form.mediaCaption || null, presentationMode: form.presentationMode ?? "standard_option_card", durationSeconds: Number(form.durationSeconds) > 0 ? Number(form.durationSeconds) : null,
         weight: Number(form.weight) || 1, displayOrder: q?.displayOrder ?? 0, isActive: true,
         options: form.questionType !== "text_input" ? form.options.filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon).map((o: any, i: number) => ({ id: o.id, optionValue: o.optionValue || "ABCDEF"[i], label: o.label, score: o.score, imageUrl: o.imageUrl ?? null, imageCaption: o.imageCaption ?? null, icon: o.icon ?? null, targetDimension: form.dimensionId, displayOrder: i })) : [],
         textEval: form.questionType === "text_input" && form.textEval.answerKey ? form.textEval : null,
@@ -872,6 +872,12 @@ function QuestionPanel({ q, versionId, content, rules, onDone, onClose, openPick
             </select>
             <span className="mt-1 block font-manrope text-[10px] text-muted-foreground">{form.presentationMode === "standard_option_card" ? "Opsi berupa teks saja." : "Opsi berisi teks + gambar (upload aset dari galeri)."}</span>
           </label>
+          {rules?.timer_scope === "question" && (
+            <label className="block font-manrope text-xs font-semibold text-foreground">Detik soal ini (timer per soal)
+              <Input type="number" className="mt-1" value={form.durationSeconds ?? 0} onChange={(e) => patch("durationSeconds", Number(e.target.value))} placeholder="cth: 10" />
+              <span className="mt-0.5 block font-manrope text-[10px] font-normal text-muted-foreground">Kosongkan/0 = pakai default. Tiap soal bisa beda (10s, 20s, …).</span>
+            </label>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <label className="block font-manrope text-xs font-semibold text-foreground">Bobot soal (utk metode Bobot)
               <Input type="number" className="mt-1" value={form.weight ?? 1} onChange={(e) => patch("weight", Number(e.target.value))} />

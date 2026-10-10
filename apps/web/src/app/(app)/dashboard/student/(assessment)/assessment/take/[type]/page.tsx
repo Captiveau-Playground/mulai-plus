@@ -343,7 +343,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const nextUn = (from: number) => { const a = answeredRef.current; for (let j = from; j < effQs.length; j++) if (!(a?.has(effQs[j]?.id))) return j; return effQs.length; };
   const engineSelect = (option: string) => {
     if (revealed || !question) return;
-    if (dimExpiredNow()) { setTimerNotice("⏱ Bagian ini terkunci waktu — tidak bisa dijawab"); setTimeout(() => setTimerNotice(null), 2500); return; }
+    if (dimExpiredNow() || questionExpiredNow()) { setTimerNotice("⏱ Waktu habis — tidak bisa dijawab"); setTimeout(() => setTimerNotice(null), 2500); return; }
     setSelected(option);
     setRevealed(true);
     // huruf/teks → id opsi ASLI (q.opts[i].id) — submit butuh optionId valid
@@ -378,6 +378,11 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     const cur = effQs[eq]?.dimensionId;
     return !!(timerSt.dims ?? []).find((d: any) => d.id === cur)?.expired;
   };
+  const questionExpiredNow = () => {
+    if (timerSt?.scope !== "question") return false;
+    const endIso = (timerSt.qEnds ?? [])[eq];
+    return !!endIso && (Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now()))) >= new Date(endIso).getTime();
+  };
   const timerJump = (target: number) => {
     if (target < 0 || target >= effQs.length) { void engineFinish(); return; }
     setSelected(null); setRevealed(false); setEtv(""); setLastEval?.(null as any);
@@ -403,7 +408,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
-    if (dimExpiredNow()) { setTimerNotice("⏱ Bagian ini terkunci waktu — tidak bisa dijawab"); setTimeout(() => setTimerNotice(null), 2500); return; }
+    if (dimExpiredNow() || questionExpiredNow()) { setTimerNotice("⏱ Waktu habis — tidak bisa dijawab"); setTimeout(() => setTimerNotice(null), 2500); return; }
     setRevealed(true);
     markAnswered(question.id);
     void client.discover.submitText({ sessionId: engine!.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
