@@ -16,7 +16,7 @@ import { nanoidish } from "./lib-id";
 
 const id = () => nanoidish();
 
-const DIMS = [
+export const DIMS = [
   { code: "R", name: "Realistic", short: "R", desc: "Senang bekerja dengan alat, benda, dan kegiatan praktis." },
   { code: "I", name: "Investigative", short: "I", desc: "Senang menganalisis, meneliti, dan memecahkan masalah." },
   { code: "A", name: "Artistic", short: "A", desc: "Senang berkreasi, berimajinasi, dan mengekspresikan ide." },
@@ -26,7 +26,7 @@ const DIMS = [
 ] as const;
 
 /** Skala jawaban: emoji sebagai wajah + caption sebagai teks pendamping. */
-const LIKERT = [
+export const LIKERT = [
   { emoji: "😡", caption: "Sangat tidak suka" },
   { emoji: "🙁", caption: "Tidak suka" },
   { emoji: "😐", caption: "Netral" },
@@ -35,7 +35,7 @@ const LIKERT = [
 ];
 
 /** Bank aitem: kode → teks (verbatim dari dokumen bank item). */
-const ITEMS: Record<string, [string, string][]> = {
+export const ITEMS: Record<string, [string, string][]> = {
   R: [
     ["R1", "Memperbaiki peralatan atau perabotan yang rusak di rumah."],
     ["R2", "Merakit barang, perangkat elektronik, atau benda lainnya dari berbagai komponen."],
