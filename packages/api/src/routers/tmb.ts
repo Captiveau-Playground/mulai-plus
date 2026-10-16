@@ -345,7 +345,9 @@ export function computeRecommendations(
 
   const studentHolland = holland.scores;
   // Normalisasi skor minat ke 0..1 (engine bisa kirim raw count) — cegah persen kecocokan nggak-realistis (mis. 333%)
-  const rawVals = Object.values(studentHolland ?? {}).map(Number).filter((v) => Number.isFinite(v));
+  const rawVals = Object.values(studentHolland ?? {})
+    .map(Number)
+    .filter((v) => Number.isFinite(v));
   const sumV = rawVals.length ? rawVals.reduce((a, b) => a + b, 0) : 1;
   const nH = (key: string) => (sumV > 0 ? (Number(studentHolland?.[key]) || 0) / sumV : 0);
   const results: {
@@ -1041,13 +1043,27 @@ export const tmbRouter = {
       if (!summary) {
         // Fallback TANPA AI — grounded di data (bukan cheerleader generik)
         const code = result?.hollandCode ?? "—";
-        const RIASEC: Record<string, string> = { R: "Realistic (praktis)", I: "Investigative (analitis)", A: "Artistic (kreatif)", S: "Social (sosial)", E: "Enterprising (meyakinkan)", C: "Conventional (terstruktur)" };
+        const RIASEC: Record<string, string> = {
+          R: "Realistic (praktis)",
+          I: "Investigative (analitis)",
+          A: "Artistic (kreatif)",
+          S: "Social (sosial)",
+          E: "Enterprising (meyakinkan)",
+          C: "Conventional (terstruktur)",
+        };
         const letters = code.split("").filter((x) => RIASEC[x]);
-        const dimsText = letters.length
-          ? [...new Set(letters)].map((x) => `${x} (${RIASEC[x]!})`).join(", ")
-          : "—";
-        const majors3 = recommendations.filter((r) => r.type === "major").slice(0, 3).map((r) => r.itemName).join(", ");
-        const diff = result?.differentiation === "strong" ? "selisih antar-minatmu cukup jelas" : result?.differentiation === "moderate" ? "selisih antar-minatmu sedang" : "selisih antar-minatmu masih kecil (profil belum terlalu menonjol)";
+        const dimsText = letters.length ? [...new Set(letters)].map((x) => `${x} (${RIASEC[x]!})`).join(", ") : "—";
+        const majors3 = recommendations
+          .filter((r) => r.type === "major")
+          .slice(0, 3)
+          .map((r) => r.itemName)
+          .join(", ");
+        const diff =
+          result?.differentiation === "strong"
+            ? "selisih antar-minatmu cukup jelas"
+            : result?.differentiation === "moderate"
+              ? "selisih antar-minatmu sedang"
+              : "selisih antar-minatmu masih kecil (profil belum terlalu menonjol)";
         summary =
           `Kode minat utamamu **${code}** (${dimsText}). ${diff}. ` +
           (majors3 ? `Berdasarkan pilihan minatmu, jurusan yang paling cocok saat ini: ${majors3}. ` : "") +
@@ -1536,40 +1552,141 @@ export const tmbAdminRouter = {
     }),
 
     exportRekap: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
-      const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
-      const rows: any[] = [];
-      for (const s of students) {
-        let holland = "";
-        let confidence = "";
-        let topMajors: string[] = [];
-        if (s.resultId) {
-          const resultId = s.resultId;
-          const [r, recos] = await Promise.all([
-            db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
-            db.query.tmbRecommendations.findMany({
-              where: eq(tmbRecommendations.resultId, resultId),
+      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, input.batchId) });
+      const students = await db.query.tmbBatchStudents.findMany({
+        where: eq(tmbBatchStudents.batchId, input.batchId),
+        orderBy: asc(tmbBatchStudents.name),
+      });
+      // Ambil hasil & rekomendasi sekali jalan (hindari N+1 saat satu kelas berisi puluhan siswa)
+      const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+      const [results, recos] = await Promise.all([
+        resultIds.length
+          ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+          : [],
+        resultIds.length
+          ? db.query.tmbRecommendations.findMany({
+              where: inArray(tmbRecommendations.resultId, resultIds),
               orderBy: asc(tmbRecommendations.rank),
-            }),
-          ]);
-          holland = r?.hollandCode ?? "";
-          confidence = r?.confidenceScore ?? "";
-          topMajors = recos
-            .filter((x) => x.type === "major")
-            .slice(0, 3)
-            .map((x) => x.itemName);
-        }
-        rows.push({
+            })
+          : [],
+      ]);
+      const rById = new Map(results.map((r) => [r.id, r]));
+      const recosBy = new Map<string, typeof recos>();
+      for (const rc of recos) {
+        const arr = recosBy.get(rc.resultId) ?? [];
+        arr.push(rc);
+        recosBy.set(rc.resultId, arr);
+      }
+
+      const rows = students.map((s) => {
+        const r = s.resultId ? rById.get(s.resultId) : undefined;
+        const ab: any = (r as any)?.abilityScores ?? null;
+        // kontrak baru: { levels, scores } · warisan: { verbal: {correct,total} }
+        const scores: Record<string, { correct?: number; total?: number }> = ab?.scores ?? ab ?? {};
+        const holland: Record<string, number> = ((r as any)?.hollandScores ?? {}) as any;
+        const dimStats: any[] = (((r as any)?.dimStats ?? []) as any[]) ?? [];
+        const dim = (k: string) => {
+          const v = scores[k];
+          return v && typeof v.total === "number" ? `${v.correct ?? 0}/${v.total}` : "";
+        };
+        const topMajors = (recosBy.get(r?.id ?? "") ?? [])
+          .filter((x) => x.type === "major")
+          .slice(0, 3)
+          .map((x) => x.itemName);
+        return {
           nama: s.name,
           email: s.email ?? "",
           nis: s.nis ?? "",
+          kelas: batch?.className ?? "",
+          jurusan: batch?.major ?? "",
           status: s.status,
-          hollandCode: holland,
-          confidence: confidence,
+          hollandCode: r?.hollandCode ?? "",
+          R: holland.R ?? "",
+          I: holland.I ?? "",
+          A: holland.A ?? "",
+          S: holland.S ?? "",
+          E: holland.E ?? "",
+          C: holland.C ?? "",
+          verbal: dim("verbal"),
+          numerical: dim("numerical"),
+          logical: dim("logical"),
+          spatial: dim("spatial"),
+          clerical: dim("clerical"),
+          confidence: r?.confidenceScore ?? "",
+          differentiation: r?.differentiation ?? "",
           topMajors: topMajors.join(", "),
-        });
-      }
-      return { rows };
+          selesai: r?.createdAt ? new Date(r.createdAt).toISOString().slice(0, 16).replace("T", " ") : "",
+          durasiDetik: dimStats.reduce((a, d) => a + (Number(d?.seconds) || 0), 0) || "",
+          jumlahTimeout: dimStats.filter((d) => d?.timedOut).length,
+        };
+      });
+      return {
+        rows,
+        batch: batch ? { name: batch.name, className: batch.className, major: batch.major } : null,
+      };
     }),
+
+    /**
+     * Perbaiki tautan hasil → roster (data lama) & status yang tidak konsisten.
+     *
+     * Dipakai untuk siswa yang sudah mengerjakan tes SEBELUM mengklaim undangan (sehingga
+     * tautan di `finish` tidak pernah terjadi), atau roster warisan berstatus "completed"
+     * padahal hasilnya belum tertaut. Hasil yang dipakai = hasil TERBARU siswa.
+     */
+    backfillRosterLinks: adminProcedure
+      .input(z.object({ batchId: z.string().optional() }).optional())
+      .handler(async ({ input }) => {
+        const rows = await db.query.tmbBatchStudents.findMany({
+          where: input?.batchId ? eq(tmbBatchStudents.batchId, input.batchId) : undefined,
+          orderBy: asc(tmbBatchStudents.createdAt),
+        });
+        const userIds = [...new Set(rows.map((r) => r.userId).filter(Boolean))] as string[];
+        const results = userIds.length
+          ? await db.query.tmbAssessmentResults.findMany({
+              where: inArray(tmbAssessmentResults.userId, userIds),
+              orderBy: desc(tmbAssessmentResults.createdAt),
+            })
+          : [];
+        const latest = new Map<string, string>();
+        for (const r of results) if (!latest.has(r.userId)) latest.set(r.userId, r.id);
+
+        let ditautkan = 0;
+        let direset = 0;
+        let sudahBenar = 0;
+        let tanpaAkun = 0;
+        for (const row of rows) {
+          if (!row.userId) {
+            tanpaAkun++;
+            continue;
+          }
+          const rid = latest.get(row.userId) ?? null;
+          if (rid) {
+            if (row.resultId === rid && row.status === "completed") {
+              sudahBenar++;
+              continue;
+            }
+            await db
+              .update(tmbBatchStudents)
+              .set({ resultId: rid, status: "completed" })
+              .where(eq(tmbBatchStudents.id, row.id));
+            ditautkan++;
+          } else if (row.status === "completed") {
+            // "completed" tanpa hasil sama sekali = data tidak konsisten → kembalikan ke undangan
+            await db.update(tmbBatchStudents).set({ status: "invited" }).where(eq(tmbBatchStudents.id, row.id));
+            direset++;
+          } else {
+            sudahBenar++;
+          }
+        }
+        return {
+          diperiksa: rows.length,
+          ditautkan,
+          direset,
+          sudahBenar,
+          tanpaAkun,
+          siswaDenganHasil: latest.size,
+        };
+      }),
   },
 
   // ─── Konten Test: soal, pola jurusan, mapping karier, catalog ───

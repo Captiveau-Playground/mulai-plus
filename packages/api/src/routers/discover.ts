@@ -1,5 +1,5 @@
 import { and, asc, db, desc, eq, inArray, schema } from "@mulai-plus/db/db";
-import { tmbAssessmentResults, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
+import { tmbAssessmentResults, tmbBatchStudents, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
 import {
   deleteFromR2,
   extractKeyFromUrl,
@@ -176,8 +176,7 @@ export const discoverRouter = {
           t.questionId,
           {
             evaluationType: t.evaluationType,
-            inputMode:
-              t.evaluationType === "numeric_tolerance" || isNumericKey(t.answerKey) ? "numeric" : "text",
+            inputMode: t.evaluationType === "numeric_tolerance" || isNumericKey(t.answerKey) ? "numeric" : "text",
           },
         ]),
       );
@@ -223,6 +222,13 @@ export const discoverRouter = {
         : await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
       const c = (v.configJson ?? {}) as any;
+
+      // B2B: siswa undangan yang mulai mengerjakan → status roster jadi "in_progress" (guru bisa pantau)
+      try {
+        await markRosterStarted(input.studentId);
+      } catch (e: any) {
+        console.error("[engine][b2b] gagal menandai roster mulai:", e?.message ?? e);
+      }
 
       // ── Urutan soal sesi ini ────────────────────────────────────────────────
       // randomize_q = true → urutan diacak SEKALI lalu disimpan di sesi (resume tetap sama).
@@ -684,6 +690,8 @@ export const discoverRouter = {
         recommendationsJson: recos,
       };
       await db.insert(schema.assessmentResults).values(result);
+      // B2B: id hasil pada pipeline lama — dipakai untuk menautkan hasil ke roster sekolah
+      let b2bResultId: string | null = null;
       // ⚙ Backwrite: hasil engine → pipeline hasil LAMA (kontrak tmb) agar page/template hasil yg ada tetap menampilkan
       try {
         const ver0 = await db.query.assessmentVersions.findFirst({
@@ -783,6 +791,7 @@ export const discoverRouter = {
               dimStats: dimStats as any,
             });
           }
+          b2bResultId = rid;
           // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
           // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)
           if (existingForAttempt) {
@@ -846,6 +855,15 @@ export const discoverRouter = {
       } catch (e: any) {
         // backwrite legacy gagal → jangan jatuhkan hasil engine, TAPI tampilkan biar bisa dilacak
         console.error("[engine][backwrite] gagal:", e?.message ?? e);
+      }
+      // ── B2B: tautkan hasil ke roster sekolah (kalau siswa ini peserta undangan) ──
+      if (b2bResultId) {
+        try {
+          const n = await linkRosterResult(sess.studentId, b2bResultId);
+          if (n > 0) console.log(`[engine][b2b] hasil ${b2bResultId} ditautkan ke ${n} baris roster sekolah`);
+        } catch (e: any) {
+          console.error("[engine][b2b] gagal menautkan hasil ke roster:", e?.message ?? e);
+        }
       }
       await db
         .update(schema.assessmentSessions)
@@ -1212,6 +1230,37 @@ function computeRunSections(
     return arr;
   }
   return qs.length ? [{ key: "all", title: "Satu Bagian", from: 0, to: qs.length - 1 }] : [];
+}
+
+/**
+ * B2B (sekolah): tandai peserta roster yang sudah mulai mengerjakan tes.
+ * Roster = `tmb_batch_students` (diisi admin sekolah / import CSV, lalu diklaim siswa).
+ * Aman dipanggil untuk id preview (`preview-…`) — query-nya tidak menemukan apa pun.
+ */
+async function markRosterStarted(userId: string) {
+  if (!userId || userId.startsWith("preview-")) return;
+  await db
+    .update(tmbBatchStudents)
+    .set({ status: "in_progress" })
+    .where(and(eq(tmbBatchStudents.userId, userId), eq(tmbBatchStudents.status, "invited")));
+}
+
+/**
+ * B2B (sekolah): tautkan hasil TERBARU ke roster sekolah milik siswa ini.
+ *
+ * Dulu tautan hanya ditulis engine lama (`tmb.assessment.finish`) yang tidak lagi dipakai
+ * Discover/Talent → rekap sekolah selalu kosong. Sekarang ditulis di engine baru, dan
+ * selalu menunjuk hasil terbaru (retake boleh berkali-kali).
+ */
+async function linkRosterResult(userId: string, resultId: string) {
+  if (!userId || userId.startsWith("preview-")) return 0;
+  const rows = await db.query.tmbBatchStudents.findMany({
+    where: eq(tmbBatchStudents.userId, userId),
+    columns: { id: true },
+  });
+  if (!rows.length) return 0;
+  await db.update(tmbBatchStudents).set({ resultId, status: "completed" }).where(eq(tmbBatchStudents.userId, userId));
+  return rows.length;
 }
 
 async function contentOfVersion(versionId: string) {
