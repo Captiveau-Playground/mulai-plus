@@ -372,8 +372,10 @@ function LegacyWizard({
       _mediaCap: q.mediaCaption ?? null,
       _math: q.hasMathNotation === true,
       _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true),
-      _optLabels: (q.opts ?? []).map((x: any) => x.label ?? ""),
-      _optCaps: (q.opts ?? []).map((x: any) => x.imageCaption ?? ""),
+      // Skala/emoji: ikon jadi label UTAMA, caption jadi teks kecil di bawah.
+      // (sebelumnya label = caption sehingga emoji tidak pernah tampil di halaman siswa)
+      _optLabels: (q.opts ?? []).map((x: any) => x.icon ?? x.label ?? ""),
+      _optCaps: (q.opts ?? []).map((x: any) => x.imageCaption ?? (x.icon ? (x.label ?? "") : "")),
     } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
