@@ -1095,6 +1095,15 @@ function shuffle<T>(arr: T[]): T[] {
   return out;
 }
 
+/** Skala emoji bawaan untuk soal bertipe `likert` (dipakai impor & fallback UI). */
+const DEFAULT_LIKERT = [
+  { emoji: "😡", caption: "Sangat tidak suka" },
+  { emoji: "🙁", caption: "Tidak suka" },
+  { emoji: "😐", caption: "Netral" },
+  { emoji: "🙂", caption: "Suka" },
+  { emoji: "😍", caption: "Sangat suka" },
+];
+
 function computeRunSections(
   cfg: any,
   qs: { id: string; dimensionId: string; displayOrder: number; isActive: boolean }[],
@@ -1304,6 +1313,24 @@ export const discoverAdminRouter = {
         const nd = uid();
         dimMap.set(d.id, nd);
         await db.insert(schema.assessmentDimensions).values({ ...d, id: nd, versionId: newVerId });
+      }
+      // copy pengantar (sections) — sebelumnya tidak ikut tersalin
+      const sections = await db.query.assessmentSections.findMany({
+        where: eq(schema.assessmentSections.versionId, live.id),
+      });
+      for (const sc of sections) {
+        await db.insert(schema.assessmentSections).values({ ...sc, id: uid(), versionId: newVerId });
+      }
+      // copy instruksi per dimensi (dimensi di-remap ke salinannya)
+      for (const d of dims) {
+        const newDimId = dimMap.get(d.id);
+        if (!newDimId) continue;
+        const ins = await db.query.dimensionInstructions.findMany({
+          where: eq(schema.dimensionInstructions.dimensionId, d.id),
+        });
+        for (const i of ins) {
+          await db.insert(schema.dimensionInstructions).values({ ...i, id: uid(), dimensionId: newDimId });
+        }
       }
       // copy questions + options
       const qs = await questionsOf(live.id);
@@ -1549,8 +1576,9 @@ export const discoverAdminRouter = {
               z.object({
                 text: z.string().min(1),
                 dimension: z.string().min(1), // kode atau nama dimensi
-                type: z.enum(["multiple_choice", "text_input"]).optional(),
+                type: z.enum(["multiple_choice", "text_input", "likert"]).optional(),
                 options: z.array(z.string()).max(6).optional(),
+                presentationMode: z.string().optional(),
                 key: z.string().optional(), // huruf kunci utk MC (A-F)
                 weight: z.number().optional(),
                 answerKey: z.string().optional(),
@@ -1575,14 +1603,13 @@ export const discoverAdminRouter = {
           const low = val.toLowerCase();
           const hit = byCode.get(low) ?? byName.get(low);
           if (hit) return { id: hit.id };
-          // auto-create dimensi baru
+          // auto-create dimensi baru.
+          // Kalau nilainya sudah "code-like" (mis. "verbal", "R", "D1") pakai APA ADANYA —
+          // kode dimensi adalah kontrak lintas modul (Pola Jurusan memakai abilityWeights
+          // dengan kunci lowercase), jadi jangan diubah jadi VERB/VERBA.
+          const compact = val.replace(/\s+/g, "");
           const codeBase =
-            (val.length === 1
-              ? val
-              : val
-                  .replace(/[^A-Za-z0-9]/g, "")
-                  .toUpperCase()
-                  .slice(0, 4)) || "DIM";
+            (/^[A-Za-z0-9_-]{1,12}$/.test(compact) ? compact : compact.toUpperCase().slice(0, 4)) || "DIM";
           let code = codeBase;
           let n = 2;
           while (byCode.has(code.toLowerCase())) {
@@ -1639,12 +1666,31 @@ export const discoverAdminRouter = {
             scaleId: typeR === "multiple_choice" ? scaleId : null,
             questionText: r.text,
             questionType: typeR as any,
-            presentationMode: "standard_option_card",
+            presentationMode: (r.presentationMode ?? "standard_option_card") as any,
             weight: r.weight ?? 1,
             displayOrder: order++,
             isActive: true,
           });
-          if (typeR === "multiple_choice") {
+          if (typeR === "likert") {
+            // Skala: kalau opsi diberikan → dipakai sebagai caption (label bawah), emoji dari
+            // skala bawaan; kalau tidak → skala emoji 5 titik penuh.
+            const given = (r.options ?? []).filter((o) => o.trim().length > 0);
+            const levels = given.length >= 2 ? given : DEFAULT_LIKERT.map((l) => l.caption);
+            for (const [oi, caption] of levels.entries()) {
+              const emoji = DEFAULT_LIKERT[oi]?.emoji ?? "•";
+              await db.insert(schema.questionOptions).values({
+                id: uid(),
+                questionId: qid,
+                optionValue: String.fromCharCode(65 + oi),
+                targetDimension: dim.id,
+                label: caption,
+                icon: emoji,
+                imageCaption: caption,
+                score: oi + 1,
+                displayOrder: oi,
+              });
+            }
+          } else if (typeR === "multiple_choice") {
             const opts = r.options?.filter((o) => o.trim().length > 0) ?? [];
             if (opts.length === 0) {
               fail.push(`Baris ${ri + 2}: tidak ada opsi utk soal "${r.text.slice(0, 40)}".`);
