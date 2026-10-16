@@ -17,11 +17,16 @@ import { runTag } from "../../../helpers/env";
 const PREFIX = "E2EB2B";
 const codes: string[] = [];
 const schoolIds: string[] = [];
+const studentIds: string[] = []; // siswa sintetis yang dibuat spec ini (untuk cleanup tertarget)
 let admin: Page;
 let fxMinat: { code: string; versionId: string };
 let fxBakat: { code: string; versionId: string };
 
-const sid = (tag: string) => `e2e-b2b-${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+const sid = (tag: string) => {
+  const id = `e2e-b2b-${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  studentIds.push(id);
+  return id;
+};
 const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 /** Assessment 1 dimensi + 1 soal PG. **Tidak** dirilis: gate hanya mengizinkan satu tes
@@ -122,11 +127,14 @@ test.beforeAll(async ({ browser }) => {
 test.afterAll(async () => {
   for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
   for (const c of codes) await deleteAssessmentByCode(c).catch(() => false);
-  // bersihkan hasil percobaan (hasil + rekomendasinya)
-  await q(
-    "delete from tmb_recommendations where result_id in (select id from tmb_assessment_results where user_id like 'e2e-b2b-%')",
-  ).catch(() => undefined);
-  await q("delete from tmb_assessment_results where user_id like 'e2e-b2b-%'").catch(() => undefined);
+  // bersihkan hasil percobaan — HANYA siswa yang dibuat spec ini (test paralel!)
+  if (studentIds.length) {
+    await q(
+      "delete from tmb_recommendations where result_id in (select id from tmb_assessment_results where user_id = any($1))",
+      [studentIds],
+    ).catch(() => undefined);
+    await q("delete from tmb_assessment_results where user_id = any($1)", [studentIds]).catch(() => undefined);
+  }
   await closeDb();
   await admin.context().close();
 });

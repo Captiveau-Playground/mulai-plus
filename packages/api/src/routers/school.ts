@@ -1,0 +1,344 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// B2B — Sekolah / institusi (M1)
+//
+// Alur: admin sekolah mendaftar (`school.register`) → status `pending` →
+// admin MULAI+ menyetujui (`schoolAdmin.approve`) → organisasi aktif, akun naik
+// jadi role `school_admin`, dan sekolah otomatis tersambung ke `tmb_schools`
+// supaya batch/roster yang sudah ada langsung terlihat oleh admin sekolah.
+//
+// Admin sekolah TIDAK menyentuh management test (bank soal/versi/aturan/publish);
+// dia hanya mengelola peserta + jadwal dan melihat hasil/insight sekolahnya.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { randomUUID } from "node:crypto";
+import { db, desc, eq, inArray } from "@mulai-plus/db/db";
+import { assessmentOrgMembers, assessmentOrgs } from "@mulai-plus/db/schema/assessment";
+import { user } from "@mulai-plus/db/schema/auth";
+import { tmbAssessmentResults, tmbBatches, tmbBatchStudents, tmbSchools } from "@mulai-plus/db/schema/tmb";
+import { notifyDiscord } from "@mulai-plus/notify/discord";
+import { z } from "zod";
+import { adminProcedure, protectedProcedure } from "../index";
+import { notFound, preconditionFailed } from "../lib/errors";
+
+/** Keanggotaan + organisasi milik user (fase ini: satu akun = satu organisasi). */
+export async function orgOfUser(userId: string) {
+  const member = await db.query.assessmentOrgMembers.findFirst({
+    where: eq(assessmentOrgMembers.userId, userId),
+  });
+  if (!member) return { member: null, org: null };
+  const org = await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.id, member.orgId) });
+  return { member, org: org ?? null };
+}
+
+/** Cari sekolah legacy dengan nama sama (biar tidak dobel saat approval). */
+async function findLegacySchoolByName(name: string) {
+  const rows = await db.query.tmbSchools.findMany({ columns: { id: true, name: true } });
+  const target = name.trim().toLowerCase();
+  return rows.find((r) => (r.name ?? "").trim().toLowerCase() === target) ?? null;
+}
+
+export const schoolRouter = {
+  /**
+   * Ajukan pendaftaran sekolah. Akun belum aktif sampai disetujui admin MULAI+.
+   * Satu akun hanya boleh mendaftar sekali (keanggotaan unik per user).
+   */
+  register: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().trim().min(3).max(120),
+        type: z.enum(["sekolah", "kampus", "bimbel", "korporat"]).default("sekolah"),
+        npsn: z.string().trim().max(24).optional().or(z.literal("")),
+        city: z.string().trim().max(60).optional().or(z.literal("")),
+        address: z.string().trim().max(200).optional().or(z.literal("")),
+        picName: z.string().trim().min(2).max(80),
+        picPosition: z.string().trim().max(60).optional().or(z.literal("")),
+        picPhone: z.string().trim().min(8).max(24),
+        picEmail: z.string().trim().email().optional().or(z.literal("")),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      const existing = await orgOfUser(userId);
+      if (existing.member) {
+        return {
+          ok: false as const,
+          error: "sudah_terdaftar" as const,
+          status: existing.member.status,
+          orgName: existing.org?.name ?? null,
+        };
+      }
+
+      const orgId = randomUUID();
+      await db.insert(assessmentOrgs).values({
+        id: orgId,
+        name: input.name,
+        type: input.type,
+        npsn: input.npsn || null,
+        city: input.city || null,
+        address: input.address || null,
+        picName: input.picName,
+        picPosition: input.picPosition || null,
+        picPhone: input.picPhone,
+        picEmail: input.picEmail || null,
+        status: "pending",
+      });
+      await db.insert(assessmentOrgMembers).values({
+        id: randomUUID(),
+        orgId,
+        userId,
+        role: "school_admin",
+        status: "pending",
+      });
+
+      const u = context.session.user;
+      notifyDiscord({
+        webhookUrl: (context.env as { DISCORD_WEBHOOK_URL?: string } | undefined)?.DISCORD_WEBHOOK_URL,
+        event: "school.registration",
+        title: "🏫 Pendaftaran sekolah baru (menunggu persetujuan)",
+        description: `${input.name} mendaftar sebagai mitra B2B. Setujui di Admin → Assessment → Sekolah.`,
+        fields: [
+          { name: "Sekolah", value: input.name, inline: true },
+          { name: "Kota", value: input.city || "-", inline: true },
+          { name: "NPSN", value: input.npsn || "-", inline: true },
+          { name: "PIC", value: `${input.picName}${input.picPosition ? ` (${input.picPosition})` : ""}`, inline: true },
+          { name: "Kontak", value: `${input.picPhone}${input.picEmail ? ` · ${input.picEmail}` : ""}`, inline: false },
+          { name: "Akun", value: `${u.name ?? "-"} · ${u.email ?? "-"}`, inline: false },
+        ],
+        throttleMs: 0,
+        waitUntil: context.executionCtx?.waitUntil,
+      });
+
+      return { ok: true as const, orgId, status: "pending" as const };
+    }),
+
+  /** Status keanggotaan user (dipakai halaman "menunggu persetujuan" / sekolah aktif). */
+  me: protectedProcedure.handler(async ({ context }) => {
+    const { member, org } = await orgOfUser(context.session.user.id);
+    if (!member || !org) return { ok: true as const, member: null, org: null };
+    return {
+      ok: true as const,
+      member: { role: member.role, status: member.status, joinedAt: member.createdAt },
+      org: {
+        id: org.id,
+        name: org.name,
+        type: org.type,
+        city: org.city,
+        status: org.status,
+        note: org.note,
+        schoolId: org.schoolId,
+        approvedAt: org.approvedAt,
+      },
+    };
+  }),
+
+  /**
+   * Ringkasan sekolah untuk admin sekolah: jumlah peserta, progres, sebaran Holland.
+   * Hanya bisa diakses anggota yang sudah AKTIF (dan organisasinya aktif).
+   */
+  overview: protectedProcedure.handler(async ({ context }) => {
+    const { member, org } = await orgOfUser(context.session.user.id);
+    if (!member || !org) return { ok: false as const, error: "belum_terdaftar" as const };
+    if (member.status !== "aktif" || org.status !== "aktif") {
+      return { ok: false as const, error: "belum_aktif" as const, status: org.status, memberStatus: member.status };
+    }
+
+    const batches = org.schoolId
+      ? await db.query.tmbBatches.findMany({
+          where: eq(tmbBatches.schoolId, org.schoolId),
+          orderBy: desc(tmbBatches.createdAt),
+        })
+      : [];
+    const batchIds = batches.map((b) => b.id);
+    const students = batchIds.length
+      ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.batchId, batchIds) })
+      : [];
+    const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+    const results = resultIds.length
+      ? await db.query.tmbAssessmentResults.findMany({
+          where: inArray(tmbAssessmentResults.id, resultIds),
+          columns: { id: true, hollandCode: true, createdAt: true },
+        })
+      : [];
+    const hollandOf = new Map(results.map((r) => [r.id, r.hollandCode ?? ""]));
+
+    const hollandDistribution: Record<string, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+    for (const s of students) {
+      const code = s.resultId ? hollandOf.get(s.resultId) : "";
+      const top = (code ?? "").slice(0, 1).toUpperCase();
+      if (top && top in hollandDistribution) hollandDistribution[top] = (hollandDistribution[top] ?? 0) + 1;
+    }
+
+    const selesai = students.filter((s) => s.status === "completed").length;
+    const mulai = students.filter((s) => s.status === "in_progress").length;
+
+    return {
+      ok: true as const,
+      org: { id: org.id, name: org.name, type: org.type, city: org.city, schoolId: org.schoolId ?? null },
+      member: { role: member.role, status: member.status },
+      totals: {
+        peserta: students.length,
+        selesai,
+        mulai,
+        belum: students.length - selesai - mulai,
+      },
+      batches: batches.map((b) => {
+        const rows = students.filter((s) => s.batchId === b.id);
+        return {
+          id: b.id,
+          name: b.name,
+          className: b.className,
+          major: b.major,
+          total: rows.length,
+          selesai: rows.filter((s) => s.status === "completed").length,
+        };
+      }),
+      hollandDistribution,
+    };
+  }),
+};
+
+export const schoolAdminRouter = {
+  /** Daftar pendaftaran sekolah per status (default: menunggu persetujuan). */
+  registrations: adminProcedure
+    .input(
+      z.object({ status: z.enum(["pending", "aktif", "ditolak", "nonaktif", "semua"]).default("pending") }).optional(),
+    )
+    .handler(async ({ input }) => {
+      const status = input?.status ?? "pending";
+      const orgs = await db.query.assessmentOrgs.findMany({
+        where: status === "semua" ? undefined : eq(assessmentOrgs.status, status),
+        orderBy: desc(assessmentOrgs.createdAt),
+      });
+      if (!orgs.length) return { items: [] as any[] };
+
+      const members = await db.query.assessmentOrgMembers.findMany({
+        where: inArray(
+          assessmentOrgMembers.orgId,
+          orgs.map((o) => o.id),
+        ),
+      });
+      const userIds = [...new Set(members.map((m) => m.userId))];
+      const users = userIds.length
+        ? await db.query.user.findMany({
+            where: inArray(user.id, userIds),
+            columns: { id: true, name: true, email: true, role: true },
+          })
+        : [];
+      const userById = new Map(users.map((u) => [u.id, u]));
+
+      return {
+        items: orgs.map((o) => {
+          const m = members.find((x) => x.orgId === o.id) ?? null;
+          return {
+            ...o,
+            member: m ? { id: m.id, role: m.role, status: m.status, userId: m.userId } : null,
+            user: m ? (userById.get(m.userId) ?? null) : null,
+          };
+        }),
+      };
+    }),
+
+  /**
+   * Setujui pendaftaran: organisasi + anggota jadi `aktif`, akun naik ke role
+   * `school_admin` (kecuali admin/program manager MULAI+), dan sekolah disambungkan
+   * ke `tmb_schools` (dibuatkan bila belum ada) supaya data batch/roster-nya terlihat.
+   */
+  approve: adminProcedure
+    .input(z.object({ orgId: z.string().min(1), note: z.string().trim().max(300).optional() }))
+    .handler(async ({ input, context }) => {
+      const org = await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.id, input.orgId) });
+      if (!org) notFound("Pendaftaran sekolah tidak ditemukan");
+      const member = await db.query.assessmentOrgMembers.findFirst({
+        where: eq(assessmentOrgMembers.orgId, org.id),
+      });
+      if (!member) preconditionFailed("Pendaftaran tidak punya anggota");
+
+      // 1) sambungkan ke sekolah legacy (pakai yang sudah ada kalau namanya sama)
+      let schoolId = org.schoolId;
+      let schoolCreated = false;
+      if (!schoolId) {
+        const found = await findLegacySchoolByName(org.name);
+        if (found) {
+          schoolId = found.id;
+        } else {
+          schoolId = randomUUID();
+          await db.insert(tmbSchools).values({
+            id: schoolId,
+            name: org.name,
+            city: org.city ?? null,
+            address: org.address ?? null,
+            email: org.picEmail ?? null,
+            phone: org.picPhone ?? null,
+            status: "aktif",
+            notes: `Dibuat otomatis dari pendaftaran B2B ${new Date().toISOString().slice(0, 10)}`,
+          });
+          schoolCreated = true;
+        }
+      }
+
+      // 2) aktifkan organisasi + anggota
+      await db
+        .update(assessmentOrgs)
+        .set({
+          status: "aktif",
+          schoolId,
+          note: input.note ?? null,
+          approvedBy: context.session.user.id,
+          approvedAt: new Date(),
+        })
+        .where(eq(assessmentOrgs.id, org.id));
+      await db.update(assessmentOrgMembers).set({ status: "aktif" }).where(eq(assessmentOrgMembers.id, member.id));
+
+      // 3) naikkan role akun (kecuali role platform MULAI+)
+      const target = await db.query.user.findFirst({
+        where: eq(user.id, member.userId),
+        columns: { id: true, role: true, name: true, email: true },
+      });
+      let roleChanged = false;
+      if (target && !["school_admin", "admin", "program_manager"].includes(target.role)) {
+        await db.update(user).set({ role: "school_admin" }).where(eq(user.id, target.id));
+        roleChanged = true;
+      }
+
+      notifyDiscord({
+        webhookUrl: (context.env as { DISCORD_WEBHOOK_URL?: string } | undefined)?.DISCORD_WEBHOOK_URL,
+        event: "school.approved",
+        title: "✅ Sekolah disetujui",
+        description: `${org.name} sekarang aktif sebagai mitra B2B.`,
+        fields: [
+          { name: "Sekolah", value: org.name, inline: true },
+          { name: "Akun", value: `${target?.name ?? "-"} · ${target?.email ?? "-"}`, inline: true },
+          { name: "Role dinaikkan", value: roleChanged ? "ya" : "tidak (sudah role lain)", inline: true },
+          { name: "Sekolah legacy", value: schoolCreated ? "dibuat baru" : `ditautkan (${schoolId})`, inline: false },
+        ],
+        throttleMs: 0,
+        waitUntil: context.executionCtx?.waitUntil,
+      });
+
+      return { ok: true as const, orgId: org.id, schoolId, schoolCreated, roleChanged };
+    }),
+
+  /** Tolak pendaftaran (akun tidak jadi admin sekolah; role tidak diubah). */
+  reject: adminProcedure
+    .input(z.object({ orgId: z.string().min(1), note: z.string().trim().max(300).optional() }))
+    .handler(async ({ input }) => {
+      const org = await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.id, input.orgId) });
+      if (!org) notFound("Pendaftaran sekolah tidak ditemukan");
+      await db
+        .update(assessmentOrgs)
+        .set({ status: "ditolak", note: input.note ?? null })
+        .where(eq(assessmentOrgs.id, org.id));
+      await db.update(assessmentOrgMembers).set({ status: "ditolak" }).where(eq(assessmentOrgMembers.orgId, org.id));
+      return { ok: true as const, orgId: org.id };
+    }),
+
+  /** Ubah status sekolah aktif/nonaktif (nonaktif = akses data sekolah ditutup). */
+  setStatus: adminProcedure
+    .input(z.object({ orgId: z.string().min(1), status: z.enum(["aktif", "nonaktif"]) }))
+    .handler(async ({ input }) => {
+      const org = await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.id, input.orgId) });
+      if (!org) notFound("Sekolah tidak ditemukan");
+      await db.update(assessmentOrgs).set({ status: input.status }).where(eq(assessmentOrgs.id, org.id));
+      return { ok: true as const, orgId: org.id, status: input.status };
+    }),
+};

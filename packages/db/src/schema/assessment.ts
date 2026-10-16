@@ -1,4 +1,16 @@
-import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/pg-core";
+import { user } from "./auth";
 
 /**
  * Assessment Engine — model generik (Fase 0).
@@ -18,7 +30,11 @@ export const assessmentVersionStatusEnum = pgEnum("assessment_version_status", [
 
 export const assessmentContentTypeEnum = pgEnum("assessment_content_type", ["description", "bullet_list", "cards"]);
 
-export const assessmentQuestionTypeEnum = pgEnum("assessment_question_type", ["multiple_choice", "text_input", "likert"]);
+export const assessmentQuestionTypeEnum = pgEnum("assessment_question_type", [
+  "multiple_choice",
+  "text_input",
+  "likert",
+]);
 
 export const assessmentPresentationModeEnum = pgEnum("assessment_presentation_mode", [
   "standard_option_card",
@@ -28,7 +44,11 @@ export const assessmentPresentationModeEnum = pgEnum("assessment_presentation_mo
   "visual_comparison",
 ]);
 
-export const assessmentMediaPositionEnum = pgEnum("assessment_media_position", ["above_text", "below_text", "side_by_side"]);
+export const assessmentMediaPositionEnum = pgEnum("assessment_media_position", [
+  "above_text",
+  "below_text",
+  "side_by_side",
+]);
 
 export const assessmentScoringMethodEnum = pgEnum("assessment_scoring_method", ["sum", "average", "weighted"]);
 
@@ -174,9 +194,7 @@ export const questions = pgTable(
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [
-    index("idx_questions_version_dim").on(table.versionId, table.dimensionId),
-  ],
+  (table) => [index("idx_questions_version_dim").on(table.versionId, table.dimensionId)],
 );
 
 export const questionOptions = pgTable("question_options", {
@@ -269,3 +287,75 @@ export const assessmentResults = pgTable("assessment_results", {
   recommendationsJson: jsonb("recommendations_json"),
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
 });
+
+// ─── B2B: Organisasi (sekolah/institusi) & anggotanya ──────────────────
+
+export const assessmentOrgStatusEnum = pgEnum("assessment_org_status", ["pending", "aktif", "ditolak", "nonaktif"]);
+export const assessmentOrgMemberRoleEnum = pgEnum("assessment_org_member_role", ["school_admin", "school_viewer"]);
+export const assessmentOrgMemberStatusEnum = pgEnum("assessment_org_member_status", ["pending", "aktif", "ditolak"]);
+
+/**
+ * Sekolah/institusi pemakai kanal B2B. Dibuat saat admin sekolah mendaftar
+ * (status `pending`), diaktifkan setelah disetujui admin MULAI+.
+ */
+export const assessmentOrgs = pgTable(
+  "assessment_orgs",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    type: text("type").default("sekolah").notNull(), // sekolah | kampus | bimbel | korporat
+    npsn: text("npsn"),
+    city: text("city"),
+    address: text("address"),
+    picName: text("pic_name"),
+    picPosition: text("pic_position"), // jabatan: staff BK, wakil kepala sekolah, dst.
+    picPhone: text("pic_phone"),
+    picEmail: text("pic_email"),
+    status: assessmentOrgStatusEnum("status").default("pending").notNull(),
+    /**
+     * Jembatan ke tabel sekolah legacy (`tmb_schools`) yang menampung batch/roster
+     * yang dipakai halaman admin saat ini. Diisi otomatis saat pendaftaran disetujui
+     * (dibuatkan bila belum ada) supaya admin sekolah langsung bisa melihat datanya.
+     */
+    schoolId: text("school_id"),
+    note: text("note"), // catatan saat disetujui / alasan ditolak
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (t) => [index("idx_assessment_orgs_status").on(t.status)],
+);
+
+/**
+ * Anggota organisasi (admin sekolah / guru BK).
+ * Satu akun hanya boleh terikat ke satu organisasi pada fase ini supaya
+ * "sekolah mana yang saya lihat" tidak ambigu (multi-sekolah = pengembangan lanjut).
+ */
+export const assessmentOrgMembers = pgTable(
+  "assessment_org_members",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => assessmentOrgs.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: assessmentOrgMemberRoleEnum("role").default("school_admin").notNull(),
+    status: assessmentOrgMemberStatusEnum("status").default("pending").notNull(),
+    invitedBy: text("invited_by"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("uq_assessment_org_members_user").on(t.userId),
+    index("idx_assessment_org_members_org").on(t.orgId),
+  ],
+);
