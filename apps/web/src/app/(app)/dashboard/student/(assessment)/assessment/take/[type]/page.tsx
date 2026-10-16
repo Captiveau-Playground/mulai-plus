@@ -5,17 +5,16 @@ import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, Flame, Home, Sparkles, Timer, X } from "lucide-react";
 import Image from "next/image";
-import { createPortal } from "react-dom";
-import { Latex } from "@/components/assessment/latex";
-import { StreakFlame } from "@/components/assessment/streak-flame";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { EngineRun } from "@/components/assessment/engine-run";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Latex } from "@/components/assessment/latex";
+import { StreakFlame } from "@/components/assessment/streak-flame";
 import { trackEvent } from "@/lib/analytics";
-import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 
 type Question = {
@@ -39,7 +38,9 @@ function fireConfetti() {
 export default function TmbTestPage() {
   const t = String(useParams().type ?? "");
   return (
-    <Suspense fallback={<div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light" />}>
+    <Suspense
+      fallback={<div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light" />}
+    >
       <TestRoute code={t} />
     </Suspense>
   );
@@ -54,12 +55,33 @@ function TestRoute({ code }: { code: string }) {
   const search = useSearchParams();
   const preview = search?.get("preview") === "1";
   const versionId = search?.get("v");
-  if (code === "DISCOVER" || code === "TALENT") return <EngineWrapper code={code} preview={preview} versionId={versionId} />;
+  // Preview admin: engine dipakai untuk SEMUA kode (termasuk tes kustom), supaya yang
+  // dilihat admin persis halaman tes siswa dengan konten versi yang dipilih.
+  if (preview || code === "DISCOVER" || code === "TALENT")
+    return <EngineWrapper code={code} preview={preview} versionId={versionId} />;
   return <LegacyWizard />;
 }
 
-function EngineWrapper({ code, preview = false, versionId = null }: { code: string; preview?: boolean; versionId?: string | null }) {
-  const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections: number; secData?: any[]; instr?: any[] } | null>(null);
+function EngineWrapper({
+  code,
+  preview = false,
+  versionId = null,
+}: {
+  code: string;
+  preview?: boolean;
+  versionId?: string | null;
+}) {
+  const [ready, setReady] = useState<{
+    sessionId: string;
+    questions: any[];
+    dims: any[];
+    otherCode: string;
+    otherLabel: string;
+    studentId: string;
+    sections: number;
+    secData?: any[];
+    instr?: any[];
+  } | null>(null);
   const [errg, setErrg] = useState("");
   const { data: authSession } = authClient.useSession();
   const startedRef = useRef(false);
@@ -73,23 +95,81 @@ function EngineWrapper({ code, preview = false, versionId = null }: { code: stri
     (async () => {
       try {
         const cfg = (await client.discover.config(versionId ? ({ versionId } as any) : ({ code } as any))) as any;
-        const st = (await client.discover.start({ code, studentId: sid, versionId: versionId ?? undefined } as any)) as any;
-        setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat", studentId: sid, sections: (cfg.runSections ?? []).length, secData: cfg.sections ?? [], instr: cfg.instructions ?? [] });
-      } catch (e: any) { setErrg(e?.message ?? "Gagal memuat tes"); }
+        const st = (await client.discover.start({
+          code,
+          studentId: sid,
+          versionId: versionId ?? undefined,
+        } as any)) as any;
+        setReady({
+          sessionId: st.sessionId,
+          questions: (cfg.questions ?? []).filter((q: any) => q.isActive),
+          dims: cfg.dimensions ?? [],
+          otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER",
+          otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat",
+          studentId: sid,
+          sections: (cfg.runSections ?? []).length,
+          secData: cfg.sections ?? [],
+          instr: cfg.instructions ?? [],
+        });
+      } catch (e: any) {
+        setErrg(e?.message ?? "Gagal memuat tes");
+      }
     })();
   }, [code, sid, versionId]);
-  if (errg) return <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light p-4"><p className="font-manrope text-sm text-red-500">{errg}</p></div>;
-  if (!ready) return <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
-  return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel, studentId: ready.studentId, sections: ready.sections, secData: ready.secData ?? [], instr: ready.instr ?? [] }} />;
+  if (errg)
+    return (
+      <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light p-4">
+        <p className="font-manrope text-red-500 text-sm">{errg}</p>
+      </div>
+    );
+  if (!ready)
+    return (
+      <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light">
+        <span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" />
+      </div>
+    );
+  return (
+    <LegacyWizard
+      engine={{
+        code,
+        sessionId: ready.sessionId,
+        questions: ready.questions,
+        dims: ready.dims,
+        otherCode: ready.otherCode,
+        otherLabel: ready.otherLabel,
+        studentId: ready.studentId,
+        sections: ready.sections,
+        secData: ready.secData ?? [],
+        instr: ready.instr ?? [],
+      }}
+    />
+  );
 }
 
-function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections?: number; secData?: any[]; instr?: any[] } }) {
+function LegacyWizard({
+  engine,
+}: {
+  engine?: {
+    code: string;
+    sessionId: string;
+    questions: any[];
+    dims: any[];
+    otherCode: string;
+    otherLabel: string;
+    studentId: string;
+    sections?: number;
+    secData?: any[];
+    instr?: any[];
+  };
+}) {
   const isEngine = !!engine;
   const engineQs = engine?.questions ?? [];
   const [orderIds, setOrderIds] = useState<string[] | null>(null); // urutan soal sesi (ujian) — stabil utk resume & grid
   const [answeredSet, setAnsweredSet] = useState<Set<string> | null>(null);
   const answeredRef = useRef<Set<string> | null>(null);
-  const effQs: any[] = orderIds ? orderIds.map((id) => engineQs.find((q: any) => q.id === id)).filter(Boolean) : engineQs;
+  const effQs: any[] = orderIds
+    ? orderIds.map((id) => engineQs.find((q: any) => q.id === id)).filter(Boolean)
+    : engineQs;
   const [eq, setEq] = useState(0);
   const [intro, setIntro] = useState<boolean | null>(isEngine ? null : false); // null = masih cek resume → jangan render intro dulu
   const introStarted = useRef(false);
@@ -125,7 +205,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         } else {
           setIntro(true);
         }
-      } catch { setIntro(true); }
+      } catch {
+        setIntro(true);
+      }
     })();
   }, [isEngine, engine?.sessionId]);
   const otherDoneQ = useQuery({
@@ -140,12 +222,17 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     queryFn: () => (client as any).discover.attempts({ studentId: engine!.studentId }),
   });
   const attempts: any[] = (attQ.data as any)?.attempts ?? [];
-  const attemptNo = attempts.length === 0 ? 1 : attempts[attempts.length - 1]?.complete ? attempts.length + 1 : attempts.length;
+  const attemptNo =
+    attempts.length === 0 ? 1 : attempts[attempts.length - 1]?.complete ? attempts.length + 1 : attempts.length;
   const params = useParams();
   const router = useRouter();
   const testCode = isEngine
-    ? (engine!.code === "DISCOVER" ? "interest" : "ability")
-    : (params.type as string) === "ability" ? "ability" : "interest";
+    ? engine!.code === "DISCOVER"
+      ? "interest"
+      : "ability"
+    : (params.type as string) === "ability"
+      ? "ability"
+      : "interest";
   const isInterest = testCode === "interest";
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -258,7 +345,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const optsRef = useRef<any[] | null>(null);
   const engineLoad = (i: number) => {
     const q = effQs[i];
-    if (!q) { void engineFinish(); return; }
+    if (!q) {
+      void engineFinish();
+      return;
+    }
     lastDimRef.current = q.dimensionId;
     optsRef.current = q.opts ?? [];
     // Per-SOAL: pulihkan jawaban yg sudah tersimpan utk soal ini (konsep ujian, beda soal beda jawaban)
@@ -268,13 +358,34 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     setEtv(sv?.text ?? "");
     setLastEval(null);
     setSavedFlash(false);
-    setQuestion({ id: q.id, text: q.questionText, dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal", optionA: q.opts?.[0]?.label, optionB: q.opts?.[1]?.label, optionC: q.opts?.[2]?.label, optionD: q.opts?.[3]?.label, _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null), _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null), _media: q.mediaUrl ?? null, _mediaCap: q.mediaCaption ?? null, _math: q.hasMathNotation === true, _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true), _optLabels: (q.opts ?? []).map((x: any) => x.label ?? ""), _optCaps: (q.opts ?? []).map((x: any) => x.imageCaption ?? "") } as unknown as Question);
+    setQuestion({
+      id: q.id,
+      text: q.questionText,
+      dimension: engine?.dims?.find((d: any) => d.id === q.dimensionId)?.name ?? engine?.code ?? "Soal",
+      optionA: q.opts?.[0]?.label,
+      optionB: q.opts?.[1]?.label,
+      optionC: q.opts?.[2]?.label,
+      optionD: q.opts?.[3]?.label,
+      _optImgs: (q.opts ?? []).map((x: any) => x.imageUrl ?? null),
+      _optIcons: (q.opts ?? []).map((x: any) => x.icon ?? null),
+      _media: q.mediaUrl ?? null,
+      _mediaCap: q.mediaCaption ?? null,
+      _math: q.hasMathNotation === true,
+      _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true),
+      _optLabels: (q.opts ?? []).map((x: any) => x.label ?? ""),
+      _optCaps: (q.opts ?? []).map((x: any) => x.imageCaption ?? ""),
+    } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
     setEq(i);
   };
   const engineFinish = async () => {
-    try { const r = (await client.discover.finish({ sessionId: engine!.sessionId } as any)) as any; setXpEarned(r?.xpEarned ?? 0); } catch { /* ok */ }
+    try {
+      const r = (await client.discover.finish({ sessionId: engine!.sessionId } as any)) as any;
+      setXpEarned(r?.xpEarned ?? 0);
+    } catch {
+      /* ok */
+    }
     setDone(true);
     blip(1318, 0.22);
     fireConfetti();
@@ -290,7 +401,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   // indeks dimensi (0-based) utk posisi soal eq: berapa dimensi berbeda sebelum eq
   const dimIdxOf = (eqI: number) => {
     const seen = new Set<string>();
-    for (let k = 0; k < eqI; k++) { const d = effQs[k]?.dimensionId; if (d) seen.add(d); }
+    for (let k = 0; k < eqI; k++) {
+      const d = effQs[k]?.dimensionId;
+      if (d) seen.add(d);
+    }
     return seen.size;
   };
   const totalDims = new Set(effQs.map((q: any) => q.dimensionId).filter(Boolean)).size || engine?.sections || 1;
@@ -300,8 +414,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     for (const q of effQs as any[]) {
       const nm = dimNameOf(q?.dimensionId);
       const last = out[out.length - 1];
-      if (last && last.name === nm) { last.count++; last.ids.push(q.id); }
-      else out.push({ name: nm, ids: [q.id], count: 1 });
+      if (last && last.name === nm) {
+        last.count++;
+        last.ids.push(q.id);
+      } else out.push({ name: nm, ids: [q.id], count: 1 });
     }
     return out;
   }, [effQs]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -313,18 +429,27 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
       if (!AC) return;
       const ctx = new AC();
-      const o = ctx.createOscillator(); const g = ctx.createGain();
-      o.type = "sine"; o.frequency.value = freq;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
       g.gain.setValueAtTime(0.0001, ctx.currentTime);
       g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-      o.connect(g); g.connect(ctx.destination);
-      o.start(); o.stop(ctx.currentTime + dur);
-    } catch { /* hening */ }
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + dur);
+    } catch {
+      /* hening */
+    }
   };
   const engineBegin = (i: number) => {
     const q = effQs[i];
-    if (!q) { void engineFinish(); return; }
+    if (!q) {
+      void engineFinish();
+      return;
+    }
     // Tampilkan opening dimensi saat mulai (termasuk RESUME di dimensi mana pun) & di tiap perpindahan dimensi
     if (lastDimRef.current !== q.dimensionId && (secStart || secOverlay || !lastDimRef.current)) {
       setSecStart({ eqIndex: i, name: dimNameOf(q.dimensionId) });
@@ -342,7 +467,11 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       setSecDone((c) => c + 1);
       setSecStreak((c) => c + 1);
       setXpFlash(10);
-      try { confetti({ particleCount: 60, spread: 70, origin: { y: 0.4 } }); } catch { /* ignore */ }
+      try {
+        confetti({ particleCount: 60, spread: 70, origin: { y: 0.4 } });
+      } catch {
+        /* ignore */
+      }
       setSecOverlay({ nextEq: i, doneName: dimName(cur.dimensionId), nextName: dimName(nxt.dimensionId) });
       setSecStart(null);
       blip(932, 0.16);
@@ -355,26 +484,45 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     }
   };
 
-  const markAnswered = (qid: string) => { answeredRef.current = new Set([...(answeredRef.current ?? []), qid]); setAnsweredSet((prev) => new Set([...(prev ?? []), qid])); };
+  const markAnswered = (qid: string) => {
+    answeredRef.current = new Set([...(answeredRef.current ?? []), qid]);
+    setAnsweredSet((prev) => new Set([...(prev ?? []), qid]));
+  };
   // Lanjut hanya ke soal yg BELUM dijawab (konsep ujian: jangan isi ulang yg sudah)
-  const nextUn = (from: number) => { const a = answeredRef.current; for (let j = from; j < effQs.length; j++) if (!(a?.has(effQs[j]?.id))) return j; return effQs.length; };
+  const nextUn = (from: number) => {
+    const a = answeredRef.current;
+    for (let j = from; j < effQs.length; j++) if (!a?.has(effQs[j]?.id)) return j;
+    return effQs.length;
+  };
   const engineSelect = (option: string) => {
     if (revealed || !question) return;
-    if (dimExpiredNow() || questionExpiredNow()) { setTimerNotice("⏱ Waktu habis — tidak bisa dijawab"); setTimeout(() => setTimerNotice(null), 2500); return; }
+    if (dimExpiredNow() || questionExpiredNow()) {
+      setTimerNotice("⏱ Waktu habis — tidak bisa dijawab");
+      setTimeout(() => setTimerNotice(null), 2500);
+      return;
+    }
     setSelected(option);
     setRevealed(true);
     // huruf/teks → id opsi ASLI (q.opts[i].id) — submit butuh optionId valid
     const oList = optsRef.current ?? [];
     const idx = ["A", "B", "C", "D", "E", "F"].indexOf(option);
     const optId = idx >= 0 ? oList[idx]?.id : oList.find((o: any) => o.id === option)?.id;
-    if (!optId) { console.warn("[engine] opsi tanpa id:", option, oList); return; }
-    void client.discover.submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: optId } as any)
-      .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submit ditolak", r); })
+    if (!optId) {
+      console.warn("[engine] opsi tanpa id:", option, oList);
+      return;
+    }
+    void client.discover
+      .submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: optId } as any)
+      .then((r: any) => {
+        if (r && r.ok === false) console.warn("[engine] submit ditolak", r);
+      })
       .catch((e: any) => console.error("[engine] submit gagal:", e?.message ?? e));
     markAnswered(question.id);
     setSavedFlash(true);
     blip(660, 0.09);
-    setTimeout(() => { setSavedFlash(false); }, 700);
+    setTimeout(() => {
+      setSavedFlash(false);
+    }, 700);
     setTimeout(() => engineNext(nextUn(eq + 1)), 500);
   };
 
@@ -398,11 +546,20 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const questionExpiredNow = () => {
     if (timerSt?.scope !== "question") return false;
     const endIso = (timerSt.qEnds ?? [])[eq];
-    return !!endIso && (Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now()))) >= new Date(endIso).getTime();
+    return (
+      !!endIso &&
+      Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now())) >= new Date(endIso).getTime()
+    );
   };
   const timerJump = (target: number) => {
-    if (target < 0 || target >= effQs.length) { void engineFinish(); return; }
-    setSelected(null); setRevealed(false); setEtv(""); setLastEval?.(null as any);
+    if (target < 0 || target >= effQs.length) {
+      void engineFinish();
+      return;
+    }
+    setSelected(null);
+    setRevealed(false);
+    setEtv("");
+    setLastEval?.(null as any);
     engineLoad(target);
   };
   useEffect(() => {
@@ -413,23 +570,50 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       if (cur && expired.has(cur)) {
         const target = effQs.findIndex((q: any) => !expired.has(q.dimensionId));
         const key = `dim:${target}`;
-        if (jumpRef.current !== key) { jumpRef.current = key; setTimerNotice("⏱ Waktu bagian habis — lanjut otomatis"); timerJump(target); setTimeout(() => setTimerNotice(null), 3000); }
+        if (jumpRef.current !== key) {
+          jumpRef.current = key;
+          setTimerNotice("⏱ Waktu bagian habis — lanjut otomatis");
+          timerJump(target);
+          setTimeout(() => setTimerNotice(null), 3000);
+        }
       }
     } else if (timerSt.scope === "question") {
       const ai = Number(timerSt.activeIndex ?? 0);
-      if (ai >= effQs.length) { void engineFinish(); return; }
-      if (ai > eq) { const key = `q:${ai}`; if (jumpRef.current !== key) { jumpRef.current = key; setTimerNotice("⏱ Waktu soal habis — lanjut otomatis"); timerJump(ai); setTimeout(() => setTimerNotice(null), 2500); } }
+      if (ai >= effQs.length) {
+        void engineFinish();
+        return;
+      }
+      if (ai > eq) {
+        const key = `q:${ai}`;
+        if (jumpRef.current !== key) {
+          jumpRef.current = key;
+          setTimerNotice("⏱ Waktu soal habis — lanjut otomatis");
+          timerJump(ai);
+          setTimeout(() => setTimerNotice(null), 2500);
+        }
+      }
     }
   }, [timerSt, eq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
-    if (dimExpiredNow() || questionExpiredNow()) { setTimerNotice("⏱ Waktu habis — tidak bisa dijawab"); setTimeout(() => setTimerNotice(null), 2500); return; }
+    if (dimExpiredNow() || questionExpiredNow()) {
+      setTimerNotice("⏱ Waktu habis — tidak bisa dijawab");
+      setTimeout(() => setTimerNotice(null), 2500);
+      return;
+    }
     setRevealed(true);
     markAnswered(question.id);
-    void client.discover.submitText({ sessionId: engine!.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
-      .then((r: any) => { if (r && r.ok === false) console.warn("[engine] submitText ditolak", r); else if (r) { setLastEval(r.correct === true); blip(r.correct ? 1046 : 330, 0.12); } })
+    void client.discover
+      .submitText({ sessionId: engine!.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
+      .then((r: any) => {
+        if (r && r.ok === false) console.warn("[engine] submitText ditolak", r);
+        else if (r) {
+          setLastEval(r.correct === true);
+          blip(r.correct ? 1046 : 330, 0.12);
+        }
+      })
       .catch((e: any) => console.error("[engine] submitText gagal:", e?.message ?? e));
     setTimeout(() => engineNext(nextUn(eq + 1)), 950);
   };
@@ -442,12 +626,18 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       try {
         const r = (await (client as any).discover.timerState({ sessionId: engine!.sessionId })) as any;
         if (alive && r?.ok) setTimerSt({ ...r, _localAt: Date.now() });
-      } catch { /* offline: biarkan state terakhir */ }
+      } catch {
+        /* offline: biarkan state terakhir */
+      }
     };
     void sync();
     const iv = setInterval(sync, 12000);
     const tk = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => { alive = false; clearInterval(iv); clearInterval(tk); };
+    return () => {
+      alive = false;
+      clearInterval(iv);
+      clearInterval(tk);
+    };
   }, [isEngine, engine?.sessionId]);
 
   const startMutation = useMutation({
@@ -563,7 +753,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   useEffect(() => {
     if (isEngine) {
       if (intro !== false) return; // null (cek resume) / true (layar info) → tunggu
-      if (!introStarted.current) { introStarted.current = true; engineBegin(resumeStartRef.current); }
+      if (!introStarted.current) {
+        introStarted.current = true;
+        engineBegin(resumeStartRef.current);
+      }
       return;
     }
     if (isDemo) return; // mode simulasi tidak perlu backend
@@ -612,7 +805,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       }
       return;
     }
-    if (isEngine) { engineSelect(option); return; }
+    if (isEngine) {
+      engineSelect(option);
+      return;
+    }
     if (revealed || answerMutation.isPending || !question) return;
     setSelected(option);
 
@@ -625,7 +821,10 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   // interest: jawab → highlight → tampilkan tombol lanjut
 
   const handleConfirmInterest = () => {
-    if (isEngine) { if (selected) engineSelect(selected); return; }
+    if (isEngine) {
+      if (selected) engineSelect(selected);
+      return;
+    }
     if (isDemo) {
       if (!selected) return;
       if (demoIdx + 1 >= DEMO_QUESTIONS.length) {
@@ -653,9 +852,13 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       const keySeq = ["a", "b", "c", "d"];
       const idx = keySeq.indexOf(letter) !== -1 ? keySeq.indexOf(letter) : ["1", "2", "3", "4"].indexOf(e.key);
       if (idx === -1) return;
-      const likeQ = isEngine && ((liveQ as any).questionType === "likert" || ((liveQ as any)._optLabels?.length ?? 0) > 4);
+      const likeQ =
+        isEngine && ((liveQ as any).questionType === "likert" || ((liveQ as any)._optLabels?.length ?? 0) > 4);
       const opts = likeQ
-        ? Array.from({ length: Math.min(5, (liveQ as any)._optLabels?.length ?? 5) }, (_, j) => (liveQ as any)[`option${"ABCDE"[j]}`])
+        ? Array.from(
+            { length: Math.min(5, (liveQ as any)._optLabels?.length ?? 5) },
+            (_, j) => (liveQ as any)[`option${"ABCDE"[j]}`],
+          )
         : isInterest
           ? [liveQ.optionA, liveQ.optionB]
           : [liveQ.optionA, liveQ.optionB, liveQ.optionC, liveQ.optionD];
@@ -691,99 +894,127 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   if (done) {
     return (
       <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center overflow-y-auto bg-bg-light px-6 py-10">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex w-full max-w-sm flex-col items-center justify-center text-center"
-      >
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.15 }}
-          className="h-28 w-28 overflow-hidden rounded-3xl bg-white shadow-xl"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex w-full max-w-sm flex-col items-center justify-center text-center"
         >
-          <Image
-            src={bothDone ? "/maskot/masko-found.webp" : "/maskot/masko-thumb-up.webp"}
-            alt="Maskot senang"
-            width={112}
-            height={112}
-            className="h-full w-full object-cover"
-          />
-        </motion.div>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.15 }}
+            className="h-28 w-28 overflow-hidden rounded-3xl bg-white shadow-xl"
+          >
+            <Image
+              src={bothDone ? "/maskot/masko-found.webp" : "/maskot/masko-thumb-up.webp"}
+              alt="Maskot senang"
+              width={112}
+              height={112}
+              className="h-full w-full object-cover"
+            />
+          </motion.div>
 
-        <h1 className="mt-5 font-bold font-bricolage text-2xl text-gray-900">
-          {bothDone ? "Semua Test Selesai!" : "Test Selesai!"}
-        </h1>
-        <p className="mt-2 font-manrope text-gray-500 text-sm">
-          {bothDone
-            ? "Rekomendasi jurusan & kariermu sudah siap dihasilkan."
-            : `Kamu dapat ${xpEarned} XP! ${streak >= 2 ? `Streak ${streak} hari 🔥` : "Ayo lanjutkan streak besok!"}`}
-        </p>
+          <h1 className="mt-5 font-bold font-bricolage text-2xl text-gray-900">
+            {bothDone ? "Semua Test Selesai!" : "Test Selesai!"}
+          </h1>
+          <p className="mt-2 font-manrope text-gray-500 text-sm">
+            {bothDone
+              ? "Rekomendasi jurusan & kariermu sudah siap dihasilkan."
+              : `Kamu dapat ${xpEarned} XP! ${streak >= 2 ? `Streak ${streak} hari 🔥` : "Ayo lanjutkan streak besok!"}`}
+          </p>
 
-        {!isEngine && isInterest && !bothDone && (
-          <div className="mt-4 rounded-2xl bg-violet-50 px-4 py-3 font-manrope text-sm text-violet-700">
-            💡 Lanjut ke <b>Test Bakat</b> untuk dapat rekomendasi lengkap!
-          </div>
-        )}
+          {!isEngine && isInterest && !bothDone && (
+            <div className="mt-4 rounded-2xl bg-violet-50 px-4 py-3 font-manrope text-sm text-violet-700">
+              💡 Lanjut ke <b>Test Bakat</b> untuk dapat rekomendasi lengkap!
+            </div>
+          )}
 
-        <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
-          {isEngine ? (
-            (() => {
-              return otherDone ? (
-                <Link href={"/dashboard/student/assessment/result" as any} className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]">
-                  <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
-                </Link>
-              ) : (
-                <Link href={`/dashboard/student/assessment/take/${engine!.otherCode}`} className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]">
-                  Lanjut ke {engine!.otherLabel} <ArrowRight className="h-5 w-5" />
-                </Link>
-              );
-            })()
-          ) : bothDone || (!isInterest && resultId) ? (
-            <Link
-              href="/dashboard/student/assessment/result"
-              className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
-            >
-              <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
-            </Link>
-          ) : (
+          <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
+            {isEngine ? (
+              (() => {
+                return otherDone ? (
+                  <Link
+                    href={"/dashboard/student/assessment/result" as any}
+                    className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+                  >
+                    <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/dashboard/student/assessment/take/${engine!.otherCode}`}
+                    className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
+                  >
+                    Lanjut ke {engine!.otherLabel} <ArrowRight className="h-5 w-5" />
+                  </Link>
+                );
+              })()
+            ) : bothDone || (!isInterest && resultId) ? (
+              <Link
+                href="/dashboard/student/assessment/result"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+              >
+                <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard/student/assessment"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
+              >
+                Kembali ke Beranda <ArrowRight className="h-5 w-5" />
+              </Link>
+            )}
             <Link
               href="/dashboard/student/assessment"
-              className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
+              className="flex items-center justify-center gap-1.5 font-manrope font-semibold text-gray-400 text-sm hover:text-gray-600"
             >
-              Kembali ke Beranda <ArrowRight className="h-5 w-5" />
+              <Home className="h-4 w-4" /> Beranda
             </Link>
-          )}
-          <Link
-            href="/dashboard/student/assessment"
-            className="flex items-center justify-center gap-1.5 font-manrope font-semibold text-gray-400 text-sm hover:text-gray-600"
-          >
-            <Home className="h-4 w-4" /> Beranda
-          </Link>
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
 
-      {/* MODAL PERAYAAN brand (hand-built) */}
-      {achPop && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setAchPop(false)}>
-          <motion.div initial={{ scale: 0.9, y: 10 }} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 22 }} className="w-full max-w-sm overflow-hidden rounded-3xl bg-brand-navy text-center text-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="relative px-6 pt-8 pb-6">
-              <span className="absolute -top-8 -right-6 h-28 w-28 rounded-full bg-brand-orange/25 blur-2xl" />
-              <div className="relative mx-auto h-24 w-24 overflow-hidden">
-                <Image src={bothDone ? "/maskot/masko-found.webp" : "/maskot/masko-thumb-up.webp"} alt="Selamat" width={96} height={96} className="h-full w-full object-contain" />
+        {/* MODAL PERAYAAN brand (hand-built) */}
+        {achPop && (
+          <div
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            onClick={() => setAchPop(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 22 }}
+              className="w-full max-w-sm overflow-hidden rounded-3xl bg-brand-navy text-center text-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative px-6 pt-8 pb-6">
+                <span className="absolute -top-8 -right-6 h-28 w-28 rounded-full bg-brand-orange/25 blur-2xl" />
+                <div className="relative mx-auto h-24 w-24 overflow-hidden">
+                  <Image
+                    src={bothDone ? "/maskot/masko-found.webp" : "/maskot/masko-thumb-up.webp"}
+                    alt="Selamat"
+                    width={96}
+                    height={96}
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+                <p className="mt-4 font-bold font-manrope text-[10px] text-brand-orange uppercase tracking-widest">
+                  Pencapaian
+                </p>
+                <h3 className="mt-1 font-bold font-bricolage text-2xl">
+                  {bothDone ? "Semua Tes Selesai!" : "Test Selesai!"}
+                </h3>
+                <p className="mt-2 font-manrope text-sm text-white/80">
+                  +{xpEarned} <b className="text-amber-400">XP</b> · streak 🔥 {streak} hari — pertahankan!
+                </p>
+                <button
+                  onClick={() => setAchPop(false)}
+                  className="mt-5 w-full rounded-2xl bg-brand-orange px-5 py-3 font-bold font-bricolage text-sm text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
+                >
+                  Siap, lanjut!
+                </button>
               </div>
-              <p className="mt-4 font-manrope text-[10px] font-bold tracking-widest text-brand-orange uppercase">Pencapaian</p>
-              <h3 className="mt-1 font-bold font-bricolage text-2xl">{bothDone ? "Semua Tes Selesai!" : "Test Selesai!"}</h3>
-              <p className="mt-2 font-manrope text-sm text-white/80">
-                +{xpEarned} <b className="text-amber-400">XP</b> · streak 🔥 {streak} hari — pertahankan!
-              </p>
-              <button onClick={() => setAchPop(false)} className="mt-5 w-full rounded-2xl bg-brand-orange px-5 py-3 font-bold font-bricolage text-sm text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]">
-                Siap, lanjut!
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+            </motion.div>
+          </div>
+        )}
       </div>
     );
   }
@@ -792,17 +1023,35 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     return (
       <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-light px-6 py-10 text-center">
         <div className="h-24 w-24 overflow-hidden">
-          <Image src="/maskot/masko-book.webp" alt="Maskot" width={96} height={96} className="h-full w-full object-contain" />
+          <Image
+            src="/maskot/masko-book.webp"
+            alt="Maskot"
+            width={96}
+            height={96}
+            className="h-full w-full object-contain"
+          />
         </div>
-        <h1 className="mt-5 font-bold font-bricolage text-3xl text-gray-900">{engine!.code === "DISCOVER" ? "Tes Minat" : "Tes Bakat"}</h1>
-        <p className="mt-2 font-manrope text-sm text-gray-500">Sebelum mulai, ini info testnya:</p>
+        <h1 className="mt-5 font-bold font-bricolage text-3xl text-gray-900">
+          {engine!.code === "DISCOVER" ? "Tes Minat" : "Tes Bakat"}
+        </h1>
+        <p className="mt-2 font-manrope text-gray-500 text-sm">Sebelum mulai, ini info testnya:</p>
         <div className="mt-5 flex w-full max-w-sm flex-wrap items-center justify-center gap-2">
-          <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 shadow-sm">📝 {effQs.length} soal</span>
-          <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 shadow-sm">🗂 {nSec} bagian</span>
-          <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-700 shadow-sm">Percobaan #{attemptNo}</span>
-          <span className="rounded-xl bg-amber-50 px-3 py-2 font-manrope text-xs font-bold text-amber-600 shadow-sm">+{nSec * 10 + effQs.length} XP</span>
-          <span className="rounded-xl bg-white px-3 py-2 font-manrope text-xs font-semibold text-gray-500 shadow-sm">💾 auto-simpan</span>
-          <span className="rounded-xl bg-sky-50 px-3 py-2 font-manrope text-xs font-bold text-sky-700 shadow-sm">
+          <span className="rounded-xl bg-white px-3 py-2 font-manrope font-semibold text-gray-700 text-xs shadow-sm">
+            📝 {effQs.length} soal
+          </span>
+          <span className="rounded-xl bg-white px-3 py-2 font-manrope font-semibold text-gray-700 text-xs shadow-sm">
+            🗂 {nSec} bagian
+          </span>
+          <span className="rounded-xl bg-white px-3 py-2 font-manrope font-semibold text-gray-700 text-xs shadow-sm">
+            Percobaan #{attemptNo}
+          </span>
+          <span className="rounded-xl bg-amber-50 px-3 py-2 font-bold font-manrope text-amber-600 text-xs shadow-sm">
+            +{nSec * 10 + effQs.length} XP
+          </span>
+          <span className="rounded-xl bg-white px-3 py-2 font-manrope font-semibold text-gray-500 text-xs shadow-sm">
+            💾 auto-simpan
+          </span>
+          <span className="rounded-xl bg-sky-50 px-3 py-2 font-bold font-manrope text-sky-700 text-xs shadow-sm">
             {timerSt?.scope === "dimension"
               ? `⏱ ${Number(timerSt?.dims?.[0]?.durationSeconds ?? 0)} detik / bagian`
               : timerSt?.scope === "question"
@@ -817,7 +1066,7 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
               const body = cj.text ?? (Array.isArray(cj.items) ? cj.items.join(" · ") : "");
               return (
                 <div key={sc.id ?? i} className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
-                  <p className="font-manrope text-[11px] font-bold text-gray-800">{sc.title}</p>
+                  <p className="font-bold font-manrope text-[11px] text-gray-800">{sc.title}</p>
                   {body && <p className="mt-0.5 font-manrope text-[11px] text-gray-500 leading-snug">{body}</p>}
                 </div>
               );
@@ -826,15 +1075,23 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
         )}
         {timerSt?.scope && timerSt.scope !== "none" && (
           <div className="mt-4 w-full max-w-sm rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-left">
-            <p className="font-manrope text-[11px] font-bold text-sky-800">Aturan waktu</p>
+            <p className="font-bold font-manrope text-[11px] text-sky-800">Aturan waktu</p>
             <ul className="mt-1 space-y-0.5 font-manrope text-[11px] text-sky-700">
               <li>• Waktu berjalan di server — keluar/jeda tetap berjalan, lanjut kapan saja posisi tersimpan.</li>
-              <li>• Warna: biru normal · <b className="text-amber-600">kuning ≤20%</b> · <b className="text-red-600">merah ≤10%</b>.</li>
+              <li>
+                • Warna: biru normal · <b className="text-amber-600">kuning ≤20%</b> ·{" "}
+                <b className="text-red-600">merah ≤10%</b>.
+              </li>
               <li>• Waktu habis → jawaban tersimpan, bagian terkunci & lanjut otomatis.</li>
             </ul>
           </div>
         )}
-        <button onClick={() => { setIntro(false); }} className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]">
+        <button
+          onClick={() => {
+            setIntro(false);
+          }}
+          className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
+        >
           Mulai Tes →
         </button>
       </div>
@@ -845,13 +1102,27 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
     const __secCount = secs[dimIdxOf(secStart.eqIndex)]?.count ?? effQs.length; // dinamis dr data
     const __secIdx = dimIdxOf(secStart.eqIndex);
     const __el = (
-      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-light px-6 py-10 text-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="fixed inset-0 z-[90] flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-light px-6 py-10 text-center"
+      >
         <div className="h-24 w-24 overflow-hidden">
-          <Image src="/maskot/masko-book.webp" alt="Maskot" width={96} height={96} className="h-full w-full object-contain" />
+          <Image
+            src="/maskot/masko-book.webp"
+            alt="Maskot"
+            width={96}
+            height={96}
+            className="h-full w-full object-contain"
+          />
         </div>
-        <p className="mt-5 font-manrope text-xs font-bold tracking-widest text-teal-600 uppercase">Bagian {__secIdx + 1} dari {totalDims}</p>
+        <p className="mt-5 font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">
+          Bagian {__secIdx + 1} dari {totalDims}
+        </p>
         <h2 className="mt-1 font-bold font-bricolage text-3xl text-gray-900">{secStart.name}</h2>
-        <p className="mt-2 font-manrope text-sm text-gray-500">Kamu akan mengerjakan <b>{__secCount} soal</b> pada bagian ini.</p>
+        <p className="mt-2 font-manrope text-gray-500 text-sm">
+          Kamu akan mengerjakan <b>{__secCount} soal</b> pada bagian ini.
+        </p>
         {(() => {
           const dimId = effQs[secStart.eqIndex]?.dimensionId;
           const ins = (engine?.instr ?? []).find((x: any) => x.dimensionId === dimId);
@@ -860,50 +1131,71 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
           const items: string[] = Array.isArray(cj.items) ? cj.items : cj.text ? [cj.text] : [];
           return (
             <div className="mt-4 w-full max-w-sm rounded-2xl border border-teal-100 bg-teal-50/50 px-4 py-3 text-left">
-              <p className="font-manrope text-[11px] font-bold text-teal-800">{ins.header ?? "Instruksi"}</p>
+              <p className="font-bold font-manrope text-[11px] text-teal-800">{ins.header ?? "Instruksi"}</p>
               {items.length > 0 && (
                 <ul className="mt-1 space-y-0.5 font-manrope text-[11px] text-teal-700">
-                  {items.map((it, i) => (<li key={i}>• {it}</li>))}
+                  {items.map((it, i) => (
+                    <li key={i}>• {it}</li>
+                  ))}
                 </ul>
               )}
             </div>
           );
         })()}
         <button
-          onClick={() => { setSecStart(null); setSelected(null); setRevealed(false); engineLoad(secStart.eqIndex); }}
+          onClick={() => {
+            setSecStart(null);
+            setSelected(null);
+            setRevealed(false);
+            engineLoad(secStart.eqIndex);
+          }}
           className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
         >
           Mulai bagian →
         </button>
-          {dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
-            <button
-              onClick={() => router.push("/dashboard/student/assessment")}
-              className="mt-3 text-sm font-manrope font-semibold text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
-            >
-              Berhenti dulu — lanjut kapan saja
-            </button>
-          )}
+        {dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
+          <button
+            onClick={() => router.push("/dashboard/student/assessment")}
+            className="mt-3 font-manrope font-semibold text-gray-400 text-sm underline-offset-2 hover:text-gray-600 hover:underline"
+          >
+            Berhenti dulu — lanjut kapan saja
+          </button>
+        )}
       </motion.div>
     );
 
-
-    return typeof document === 'undefined' ? null : createPortal(__el, document.body);
+    return typeof document === "undefined" ? null : createPortal(__el, document.body);
   }
   if (isEngine && secOverlay) {
     const __el = (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[90] flex items-center justify-center bg-bg-light p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="fixed inset-0 z-[90] flex items-center justify-center bg-bg-light p-4"
+      >
         <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
-            <Image src="/maskot/masko-thumb-up.webp" alt="Maskot" width={64} height={64} className="h-full w-full object-cover" />
+            <Image
+              src="/maskot/masko-thumb-up.webp"
+              alt="Maskot"
+              width={64}
+              height={64}
+              className="h-full w-full object-cover"
+            />
           </span>
-          <p className="mt-3 font-manrope text-xs font-bold tracking-wide text-teal-600 uppercase">Bagian selesai</p>
+          <p className="mt-3 font-bold font-manrope text-teal-600 text-xs uppercase tracking-wide">Bagian selesai</p>
           <h2 className="mt-1 font-bold font-bricolage text-2xl text-gray-900">{secOverlay.doneName} — selesai! 🎉</h2>
-          <p className="mt-2 font-manrope text-sm text-gray-500">
+          <p className="mt-2 font-manrope text-gray-500 text-sm">
             <span className="font-bold text-brand-orange">+10 XP</span> · streak 🔥 {secStreak} bagian beruntun
           </p>
           <div className="mt-5 space-y-2">
             <button
-              onClick={() => { setSecOverlay(null); setSelected(null); setRevealed(false); engineBegin(secOverlay.nextEq); }}
+              onClick={() => {
+                setSecOverlay(null);
+                setSelected(null);
+                setRevealed(false);
+                engineBegin(secOverlay.nextEq);
+              }}
               className="w-full rounded-2xl bg-brand-navy px-4 py-3.5 font-bold font-manrope text-sm text-white shadow-md transition-all hover:brightness-110"
             >
               Lanjut ke {secOverlay.nextName} →
@@ -911,17 +1203,19 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
             {dimIdxOf(secOverlay.nextEq) < totalDims && (
               <button
                 onClick={() => router.push("/dashboard/student/assessment")}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50"
+                className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
               >
                 ⏸ Berhenti di sini — lanjut nanti dari bagian ini
               </button>
             )}
           </div>
-          <p className="mt-2 font-manrope text-[10px] text-gray-400">Jawabanmu tersimpan otomatis; kembali kapan saja untuk melanjutkan.</p>
+          <p className="mt-2 font-manrope text-[10px] text-gray-400">
+            Jawabanmu tersimpan otomatis; kembali kapan saja untuk melanjutkan.
+          </p>
         </div>
       </motion.div>
     );
-    return typeof document === 'undefined' ? null : createPortal(__el, document.body);
+    return typeof document === "undefined" ? null : createPortal(__el, document.body);
   }
   // Mode simulasi: pertanyaan lokal (tanpa backend)
   const liveQuestion = isDemo ? (DEMO_QUESTIONS[demoIdx] as unknown as Question) : question;
@@ -931,7 +1225,13 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
   const _imgOptions = isEngine && !!(effQs[eq] as any)?.opts?.some((o: any) => o.imageUrl);
   // Maskot beragam per soal (rotasi dari koleksi assets) — nanimal di samping pertanyaan
-  const _MASKOTS = ["/maskot/masko-book.webp", "/maskot/masko-compass.webp", "/maskot/masko-found.webp", "/maskot/masko-hi.webp", "/maskot/masko-thumb-up.webp"];
+  const _MASKOTS = [
+    "/maskot/masko-book.webp",
+    "/maskot/masko-compass.webp",
+    "/maskot/masko-found.webp",
+    "/maskot/masko-hi.webp",
+    "/maskot/masko-thumb-up.webp",
+  ];
   const _mascotNow = _MASKOTS[eq % _MASKOTS.length] ?? "/maskot/masko-book.webp";
   if (!liveQuestion) {
     if (isDemo) return null;
@@ -950,7 +1250,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
   const progressPct = liveTotal > 0 ? (liveProgress / liveTotal) * 100 : 0;
 
   // ⏱ Countdown dari deadline SERVER (offset clock) + tone visual (Duolingo-style 20%/10%)
-  const _nowServer = timerSt?.serverNow ? Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now())) : Date.now();
+  const _nowServer = timerSt?.serverNow
+    ? Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now()))
+    : Date.now();
   let _remainMs: number | null = null;
   let _ratio = 1;
   if (timerSt?.ok && timerSt.scope && timerSt.scope !== "none") {
@@ -964,433 +1266,571 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
       _ratio = _remainMs != null ? Math.max(0, _remainMs) / (Number(timerSt.qPerMs) || 30000) : 1;
     }
   }
-  const _tone: "none" | "normal" | "warn" | "crit" = _remainMs == null ? "none" : _ratio <= 0.1 ? "crit" : _ratio <= 0.2 ? "warn" : "normal";
-  const _mmss = _remainMs != null
-    ? `${String(Math.max(0, Math.floor(_remainMs / 60000))).padStart(2, "0")}:${String(Math.max(0, Math.floor((_remainMs % 60000) / 1000))).padStart(2, "0")}`
-    : null;
+  const _tone: "none" | "normal" | "warn" | "crit" =
+    _remainMs == null ? "none" : _ratio <= 0.1 ? "crit" : _ratio <= 0.2 ? "warn" : "normal";
+  const _mmss =
+    _remainMs != null
+      ? `${String(Math.max(0, Math.floor(_remainMs / 60000))).padStart(2, "0")}:${String(Math.max(0, Math.floor((_remainMs % 60000) / 1000))).padStart(2, "0")}`
+      : null;
   const _expiredDims = new Set((timerSt?.dims ?? []).filter((d: any) => d.expired).map((d: any) => d.id));
 
   return (
     <div className="fixed inset-0 z-[70] h-dvh overflow-hidden bg-bg-light">
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 pt-6 pb-5">
-      <div className="flex flex-col">
-      {showGuide && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
-        >
-          <motion.div
-            initial={{ scale: 0.92, y: 12 }}
-            animate={{ scale: 1, y: 0 }}
-            className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
-          >
-            <div className="flex items-center gap-3 border-gray-100 border-b px-5 py-4">
-              <div className="h-12 w-12 overflow-hidden rounded-2xl bg-brand-orange/10">
-                <Image
-                  src="/maskot/masko-compass.webp"
-                  alt=""
-                  width={48}
-                  height={48}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              <div>
-                <h2 className="font-bold font-bricolage text-brand-navy text-lg">
-                  {isDemo ? "Simulasi Test — 2+2 Soal" : "Cara Main Test"}
-                </h2>
-                <p className="font-manrope text-[11px] text-muted-foreground">
-                  {isDemo ? "Coba dulu tanpa disimpan" : "Panduan singkat sebelum mulai"}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2.5 px-5 py-4">
-              {[
-                [
-                  "⌨️",
-                  "Pilih jawaban cepat",
-                  isInterest ? "Tekan tombol A / B, atau 1 / 2." : "Tekan A / B / C / D (atau 1–4) sesuai opsi.",
-                ],
-                [
-                  "⏭️",
-                  isInterest ? "Konfirmasi dulu" : "Lanjut otomatis",
-                  isInterest
-                    ? "Pilih dulu, lalu tekan Enter / tombol Lanjut."
-                    : "Setelah jawab, otomatis pindah — tak perlu tombol next.",
-                ],
-                [
-                  "⏱️🔥",
-                  "Pantau waktu & streak",
-                  "Lihat timer & api streak di pojok — jawaban benar berturut-turut = combo!",
-                ],
-              ].map(([icon, title, desc]) => (
-                <div key={title} className="flex gap-3 rounded-2xl bg-gray-50 p-3">
-                  <span className="text-xl">{icon}</span>
+        <div className="flex flex-col">
+          {showGuide && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.92, y: 12 }}
+                animate={{ scale: 1, y: 0 }}
+                className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
+              >
+                <div className="flex items-center gap-3 border-gray-100 border-b px-5 py-4">
+                  <div className="h-12 w-12 overflow-hidden rounded-2xl bg-brand-orange/10">
+                    <Image
+                      src="/maskot/masko-compass.webp"
+                      alt=""
+                      width={48}
+                      height={48}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                   <div>
-                    <p className="font-bold font-manrope text-brand-navy text-xs">{title}</p>
-                    <p className="mt-0.5 font-manrope text-[11px] text-muted-foreground leading-relaxed">{desc}</p>
+                    <h2 className="font-bold font-bricolage text-brand-navy text-lg">
+                      {isDemo ? "Simulasi Test — 2+2 Soal" : "Cara Main Test"}
+                    </h2>
+                    <p className="font-manrope text-[11px] text-muted-foreground">
+                      {isDemo ? "Coba dulu tanpa disimpan" : "Panduan singkat sebelum mulai"}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-            <div className="flex gap-2 border-gray-100 border-t px-5 py-4">
-              <button
-                type="button"
-                onClick={() => {
-                  localStorage.setItem("mulai-test-guide-v1", "1");
-                  setShowGuide(false);
-                }}
-                className="flex-1 rounded-2xl bg-brand-navy px-5 py-3 font-bold font-bricolage text-white transition-all hover:brightness-110 active:scale-[0.98]"
-              >
-                {isDemo ? "Mulai Simulasi" : "Paham, Mulai!"}
-              </button>
-              {!isDemo && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    localStorage.setItem("mulai-test-guide-v1", "1");
-                    setShowGuide(false);
-                  }}
-                  className="rounded-2xl px-5 py-3 font-manrope text-muted-foreground text-xs transition-colors hover:text-brand-navy"
-                >
-                  Skip
-                </button>
-              )}
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
+                <div className="space-y-2.5 px-5 py-4">
+                  {[
+                    [
+                      "⌨️",
+                      "Pilih jawaban cepat",
+                      isInterest ? "Tekan tombol A / B, atau 1 / 2." : "Tekan A / B / C / D (atau 1–4) sesuai opsi.",
+                    ],
+                    [
+                      "⏭️",
+                      isInterest ? "Konfirmasi dulu" : "Lanjut otomatis",
+                      isInterest
+                        ? "Pilih dulu, lalu tekan Enter / tombol Lanjut."
+                        : "Setelah jawab, otomatis pindah — tak perlu tombol next.",
+                    ],
+                    [
+                      "⏱️🔥",
+                      "Pantau waktu & streak",
+                      "Lihat timer & api streak di pojok — jawaban benar berturut-turut = combo!",
+                    ],
+                  ].map(([icon, title, desc]) => (
+                    <div key={title} className="flex gap-3 rounded-2xl bg-gray-50 p-3">
+                      <span className="text-xl">{icon}</span>
+                      <div>
+                        <p className="font-bold font-manrope text-brand-navy text-xs">{title}</p>
+                        <p className="mt-0.5 font-manrope text-[11px] text-muted-foreground leading-relaxed">{desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 border-gray-100 border-t px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem("mulai-test-guide-v1", "1");
+                      setShowGuide(false);
+                    }}
+                    className="flex-1 rounded-2xl bg-brand-navy px-5 py-3 font-bold font-bricolage text-white transition-all hover:brightness-110 active:scale-[0.98]"
+                  >
+                    {isDemo ? "Mulai Simulasi" : "Paham, Mulai!"}
+                  </button>
+                  {!isDemo && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        localStorage.setItem("mulai-test-guide-v1", "1");
+                        setShowGuide(false);
+                      }}
+                      className="rounded-2xl px-5 py-3 font-manrope text-muted-foreground text-xs transition-colors hover:text-brand-navy"
+                    >
+                      Skip
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
 
-            {/* TOP BAR DUOLINGO-STYLE: keluar + segment per bagian + metrik */}
-      <div className="mb-4 flex shrink-0 items-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => setExitOpen(true)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
-          aria-label="Keluar test"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            {secs.map((sc, idx) => {
-              const done = sc.ids.filter((id) => answeredSet?.has(id)).length;
-              const pct = sc.count ? done / sc.count : 0;
-              const activeS = idx === curSec;
-              return (
-                <div
-                  key={idx}
-                  title={sc.name}
-                  className={cn("h-2.5 flex-1 overflow-hidden rounded-full", sc.ids.some((id: string) => _expiredDims.has(effQs.find((q: any) => q.id === id)?.dimensionId)) ? "bg-red-100" : activeS ? "bg-orange-100" : "bg-gray-100")}
-                >
+          {/* TOP BAR DUOLINGO-STYLE: keluar + segment per bagian + metrik */}
+          <div className="mb-4 flex shrink-0 items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setExitOpen(true)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200"
+              aria-label="Keluar test"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                {secs.map((sc, idx) => {
+                  const done = sc.ids.filter((id) => answeredSet?.has(id)).length;
+                  const pct = sc.count ? done / sc.count : 0;
+                  const activeS = idx === curSec;
+                  return (
+                    <div
+                      key={idx}
+                      title={sc.name}
+                      className={cn(
+                        "h-2.5 flex-1 overflow-hidden rounded-full",
+                        sc.ids.some((id: string) => _expiredDims.has(effQs.find((q: any) => q.id === id)?.dimensionId))
+                          ? "bg-red-100"
+                          : activeS
+                            ? "bg-orange-100"
+                            : "bg-gray-100",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          pct > 0 ? "bg-gradient-to-r from-mentor-teal to-teal-500" : "bg-transparent",
+                        )}
+                        style={{ width: `${pct > 0 ? Math.max(pct * 100, 5) : 0}%` }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-1 flex items-center justify-between font-manrope text-[10px] text-gray-500">
+                <span className="truncate font-semibold text-gray-600">{curSecName || "Mulai"}</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span className="font-bold text-amber-600">+{xpEarned} XP</span>
+                  <button
+                    onClick={() => setMapOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-bold text-gray-600 transition-colors hover:bg-gray-100"
+                  >
+                    🗺 {answeredSet?.size ?? 0}/{effQs.length}
+                  </button>
+                  {_mmss ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold font-manrope text-[11px] tabular-nums",
+                        _tone === "crit"
+                          ? "animate-pulse bg-red-100 text-red-600"
+                          : _tone === "warn"
+                            ? "bg-amber-100 text-amber-600"
+                            : "bg-sky-100 text-sky-600",
+                      )}
+                    >
+                      <Timer className="h-3 w-3" />
+                      {_mmss}
+                    </span>
+                  ) : (
+                    <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
+                      <Timer className="h-3 w-3" />
+                      {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
+                    </span>
+                  )}
+                  <StreakFlame days={streak} showDots={false} showLabel={false} />
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* PETA SOAL (bottom sheet) — grid lengkap, dibuka via tombol 🗺 */}
+          {mapOpen && (
+            <div
+              className="fixed inset-0 z-[85] flex items-end justify-center bg-black/40 backdrop-blur-sm"
+              onClick={() => setMapOpen(false)}
+            >
+              <div
+                className="max-h-[72vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="font-bold font-bricolage text-gray-900">🗺 Peta Soal</p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-manrope text-[11px] text-gray-400">
+                      {answeredSet?.size ?? 0}/{effQs.length} terjawab
+                    </span>
+                    <button
+                      onClick={() => setMapOpen(false)}
+                      className="rounded-full p-1 text-gray-400 hover:bg-gray-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-100">
                   <div
-                    className={cn("h-full rounded-full transition-all duration-500", pct > 0 ? "bg-gradient-to-r from-mentor-teal to-teal-500" : "bg-transparent")}
-                    style={{ width: `${pct > 0 ? Math.max(pct * 100, 5) : 0}%` }}
+                    className="h-full rounded-full bg-gradient-to-r from-mentor-teal to-teal-500 transition-all"
+                    style={{ width: `${progressPct}%` }}
                   />
                 </div>
-              );
-            })}
-          </div>
-          <div className="mt-1 flex items-center justify-between font-manrope text-[10px] text-gray-500">
-            <span className="truncate font-semibold text-gray-600">{curSecName || "Mulai"}</span>
-            <span className="flex shrink-0 items-center gap-1.5">
-              <span className="font-bold text-amber-600">+{xpEarned} XP</span>
-              <button onClick={() => setMapOpen(true)} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-bold text-gray-600 transition-colors hover:bg-gray-100">
-                🗺 {answeredSet?.size ?? 0}/{effQs.length}
-              </button>
-              {_mmss ? (
-                <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-manrope text-[11px] font-bold tabular-nums", _tone === "crit" ? "animate-pulse bg-red-100 text-red-600" : _tone === "warn" ? "bg-amber-100 text-amber-600" : "bg-sky-100 text-sky-600")}>
-                  <Timer className="h-3 w-3" />{_mmss}
-                </span>
-              ) : (
-                <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
-                  <Timer className="h-3 w-3" />{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
-                </span>
-              )}
-              <StreakFlame days={streak} showDots={false} showLabel={false} />
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* PETA SOAL (bottom sheet) — grid lengkap, dibuka via tombol 🗺 */}
-      {mapOpen && (
-        <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setMapOpen(false)}>
-          <div className="max-h-[72vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <p className="font-bold font-bricolage text-gray-900">🗺 Peta Soal</p>
-              <div className="flex items-center gap-2">
-                <span className="font-manrope text-[11px] text-gray-400">{answeredSet?.size ?? 0}/{effQs.length} terjawab</span>
-                <button onClick={() => setMapOpen(false)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100"><X className="h-4 w-4" /></button>
+                <div className="mt-4 space-y-3">
+                  {secs.map((sc, si) => (
+                    <div key={si}>
+                      <p className="mb-1.5 font-bold font-manrope text-[10px] text-gray-400 uppercase tracking-wide">
+                        {sc.name}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {sc.ids.map((id, ii) => {
+                          const gi = effQs.findIndex((q: any) => q.id === id);
+                          const done = answeredSet?.has(id) ?? false;
+                          const active = eq === gi;
+                          const locked = _expiredDims.has(effQs[gi]?.dimensionId);
+                          return (
+                            <button
+                              key={id}
+                              disabled={locked}
+                              title={locked ? "Waktu bagian ini habis" : `Soal ${gi + 1}`}
+                              onClick={() => {
+                                setSelected(null);
+                                setRevealed(false);
+                                setEtv("");
+                                engineLoad(gi);
+                                setMapOpen(false);
+                              }}
+                              className={`flex h-8 w-8 items-center justify-center rounded-lg font-bold font-manrope text-[11px] transition-all ${locked ? "cursor-not-allowed bg-red-50 text-red-300" : done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"} ${active ? "ring-2 ring-brand-orange" : ""} hover:brightness-95`}
+                            >
+                              {locked ? "⏳" : gi + 1}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full rounded-full bg-gradient-to-r from-mentor-teal to-teal-500 transition-all" style={{ width: `${progressPct}%` }} />
-            </div>
-            <div className="mt-4 space-y-3">
-              {secs.map((sc, si) => (
-                <div key={si}>
-                  <p className="mb-1.5 font-manrope text-[10px] font-bold text-gray-400 uppercase tracking-wide">{sc.name}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {sc.ids.map((id, ii) => {
-                      const gi = effQs.findIndex((q: any) => q.id === id);
-                      const done = answeredSet?.has(id) ?? false;
-                      const active = eq === gi;
-                      const locked = _expiredDims.has(effQs[gi]?.dimensionId);
-                      return (
-                        <button
-                          key={id}
-                          disabled={locked}
-                          title={locked ? "Waktu bagian ini habis" : `Soal ${gi + 1}`}
-                          onClick={() => { setSelected(null); setRevealed(false); setEtv(""); engineLoad(gi); setMapOpen(false); }}
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg font-manrope text-[11px] font-bold transition-all ${locked ? "cursor-not-allowed bg-red-50 text-red-300" : done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"} ${active ? "ring-2 ring-brand-orange" : ""} hover:brightness-95`}
-                        >
-                          {locked ? "⏳" : gi + 1}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* KONFIRMASI KELUAR (Duolingo-style): progres aman */}
-      {exitOpen && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-bg-light/60 backdrop-blur-sm" onClick={() => setExitOpen(false)}>
-          <div className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10 text-2xl">💾</span>
-            <h3 className="mt-3 font-bold font-bricolage text-lg text-gray-900">Progresmu aman</h3>
-            <p className="mt-1 font-manrope text-sm text-gray-500">Jawaban tersimpan otomatis — lanjutkan kapan saja dari posisi terakhir.</p>
-            <div className="mt-5 space-y-2">
-              <button onClick={() => setExitOpen(false)} className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">Lanjut Test</button>
-              <button onClick={() => router.push("/dashboard/student/assessment")} className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope text-xs font-semibold text-gray-500 hover:bg-gray-50">Keluar & Simpan</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-{/* Combo bubble */}
-      {comboPop >= 3 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.6, y: 8 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="mb-3 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 shadow-lg"
-        >
-          <span className="text-lg">🔥</span>
-          <span className="font-bold font-bricolage text-sm text-white">{comboPop} combo berturut-turut!</span>
-        </motion.div>
-      )}
-
-      {/* Banner motivasi */}
-      {banner && (
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-3 flex items-center justify-center gap-2 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-2"
-        >
-          <Image src="/maskot/masko-thumb-up.webp" alt="" width={24} height={24} className="h-6 w-6 rounded-full" />
-          <span className="font-manrope font-semibold text-violet-700 text-xs">{banner}</span>
-        </motion.div>
-      )}
-
-      {timerNotice && (
-        <div className="mb-2 shrink-0 rounded-xl bg-amber-50 px-3 py-2 text-center font-manrope text-[11px] font-semibold text-amber-700">{timerNotice}</div>
-      )}
-
-      {/* QUESTION — bubble chat maskot bertanya (tanpa label duplikat; maskot polos & lebih besar) */}
-      <div className="mb-4 flex min-h-0 items-end gap-3">
-        <div className="h-16 w-16 shrink-0 overflow-hidden">
-          <Image
-            src={_mascotNow}
-            alt="Maskot bertanya"
-            width={64}
-            height={64}
-            className="h-full w-full object-contain"
-          />
-        </div>
-        <motion.div
-          key={liveQuestion.id}
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative flex-1 rounded-3xl rounded-bl-md border border-gray-100 bg-white px-5 pb-4 pt-4 shadow-sm"
-        >
-          <span className="absolute top-4 -left-1.5 h-3 w-3 rotate-45 border-b border-l border-gray-100 bg-white" />
-          <h2 className="font-bold font-bricolage text-gray-900 text-lg leading-snug">
-            {(liveQuestion as any)._math ? <Latex text={liveQuestion.text} /> : liveQuestion.text}
-          </h2>
-          {isEngine && (liveQuestion as any)._media && (
-            <figure className="mt-3">
-              <img src={(liveQuestion as any)._media} alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"} className="mx-auto max-h-[24vh] w-auto rounded-xl border border-gray-100 object-contain" />
-              {(liveQuestion as any)._mediaCap && <figcaption className="mt-1 text-center font-manrope text-[11px] text-gray-400">{(liveQuestion as any)._mediaCap}</figcaption>}
-            </figure>
           )}
-        </motion.div>
-      </div>
 
-      {/* Options — bila ada gambar jawaban: 2×2 grid & isi sisa tinggi (tanpa scroll) */}
-      <div className={`min-h-0 flex-1 overflow-y-auto ${_imgOptions ? "grid grid-cols-2 content-center gap-3 pb-4" : "mt-2 space-y-3"}`}>
-        {isEngine && (effQs[eq] as any)?.questionType === "text_input" ? (
-          <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
-            <p className="mb-2 font-manrope text-xs font-medium text-gray-500">Tulis jawaban (angka / pecahan)</p>
-            <div className="flex gap-2">
-              <input
-                type="text" inputMode="decimal" autoFocus value={etv}
-                onChange={(e) => setEtv(e.target.value.replace(/[^\d.,/\-]/g, ""))} // numerik/desimal saja — huruf ditolak
-                onKeyDown={(e) => { if (e.key === "Enter") engineSubmitText(); }}
-                placeholder="cth: 19, 0.75, atau 3/4"
-                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-base outline-none transition-colors focus:border-mentor-teal"
-              />
-              <button onClick={engineSubmitText} disabled={!etv.trim() || revealed} className="shrink-0 rounded-xl bg-brand-navy px-5 py-3 font-bold font-manrope text-sm text-white transition-all hover:brightness-110 disabled:opacity-50">
-                Jawab
-              </button>
+          {/* KONFIRMASI KELUAR (Duolingo-style): progres aman */}
+          {exitOpen && (
+            <div
+              className="fixed inset-0 z-[95] flex items-center justify-center bg-bg-light/60 backdrop-blur-sm"
+              onClick={() => setExitOpen(false)}
+            >
+              <div
+                className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10 text-2xl">
+                  💾
+                </span>
+                <h3 className="mt-3 font-bold font-bricolage text-gray-900 text-lg">Progresmu aman</h3>
+                <p className="mt-1 font-manrope text-gray-500 text-sm">
+                  Jawaban tersimpan otomatis — lanjutkan kapan saja dari posisi terakhir.
+                </p>
+                <div className="mt-5 space-y-2">
+                  <button
+                    onClick={() => setExitOpen(false)}
+                    className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110"
+                  >
+                    Lanjut Test
+                  </button>
+                  <button
+                    onClick={() => router.push("/dashboard/student/assessment")}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
+                  >
+                    Keluar & Simpan
+                  </button>
+                </div>
+              </div>
             </div>
-            <p className="mt-2 font-manrope text-[10px] text-gray-400">Gunakan titik (.) utk desimal — Enter untuk mengirim.</p>
-          </div>
-        ) : (effQs[eq] as any)?.questionType === "likert" ? (
-          <div className="grid grid-cols-5 gap-2">
-            {((liveQuestion as any)._optLabels ?? []).slice(0, 5).map((lab: string, i: number) => {
-              const key = "ABCDE"[i]!;
-              const isSel = selected === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => engineSelect(key)}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-1 rounded-2xl border-2 bg-white py-4 shadow-sm transition-all active:scale-[0.98]",
-                    isSel ? "border-mentor-teal bg-mentor-teal/5 shadow-md" : "border-gray-200 hover:border-gray-300",
-                  )}
-                >
-                  <span className={cn("font-bold", /^\d+$/.test(String(lab)) ? "font-bricolage text-2xl text-gray-900" : "text-3xl")}>{lab}</span>
-                  {((liveQuestion as any)._optCaps?.[i] ?? "") && (
-                    <span className="px-1 text-center font-manrope text-[9px] text-gray-400 leading-tight">{(liveQuestion as any)._optCaps[i]}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ) : isInterest ? (
-          <>
-            {[
-              { key: "A", text: liveQuestion.optionA },
-              { key: "B", text: liveQuestion.optionB },
-            ].map((opt, i) => {
-              const isSelected = selected === opt.key;
-              const oi = (liveQuestion as any)._optImgs?.[i];
-              const oic = (liveQuestion as any)._optIcons?.[i];
-              return (
-                <motion.button
-                  key={opt.key}
-                  type="button"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.08 * (i + 1) }}
-                  onClick={() => handleSelect(opt.key)}
-                  className={cn(
-                    "flex w-full items-center gap-4 rounded-2xl border-2 bg-white p-4 text-left transition-all",
-                    _imgOptions && "flex-col justify-center gap-2 p-3 text-center",
-                    isSelected
-                      ? "border-mentor-teal bg-mentor-teal/5 shadow-md"
-                      : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
-                  )}
-                >
-                  {oic ? (
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">{oic}</span>
-                  ) : (
-                    <span
-                      className={cn(
-                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl transition-colors",
-                        isSelected ? "bg-mentor-teal" : "bg-gray-100",
-                      )}
-                    >
-                      {isSelected ? <Check className="h-6 w-6 text-white" /> : i === 0 ? "👷" : "🎨"}
-                    </span>
-                  )}
-                {oi && <img src={oi} alt="" className={cn("shrink-0 rounded-lg border border-gray-100 object-cover", _imgOptions ? "h-24 w-24" : "h-10 w-14")} />}
-                {String(opt.text || "").trim() && (
-                  <span className="font-manrope font-medium text-[15px] text-gray-800">{(liveQuestion as any)._optMath?.[i] ? <Latex text={opt.text} /> : opt.text}</span>
-                )}
-                </motion.button>
-              );
-            })}
+          )}
 
-            {/* Confirm button — muncul setelah pilih (interest) */}
-            <motion.div initial={false} animate={{ opacity: selected ? 1 : 0, y: selected ? 0 : 8 }}>
-              {selected && !revealed && (
-                <button
-                  type="button"
-                  onClick={handleConfirmInterest}
-                  disabled={answerMutation.isPending}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
-                >
-                  {answerMutation.isPending ? "Menyimpan…" : "Lanjut"} <ArrowRight className="h-5 w-5" />
-                </button>
+          {/* Combo bubble */}
+          {comboPop >= 3 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.6, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="mb-3 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 shadow-lg"
+            >
+              <span className="text-lg">🔥</span>
+              <span className="font-bold font-bricolage text-sm text-white">{comboPop} combo berturut-turut!</span>
+            </motion.div>
+          )}
+
+          {/* Banner motivasi */}
+          {banner && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-3 flex items-center justify-center gap-2 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-2"
+            >
+              <Image src="/maskot/masko-thumb-up.webp" alt="" width={24} height={24} className="h-6 w-6 rounded-full" />
+              <span className="font-manrope font-semibold text-violet-700 text-xs">{banner}</span>
+            </motion.div>
+          )}
+
+          {timerNotice && (
+            <div className="mb-2 shrink-0 rounded-xl bg-amber-50 px-3 py-2 text-center font-manrope font-semibold text-[11px] text-amber-700">
+              {timerNotice}
+            </div>
+          )}
+
+          {/* QUESTION — bubble chat maskot bertanya (tanpa label duplikat; maskot polos & lebih besar) */}
+          <div className="mb-4 flex min-h-0 items-end gap-3">
+            <div className="h-16 w-16 shrink-0 overflow-hidden">
+              <Image
+                src={_mascotNow}
+                alt="Maskot bertanya"
+                width={64}
+                height={64}
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <motion.div
+              key={liveQuestion.id}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative flex-1 rounded-3xl rounded-bl-md border border-gray-100 bg-white px-5 pt-4 pb-4 shadow-sm"
+            >
+              <span className="absolute top-4 -left-1.5 h-3 w-3 rotate-45 border-gray-100 border-b border-l bg-white" />
+              <h2 className="font-bold font-bricolage text-gray-900 text-lg leading-snug">
+                {(liveQuestion as any)._math ? <Latex text={liveQuestion.text} /> : liveQuestion.text}
+              </h2>
+              {isEngine && (liveQuestion as any)._media && (
+                <figure className="mt-3">
+                  <img
+                    src={(liveQuestion as any)._media}
+                    alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"}
+                    className="mx-auto max-h-[24vh] w-auto rounded-xl border border-gray-100 object-contain"
+                  />
+                  {(liveQuestion as any)._mediaCap && (
+                    <figcaption className="mt-1 text-center font-manrope text-[11px] text-gray-400">
+                      {(liveQuestion as any)._mediaCap}
+                    </figcaption>
+                  )}
+                </figure>
               )}
             </motion.div>
+          </div>
 
-            <p className="mt-2 text-center font-manrope text-[10px] text-muted-foreground">
-              Shortcut: tekan <b>A/B</b> lalu <b>Enter</b>
-            </p>
-          </>
-        ) : (
-          [["A", liveQuestion.optionA], ["B", liveQuestion.optionB], ["C", liveQuestion.optionC], ["D", liveQuestion.optionD]]
-            .filter(([k, t]: any) => String(t ?? "").trim() || (liveQuestion as any)._optImgs?.[(k.charCodeAt(0) - 65)] || (liveQuestion as any)._optIcons?.[(k.charCodeAt(0) - 65)])
-            .map(([key, opt]: any, i: number) => {
-              const isSelected = selected === key;
-              const oi = (liveQuestion as any)._optImgs?.[i];
-              const oic = (liveQuestion as any)._optIcons?.[i];
-              return (
-                <motion.button
-                  key={key}
-                  type="button"
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.06 * i }}
-                  onClick={() => handleSelect(key)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-2xl border-2 bg-white p-4 text-left transition-all",
-                    _imgOptions && "flex-col justify-center gap-2 p-3 text-center",
-                    isSelected
-                      ? "border-mentor-teal bg-mentor-teal/5 shadow-md"
-                      : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
-                  )}
-                >
-                  {oic ? (
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-2xl shadow-sm">{oic}</span>
-                  ) : (
-                    <span
+          {/* Options — bila ada gambar jawaban: 2×2 grid & isi sisa tinggi (tanpa scroll) */}
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto ${_imgOptions ? "grid grid-cols-2 content-center gap-3 pb-4" : "mt-2 space-y-3"}`}
+          >
+            {isEngine && (effQs[eq] as any)?.questionType === "text_input" ? (
+              <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
+                <p className="mb-2 font-manrope font-medium text-gray-500 text-xs">Tulis jawaban (angka / pecahan)</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    autoFocus
+                    value={etv}
+                    onChange={(e) => setEtv(e.target.value.replace(/[^\d.,/-]/g, ""))} // numerik/desimal saja — huruf ditolak
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") engineSubmitText();
+                    }}
+                    placeholder="cth: 19, 0.75, atau 3/4"
+                    className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-base outline-none transition-colors focus:border-mentor-teal"
+                  />
+                  <button
+                    onClick={engineSubmitText}
+                    disabled={!etv.trim() || revealed}
+                    className="shrink-0 rounded-xl bg-brand-navy px-5 py-3 font-bold font-manrope text-sm text-white transition-all hover:brightness-110 disabled:opacity-50"
+                  >
+                    Jawab
+                  </button>
+                </div>
+                <p className="mt-2 font-manrope text-[10px] text-gray-400">
+                  Gunakan titik (.) utk desimal — Enter untuk mengirim.
+                </p>
+              </div>
+            ) : (effQs[eq] as any)?.questionType === "likert" ? (
+              <div className="grid grid-cols-5 gap-2">
+                {((liveQuestion as any)._optLabels ?? []).slice(0, 5).map((lab: string, i: number) => {
+                  const key = "ABCDE"[i]!;
+                  const isSel = selected === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => engineSelect(key)}
                       className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold font-manrope text-sm",
-                        isSelected
-                          ? "bg-mentor-teal text-white"
-                          : "bg-gray-100 text-gray-500",
+                        "flex flex-col items-center justify-center gap-1 rounded-2xl border-2 bg-white py-4 shadow-sm transition-all active:scale-[0.98]",
+                        isSel
+                          ? "border-mentor-teal bg-mentor-teal/5 shadow-md"
+                          : "border-gray-200 hover:border-gray-300",
                       )}
                     >
-                      {key}
-                    </span>
-                  )}
-                {oi && <img src={oi} alt="" className={cn("shrink-0 rounded-lg border border-gray-100 object-cover", _imgOptions ? "h-24 w-24" : "h-10 w-14")} />}
-                {String(opt ?? "").trim() && (
-                  <span className="font-manrope font-medium text-[15px] text-gray-800">{(liveQuestion as any)._optMath?.[i] ? <Latex text={opt} /> : opt}</span>
-                )}
-                </motion.button>
-              );
-            })
-        )}
-      </div>
+                      <span
+                        className={cn(
+                          "font-bold",
+                          /^\d+$/.test(String(lab)) ? "font-bricolage text-2xl text-gray-900" : "text-3xl",
+                        )}
+                      >
+                        {lab}
+                      </span>
+                      {((liveQuestion as any)._optCaps?.[i] ?? "") && (
+                        <span className="px-1 text-center font-manrope text-[9px] text-gray-400 leading-tight">
+                          {(liveQuestion as any)._optCaps[i]}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : isInterest ? (
+              <>
+                {[
+                  { key: "A", text: liveQuestion.optionA },
+                  { key: "B", text: liveQuestion.optionB },
+                ].map((opt, i) => {
+                  const isSelected = selected === opt.key;
+                  const oi = (liveQuestion as any)._optImgs?.[i];
+                  const oic = (liveQuestion as any)._optIcons?.[i];
+                  return (
+                    <motion.button
+                      key={opt.key}
+                      type="button"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.08 * (i + 1) }}
+                      onClick={() => handleSelect(opt.key)}
+                      className={cn(
+                        "flex w-full items-center gap-4 rounded-2xl border-2 bg-white p-4 text-left transition-all",
+                        _imgOptions && "flex-col justify-center gap-2 p-3 text-center",
+                        isSelected
+                          ? "border-mentor-teal bg-mentor-teal/5 shadow-md"
+                          : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
+                      )}
+                    >
+                      {oic ? (
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">
+                          {oic}
+                        </span>
+                      ) : (
+                        <span
+                          className={cn(
+                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl transition-colors",
+                            isSelected ? "bg-mentor-teal" : "bg-gray-100",
+                          )}
+                        >
+                          {isSelected ? <Check className="h-6 w-6 text-white" /> : i === 0 ? "👷" : "🎨"}
+                        </span>
+                      )}
+                      {oi && (
+                        <img
+                          src={oi}
+                          alt=""
+                          className={cn(
+                            "shrink-0 rounded-lg border border-gray-100 object-cover",
+                            _imgOptions ? "h-24 w-24" : "h-10 w-14",
+                          )}
+                        />
+                      )}
+                      {String(opt.text || "").trim() && (
+                        <span className="font-manrope font-medium text-[15px] text-gray-800">
+                          {(liveQuestion as any)._optMath?.[i] ? <Latex text={opt.text} /> : opt.text}
+                        </span>
+                      )}
+                    </motion.button>
+                  );
+                })}
 
-      {/* Feedback singkat (Duolingo-style) — wadah tinggi TETAP agar tidak menggeser layout */}
-      <div className="flex h-10 shrink-0 items-center justify-center">
-        {savedFlash && (
-          <p className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-3 py-1.5 font-manrope text-xs font-semibold text-teal-700 animate-in fade-in">
-            <span className="text-sm">✓</span> Jawaban tersimpan
-          </p>
-        )}
-      </div>
-      </div>
+                {/* Confirm button — muncul setelah pilih (interest) */}
+                <motion.div initial={false} animate={{ opacity: selected ? 1 : 0, y: selected ? 0 : 8 }}>
+                  {selected && !revealed && (
+                    <button
+                      type="button"
+                      onClick={handleConfirmInterest}
+                      disabled={answerMutation.isPending}
+                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+                    >
+                      {answerMutation.isPending ? "Menyimpan…" : "Lanjut"} <ArrowRight className="h-5 w-5" />
+                    </button>
+                  )}
+                </motion.div>
+
+                <p className="mt-2 text-center font-manrope text-[10px] text-muted-foreground">
+                  Shortcut: tekan <b>A/B</b> lalu <b>Enter</b>
+                </p>
+              </>
+            ) : (
+              [
+                ["A", liveQuestion.optionA],
+                ["B", liveQuestion.optionB],
+                ["C", liveQuestion.optionC],
+                ["D", liveQuestion.optionD],
+              ]
+                .filter(
+                  ([k, t]: any) =>
+                    String(t ?? "").trim() ||
+                    (liveQuestion as any)._optImgs?.[k.charCodeAt(0) - 65] ||
+                    (liveQuestion as any)._optIcons?.[k.charCodeAt(0) - 65],
+                )
+                .map(([key, opt]: any, i: number) => {
+                  const isSelected = selected === key;
+                  const oi = (liveQuestion as any)._optImgs?.[i];
+                  const oic = (liveQuestion as any)._optIcons?.[i];
+                  return (
+                    <motion.button
+                      key={key}
+                      type="button"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.06 * i }}
+                      onClick={() => handleSelect(key)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-2xl border-2 bg-white p-4 text-left transition-all",
+                        _imgOptions && "flex-col justify-center gap-2 p-3 text-center",
+                        isSelected
+                          ? "border-mentor-teal bg-mentor-teal/5 shadow-md"
+                          : "border-gray-200 hover:border-gray-300 active:scale-[0.99]",
+                      )}
+                    >
+                      {oic ? (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-2xl shadow-sm">
+                          {oic}
+                        </span>
+                      ) : (
+                        <span
+                          className={cn(
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold font-manrope text-sm",
+                            isSelected ? "bg-mentor-teal text-white" : "bg-gray-100 text-gray-500",
+                          )}
+                        >
+                          {key}
+                        </span>
+                      )}
+                      {oi && (
+                        <img
+                          src={oi}
+                          alt=""
+                          className={cn(
+                            "shrink-0 rounded-lg border border-gray-100 object-cover",
+                            _imgOptions ? "h-24 w-24" : "h-10 w-14",
+                          )}
+                        />
+                      )}
+                      {String(opt ?? "").trim() && (
+                        <span className="font-manrope font-medium text-[15px] text-gray-800">
+                          {(liveQuestion as any)._optMath?.[i] ? <Latex text={opt} /> : opt}
+                        </span>
+                      )}
+                    </motion.button>
+                  );
+                })
+            )}
+          </div>
+
+          {/* Feedback singkat (Duolingo-style) — wadah tinggi TETAP agar tidak menggeser layout */}
+          <div className="flex h-10 shrink-0 items-center justify-center">
+            {savedFlash && (
+              <p className="fade-in flex animate-in items-center justify-center gap-1.5 rounded-xl bg-teal-50 px-3 py-1.5 font-manrope font-semibold text-teal-700 text-xs">
+                <span className="text-sm">✓</span> Jawaban tersimpan
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1398,9 +1838,9 @@ function LegacyWizard({ engine }: { engine?: { code: string; sessionId: string; 
 
 function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
-    <div className={`flex items-center justify-between rounded-xl px-3 py-2 ${last ? "" : "border-b border-gray-50"}`}>
-      <span className="font-manrope text-xs text-gray-500">{label}</span>
-      <span className="font-manrope text-xs font-semibold text-gray-800">{value}</span>
+    <div className={`flex items-center justify-between rounded-xl px-3 py-2 ${last ? "" : "border-gray-50 border-b"}`}>
+      <span className="font-manrope text-gray-500 text-xs">{label}</span>
+      <span className="font-manrope font-semibold text-gray-800 text-xs">{value}</span>
     </div>
   );
 }

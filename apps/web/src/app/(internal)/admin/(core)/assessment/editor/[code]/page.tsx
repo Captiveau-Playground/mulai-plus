@@ -510,6 +510,17 @@ export default function AssessmentDetailPage() {
                 <Button
                   size="sm"
                   variant="outline"
+                  data-testid="q-preview"
+                  onClick={() =>
+                    selVer && setPreviewV({ id: selVer.id, versionNumber: selVer.versionNumber, status: selVer.status })
+                  }
+                  title="Lihat versi ini seperti yang dilihat siswa"
+                >
+                  <Eye className="mr-1 h-4 w-4" /> Preview
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   data-testid="q-import"
                   onClick={() => setImportOpen(true)}
                   title="Import banyak soal dari CSV/Excel"
