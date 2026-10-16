@@ -26,7 +26,7 @@ test.describe("Admin · Semua menu assessment", () => {
     ["/admin/assessment/questions", /Manajemen Soal/i],
     ["/admin/assessment/patterns", /Pola Jurusan/i],
     ["/admin/assessment/careers", /Mapping Karier/i],
-    ["/admin/assessment/schools", /Sekolah Kerjasama/i],
+    ["/admin/assessment/schools", /Sekolah & Batch/i],
     ["/admin/assessment/b2c", /B2C/i],
     ["/admin/assessment/b2c/history", /B2C/i],
   ];
