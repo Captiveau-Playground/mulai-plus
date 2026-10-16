@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, PlayCircle, RotateCcw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ProfileGate, { useProfileGate } from "@/components/student/profile-gate";
 import { ProgressCharts } from "@/components/student/progress-charts";
 import { Button } from "@/components/ui/button";
@@ -159,7 +159,12 @@ export default function AssessmentHomePage() {
     try { if (document.cookie.split(";").some((c) => c.trim().startsWith("mulai-dev-info=1"))) return true; if (localStorage.getItem("mulai-dev-info-v1") === "1") return true; } catch { /* abaikan */ }
     return false;
   };
-  const [infoOpen, setInfoOpen] = useState(() => !devDismissed());
+  const [infoOpen, setInfoOpen] = useState(false);
+  // Status dismiss ada di cookie/localStorage (tidak tersedia saat SSR) → dicek setelah mount.
+  useEffect(() => {
+    if (!devDismissed()) setInfoOpen(true);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: cukup sekali saat mount
+  }, []);
   const closeInfo = () => { try { document.cookie = "mulai-dev-info=1; path=/; max-age=31536000"; localStorage.setItem("mulai-dev-info-v1", "1"); } catch { /* abaikan */ } setInfoOpen(false); };
   const { data: authSession } = authClient.useSession();
   const sid = authSession?.user?.id ?? "";
@@ -259,9 +264,7 @@ export default function AssessmentHomePage() {
             >
               Kebijakan Privasi · bab Assessment
             </Link>
-            <Button
-              type="button"
-              onClick={() => setInfoOpen(false)}
+            <Button type="button" onClick={closeInfo}
               className="rounded-xl bg-brand-navy px-5 font-manrope font-semibold text-sm text-white transition-colors hover:bg-brand-navy-light"
             >
               Mengerti
