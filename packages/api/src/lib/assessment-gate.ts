@@ -1,5 +1,4 @@
-import { db, eq, and, inArray } from "@mulai-plus/db/db";
-import { schema } from "@mulai-plus/db/db";
+import { and, db, eq, inArray, schema } from "@mulai-plus/db/db";
 
 /**
  * Publish & Gatekeeper untuk Assessment Engine (Fase 0).
@@ -7,7 +6,12 @@ import { schema } from "@mulai-plus/db/db";
  */
 
 /** Gatekeeper v1 — daftar error actionable; publish ditolak bila ada error. */
-export async function validatePublish(versionId: string): Promise<{ ok: boolean; errors: string[]; warnings: string[]; details?: { kind: "question" | "dimension" | "config"; id?: string; message: string }[] }> {
+export async function validatePublish(versionId: string): Promise<{
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  details?: { kind: "question" | "dimension" | "config"; id?: string; message: string }[];
+}> {
   const errors: string[] = [];
   const warnings: string[] = [];
   const details: { kind: "question" | "dimension" | "config"; id?: string; message: string }[] = [];
@@ -16,15 +20,21 @@ export async function validatePublish(versionId: string): Promise<{ ok: boolean;
   });
   if (!v) return { ok: false, errors: ["version_not_found"], warnings: [] };
   const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, v.assessmentId) });
-  if (!a || !a.name || !a.code) { errors.push("Assessment wajib punya nama & kode."); details.push({ kind: "config", message: "Assessment wajib punya nama & kode." }); }
+  if (!a?.name || !a.code) {
+    errors.push("Assessment wajib punya nama & kode.");
+    details.push({ kind: "config", message: "Assessment wajib punya nama & kode." });
+  }
   const cfg = (v.configJson ?? {}) as any;
   const totalDim = Number(cfg.total_dim ?? 0);
   const resultCount = Number(cfg.result_dim_count ?? 0);
   const minQ = Number(cfg.min_q_per_dim ?? 0);
   if (!totalDim) errors.push("total_dim tidak valid.");
-  if (!resultCount || resultCount > totalDim) errors.push(`result_dim_count (${resultCount}) harus ≤ total_dim (${totalDim}).`);
+  if (!resultCount || resultCount > totalDim)
+    errors.push(`result_dim_count (${resultCount}) harus ≤ total_dim (${totalDim}).`);
 
-  const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, versionId) });
+  const dims = await db.query.assessmentDimensions.findMany({
+    where: eq(schema.assessmentDimensions.versionId, versionId),
+  });
   const activeDims = dims.filter((d) => d.isActive);
   if (activeDims.length !== totalDim)
     errors.push(`Dimensi aktif (${activeDims.length}) harus sesuai total_dim (${totalDim}).`);
@@ -43,21 +53,60 @@ export async function validatePublish(versionId: string): Promise<{ ok: boolean;
 
   const questions = await db.query.questions.findMany({ where: eq(schema.questions.versionId, versionId) });
   const activeQs = questions.filter((q) => q.isActive);
+
+  // ⚠️ Kombinasi setting yang saling merusak (warning, tidak memblok rilis)
+  const likertCount = activeQs.filter((q) => q.questionType === "likert").length;
+  if (cfg.randomize_a === true && likertCount > 0) {
+    const msg = `"Acak urutan pilihan" aktif, tapi ada ${likertCount} soal skala (likert) — urutan opsinya bermakna dan tidak akan diacak.`;
+    warnings.push(msg);
+    details.push({ kind: "config", message: msg });
+  }
+  if (cfg.randomize_q === true && (cfg.section_mode ?? "none") !== "none") {
+    const msg =
+      '"Acak urutan soal" aktif bersamaan dengan pembagian bagian — batas tiap bagian jadi tidak menentu. Matikan salah satunya.';
+    warnings.push(msg);
+    details.push({ kind: "config", message: msg });
+  }
   const qIds = activeQs.map((q) => q.id);
   const opts = qIds.length
     ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.questionId, qIds) })
     : [];
   const orderSeen = new Set<string>();
   for (const q of activeQs) {
-    if (!q.dimensionId) { errors.push(`Soal ${q.questionCode ?? q.id} belum punya dimensi.`); details.push({ kind: "question", id: q.id, message: `Soal ${q.questionCode ?? q.id} belum punya dimensi.` }); }
-    if (!q.scaleId && q.questionType === "multiple_choice") { errors.push(`Soal ${q.questionCode ?? q.id} belum punya answer scale.`); details.push({ kind: "question", id: q.id, message: `Soal ${q.questionCode ?? q.id} belum punya answer scale.` }); }
+    if (!q.dimensionId) {
+      errors.push(`Soal ${q.questionCode ?? q.id} belum punya dimensi.`);
+      details.push({ kind: "question", id: q.id, message: `Soal ${q.questionCode ?? q.id} belum punya dimensi.` });
+    }
+    if (!q.scaleId && q.questionType === "multiple_choice") {
+      errors.push(`Soal ${q.questionCode ?? q.id} belum punya answer scale.`);
+      details.push({ kind: "question", id: q.id, message: `Soal ${q.questionCode ?? q.id} belum punya answer scale.` });
+    }
     const o = opts.filter((x) => x.questionId === q.id);
-    if (q.questionType === "multiple_choice" && o.length < 2) { errors.push(`Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`); details.push({ kind: "question", id: q.id, message: `Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).` }); }
+    if (q.questionType === "multiple_choice" && o.length < 2) {
+      errors.push(`Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`);
+      details.push({
+        kind: "question",
+        id: q.id,
+        message: `Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`,
+      });
+    }
     if (q.questionType !== "text_input")
-      for (const oo of o) if (!oo.label && !oo.imageUrl && !oo.icon) errors.push(`Opsi pada soal ${q.questionCode ?? q.id} harus punya teks atau gambar/ikon.`);
-      if (q.questionType === "likert" && o.length < 2) errors.push(`Skala Likert pada soal ${q.questionCode ?? q.id} butuh minimal 2 titik skala.`);
+      for (const oo of o)
+        if (!oo.label && !oo.imageUrl && !oo.icon)
+          errors.push(`Opsi pada soal ${q.questionCode ?? q.id} harus punya teks atau gambar/ikon.`);
+    if (q.questionType === "likert" && o.length < 2)
+      errors.push(`Skala Likert pada soal ${q.questionCode ?? q.id} butuh minimal 2 titik skala.`);
     const key = `${q.dimensionId}:${q.displayOrder}`;
-    if (orderSeen.has(key)) { errors.push(`Soal "${q.questionCode ?? q.id}" punya nomor urut sama dgn soal lain dalam dimensi — rapikan urutan pakai tombol ↑↓ / drag.`); details.push({ kind: "question", id: q.id, message: `Nomor urut soal "${q.questionCode ?? q.id}" bertabrakan dengan soal lain — rapikan urutan.` }); }
+    if (orderSeen.has(key)) {
+      errors.push(
+        `Soal "${q.questionCode ?? q.id}" punya nomor urut sama dgn soal lain dalam dimensi — rapikan urutan pakai tombol ↑↓ / drag.`,
+      );
+      details.push({
+        kind: "question",
+        id: q.id,
+        message: `Nomor urut soal "${q.questionCode ?? q.id}" bertabrakan dengan soal lain — rapikan urutan.`,
+      });
+    }
     orderSeen.add(key);
   }
   if (minQ > 0) {
@@ -72,7 +121,9 @@ export async function validatePublish(versionId: string): Promise<{ ok: boolean;
 }
 
 /** Publish versi → live; versi live lain → archived. Gatekeeper dulu. */
-export async function publishVersion(versionId: string): Promise<{ ok: boolean; versionId?: string; errors?: string[] }> {
+export async function publishVersion(
+  versionId: string,
+): Promise<{ ok: boolean; versionId?: string; errors?: string[] }> {
   const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, versionId) });
   if (!v) return { ok: false, errors: ["version_not_found"] };
   const check = await validatePublish(versionId);
@@ -86,13 +137,21 @@ export async function publishVersion(versionId: string): Promise<{ ok: boolean; 
       const ol = await db.query.assessmentVersions.findFirst({
         where: and(eq(schema.assessmentVersions.assessmentId, o.id), eq(schema.assessmentVersions.status, "live")),
       });
-      if (ol) return { ok: false, errors: [`Hanya satu tes ${a.family === "minat" ? "Minat" : "Bakat"} yang boleh LIVE untuk pengguna umum (B2C). Tes lain ("${o.name}") masih LIVE — nonaktifkan rilis itu dulu.`] };
+      if (ol)
+        return {
+          ok: false,
+          errors: [
+            `Hanya satu tes ${a.family === "minat" ? "Minat" : "Bakat"} yang boleh LIVE untuk pengguna umum (B2C). Tes lain ("${o.name}") masih LIVE — nonaktifkan rilis itu dulu.`,
+          ],
+        };
     }
   }
   await db
     .update(schema.assessmentVersions)
     .set({ status: "archived" })
-    .where(and(eq(schema.assessmentVersions.assessmentId, v.assessmentId), eq(schema.assessmentVersions.status, "live")));
+    .where(
+      and(eq(schema.assessmentVersions.assessmentId, v.assessmentId), eq(schema.assessmentVersions.status, "live")),
+    );
   await db
     .update(schema.assessmentVersions)
     .set({ status: "live", publishedAt: new Date() })

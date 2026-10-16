@@ -217,6 +217,13 @@ export const discoverRouter = {
       // randomize_a = true → acak opsi tiap soal, disimpan di sesi agar konsisten.
       const buildOptionOrder = async (): Promise<Record<string, string[]> | undefined> => {
         if (c?.randomize_a !== true || orderIds.length === 0) return undefined;
+        // Soal SKALA (likert) tidak boleh diacak: urutan opsinya adalah tangga yang bermakna
+        // (mis. 😡🙁😐🙂😍 / 1–5). Hanya opsi pilihan ganda yang diacak.
+        const typeRows = await db.query.questions.findMany({
+          where: inArray(schema.questions.id, orderIds),
+          columns: { id: true, questionType: true },
+        });
+        const noShuffle = new Set(typeRows.filter((q) => q.questionType !== "multiple_choice").map((q) => q.id));
         const opts = await db.query.questionOptions.findMany({
           where: inArray(schema.questionOptions.questionId, orderIds),
           columns: { id: true, questionId: true, displayOrder: true },
@@ -224,6 +231,7 @@ export const discoverRouter = {
         });
         const out: Record<string, string[]> = {};
         for (const qid of orderIds) {
+          if (noShuffle.has(qid)) continue;
           const ids = opts.filter((o) => o.questionId === qid).map((o) => o.id);
           if (ids.length > 1) out[qid] = shuffle(ids);
         }
@@ -581,10 +589,9 @@ export const discoverRouter = {
         const code = (dimByCode.get(dimId) ?? "").toLowerCase();
         if (code) abilityCodeScores[code] = Math.round(pct);
       }
-      const diffFactor =
-        rows.length >= 2 && (rows[0]?.total ?? 0) > 0
-          ? Math.max(0, Math.min(1, (rows[0]?.total - rows[1]?.total) / rows[0]?.total))
-          : 1;
+      const r0 = rows[0];
+      const r1 = rows[1];
+      const diffFactor = r0 && r1 && r0.total > 0 ? Math.max(0, Math.min(1, (r0.total - r1.total) / r0.total)) : 1;
       const recos = await recommendForResult({ topCodes: top, abilityScores: abilityCodeScores, diffFactor });
 
       await db
@@ -689,14 +696,8 @@ export const discoverRouter = {
                   scores: abilityScores,
                 }
               : undefined;
-          const diff =
-            rows.length >= 2 && (rows[0]?.total ?? 0) > 0
-              ? (rows[0]?.total - rows[1]?.total) / rows[0]?.total > 0.4
-                ? "strong"
-                : (rows[0]?.total - rows[1]?.total) / rows[0]?.total > 0.15
-                  ? "moderate"
-                  : "weak"
-              : "moderate";
+          const gap = r0 && r1 && r0.total > 0 ? (r0.total - r1.total) / r0.total : 0;
+          const diff = gap > 0.4 ? "strong" : gap > 0.15 ? "moderate" : "weak";
           const confScore = String(Math.max(0, Math.min(100, Math.round(50 + (diffFactor ?? 0.5) * 40))));
           if (existingForAttempt) {
             await db
