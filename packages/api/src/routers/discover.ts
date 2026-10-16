@@ -105,6 +105,7 @@ export const discoverRouter = {
       });
       const dims = await db.query.assessmentDimensions.findMany({
         where: eq(schema.assessmentDimensions.versionId, live.id),
+        orderBy: asc(schema.assessmentDimensions.displayOrder),
       });
       const secs = computeRunSections((live.configJson ?? {}) as any, qs as any, dims as any);
       const n = qs.filter((q) => q.isActive).length;
@@ -141,38 +142,58 @@ export const discoverRouter = {
       const questions = await questionsOf(v.id);
       const dimIds = dimensions.map((d) => d.id);
       const instructions = dimIds.length
-        ? await db.query.dimensionInstructions.findMany({
-            where: inArray(schema.dimensionInstructions.dimensionId, dimIds),
-          })
+        ? (
+            await db.query.dimensionInstructions.findMany({
+              where: inArray(schema.dimensionInstructions.dimensionId, dimIds),
+            })
+          ).sort((a, b) => dimIds.indexOf(a.dimensionId) - dimIds.indexOf(b.dimensionId)) // ikut urutan dimensi
         : [];
       const cfgRun = (v.configJson ?? {}) as any;
-      const sm = cfgRun.section_mode ?? "none";
       const activeQ = questions;
       const activeDim = dimensions;
-      let runSections: { key: string; title: string; from: number; to: number }[] = [];
-      if (sm === "by_dimension") {
-        let pos = 0;
-        runSections = activeDim
-          .map((d) => {
-            const cnt = activeQ.filter((q) => q.dimensionId === d.id).length;
-            const sec = { key: d.id, title: d.name, from: pos, to: pos + cnt - 1 };
-            pos += cnt;
-            return sec;
+      // Rentang bagian dihitung dari urutan soal yang sebenarnya (lihat computeRunSections).
+      const runSections = computeRunSections(cfgRun, activeQ as any, activeDim as any);
+      // ── Payload khusus SISWA ────────────────────────────────────────────────
+      // 1) sertakan tipe evaluasi jawaban isian (angka vs kata) supaya UI tahu keyboard mana
+      //    yang dipakai — TANPA kunci jawabannya;
+      // 2) buang skor & dimensi target tiap opsi: keduanya bisa dibaca dari devtools dan
+      //    membocorkan kunci jawaban pilihan ganda.
+      const textCfgs = activeQ.length
+        ? await db.query.textInputConfigs.findMany({
+            where: inArray(
+              schema.textInputConfigs.questionId,
+              activeQ.map((q) => q.id),
+            ),
+            columns: { questionId: true, evaluationType: true, answerKey: true },
           })
-          .filter((s) => s.from <= s.to);
-      } else if (sm?.startsWith("chunk")) {
-        const size = Number(sm.split(":")[1] ?? 10) || 10;
-        runSections = [];
-        for (let f = 0; f < activeQ.length; f += size)
-          runSections.push({
-            key: `chunk${f}`,
-            title: `Bagian ${runSections.length + 1}`,
-            from: f,
-            to: Math.min(f + size - 1, activeQ.length - 1),
-          });
-      } else {
-        runSections = activeQ.length ? [{ key: "all", title: "Satu Bagian", from: 0, to: activeQ.length - 1 }] : [];
-      }
+        : [];
+      // Keyboard yang dipakai UI siswa: "numeric" bila penilaiannya angka ATAU kuncinya memang
+      // angka (mis. "Berapa jumlah huruf i pada INISIATIF?" → 4). Yang dikirim hanya MODE-nya,
+      // bukan kunci jawabannya.
+      const isNumericKey = (k: unknown) => /^[\d.,/\s-]+$/.test(String(k ?? "").trim());
+      const textEvalOf = new Map(
+        textCfgs.map((t) => [
+          t.questionId,
+          {
+            evaluationType: t.evaluationType,
+            inputMode:
+              t.evaluationType === "numeric_tolerance" || isNumericKey(t.answerKey) ? "numeric" : "text",
+          },
+        ]),
+      );
+      const publicQuestions = activeQ.map((q) => ({
+        ...q,
+        textEval: q.questionType === "text_input" ? (textEvalOf.get(q.id) ?? null) : null,
+        opts: ((q as any).opts ?? []).map((o: any) => ({
+          id: o.id,
+          optionValue: o.optionValue,
+          label: o.label,
+          icon: o.icon,
+          imageUrl: o.imageUrl,
+          imageCaption: o.imageCaption,
+          displayOrder: o.displayOrder,
+        })),
+      }));
       return {
         ok: true,
         version: { id: v.id, number: v.versionNumber, status: v.status },
@@ -180,7 +201,7 @@ export const discoverRouter = {
         dimensions,
         sections,
         instructions,
-        questions,
+        questions: publicQuestions,
         runSections,
       };
     }),
@@ -207,10 +228,27 @@ export const discoverRouter = {
       // randomize_q = true → urutan diacak SEKALI lalu disimpan di sesi (resume tetap sama).
       const baseQs = await db.query.questions.findMany({
         where: and(eq(schema.questions.versionId, v.id), eq(schema.questions.isActive, true)),
-        columns: { id: true, durationSeconds: true },
+        columns: { id: true, durationSeconds: true, dimensionId: true, displayOrder: true },
         orderBy: asc(schema.questions.displayOrder),
       });
-      const orderedQs = c?.randomize_q === true ? shuffle(baseQs) : baseQs;
+      // section_mode = by_dimension → soal DIKELOMPOKKAN per dimensi mengikuti urutan dimensi.
+      // Tanpa ini, urutan soal yang berselang (hasil impor/manual) bikin bagian berlabel salah
+      // (mis. "Bagian Numerik" isinya soal verbal) karena rentang bagian dihitung dari urutan soal.
+      let seqQs: typeof baseQs = baseQs;
+      if ((c?.section_mode ?? "none") === "by_dimension") {
+        const dimRows = await db.query.assessmentDimensions.findMany({
+          where: eq(schema.assessmentDimensions.versionId, v.id),
+          columns: { id: true },
+          orderBy: asc(schema.assessmentDimensions.displayOrder),
+        });
+        const rank = new Map(dimRows.map((d, i) => [d.id, i]));
+        seqQs = [...baseQs].sort(
+          (a, b) =>
+            (rank.get(a.dimensionId) ?? Number.MAX_SAFE_INTEGER) -
+              (rank.get(b.dimensionId) ?? Number.MAX_SAFE_INTEGER) || a.displayOrder - b.displayOrder,
+        );
+      }
+      const orderedQs = c?.randomize_q === true ? shuffle(seqQs) : seqQs;
       const orderIds = orderedQs.map((q) => q.id);
 
       // ── Urutan opsi per soal ────────────────────────────────────────────────
@@ -316,12 +354,37 @@ export const discoverRouter = {
         if (!t && c?.timer_enabled === true) {
           // Sesi lama (dibuat sebelum timer aktif) → lampirkan deadline dari SEKARANG (server-authoritative)
           t = await buildTimer();
-          if (t) {
-            await db
-              .update(schema.assessmentSessions)
-              .set({ configJson: { ...(((existingSess as any).configJson ?? {}) as any), timer: t } })
-              .where(eq(schema.assessmentSessions.id, existingSess.id));
-          }
+        }
+        // ── Sesi BASI ───────────────────────────────────────────────────────────
+        // Kalau bank soal pernah diganti (seeder/impor ulang), questionOrderIds sesi lama
+        // menunjuk soal yang sudah tidak ada. Dulu urutan itu tetap dipakai → soal/bagian jadi
+        // campur atau kosong saat dilanjutkan. Sekarang urutannya dibangun ulang dari versi live.
+        const storedOrder: string[] = Array.isArray(sessCfg?.questionOrderIds) ? sessCfg.questionOrderIds : [];
+        const alive = new Set(orderIds);
+        const stale =
+          storedOrder.length === 0 ||
+          storedOrder.some((id) => !alive.has(id)) ||
+          storedOrder.length !== orderIds.length;
+        let sessOrder = storedOrder;
+        let sessOptionOrder = sessCfg?.optionOrder;
+        if (stale) {
+          sessOrder = orderIds;
+          sessOptionOrder = optionOrder;
+          // deadline per-soal indeksnya mengikuti urutan → wajib dihitung ulang
+          if (c?.timer_enabled === true && t?.scope === "question") t = await buildTimer();
+        }
+        if (stale || (t && !sessCfg?.timer)) {
+          await db
+            .update(schema.assessmentSessions)
+            .set({
+              configJson: {
+                ...sessCfg,
+                questionOrderIds: sessOrder,
+                ...(sessOptionOrder ? { optionOrder: sessOptionOrder } : {}),
+                ...(t ? { timer: t } : {}),
+              },
+            })
+            .where(eq(schema.assessmentSessions.id, existingSess.id));
         }
         // Sesi yang dijeda dilanjutkan → kembalikan statusnya agar jawaban bisa masuk lagi.
         if ((existingSess as any).status === "paused") {
@@ -336,8 +399,9 @@ export const discoverRouter = {
           versionId: v.id,
           serverTimer: t,
           resume: true,
-          orderIds: sessCfg?.questionOrderIds ?? orderIds,
-          optionOrder: sessCfg?.optionOrder,
+          repaired: stale,
+          orderIds: sessOrder.length ? sessOrder : orderIds,
+          optionOrder: sessOptionOrder,
         } as const;
       }
       const session = {
@@ -1111,6 +1175,19 @@ function computeRunSections(
 ) {
   const sm = cfg?.section_mode ?? "none";
   if (sm === "by_dimension") {
+    const nameOf = new Map(dims.map((d) => [d.id, d.name]));
+    // Rentang dari URUTAN SOAL YANG SEBENARNYA (blok kontigu per dimensi), bukan asumsi
+    // "soal satu dimensi pasti berurutan". Bila urutan berselang (impor/manual), asumsi lama
+    // membuat bagian berlabel salah (mis. "Bagian Numerik" isinya soal verbal).
+    const runs: { key: string; title: string; from: number; to: number }[] = [];
+    for (const [i, q] of qs.entries()) {
+      const last = runs[runs.length - 1];
+      if (last && last.key === q.dimensionId) last.to = i;
+      else runs.push({ key: q.dimensionId, title: nameOf.get(q.dimensionId) ?? "Bagian", from: i, to: i });
+    }
+    const uniq = new Set(qs.map((q) => q.dimensionId)).size;
+    if (runs.length === uniq) return runs;
+    // Berselang → sisi runtime (discover.start) mengelompokkan ulang per dimensi.
     let pos = 0;
     const arr: { key: string; title: string; from: number; to: number }[] = [];
     for (const d of dims) {
