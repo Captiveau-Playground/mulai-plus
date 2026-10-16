@@ -1,15 +1,23 @@
 // E2E — Logika Pilih Test (notice 4 state + kartu pause/30-30)
 // Menciptakan user unik via API, login via UI, mendorong state engine via RPC (public), lalu memeriksa UI.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const RPC = "http://localhost:3000/rpc";
 const EMAIL_D = (s: string) => `e2e-${s}@test.local`;
 
 async function rpc(path: string, input: unknown) {
-  const res = await fetch(`${RPC}/${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ json: input }) });
+  const res = await fetch(`${RPC}/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ json: input }),
+  });
   const raw = await res.text();
   let j: any = null;
-  try { j = JSON.parse(raw); } catch { /* noop */ }
+  try {
+    j = JSON.parse(raw);
+  } catch {
+    /* noop */
+  }
   return j?.json ?? j ?? { http: res.status, raw: raw.slice(0, 120) };
 }
 
@@ -17,13 +25,18 @@ async function completeTest(sid: string, code: string) {
   const cfg = await rpc("discover/config", { code });
   const qs: any[] = (cfg.questions ?? []).filter((q: any) => q.isActive);
   const types = new Set(qs.map((q) => q.questionType));
-  console.log(`[debug:${code}] types=${[...types].join(",")} nQs=${qs.length} optsSample=${JSON.stringify(qs[0]?.opts?.slice(0, 1) ?? null)}`);
+  console.log(
+    `[debug:${code}] types=${[...types].join(",")} nQs=${qs.length} optsSample=${JSON.stringify(qs[0]?.opts?.slice(0, 1) ?? null)}`,
+  );
   const st = await rpc("discover/start", { code, studentId: sid });
   let subOK = 0;
   for (const q of qs) {
     const o = q.opts?.[0];
-    if (o) { const r = await rpc("discover/submit", { sessionId: st.sessionId, questionId: q.id, optionId: o.id }); if (r?.ok) subOK++; }
-    else if (q?.questionType === "text_input") { // soal isian: jawab angka → tersimpan & terhitung
+    if (o) {
+      const r = await rpc("discover/submit", { sessionId: st.sessionId, questionId: q.id, optionId: o.id });
+      if (r?.ok) subOK++;
+    } else if (q?.questionType === "text_input") {
+      // soal isian: jawab angka → tersimpan & terhitung
       const r = await rpc("discover/submitText", { sessionId: st.sessionId, questionId: q.id, textAnswer: "1" });
       if (r?.ok) subOK++;
     }
@@ -53,7 +66,11 @@ async function createUser(tag: string) {
   });
   const raw = await res.text();
   let j: any = null;
-  try { j = JSON.parse(raw); } catch { /* noop */ }
+  try {
+    j = JSON.parse(raw);
+  } catch {
+    /* noop */
+  }
   const user = j?.user ?? {};
   return { email, password: "E2ePass!234", id: user?.id ?? "", raw: raw.slice(0, 200) };
 }
@@ -65,7 +82,9 @@ async function dismissCookie(page: Page) {
       const btn = dlg.locator("button").first();
       await btn.click({ timeout: 5000 });
     }
-  } catch { /* tidak ada dialog */ }
+  } catch {
+    /* tidak ada dialog */
+  }
 }
 
 async function loginUI(page: Page, email: string, password: string) {
@@ -86,7 +105,11 @@ async function loginUI(page: Page, email: string, password: string) {
 
 async function dismissDevDialog(page: Page) {
   const x = page.getByRole("button", { name: "Tutup" }).first();
-  try { if (await x.isVisible({ timeout: 2000 })) await x.click(); } catch { /* none */ }
+  try {
+    if (await x.isVisible({ timeout: 2000 })) await x.click();
+  } catch {
+    /* none */
+  }
 }
 
 test.describe("Assessment logic — Pilih Test", () => {
@@ -106,15 +129,28 @@ test.describe("Assessment logic — Pilih Test", () => {
     // lewati gerbang profil: seed sekolah+jenjang & 1 sosial (via RPC dengan cookie sesi)
     await page.evaluate(async () => {
       const h = { "content-type": "application/json" };
-      await fetch("http://localhost:3000/rpc/user/updateProfile", { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ json: { school: "SMA Negeri 1 Jakarta", educationLevel: "SMA" } }) });
-      await fetch("http://localhost:3000/rpc/user/updateProfile", { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ json: { socialMedia: { instagram: "https://instagram.com/e2e-test" } } }) });
+      await fetch("http://localhost:3000/rpc/user/updateProfile", {
+        method: "POST",
+        headers: h,
+        credentials: "include",
+        body: JSON.stringify({ json: { school: "SMA Negeri 1 Jakarta", educationLevel: "SMA" } }),
+      });
+      await fetch("http://localhost:3000/rpc/user/updateProfile", {
+        method: "POST",
+        headers: h,
+        credentials: "include",
+        body: JSON.stringify({ json: { socialMedia: { instagram: "https://instagram.com/e2e-test" } } }),
+      });
     });
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(1500);
     await dismissDevDialog(page);
 
-    const gateVisible = await page.getByText("Langkah 1 dari 2").isVisible().catch(() => false);
+    const gateVisible = await page
+      .getByText("Langkah 1 dari 2")
+      .isVisible()
+      .catch(() => false);
     if (gateVisible) {
       const dump = await page.evaluate(() => document.body.innerText.slice(0, 400));
       throw new Error("Gerbang profil masih tampil: " + dump);
@@ -152,14 +188,19 @@ test.describe("Assessment logic — Pilih Test", () => {
     await expect(page.getByText("Karier yang Cocok")).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Profil Kemampuan")).toBeVisible({ timeout: 20000 });
     await expect(page.getByText(/belum tersedia/)).not.toBeVisible({ timeout: 5000 }); // ability terisi, bukan placeholder
-    const hit = await page.locator("text=/Kedokteran|Teknik|Ekonomi|Manajemen|Keperawatan|Informatika|Hukum/").count();
-    console.log("[debug:result] nama jurusan tampil =", hit);
+    // Minimal 1 kartu rekomendasi jurusan tampil. (Sebelumnya test mencocokkan nama
+    // jurusan tertentu — rapuh, karena daftar jurusan berubah mengikuti bank soal &
+    // skor yang bisa seri. Yang penting mesin rekomendasi mengisi daftarnya.)
+    const hit = await page.locator("text=/Kecocokan/").count();
+    console.log("[debug:result] kartu rekomendasi jurusan =", hit);
     expect(hit).toBeGreaterThan(0);
     // PETA REKOMENDASI (SCR) — dibangun dari majors/careers, tanpa AI
     await expect(page.getByText("Peta Rekomendasi")).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/klik node prodi/)).toBeVisible({ timeout: 15000 });
     // ——— REALISME ANGKA & RINGKASAN ———
-    const pcts = await page.evaluate(() => Array.from(document.body.innerText.matchAll(/(\d+(?:\.\d+)?)%/g)).map((m) => parseFloat(m[1] ?? "0")));
+    const pcts = await page.evaluate(() =>
+      Array.from(document.body.innerText.matchAll(/(\d+(?:\.\d+)?)%/g)).map((m) => Number.parseFloat(m[1] ?? "0")),
+    );
     console.log("[debug:result] persen =", pcts.join(","));
     expect(Math.max(0, ...pcts)).toBeLessThanOrEqual(100); // tidak ada kecocokan > 100% (regresi 333%)
     // Ringkasan AI: fallback deber-grounded (bukan cheerleader 'kombinasi unik')
@@ -169,14 +210,15 @@ test.describe("Assessment logic — Pilih Test", () => {
     console.log("[debug:result] bagian Ringkasan AI hadir =", aiSec);
     await page.goto("/dashboard/student/assessment");
 
-    // STATE 3 — pause: attempt baru minat 3/30
+    // STATE 3 — pause: attempt baru minat 3 dari TOTAL soal (bank bisa berubah, mis. 120)
+    const totalQ = ((await rpc("discover/config", { code: "DISCOVER" })).questions ?? []).filter((q: any) => q.isActive).length;
     const ses = await partial(studentId, "DISCOVER", 3);
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(1500);
-    await expect(page.getByText(/Lanjutkan · 3\/30/)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(new RegExp(`Lanjutkan · 3\\/${totalQ}`))).toBeVisible({ timeout: 15000 });
 
-    // STATE 4 — isi sampai 30 tanpa finish → 'Selesaikan Test · 30/30'
+    // STATE 4 — isi sampai semua soal tanpa finish → 'Selesaikan Test · N/N'
     const cfg = await rpc("discover/config", { code: "DISCOVER" });
     const qs: any[] = (cfg.questions ?? []).filter((q: any) => q.isActive);
     for (let i = 3; i < qs.length; i++) {
@@ -186,7 +228,7 @@ test.describe("Assessment logic — Pilih Test", () => {
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(1500);
-    await expect(page.getByText(/Selesaikan Test · 30\/30/)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(new RegExp(`Selesaikan Test · ${totalQ}\\/${totalQ}`))).toBeVisible({ timeout: 15000 });
 
     // bersihkan partial
     await rpc("discover/abandon", { studentId, code: "DISCOVER" });
@@ -206,8 +248,18 @@ test.describe("Assessment — timer & instruksi (user)", () => {
     await page.waitForTimeout(1200);
     await page.evaluate(async () => {
       const h = { "content-type": "application/json" };
-      await fetch("http://localhost:3000/rpc/user/updateProfile", { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ json: { school: "SMA Negeri 1 Jakarta", educationLevel: "SMA" } }) });
-      await fetch("http://localhost:3000/rpc/user/updateProfile", { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ json: { socialMedia: { instagram: "https://instagram.com/e2e" } } }) });
+      await fetch("http://localhost:3000/rpc/user/updateProfile", {
+        method: "POST",
+        headers: h,
+        credentials: "include",
+        body: JSON.stringify({ json: { school: "SMA Negeri 1 Jakarta", educationLevel: "SMA" } }),
+      });
+      await fetch("http://localhost:3000/rpc/user/updateProfile", {
+        method: "POST",
+        headers: h,
+        credentials: "include",
+        body: JSON.stringify({ json: { socialMedia: { instagram: "https://instagram.com/e2e" } } }),
+      });
     });
 
     // Sesi TALENT baru (timer aktif) → cek timerState dari server
@@ -234,9 +286,15 @@ test.describe("Assessment — timer & instruksi (user)", () => {
     }
     // countdown tampil di top bar setelah masuk soal
     const mulai = page.getByRole("button", { name: /Mulai Tes/i }).first();
-    if (await mulai.count()) { await mulai.click(); await page.waitForTimeout(2500); }
+    if (await mulai.count()) {
+      await mulai.click();
+      await page.waitForTimeout(2500);
+    }
     const mulaiBagian = page.getByRole("button", { name: /Mulai bagian/i }).first();
-    if (await mulaiBagian.count()) { await mulaiBagian.click(); await page.waitForTimeout(2500); }
+    if (await mulaiBagian.count()) {
+      await mulaiBagian.click();
+      await page.waitForTimeout(2500);
+    }
     const chip = await page.getByText(/^\d{1,2}:\d{2}$/).count();
     console.log("[debug:timer] countdown chip =", chip);
     expect(chip).toBeGreaterThan(0);

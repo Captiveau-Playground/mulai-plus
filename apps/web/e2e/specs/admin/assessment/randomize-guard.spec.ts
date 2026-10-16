@@ -7,10 +7,12 @@ import { expect, type Page, test } from "@playwright/test";
 import {
   addDimension,
   configUpdate,
+  contentOf,
   createAssessment,
   publish,
   saveQuestion,
   validate,
+  versionOf,
 } from "../../../fixtures/assessment";
 import { createAdminPage, loginAdmin, openEditor, openGroup } from "../../../helpers/admin-ui";
 import { rpc } from "../../../helpers/api";
@@ -100,7 +102,10 @@ test.describe("Admin · Acak opsi × soal skala", () => {
     const cfg = await configOf(fx.code, fx.versionId);
     const likert = cfg.questions.find((q) => q.questionType === "likert")!;
     expect(likert.opts.map((o: any) => o.label)).toEqual(["1", "2", "3", "4", "5"]);
-    expect(likert.opts.map((o: any) => o.score)).toEqual([1, 2, 3, 4, 5]);
+    // Skor opsi TIDAK dikirim ke payload siswa (anti-bocor kunci) → dibaca dari API admin.
+    expect(likert.opts[0]).not.toHaveProperty("score");
+    const adminOpts = (await contentOf(admin, fx.versionId)).options.filter((o: any) => o.questionId === likert.id);
+    expect(adminOpts.map((o: any) => o.score)).toEqual([1, 2, 3, 4, 5]);
   });
 
   test("GATE: memberi peringatan 'acak opsi' saat ada soal skala (tidak memblok rilis)", async () => {
@@ -139,16 +144,20 @@ test.describe("Admin · Acak opsi × soal skala", () => {
     const note = page.locator('[data-testid="note-randomize_a"]');
     await expect(note).toContainText(/soal skala/i, { timeout: 15000 });
 
-    // tombol perbaikan mematikan setting
+    // tombol perbaikan mematikan setting — perubahan ditulis ke DRAFT yang sedang diedit
+    // (editor memakai lazy draft), jadi dibaca dari versi draft, bukan versi live.
     await page.locator('[data-testid="fix-randomize_a"]').click();
-    const cfg = await rpc<{ config: any }>("discover/config", { code: fx.code, versionId: fx.versionId });
     await expect
       .poll(
-        async () => (await rpc<any>("discover/config", { code: fx.code, versionId: fx.versionId })).config.randomize_a,
-        { timeout: 15000 },
+        async () => {
+          const draft = (await versionOf(admin, fx.code, "draft")).version;
+          if (!draft) return "belum-ada-draf";
+          const c = await rpc<{ config: any }>("discover/config", { code: fx.code, versionId: draft.id });
+          return c.config.randomize_a;
+        },
+        { timeout: 20000 },
       )
       .toBe(false);
-    void cfg;
   });
 
   test("GATE: 'acak soal' + pembagian bagian juga diberi peringatan", async () => {

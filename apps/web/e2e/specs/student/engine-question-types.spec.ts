@@ -1,7 +1,7 @@
 // E2E USER — tipe soal & mode evaluasi jawaban isian lewat API publik `discover.*`
 // (persis yang dipanggil UI siswa).
 import { expect, type Page, test } from "@playwright/test";
-import { addDimension, configUpdate, createAssessment, publish, saveQuestion } from "../../fixtures/assessment";
+import { addDimension, configUpdate, contentOf, createAssessment, publish, saveQuestion } from "../../fixtures/assessment";
 import { createAdminPage } from "../../helpers/admin-ui";
 import { rpc } from "../../helpers/api";
 import { closeDb, deleteAssessmentByCode } from "../../helpers/db";
@@ -69,7 +69,10 @@ test.describe("Engine · tipe soal & evaluasi", () => {
 
     expect(mc.questionType).toBe("multiple_choice");
     expect(skala.questionType).toBe("likert");
-    expect(skala.opts.map((o: any) => o.score)).toEqual([1, 2, 3, 4, 5]);
+    // Skor opsi sengaja TIDAK dikirim ke payload siswa (anti-bocor kunci) → dibaca dari API admin.
+    expect(skala.opts[0]).not.toHaveProperty("score");
+    const adminOpts = (await contentOf(admin, versionId)).options.filter((o: any) => o.questionId === skala.id);
+    expect(adminOpts.map((o: any) => o.score)).toEqual([1, 2, 3, 4, 5]);
     expect(isian.questionType).toBe("text_input");
 
     const st = await rpc<any>("discover/start", { code, studentId: studentId(), versionId });

@@ -63,8 +63,9 @@ test.describe("Siswa (UI) · timer & progres", () => {
     const next = page.getByRole("button", { name: /^Lanjut ke/ });
     if (await next.isVisible().catch(() => false)) await next.click();
 
-    // CAT-lite memilih soal dari dimensi yang paling sedikit terjawab → soal isian dimensi 2
-    await expect(page.getByText("Hasil dari 3/4 adalah…")).toBeVisible({ timeout: 20000 });
+    // Mode by_dimension → soal berikutnya tetap di bagian yang sama (likert di dimensi 1),
+    // TIDAK lagi melompat ke dimensi lain seperti perilaku CAT-lite sebelumnya.
+    await expect(page.getByText("Seberapa nyaman kamu bekerja dalam tim?")).toBeVisible({ timeout: 20000 });
     await expect.poll(() => progressText(page), { timeout: 15000 }).toBe(`1/${fx.total}`);
   });
 

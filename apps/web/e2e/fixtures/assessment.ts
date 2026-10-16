@@ -44,6 +44,7 @@ export interface QuestionInput {
   durationSeconds?: number | null;
   hasMathNotation?: boolean;
   mediaUrl?: string | null;
+  mediaCaption?: string | null;
   displayOrder?: number;
 }
 
@@ -128,6 +129,7 @@ export async function saveQuestion(page: Page, versionId: string, input: Questio
       questionType: input.questionType,
       hasMathNotation: input.hasMathNotation ?? false,
       mediaUrl: input.mediaUrl ?? null,
+      mediaCaption: input.mediaCaption ?? null,
       presentationMode: input.presentationMode ?? "standard_option_card",
       weight: input.weight ?? 1,
       durationSeconds: input.durationSeconds ?? null,
@@ -322,7 +324,9 @@ export async function buildUiFixture(
     options: [1, 2, 3, 4, 5].map((v) => ({ optionValue: "ABCDE"[v - 1], label: String(v), score: v })),
   };
   const textNum = {
-    dimensionId: d2,
+    // section_mode = by_dimension → runtime mengelompokkan soal per dimensi. Supaya soal yang
+    // diminta "pertama" benar-benar tampil pertama, soal isian ditaruh di dimensi pertama.
+    dimensionId: first === "text" ? d1 : d2,
     questionText: "Hasil dari 3/4 adalah…",
     questionType: "text_input" as const,
     textEval: { evaluationType: "numeric_tolerance", answerKey: "0.75", numericTolerance: "0.01" },

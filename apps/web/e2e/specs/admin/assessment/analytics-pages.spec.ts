@@ -64,16 +64,21 @@ test.describe("Admin · Halaman analitik & operasional", () => {
     await page.waitForTimeout(300);
     await filter.getByRole("button", { name: "Semua" }).click();
 
-    // salah satu: tabel hasil atau blok kosong
-    const hasTable = await page
-      .locator('[data-testid="history-table"]')
-      .isVisible()
-      .catch(() => false);
-    const hasEmpty = await page
-      .getByText(/Belum ada hasil test/i)
-      .isVisible()
-      .catch(() => false);
-    expect(hasTable || hasEmpty, "harus ada tabel atau empty state").toBe(true);
+    // salah satu: tabel hasil atau blok kosong (tunggu — data diambil async)
+    await expect
+      .poll(
+        async () =>
+          (await page
+            .locator('[data-testid="history-table"]')
+            .isVisible()
+            .catch(() => false)) ||
+          (await page
+            .getByText(/Belum ada hasil test/i)
+            .isVisible()
+            .catch(() => false)),
+        { timeout: 15000, message: "harus ada tabel atau empty state" },
+      )
+      .toBe(true);
   });
 
   test("Sekolah & Batch: daftar sekolah lewat dialog lalu hapus", async ({ page }) => {
