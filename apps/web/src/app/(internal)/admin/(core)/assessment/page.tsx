@@ -6,7 +6,6 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
-  Brain,
   Briefcase,
   Building2,
   ClipboardList,
@@ -23,6 +22,13 @@ import { orpc } from "@/utils/orpc";
 
 // Satu daftar, satu penamaan — sama persis dengan menu sidebar "Assessment"
 // supaya admin tidak menemukan struktur berbeda di dua tempat.
+/** Grup tampilan — HARUS sama dengan `section` di admin-sidebar (navAssessment). */
+const SECTIONS: { title: string; group: "content" | "b2b" | "b2c" }[] = [
+  { title: "Konten & Soal", group: "content" },
+  { title: "Operasional B2B", group: "b2b" },
+  { title: "Analitik B2C", group: "b2c" },
+];
+
 const ENTRY_CARDS = [
   {
     href: "/admin/assessment/editor" as const,
@@ -139,7 +145,6 @@ export default function AdminAssessmentHub() {
           </p>
         </div>
       </div>
-
       {/* Quick stats */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s, i) => (
@@ -158,97 +163,71 @@ export default function AdminAssessmentHub() {
           </motion.div>
         ))}
       </div>
-
-      {/* Entry points */}
+      {/* Entry points — dikelompokkan sama seperti section di sidebar */}
       <div>
-        <h2 className="mb-3 font-bold font-bricolage text-gray-900 text-lg">Menu Assessment</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {ENTRY_CARDS.map((c, i) => {
-            const Icon = c.icon;
+        <h2 className="mb-4 font-bold font-bricolage text-gray-900 text-lg">Menu Assessment</h2>
+        <div className="space-y-6">
+          {SECTIONS.map((sec) => {
+            const cards = ENTRY_CARDS.filter((c) => c.group === sec.group);
+            if (cards.length === 0) return null;
             return (
-              <motion.div
-                key={c.href}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08 + 0.06 * i }}
+              <section
+                key={sec.group}
+                data-testid={`dashboard-section-${sec.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
               >
-                <Link
-                  href={c.href}
-                  className="group flex h-full items-start gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-teal-500/30 hover:shadow-md"
-                >
-                  <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", c.accent)}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold font-bricolage text-base text-gray-900">{c.title}</h3>
-                      <span className="rounded-full bg-gray-50 px-2 py-0.5 font-manrope font-semibold text-[10px] text-gray-500">
-                        {c.group === "b2b" ? "B2B" : c.group === "b2c" ? "B2C" : "Konten"}
-                      </span>
-                    </div>
-                    <p className="mt-1 font-manrope text-gray-500 text-sm leading-relaxed">{c.desc}</p>
-                    <p className="mt-2 font-manrope font-medium text-[11px] text-gray-400">
-                      {c.statLabel}:{" "}
-                      <b className="text-gray-600">
-                        {isLoading
-                          ? "…"
-                          : c.group === "b2b"
-                            ? `${o?.b2b.schools ?? 0} · ${o?.b2b.batches ?? 0} · ${o?.b2b.students ?? 0}`
-                            : c.group === "b2c"
-                              ? `${o?.b2c.results ?? 0} · ${o?.b2c.testsCompleted ?? 0}`
-                              : `${(o?.content.interestQuestions ?? 0) + (o?.content.abilityQuestions ?? 0)} · ${o?.content.patterns ?? 0} · ${o?.content.careers ?? 0}`}
-                      </b>
-                    </p>
-                  </div>
-                  <ArrowRight
-                    className={cn("mt-3 h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1", c.arrow)}
-                  />
-                </Link>
-              </motion.div>
+                <h3 className="mb-2.5 flex items-center gap-2 font-bold font-manrope text-[11px] text-gray-400 uppercase tracking-wider">
+                  {sec.title}
+                  <span className="h-px flex-1 bg-gray-100" />
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {cards.map((c, i) => {
+                    const Icon = c.icon;
+                    return (
+                      <motion.div
+                        key={c.href}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.08 + 0.06 * i }}
+                      >
+                        <Link
+                          href={c.href}
+                          className="group flex h-full items-start gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-teal-500/30 hover:shadow-md"
+                        >
+                          <div
+                            className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", c.accent)}
+                          >
+                            <Icon className="h-6 w-6" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-bold font-bricolage text-base text-gray-900">{c.title}</h3>
+                            <p className="mt-1 font-manrope text-gray-500 text-sm leading-relaxed">{c.desc}</p>
+                            <p className="mt-2 font-manrope font-medium text-[11px] text-gray-400">
+                              {c.statLabel}:{" "}
+                              <b className="text-gray-600">
+                                {isLoading
+                                  ? "…"
+                                  : c.group === "b2b"
+                                    ? `${o?.b2b.schools ?? 0} · ${o?.b2b.batches ?? 0} · ${o?.b2b.students ?? 0}`
+                                    : c.group === "b2c"
+                                      ? `${o?.b2c.results ?? 0} · ${o?.b2c.testsCompleted ?? 0}`
+                                      : `${(o?.content.interestQuestions ?? 0) + (o?.content.abilityQuestions ?? 0)} · ${o?.content.patterns ?? 0} · ${o?.content.careers ?? 0}`}
+                              </b>
+                            </p>
+                          </div>
+                          <ArrowRight
+                            className={cn(
+                              "mt-3 h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1",
+                              c.arrow,
+                            )}
+                          />
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </section>
             );
           })}
-        </div>
-      </div>
-
-      {/* Konten Test sub-entries */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Brain className="h-5 w-5 text-brand-orange" />
-          <h3 className="font-bold font-bricolage text-base text-gray-900">Langsung ke Konten Test</h3>
-        </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          {[
-            {
-              href: "/admin/assessment/questions" as const,
-              label: "Soal",
-              desc: `${o?.content.interestQuestions ?? 0} minat · ${o?.content.abilityQuestions ?? 0} bakat`,
-              icon: BookOpen,
-            },
-            {
-              href: "/admin/assessment/patterns" as const,
-              label: "Pola Jurusan",
-              desc: `${o?.content.patterns ?? 0} kategori`,
-              icon: Brain,
-            },
-            {
-              href: "/admin/assessment/careers" as const,
-              label: "Mapping Karier",
-              desc: `${o?.content.careers ?? 0} profesi`,
-              icon: ClipboardList,
-            },
-          ].map((s) => (
-            <Link
-              key={s.href}
-              href={s.href}
-              className="group flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3.5 py-3 transition-colors hover:border-teal-500/30 hover:bg-teal-500/5"
-            >
-              <s.icon className="h-4 w-4 shrink-0 text-brand-orange" />
-              <div className="min-w-0">
-                <p className="font-bold font-manrope text-gray-800 text-sm">{s.label}</p>
-                <p className="font-manrope text-[11px] text-gray-400">{s.desc}</p>
-              </div>
-            </Link>
-          ))}
         </div>
       </div>
     </div>
