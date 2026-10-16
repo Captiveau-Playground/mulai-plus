@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { AnimatedEmoji } from "@/components/assessment/animated-emoji";
 import { EngineRun } from "@/components/assessment/engine-run";
 import { Latex } from "@/components/assessment/latex";
 import { StreakFlame } from "@/components/assessment/streak-flame";
@@ -372,6 +373,9 @@ function LegacyWizard({
       _mediaCap: q.mediaCaption ?? null,
       _math: q.hasMathNotation === true,
       _optMath: (q.opts ?? []).map((x: any) => x.hasMathNotation === true),
+      // Tipe penilaian jawaban isian (dari server) → menentukan keyboard & saringan input.
+      _textEval: (q as any).textEval?.evaluationType ?? null,
+      _textMode: (q as any).textEval?.inputMode ?? null,
       // Skala/emoji: ikon jadi label UTAMA, caption jadi teks kecil di bawah.
       // (sebelumnya label = caption sehingga emoji tidak pernah tampil di halaman siswa)
       _optLabels: (q.opts ?? []).map((x: any) => x.icon ?? x.label ?? ""),
@@ -851,21 +855,22 @@ function LegacyWizard({
       const liveQ = isDemo ? (DEMO_QUESTIONS[demoIdx] as unknown as Question) : question;
       if (done || !liveQ || (isDemo ? false : answerMutation.isPending)) return;
       const letter = e.key.toLowerCase();
-      const keySeq = ["a", "b", "c", "d"];
-      const idx = keySeq.indexOf(letter) !== -1 ? keySeq.indexOf(letter) : ["1", "2", "3", "4"].indexOf(e.key);
+      // A–F atau 1–6 (skema opsi maksimal 6). Sebelumnya hanya a–d / 1–4, sehingga
+      // opsi ke-5 (E) dan ke-6 (F) tidak bisa dipilih lewat keyboard.
+      const letters = ["a", "b", "c", "d", "e", "f"];
+      const digits = ["1", "2", "3", "4", "5", "6"];
+      const li = letters.indexOf(letter);
+      const idx = li !== -1 ? li : digits.indexOf(e.key);
       if (idx === -1) return;
-      const likeQ =
-        isEngine && ((liveQ as any).questionType === "likert" || ((liveQ as any)._optLabels?.length ?? 0) > 4);
-      const opts = likeQ
-        ? Array.from(
-            { length: Math.min(5, (liveQ as any)._optLabels?.length ?? 5) },
-            (_, j) => (liveQ as any)[`option${"ABCDE"[j]}`],
-          )
+      // Jumlah opsi sebenarnya soal ini: engine dari daftar opsi versi,
+      // interest selalu 2, soal legacy dari optionA–optionD.
+      const optCount = isEngine
+        ? (optsRef.current?.length ?? (liveQ as any).opts?.length ?? 0)
         : isInterest
-          ? [liveQ.optionA, liveQ.optionB]
-          : [liveQ.optionA, liveQ.optionB, liveQ.optionC, liveQ.optionD];
-      if (idx >= opts.filter(Boolean).length) return;
-      const optKey = likeQ ? "ABCDE"[idx]! : isInterest ? ["A", "B"][idx]! : ["A", "B", "C", "D"][idx]!;
+          ? 2
+          : [liveQ.optionA, liveQ.optionB, liveQ.optionC, liveQ.optionD].filter(Boolean).length;
+      if (idx >= optCount) return;
+      const optKey = "ABCDEF"[idx]!;
       if (!revealed) handleSelect(optKey);
     };
     const onEnter = (e: KeyboardEvent) => {
@@ -1226,6 +1231,11 @@ function LegacyWizard({
   const _livePct = liveTotal > 0 ? (liveProgress / liveTotal) * 100 : 0;
 
   const _imgOptions = isEngine && !!(effQs[eq] as any)?.opts?.some((o: any) => o.imageUrl);
+  // Soal isian: keyboard & saringan mengikuti TIPE PENILAIAN soal (dari server), bukan selalu angka.
+  //  · numeric_tolerance → angka (keypad desimal, huruf ditolak)
+  //  · exact_match / keyword_match / pattern_match → teks bebas: jawaban alfa seperti antonim
+  //    ("pesimis") atau campur ("MX4471") tidak lagi mustahil diketik.
+  const _textNumeric = (((liveQuestion as any)?._textMode ?? "text") as string) === "numeric";
   // Maskot beragam per soal (rotasi dari koleksi assets) — nanimal di samping pertanyaan
   const _MASKOTS = [
     "/maskot/masko-book.webp",
@@ -1315,7 +1325,7 @@ function LegacyWizard({
                     [
                       "⌨️",
                       "Pilih jawaban cepat",
-                      isInterest ? "Tekan tombol A / B, atau 1 / 2." : "Tekan A / B / C / D (atau 1–4) sesuai opsi.",
+                      isInterest ? "Tekan tombol A / B, atau 1 / 2." : "Tekan A–F (atau 1–6) sesuai opsi.",
                     ],
                     [
                       "⏭️",
@@ -1577,8 +1587,8 @@ function LegacyWizard({
           )}
 
           {/* QUESTION — bubble chat maskot bertanya (tanpa label duplikat; maskot polos & lebih besar) */}
-          <div className="mb-4 flex min-h-0 items-end gap-3">
-            <div className="h-16 w-16 shrink-0 overflow-hidden">
+          <div className="mb-4 flex min-h-0 flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+            <div className="h-20 w-20 shrink-0 overflow-hidden sm:h-16 sm:w-16">
               <Image
                 src={_mascotNow}
                 alt="Maskot bertanya"
@@ -1593,8 +1603,11 @@ function LegacyWizard({
               animate={{ opacity: 1, y: 0 }}
               className="relative flex-1 rounded-3xl rounded-bl-md border border-gray-100 bg-white px-5 pt-4 pb-4 shadow-sm"
             >
-              <span className="absolute top-4 -left-1.5 h-3 w-3 rotate-45 border-gray-100 border-b border-l bg-white" />
-              <h2 className="font-bold font-bricolage text-gray-900 text-lg leading-snug">
+              <span className="absolute top-4 -left-1.5 hidden h-3 w-3 rotate-45 border-gray-100 border-b border-l bg-white sm:block" />
+              <h2
+                data-testid="question-text"
+                className="font-bold font-manrope text-[17px] text-gray-900 leading-relaxed sm:text-lg sm:leading-snug"
+              >
                 {(liveQuestion as any)._math ? <Latex text={liveQuestion.text} /> : liveQuestion.text}
               </h2>
               {isEngine && (liveQuestion as any)._media && (
@@ -1620,18 +1633,23 @@ function LegacyWizard({
           >
             {isEngine && (effQs[eq] as any)?.questionType === "text_input" ? (
               <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
-                <p className="mb-2 font-manrope font-medium text-gray-500 text-xs">Tulis jawaban (angka / pecahan)</p>
+                <p className="mb-2 font-manrope font-medium text-gray-500 text-xs">
+                  {_textNumeric ? "Tulis jawaban (angka / pecahan)" : "Tulis jawaban (kata / kalimat)"}
+                </p>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    inputMode="decimal"
+                    inputMode={_textNumeric ? "decimal" : "text"}
+                    autoComplete="off"
                     autoFocus
                     value={etv}
-                    onChange={(e) => setEtv(e.target.value.replace(/[^\d.,/-]/g, ""))} // numerik/desimal saja — huruf ditolak
+                    onChange={(e) =>
+                      setEtv(_textNumeric ? e.target.value.replace(/[^\d.,/-]/g, "") : e.target.value)
+                    }
                     onKeyDown={(e) => {
                       if (e.key === "Enter") engineSubmitText();
                     }}
-                    placeholder="cth: 19, 0.75, atau 3/4"
+                    placeholder={_textNumeric ? "cth: 19, 0.75, atau 3/4" : "cth: pesimis"}
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-base outline-none transition-colors focus:border-mentor-teal"
                   />
                   <button
@@ -1643,39 +1661,50 @@ function LegacyWizard({
                   </button>
                 </div>
                 <p className="mt-2 font-manrope text-[10px] text-gray-400">
-                  Gunakan titik (.) utk desimal — Enter untuk mengirim.
+                  {_textNumeric
+                    ? "Gunakan titik (.) utk desimal — Enter untuk mengirim."
+                    : "Huruf besar/kecil tidak berpengaruh — Enter untuk mengirim."}
                 </p>
               </div>
             ) : (effQs[eq] as any)?.questionType === "likert" ? (
-              <div className="grid grid-cols-5 gap-2">
-                {((liveQuestion as any)._optLabels ?? []).slice(0, 5).map((lab: string, i: number) => {
-                  const key = "ABCDE"[i]!;
+              // Skala: SATU BARIS PER OPSI (bukan 5 sebaris) supaya emoji + caption
+              // mudah dibaca & disentuh di layar sempit.
+              <div className="space-y-2.5">
+                {((liveQuestion as any)._optLabels ?? []).slice(0, 6).map((lab: string, i: number) => {
+                  const key = "ABCDEF"[i]!;
                   const isSel = selected === key;
+                  const cap = (liveQuestion as any)._optCaps?.[i] ?? "";
                   return (
                     <button
                       key={key}
                       type="button"
                       onClick={() => engineSelect(key)}
                       className={cn(
-                        "flex flex-col items-center justify-center gap-1 rounded-2xl border-2 bg-white py-4 shadow-sm transition-all active:scale-[0.98]",
+                        "flex w-full items-center gap-3 rounded-2xl border-2 bg-white px-4 py-3 text-left shadow-sm transition-all active:scale-[0.99]",
                         isSel
                           ? "border-mentor-teal bg-mentor-teal/5 shadow-md"
                           : "border-gray-200 hover:border-gray-300",
                       )}
                     >
+                      {/^\d+$/.test(String(lab)) ? (
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center font-bold font-bricolage text-2xl text-gray-900">
+                          {lab}
+                        </span>
+                      ) : (
+                        <AnimatedEmoji emoji={String(lab)} size={44} testId="likert-emoji" />
+                      )}
+                      <span className="min-w-0 flex-1 font-manrope font-medium text-[15px] text-gray-800">
+                        {cap ||
+                          (String(lab).trim() && !/\p{Extended_Pictographic}/u.test(String(lab)) ? String(lab) : "")}
+                      </span>
                       <span
                         className={cn(
-                          "font-bold",
-                          /^\d+$/.test(String(lab)) ? "font-bricolage text-2xl text-gray-900" : "text-3xl",
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
+                          isSel ? "border-mentor-teal bg-mentor-teal" : "border-gray-200",
                         )}
                       >
-                        {lab}
+                        {isSel && <Check className="h-3 w-3 text-white" />}
                       </span>
-                      {((liveQuestion as any)._optCaps?.[i] ?? "") && (
-                        <span className="px-1 text-center font-manrope text-[9px] text-gray-400 leading-tight">
-                          {(liveQuestion as any)._optCaps[i]}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
@@ -1757,12 +1786,17 @@ function LegacyWizard({
                 </p>
               </>
             ) : (
-              [
-                ["A", liveQuestion.optionA],
-                ["B", liveQuestion.optionB],
-                ["C", liveQuestion.optionC],
-                ["D", liveQuestion.optionD],
-              ]
+              (isEngine
+                ? // Engine: ikuti daftar opsi versi (maks 6). Sebelumnya di-hardcode A–D
+                  // sehingga opsi ke-5 (E) & ke-6 (F) tidak pernah tampil.
+                  (((liveQuestion as any)._optLabels ?? []) as string[]).map((t, i) => ["ABCDEF"[i], t])
+                : [
+                    ["A", liveQuestion.optionA],
+                    ["B", liveQuestion.optionB],
+                    ["C", liveQuestion.optionC],
+                    ["D", liveQuestion.optionD],
+                  ]
+              )
                 .filter(
                   ([k, t]: any) =>
                     String(t ?? "").trim() ||
