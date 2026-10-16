@@ -3,16 +3,22 @@ import { expect, test } from "@playwright/test";
 import { loginAdmin } from "../../../helpers/admin-ui";
 
 // Kanonik: satu daftar untuk sidebar & kartu dashboard — dipakai untuk memastikan keduanya
-// tidak pernah berbeda lagi.
-const MENU: [string, string][] = [
-  ["/admin/assessment", "Dashboard"],
-  ["/admin/assessment/editor", "Editor Soal & Versi"],
-  ["/admin/assessment/questions", "Konten Legacy"],
-  ["/admin/assessment/patterns", "Pola Jurusan"],
-  ["/admin/assessment/careers", "Mapping Karier"],
-  ["/admin/assessment/schools", "Sekolah & Batch"],
-  ["/admin/assessment/b2c", "Statistik B2C"],
-  ["/admin/assessment/b2c/history", "Riwayat B2C"],
+// tidak pernah berbeda lagi. `section` = judul grup di dalam submenu (juga dipakai dashboard).
+const SECTIONS: [string, string][] = [
+  ["konten-soal", "Konten & Soal"],
+  ["operasional-b2b", "Operasional B2B"],
+  ["analitik-b2c", "Analitik B2C"],
+];
+
+const MENU: [string, string, string | null][] = [
+  ["/admin/assessment", "Dashboard", null],
+  ["/admin/assessment/editor", "Editor Soal & Versi", "Konten & Soal"],
+  ["/admin/assessment/questions", "Konten Legacy", null],
+  ["/admin/assessment/patterns", "Pola Jurusan", null],
+  ["/admin/assessment/careers", "Mapping Karier", null],
+  ["/admin/assessment/schools", "Sekolah & Batch", "Operasional B2B"],
+  ["/admin/assessment/b2c", "Statistik B2C", "Analitik B2C"],
+  ["/admin/assessment/b2c/history", "Riwayat B2C", null],
 ];
 
 test.describe("Admin · Semua menu assessment", () => {
@@ -55,6 +61,10 @@ test.describe("Admin · Semua menu assessment", () => {
     for (const [href] of MENU) {
       await expect(page.locator(`a[href="${href}"]`).first(), `link ${href}`).toBeVisible({ timeout: 10000 });
     }
+    // dikelompokkan (sub-sub) supaya tidak jadi 8 baris berserakan
+    for (const [slug, label] of SECTIONS) {
+      await expect(page.locator(`[data-testid="nav-section-${slug}"]`), `section ${label}`).toHaveText(label);
+    }
   });
 
   test("kartu di dashboard sejajar dengan menu sidebar (href & label)", async ({ page }) => {
@@ -62,11 +72,16 @@ test.describe("Admin · Semua menu assessment", () => {
     await page.goto("/admin/assessment", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Menu Assessment")).toBeVisible({ timeout: 30000 });
 
-    // semua tujuan menu punya kartu (kecuali Dashboard itu sendiri)
+    // semua tujuan menu punya kartu (kecuali Dashboard itu sendiri), di grup yang sama
     for (const [href, label] of MENU.filter(([h]) => h !== "/admin/assessment")) {
       const card = page.locator(`a[href="${href}"]`).first();
       await expect(card, `kartu ${href}`).toBeVisible({ timeout: 10000 });
       await expect(card, `label kartu ${href}`).toContainText(label);
+    }
+    for (const [slug, label] of SECTIONS) {
+      const section = page.locator(`[data-testid="dashboard-section-${slug}"]`);
+      await expect(section, `grup dashboard ${label}`).toBeVisible();
+      await expect(section.locator("h3").first()).toContainText(label);
     }
   });
 
