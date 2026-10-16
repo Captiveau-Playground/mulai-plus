@@ -835,7 +835,16 @@ function ImportModal({
     const mapType = (v: any) => {
       const t = String(v ?? "").toLowerCase();
       if (t.includes("isian") || t.includes("text") || t.includes("ketik")) return "text_input";
+      if (t.includes("skala") || t.includes("likert") || t.includes("kuisioner")) return "likert";
       if (t.includes("pilih") || t.includes("ganda") || t === "mc") return "multiple_choice";
+      return undefined;
+    };
+    const mapPresentation = (v: any) => {
+      const t = String(v ?? "").toLowerCase();
+      if (t.includes("emoji") || t.includes("ikon")) return "emoji_option";
+      if (t.includes("banding") || t.includes("visual")) return "visual_comparison";
+      if (t.includes("gambar")) return "image_option";
+      if (t) return "standard_option_card";
       return undefined;
     };
     const mapEval = (v: any) => {
@@ -863,6 +872,7 @@ function ImportModal({
           answerKey: String(r["Kunci Isian"] ?? r.Jawaban ?? ""),
           evalType: mapEval(r["Cara nilai"]),
           numericTolerance: String(r.Toleransi ?? "0.01"),
+          presentationMode: mapPresentation(r.Tampilan ?? r["Tampilan opsi"]),
         }))
         .filter((r: any) => r.text.trim()),
     );
