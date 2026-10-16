@@ -1,10 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, School, Trash2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, Pencil, Plus, School, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { AssessmentPageHeader, StatCard } from "@/components/admin/assessment-page-header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -99,43 +100,35 @@ export default function SchoolDetailPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <Link
-          href="/admin/assessment/schools"
-          className="flex items-center gap-1 font-manrope font-semibold text-gray-400 text-xs hover:text-gray-600"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Sekolah Kerjasama
-        </Link>
-        <div className="mt-2 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-navy/5">
-            <School className="h-6 w-6 text-brand-navy" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-bold font-bricolage text-2xl text-brand-navy">{school.name}</h1>
-              <span className={cn("rounded-full px-2.5 py-0.5 font-bold font-manrope text-[10px]", st.cls)}>
-                {st.label}
-              </span>
-            </div>
-            <p className="font-manrope text-gray-500 text-sm">
-              {[school.city, school.email, school.phone].filter(Boolean).join(" · ") || "—"}
-            </p>
-          </div>
-        </div>
-      </div>
+      <AssessmentPageHeader
+        title={school.name}
+        description={[school.city, school.email, school.phone].filter(Boolean).join(" · ") || "Sekolah partner B2B"}
+        stats={
+          <span className={cn("rounded-full border px-3 py-1 font-manrope font-semibold text-xs", st.cls)}>
+            {st.label}
+          </span>
+        }
+        actions={
+          <Link
+            href="/admin/assessment/schools"
+            className="font-manrope font-semibold text-brand-navy text-xs hover:underline"
+          >
+            ← Semua sekolah
+          </Link>
+        }
+      />
 
       {/* Recap lintas batch */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Total Siswa", value: stats.total, cls: "text-brand-navy" },
-          { label: "Selesai Test", value: stats.completed, cls: "text-green-600" },
-          { label: "Progres", value: `${progress}%`, cls: "text-mentor-teal" },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-gray-100 bg-white p-4 text-center shadow-sm">
-            <p className={cn("font-bold font-bricolage text-2xl", s.cls)}>{s.value}</p>
-            <p className="mt-0.5 font-manrope text-gray-400 text-xs">{s.label}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <StatCard icon={Users} label="Total siswa" value={stats.total} sub="di semua batch sekolah ini" />
+        <StatCard
+          icon={CheckCircle2}
+          label="Selesai test"
+          value={stats.completed}
+          sub={`${progress}% dari total siswa`}
+          tone="teal"
+        />
+        <StatCard icon={School} label="Batch" value={batches.length} sub="kelas / jurusan / angkatan" tone="violet" />
       </div>
 
       {/* Buat batch */}
