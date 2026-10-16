@@ -5,6 +5,7 @@ import { CheckCircle2, Eye, FilePlus2, FileUp, Loader2, Plus, Rocket, ShieldChec
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatedEmoji } from "@/components/assessment/animated-emoji";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -1821,7 +1822,7 @@ function QuestionPanel({
             </div>
           )}
         </div>
-        <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+        <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4" data-testid="student-preview">
           <p className="font-manrope font-semibold text-[10px] text-teal-600 uppercase tracking-wide">Tampilan siswa</p>
           <p className="mt-2 font-manrope text-[10px] text-gray-400">
             {content.dimensions.find((d) => d.id === form.dimensionId)?.name ?? "Dimensi"}
@@ -1853,26 +1854,27 @@ function QuestionPanel({
             </p>
           )}
           {form.questionType === "likert" ? (
-            <div className="mt-2 grid grid-cols-5 gap-1.5">
-              {form.options.slice(0, 5).map((o: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white py-3"
-                >
-                  <span
-                    className={
-                      /^\d+$/.test(String(o.label || "")) ? "font-bold font-bricolage text-gray-900 text-lg" : "text-xl"
-                    }
-                  >
-                    {o.label || i + 1}
-                  </span>
-                  {o.imageCaption && (
-                    <span className="mt-0.5 px-0.5 text-center font-manrope text-[8px] text-gray-400 leading-tight">
-                      {o.imageCaption}
-                    </span>
-                  )}
-                </div>
-              ))}
+            // Samakan dengan halaman siswa: emoji dari kolom `icon`, caption sekali saja.
+            // (Sebelumnya preview mencetak `label` + `imageCaption` sekaligus — di bank kita
+            // keduanya berisi caption yang sama, jadi tampil dobel dan emojinya hilang.)
+            <div className="mt-2 space-y-1.5">
+              {form.options.slice(0, 6).map((o: any, i: number) => {
+                const glyph = String(o.icon || o.label || i + 1);
+                const caption = String(o.imageCaption || (o.icon ? (o.label ?? "") : ""));
+                return (
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
+                    {/^\d+$/.test(glyph) ? (
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center font-bold font-bricolage text-base text-gray-900">
+                        {glyph}
+                      </span>
+                    ) : (
+                      <AnimatedEmoji emoji={glyph} size={30} testId="preview-likert-emoji" />
+                    )}
+                    <span className="min-w-0 flex-1 font-manrope text-[11px] text-gray-700">{caption}</span>
+                    <span className="flex h-4 w-4 shrink-0 rounded-full border-2 border-gray-200" />
+                  </div>
+                );
+              })}
             </div>
           ) : form.questionType === "multiple_choice" ? (
             <div
@@ -1880,43 +1882,53 @@ function QuestionPanel({
             >
               {form.options
                 .filter((o: any) => String(o.label || "").trim() || o.imageUrl || o.icon)
-                .map((o: any, i: number) => (
-                  <div
-                    key={i}
-                    className={`flex items-center gap-2 rounded-lg border p-2.5 ${i === 0 ? "border-teal-500/60 bg-teal-500/5" : "border-gray-200 bg-white"}`}
-                  >
-                    {form.presentationMode === "emoji_option" && o.icon ? (
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-base">
-                        {o.icon}
-                      </span>
-                    ) : (
-                      <span
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md font-bold text-[9px] ${i === 0 ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}
-                      >
-                        {o.optionValue || ["A", "B", "C", "D", "E", "F"][i]}
-                      </span>
-                    )}
-                    {o.imageUrl && (
-                      // biome-ignore lint/performance/noImgElement: aset dari R2/CDN, domain dinamis
-                      <img
-                        src={o.imageUrl}
-                        alt=""
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
-                        }}
-                        className="h-8 w-11 shrink-0 rounded-md border border-gray-100 object-cover"
-                      />
-                    )}
-                    {String(o.label || "").trim() && (
-                      <span className="font-manrope text-gray-700 text-xs">{o.label}</span>
-                    )}
-                    {rules.scoring_mode === "likert" && (
-                      <span className="ml-auto rounded bg-brand-navy/5 px-1.5 py-0.5 font-bold font-manrope text-[9px] text-brand-navy">
-                        {o.score} pts
-                      </span>
-                    )}
-                  </div>
-                ))}
+                .map((o: any, i: number) => {
+                  // Tandai KUNCI (skor > 0), bukan "opsi pertama" — dulu opsi A selalu
+                  // ter-highlight padahal belum tentu jawabannya.
+                  const isKey = Number(o.score ?? 0) > 0 && rules.scoring_mode !== "likert";
+                  return (
+                    <div
+                      key={i}
+                      className={`flex items-center gap-2 rounded-lg border p-2.5 ${isKey ? "border-teal-500/60 bg-teal-500/5" : "border-gray-200 bg-white"}`}
+                    >
+                      {form.presentationMode === "emoji_option" && o.icon ? (
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-base">
+                          {o.icon}
+                        </span>
+                      ) : (
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md font-bold text-[9px] ${isKey ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}
+                        >
+                          {o.optionValue || ["A", "B", "C", "D", "E", "F"][i]}
+                        </span>
+                      )}
+                      {o.imageUrl && (
+                        // biome-ignore lint/performance/noImgElement: aset dari R2/CDN, domain dinamis
+                        <img
+                          src={o.imageUrl}
+                          alt=""
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                          }}
+                          className="h-8 w-11 shrink-0 rounded-md border border-gray-100 object-cover"
+                        />
+                      )}
+                      {String(o.label || "").trim() && (
+                        <span className="font-manrope text-gray-700 text-xs">{o.label}</span>
+                      )}
+                      {isKey && (
+                        <span className="ml-auto rounded bg-teal-500/10 px-1.5 py-0.5 font-bold font-manrope text-[9px] text-teal-700">
+                          kunci
+                        </span>
+                      )}
+                      {rules.scoring_mode === "likert" && (
+                        <span className="ml-auto rounded bg-brand-navy/5 px-1.5 py-0.5 font-bold font-manrope text-[9px] text-brand-navy">
+                          {o.score} pts
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               {rules.scoring_mode === "likert" && form.options.length === 0 && (
                 <p className="font-manrope text-[10px] text-gray-400">
                   Klik "Isi otomatis skala Likert" utk membuat pilihan skala.

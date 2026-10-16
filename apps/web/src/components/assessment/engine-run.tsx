@@ -253,6 +253,22 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
   }, [current, optionOrder]);
 
   const nextIdx = (answersNow: Record<string, { opt?: string; text?: string }>) => {
+    // Mode berbagian (by_dimension / chunk): soal WAJIB berurutan supaya bagian tidak
+    // dilompati. Sebelumnya selalu pakai CAT-lite ("dimensi paling sedikit terjawab"),
+    // sehingga tengah bagian bisa melompat ke dimensi lain — bagian terasa tercampur
+    // (mis. mulai di bagian Numerik lalu ada soal verbal).
+    if (sectionMode === "by_dimension" || sectionMode.startsWith("chunk")) {
+      for (let j = idx + 1; j < questions.length; j++) {
+        const q = questions[j];
+        if (q && !(q.id in answersNow)) return j;
+      }
+      // sudah di ujung → ambil sisa yang belum terjawab (kalau ada yang dilewati)
+      for (let j = 0; j < questions.length; j++) {
+        const q = questions[j];
+        if (q && !(q.id in answersNow)) return j;
+      }
+      return -1;
+    }
     // CAT-lite: pilih soal berikutnya dari dimensi yang paling sedikit terjawab
     const dimCount = new Map<string, number>();
     for (const q of questions) {
