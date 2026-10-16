@@ -3,7 +3,7 @@
  * Idempotent: kalau assessment DISCOVER sudah ada + punya questions → skip.
  * Hanya BACA tmb_* (tidak mengubah legacy).
  */
-import { db, eq, schema } from "@mulai-plus/db";
+import { db, desc, eq, schema } from "@mulai-plus/db";
 import { tmbQuestionBank } from "@mulai-plus/db/schema/tmb";
 import { nanoidish } from "./lib-id";
 
@@ -61,7 +61,7 @@ export async function seedDiscoverV1({ force = false }: { force?: boolean } = {}
   };
 
   // Answer scale global utk minat (pair): A/B, nilai skor 1 per sisi
-  let scaleId = id();
+  const scaleId = id();
   if (!existing) {
     await db.insert(schema.assessments).values({
       id: assessmentId,
@@ -79,7 +79,11 @@ export async function seedDiscoverV1({ force = false }: { force?: boolean } = {}
     configJson: config,
     publishedAt: new Date(),
   });
-  await db.insert(schema.answerScales).values({ id: scaleId, name: "Minat Pair (A/B)", description: "Pasangan minat Holland — pilih yang lebih mendekati." });
+  await db.insert(schema.answerScales).values({
+    id: scaleId,
+    name: "Minat Pair (A/B)",
+    description: "Pasangan minat Holland — pilih yang lebih mendekati.",
+  });
   await db.insert(schema.answerScaleOptions).values([
     { id: id(), scaleId, value: "A", score: 1, label: "Opsi A" },
     { id: id(), scaleId, value: "B", score: 1, label: "Opsi B" },
@@ -143,7 +147,7 @@ export async function seedDiscoverV1({ force = false }: { force?: boolean } = {}
 async function versionOf(assessmentId: string) {
   const v = await db.query.assessmentVersions.findFirst({
     where: eq(schema.assessmentVersions.assessmentId, assessmentId),
-    orderBy: { versionNumber: "desc" },
+    orderBy: (t) => [desc(t.versionNumber)],
   });
   return v?.id ?? null;
 }
@@ -163,13 +167,18 @@ if (import.meta.main) {
 async function wipeDiscover() {
   const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, "DISCOVER") });
   if (!a) return;
-  const vs = (await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) })).map((v) => v.id);
+  const vs = (
+    await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) })
+  ).map((v) => v.id);
   if (vs.length) {
-    const sessions = (await db.query.assessmentSessions.findMany({ where: eq(schema.assessmentSessions.versionId, vs[0]) })).map((s) => s.id);
+    const sessions = (
+      await db.query.assessmentSessions.findMany({ where: eq(schema.assessmentSessions.versionId, vs[0]) })
+    ).map((s) => s.id);
     // helper sederhana hapus per tabel (urut FK)
-    const del = async (t: any, col: any, vals: string[], col2?: any, vals2?: string[]) => {
+    const _del = async (t: any, col: any, vals: string[], col2?: any, vals2?: string[]) => {
       if (!vals.length) return;
-      if (col2 && vals2?.length) await db.delete(t).where(eq(col, vals[0])); // serdehana: dipakai utk satu sesi
+      if (col2 && vals2?.length)
+        await db.delete(t).where(eq(col, vals[0])); // serdehana: dipakai utk satu sesi
       else await db.delete(t).where(eq(col, vals[0]));
     };
     for (const sid of sessions) {
@@ -183,8 +192,11 @@ async function wipeDiscover() {
       for (const qid of qs) await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, qid));
       await db.delete(schema.questions).where(eq(schema.questions.versionId, vid));
       await db.delete(schema.assessmentSections).where(eq(schema.assessmentSections.versionId, vid));
-      const dims = (await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, vid) })).map((d) => d.id);
-      for (const did of dims) await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, did));
+      const dims = (
+        await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, vid) })
+      ).map((d) => d.id);
+      for (const did of dims)
+        await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, did));
       await db.delete(schema.assessmentDimensions).where(eq(schema.assessmentDimensions.versionId, vid));
       await db.delete(schema.assessmentVersions).where(eq(schema.assessmentVersions.id, vid));
     }
