@@ -26,6 +26,7 @@ export function buildChecks(input: {
   totalDim: number;
   resultDimCount: number;
   minQPerDim: number;
+  randomizeA?: boolean;
 }): ValidationCheck[] {
   const { dimensions, questions, options, totalDim, resultDimCount, minQPerDim } = input;
   const activeDims = dimensions.filter((d) => d.isActive !== false);
@@ -62,6 +63,10 @@ export function buildChecks(input: {
     },
     { label: "Urutan soal unik per dimensi", ok: uniqueOrder },
     { label: `Top-N (${resultDimCount}) ≤ total dimensi`, ok: resultDimCount > 0 && resultDimCount <= totalDim },
+    {
+      label: "Acak opsi aman (tidak bentrok dengan soal skala)",
+      ok: !(input.randomizeA === true && questions.some((q) => q.questionType === "likert")),
+    },
   ];
 }
 

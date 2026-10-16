@@ -442,7 +442,7 @@ export default function AssessmentDetailPage() {
             onPreviewVersion={(v) => window.open(`/assessment/talent?preview=1&v=${v.id}`, "_blank")}
             onPublishVersion={(v) => setVerify({ vid: v.id })}
             onSetFamily={setFamily}
-            onSaveRules={() => void mRules.mutateAsync({ versionId, config: rules })}
+            onSaveRules={(cfg) => void mRules.mutateAsync({ versionId, config: cfg ?? rules })}
             onStartEdit={startEdit}
             onDimsAdd={(code, name) => void mDimsAdd.mutateAsync({ versionId, code, name })}
             onDimsDelete={(id) => void mDimsDel.mutateAsync({ dimensionId: id })}

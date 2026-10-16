@@ -89,22 +89,28 @@ export function SwitchField({
   checked,
   onChange,
   disabled,
-}: FieldBase & { checked: boolean; onChange: (v: boolean) => void }) {
+  note,
+}: FieldBase & { checked: boolean; onChange: (v: boolean) => void; note?: React.ReactNode }) {
   return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50/40 px-3 py-2",
-        disabled && "opacity-60",
+    <div className={cn("rounded-lg border border-gray-100 bg-gray-50/40 px-3 py-2", disabled && "opacity-60")}>
+      <div className="flex items-center justify-between gap-3">
+        <LabelRow label={label} hint={hint} />
+        <Switch
+          data-testid={`rule-${id}`}
+          size="sm"
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={(v) => onChange(!!v)}
+        />
+      </div>
+      {note && (
+        <p
+          data-testid={`note-${id}`}
+          className="mt-1.5 flex flex-wrap items-center gap-1 font-manrope text-[10px] text-amber-700 leading-4"
+        >
+          {note}
+        </p>
       )}
-    >
-      <LabelRow label={label} hint={hint} />
-      <Switch
-        data-testid={`rule-${id}`}
-        size="sm"
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={(v) => onChange(!!v)}
-      />
     </div>
   );
 }

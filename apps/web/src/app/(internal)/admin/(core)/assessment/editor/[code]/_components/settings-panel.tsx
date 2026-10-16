@@ -36,7 +36,8 @@ export interface SettingsPanelProps {
   onPreviewVersion: (v: VersionRow) => void;
   onPublishVersion: (v: VersionRow) => void;
   onSetFamily: (f: string) => void;
-  onSaveRules: () => void;
+  /** `config` opsional = simpan nilai tertentu langsung (dipakai tombol perbaikan cepat). */
+  onSaveRules: (config?: Record<string, unknown>) => void;
   onStartEdit: () => void;
   onDimsAdd: (code: string, name: string) => void;
   onDimsDelete: (id: string) => void;
@@ -107,8 +108,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const questionCount = (id: string) => questions.filter((q) => q.dimensionId === id).length;
   const countByDim = Object.fromEntries(dims.map((d) => [d.id, questionCount(d.id)]));
   const dimsKurang = minQ > 0 ? dims.filter((d) => (countByDim[d.id] ?? 0) < minQ).length : 0;
-  const _dimsMissingDuration =
-    timerOn && scope === "dimension" ? dims.filter((d) => !(d.durationSeconds ?? 0)).length : 0;
+  // Soal skala (likert) urutan opsinya bermakna → "Acak urutan pilihan" tidak berlaku untuknya.
+  const likertCount = questions.filter((q) => q.questionType === "likert").length;
+  const multiSection = (rules.section_mode ?? "none") !== "none";
 
   const checks = buildChecks({
     name: assess.name,
@@ -119,6 +121,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
     totalDim,
     resultDimCount: resultN,
     minQPerDim: minQ,
+    randomizeA: rules.randomize_a === true,
   });
 
   const timerSummary = !timerOn
@@ -129,7 +132,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const scoreSummary = `${rules.scoring_method === "average" ? "Rata-rata" : rules.scoring_method === "weighted" ? "Bobot soal" : "Jumlah poin"} · top-${resultN}${minQ > 0 ? ` · min ${minQ} soal/dimensi` : ""}`;
   const experienceSummary = [
     rules.randomize_q ? "acak soal" : "soal urut",
-    rules.randomize_a ? "acak opsi" : "opsi urut",
+    rules.randomize_a ? (likertCount > 0 ? "acak opsi (bentrok soal skala)" : "acak opsi") : "opsi urut",
     rules.allow_pause ? "boleh pause" : "tanpa pause",
     rules.section_mode && rules.section_mode !== "none" ? "multi-bagian" : "satu bagian",
     rules.lang === "en" ? "EN" : "ID",
@@ -173,7 +176,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             id="waktu"
             title="Waktu / Timer"
             summary={timerSummary}
-            warn={timerOn && scope === "dimension" && dimsKurang >= 0 && dims.some((d) => !(d.durationSeconds ?? 0))}
+            warn={timerOn && scope === "dimension" && dims.some((d) => !(d.durationSeconds ?? 0))}
           />
           <AccordionContent>
             <div className="space-y-2.5">
@@ -295,7 +298,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
         </AccordionItem>
 
         <AccordionItem value="pengalaman" className="border-gray-100">
-          <GroupTrigger id="pengalaman" title="Pengalaman Siswa" summary={experienceSummary} />
+          <GroupTrigger
+            id="pengalaman"
+            title="Pengalaman Siswa"
+            summary={experienceSummary}
+            warn={(rules.randomize_a === true && likertCount > 0) || (rules.randomize_q === true && multiSection)}
+          />
           <AccordionContent>
             <div className="space-y-2">
               <SwitchField
@@ -305,14 +313,56 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 disabled={!canEdit}
                 checked={rules.randomize_q === true}
                 onChange={(v) => set("randomize_q", v)}
+                note={
+                  rules.randomize_q === true && multiSection ? (
+                    <>
+                      <span>⚠️ Aktif bersamaan dengan pembagian bagian — batas tiap bagian jadi tidak menentu.</span>
+                      <button
+                        type="button"
+                        data-testid="fix-randomize_q"
+                        onClick={() => {
+                          set("randomize_q", false);
+                          props.onSaveRules({ ...rules, randomize_q: false });
+                        }}
+                        className="rounded border border-amber-300 bg-white px-1.5 py-px font-semibold text-amber-700 hover:bg-amber-50"
+                      >
+                        Matikan acak soal
+                      </button>
+                    </>
+                  ) : undefined
+                }
               />
               <SwitchField
                 id="randomize_a"
                 label="Acak urutan pilihan"
-                hint="Urutan opsi jawaban diacak per siswa (per soal)."
-                disabled={!canEdit}
+                hint="Urutan opsi jawaban diacak per siswa. Tidak berlaku untuk soal skala (likert) — urutan opsinya bermakna."
+                disabled={!canEdit || (likertCount > 0 && rules.randomize_a !== true)}
                 checked={rules.randomize_a === true}
                 onChange={(v) => set("randomize_a", v)}
+                note={
+                  likertCount > 0 ? (
+                    rules.randomize_a === true ? (
+                      <>
+                        <span>
+                          ⚠️ Ada <b>{likertCount} soal skala</b> — urutan opsinya bermakna dan tidak akan diacak server.
+                        </span>
+                        <button
+                          type="button"
+                          data-testid="fix-randomize_a"
+                          onClick={() => {
+                            set("randomize_a", false);
+                            props.onSaveRules({ ...rules, randomize_a: false });
+                          }}
+                          className="rounded border border-amber-300 bg-white px-1.5 py-px font-semibold text-amber-700 hover:bg-amber-50"
+                        >
+                          Matikan acak opsi
+                        </button>
+                      </>
+                    ) : (
+                      <span>Tidak berlaku: versi ini punya {likertCount} soal skala (urutan opsinya bermakna).</span>
+                    )
+                  ) : undefined
+                }
               />
               <SwitchField
                 id="allow_pause"
@@ -406,7 +456,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             variant="outline"
             className="w-full"
             data-testid="save-rules"
-            onClick={props.onSaveRules}
+            onClick={() => props.onSaveRules()}
             disabled={savingRules}
           >
             {savingRules ? (
