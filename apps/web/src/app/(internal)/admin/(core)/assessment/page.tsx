@@ -7,18 +7,63 @@ import {
   BarChart3,
   BookOpen,
   Brain,
+  Briefcase,
   Building2,
   ClipboardList,
+  Compass,
   GraduationCap,
   History,
   ListChecks,
+  SquarePen,
   Users,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
+// Satu daftar, satu penamaan — sama persis dengan menu sidebar "Assessment"
+// supaya admin tidak menemukan struktur berbeda di dua tempat.
 const ENTRY_CARDS = [
+  {
+    href: "/admin/assessment/editor" as const,
+    icon: SquarePen,
+    title: "Editor Soal & Versi",
+    desc: "Susun soal, atur penilaian & timer, lalu rilis versi ke siswa. Titik kerja utama.",
+    accent: "bg-brand-orange/10 text-brand-orange",
+    arrow: "text-brand-orange",
+    group: "content",
+    statLabel: "soal · aturan · rilis",
+  },
+  {
+    href: "/admin/assessment/patterns" as const,
+    icon: Compass,
+    title: "Pola Jurusan",
+    desc: "Bobot kemampuan tiap pola jurusan (Holland) yang dipakai mesin rekomendasi.",
+    accent: "bg-teal-500/10 text-teal-600",
+    arrow: "text-teal-600",
+    group: "content",
+    statLabel: "pola · bobot",
+  },
+  {
+    href: "/admin/assessment/careers" as const,
+    icon: Briefcase,
+    title: "Mapping Karier",
+    desc: "Pasangan jurusan dan prospek karier yang tampil di hasil siswa.",
+    accent: "bg-violet-500/10 text-violet-600",
+    arrow: "text-violet-600",
+    group: "content",
+    statLabel: "jurusan · karier",
+  },
+  {
+    href: "/admin/assessment/questions" as const,
+    icon: BookOpen,
+    title: "Konten Legacy",
+    desc: "Bank soal versi lama — hanya untuk pengecekan data historis.",
+    accent: "bg-gray-500/10 text-gray-600",
+    arrow: "text-gray-600",
+    group: "content",
+    statLabel: "arsip soal",
+  },
   {
     href: "/admin/assessment/schools" as const,
     icon: Building2,
@@ -42,22 +87,12 @@ const ENTRY_CARDS = [
   {
     href: "/admin/assessment/b2c/history" as const,
     icon: History,
-    title: "History B2C",
+    title: "Riwayat B2C",
     desc: "Riwayat hasil test semua pengguna mandiri, lengkap dengan sumbernya.",
     accent: "bg-violet-500/10 text-violet-600",
     arrow: "text-violet-600",
     group: "b2c",
     statLabel: "riwayat per pengguna",
-  },
-  {
-    href: "/admin/assessment/questions" as const,
-    icon: BookOpen,
-    title: "Konten Test",
-    desc: "Bank soal minat & bakat, pola jurusan (Holland + bobot), dan mapping karier.",
-    accent: "bg-brand-orange/10 text-brand-orange",
-    arrow: "text-brand-orange",
-    group: "content",
-    statLabel: "soal · pola · karier",
   },
 ];
 

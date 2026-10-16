@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BarChart3,
   BookOpen,
   Brain,
   Building2,
@@ -11,12 +10,12 @@ import {
   Fingerprint,
   Key,
   LayoutDashboard,
-  Wrench,
   Link as LinkIcon,
   Settings2,
   Shield,
   Sparkles,
   Users,
+  Wrench,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -52,53 +51,22 @@ const data = {
       icon: LayoutDashboard,
     },
   ],
-  navAssessmentOps: [
+  // Satu parent "Assessment" — dikelompokkan sesuai alur kerja admin
+  // (dashboard -> konten/soal -> data pendukung -> analitik), bukan Operasional/Analitik terpisah.
+  navAssessment: [
     {
-      title: "Assessment — Operasional",
-      url: "/admin/assessment/editor",
+      title: "Assessment",
+      url: "/admin/assessment",
       icon: Brain,
       items: [
-        {
-          title: "Editor Soal (V2)",
-          url: "/admin/assessment/editor",
-        },
-        {
-          title: "Konten Test (Legacy)",
-          url: "/admin/assessment/questions",
-        },
-        {
-          title: "Pola Jurusan",
-          url: "/admin/assessment/patterns",
-        },
-        {
-          title: "Mapping Karier",
-          url: "/admin/assessment/careers",
-        },
-        {
-          title: "Sekolah & Batch",
-          url: "/admin/assessment/schools",
-        },
-      ],
-    },
-  ],
-  navAssessmentAn: [
-    {
-      title: "Assessment — Analitik",
-      url: "/admin/assessment",
-      icon: BarChart3,
-      items: [
-        {
-          title: "Dashboard",
-          url: "/admin/assessment",
-        },
-        {
-          title: "B2C — Statistik",
-          url: "/admin/assessment/b2c",
-        },
-        {
-          title: "B2C — History",
-          url: "/admin/assessment/b2c/history",
-        },
+        { title: "Dashboard", url: "/admin/assessment" },
+        { title: "Editor Soal & Versi", url: "/admin/assessment/editor" },
+        { title: "Konten Legacy", url: "/admin/assessment/questions" },
+        { title: "Pola Jurusan", url: "/admin/assessment/patterns" },
+        { title: "Mapping Karier", url: "/admin/assessment/careers" },
+        { title: "Sekolah & Batch", url: "/admin/assessment/schools" },
+        { title: "Statistik B2C", url: "/admin/assessment/b2c" },
+        { title: "Riwayat B2C", url: "/admin/assessment/b2c/history" },
       ],
     },
   ],
@@ -372,8 +340,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navGeneral} />
-        <NavMain items={data.navAssessmentOps} />
-        <NavMain items={data.navAssessmentAn} />
+        <NavMain label="Assessment" items={data.navAssessment} />
         <NavMain label="LMS" items={data.navLms} />
         <NavMain label="Programs" items={data.navMentoring} />
         <NavMain label="Content" items={data.navCms} />

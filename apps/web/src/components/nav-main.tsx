@@ -60,6 +60,11 @@ export function NavMain({
           const isAnySubItemActive = item.items?.some(
             (sub) => pathname === sub.url || pathname.startsWith(`${sub.url}/`),
           );
+          /* Hanya sub-item dengan URL PALING spesifik yang di-highlight, supaya path induk
+             (mis. /admin/assessment) tidak ikut terlihat aktif saat berada di sub-halamannya. */
+          const activeSubUrl = item.items
+            ?.filter((sub) => pathname === sub.url || pathname.startsWith(`${sub.url}/`))
+            .sort((a, b) => b.url.length - a.url.length)[0]?.url;
 
           return (
             <Collapsible
@@ -79,7 +84,7 @@ export function NavMain({
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {item.items?.map((subItem) => {
-                        const isSubActive = pathname === subItem.url || pathname.startsWith(`${subItem.url}/`);
+                        const isSubActive = subItem.url === activeSubUrl;
                         return (
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton href={subItem.url} isActive={isSubActive}>
