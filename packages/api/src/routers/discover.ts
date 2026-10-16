@@ -1,13 +1,18 @@
-import { db, eq, inArray, and, asc, desc } from "@mulai-plus/db/db";
-import { schema } from "@mulai-plus/db/db";
+import { and, asc, db, desc, eq, inArray, schema } from "@mulai-plus/db/db";
 import { tmbAssessmentResults, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
-import { computeRecommendations, getProdiList } from "./tmb";
+import {
+  deleteFromR2,
+  extractKeyFromUrl,
+  getPublicUrl,
+  listR2ObjectsDetailed,
+  uploadToR2,
+} from "@mulai-plus/r2/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
-import { uploadToR2, deleteFromR2, getPublicUrl, listR2ObjectsDetailed, extractKeyFromUrl } from "@mulai-plus/r2/server";
 import { evaluateTextInput } from "../lib/evaluate-input";
 import { recommendForResult } from "../lib/recommend";
+import { computeRecommendations, getProdiList } from "./tmb";
 
 /**
  * Discover™ — Assessment Engine (Fase 0).
@@ -84,18 +89,33 @@ export const discoverRouter = {
   /** Tes B2C yang sedang LIVE (famil, minat|bakat) utk halaman 'Pilih Test' v2. */
   liveTests: publicProcedure.handler(async () => {
     const fam = ["minat", "bakat"];
-    const asses = await db.query.assessments.findMany({ where: inArray(schema.assessments.family, fam), orderBy: asc(schema.assessments.code) });
+    const asses = await db.query.assessments.findMany({
+      where: inArray(schema.assessments.family, fam),
+      orderBy: asc(schema.assessments.code),
+    });
     const items: { code: string; name: string; family: string; questions: number; sections: number; xp: number }[] = [];
     for (const a of asses) {
       const live = await db.query.assessmentVersions.findFirst({
         where: and(eq(schema.assessmentVersions.assessmentId, a.id), eq(schema.assessmentVersions.status, "live")),
       });
       if (!live) continue;
-      const qs = await db.query.questions.findMany({ where: eq(schema.questions.versionId, live.id), orderBy: asc(schema.questions.displayOrder) });
-      const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, live.id) });
+      const qs = await db.query.questions.findMany({
+        where: eq(schema.questions.versionId, live.id),
+        orderBy: asc(schema.questions.displayOrder),
+      });
+      const dims = await db.query.assessmentDimensions.findMany({
+        where: eq(schema.assessmentDimensions.versionId, live.id),
+      });
       const secs = computeRunSections((live.configJson ?? {}) as any, qs as any, dims as any);
       const n = qs.filter((q) => q.isActive).length;
-      items.push({ code: a.code, name: a.name, family: a.family ?? "bakat", questions: n, sections: secs.length, xp: secs.length * 10 + n });
+      items.push({
+        code: a.code,
+        name: a.name,
+        family: a.family ?? "bakat",
+        questions: n,
+        sections: secs.length,
+        xp: secs.length * 10 + n,
+      });
     }
     return { items };
   }),
@@ -105,7 +125,9 @@ export const discoverRouter = {
     .handler(async ({ input }) => {
       // Load versi spesifik (utk resume sesi lama / preview per versi) atau versi LIVE (rilis)
       const v = input.versionId
-        ? ((await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) })) as VersionRow | null)
+        ? ((await db.query.assessmentVersions.findFirst({
+            where: eq(schema.assessmentVersions.id, input.versionId),
+          })) as VersionRow | null)
         : await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
       const dimensions = await db.query.assessmentDimensions.findMany({
@@ -119,7 +141,9 @@ export const discoverRouter = {
       const questions = await questionsOf(v.id);
       const dimIds = dimensions.map((d) => d.id);
       const instructions = dimIds.length
-        ? await db.query.dimensionInstructions.findMany({ where: inArray(schema.dimensionInstructions.dimensionId, dimIds) })
+        ? await db.query.dimensionInstructions.findMany({
+            where: inArray(schema.dimensionInstructions.dimensionId, dimIds),
+          })
         : [];
       const cfgRun = (v.configJson ?? {}) as any;
       const sm = cfgRun.section_mode ?? "none";
@@ -128,16 +152,24 @@ export const discoverRouter = {
       let runSections: { key: string; title: string; from: number; to: number }[] = [];
       if (sm === "by_dimension") {
         let pos = 0;
-        runSections = activeDim.map((d) => {
-          const cnt = activeQ.filter((q) => q.dimensionId === d.id).length;
-          const sec = { key: d.id, title: d.name, from: pos, to: pos + cnt - 1 };
-          pos += cnt;
-          return sec;
-        }).filter((s) => s.from <= s.to);
-      } else if (sm && sm.startsWith("chunk")) {
+        runSections = activeDim
+          .map((d) => {
+            const cnt = activeQ.filter((q) => q.dimensionId === d.id).length;
+            const sec = { key: d.id, title: d.name, from: pos, to: pos + cnt - 1 };
+            pos += cnt;
+            return sec;
+          })
+          .filter((s) => s.from <= s.to);
+      } else if (sm?.startsWith("chunk")) {
         const size = Number(sm.split(":")[1] ?? 10) || 10;
         runSections = [];
-        for (let f = 0; f < activeQ.length; f += size) runSections.push({ key: "chunk" + f, title: `Bagian ${runSections.length + 1}`, from: f, to: Math.min(f + size - 1, activeQ.length - 1) });
+        for (let f = 0; f < activeQ.length; f += size)
+          runSections.push({
+            key: `chunk${f}`,
+            title: `Bagian ${runSections.length + 1}`,
+            from: f,
+            to: Math.min(f + size - 1, activeQ.length - 1),
+          });
       } else {
         runSections = activeQ.length ? [{ key: "all", title: "Satu Bagian", from: 0, to: activeQ.length - 1 }] : [];
       }
@@ -155,73 +187,124 @@ export const discoverRouter = {
 
   /** Mulai sesi — lock versi live terbaru. */
   start: publicProcedure
-    .input(z.object({ code: z.string().default("DISCOVER"), studentId: z.string().min(1), versionId: z.string().optional() }))
+    .input(
+      z.object({
+        code: z.string().default("DISCOVER"),
+        studentId: z.string().min(1),
+        versionId: z.string().optional(),
+      }),
+    )
     .handler(async ({ input }) => {
       const v = input.versionId
-        ? ((await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) })) as VersionRow | null)
+        ? ((await db.query.assessmentVersions.findFirst({
+            where: eq(schema.assessmentVersions.id, input.versionId),
+          })) as VersionRow | null)
         : await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
       const c = (v.configJson ?? {}) as any;
+
+      // ── Urutan soal sesi ini ────────────────────────────────────────────────
+      // randomize_q = true → urutan diacak SEKALI lalu disimpan di sesi (resume tetap sama).
+      const baseQs = await db.query.questions.findMany({
+        where: and(eq(schema.questions.versionId, v.id), eq(schema.questions.isActive, true)),
+        columns: { id: true, durationSeconds: true },
+        orderBy: asc(schema.questions.displayOrder),
+      });
+      const orderedQs = c?.randomize_q === true ? shuffle(baseQs) : baseQs;
+      const orderIds = orderedQs.map((q) => q.id);
+
+      // ── Urutan opsi per soal ────────────────────────────────────────────────
+      // randomize_a = true → acak opsi tiap soal, disimpan di sesi agar konsisten.
+      const buildOptionOrder = async (): Promise<Record<string, string[]> | undefined> => {
+        if (c?.randomize_a !== true || orderIds.length === 0) return undefined;
+        const opts = await db.query.questionOptions.findMany({
+          where: inArray(schema.questionOptions.questionId, orderIds),
+          columns: { id: true, questionId: true, displayOrder: true },
+          orderBy: asc(schema.questionOptions.displayOrder),
+        });
+        const out: Record<string, string[]> = {};
+        for (const qid of orderIds) {
+          const ids = opts.filter((o) => o.questionId === qid).map((o) => o.id);
+          if (ids.length > 1) out[qid] = shuffle(ids);
+        }
+        return Object.keys(out).length ? out : undefined;
+      };
+
       const buildTimer = async (): Promise<Record<string, unknown> | undefined> => {
-      if (c?.timer_enabled === true) {
-        const scope = c?.timer_scope ?? "none";
-        const now = Date.now();
-        // DIMENSION: deadline kumulatif per dimensi (urutan bagian)
-        // QUESTION: deadline kumulatif per soal (urutan displayOrder aktif)
-        const dimsR = await db.query.assessmentDimensions.findMany({
-          where: eq(schema.assessmentDimensions.versionId, v.id),
-          columns: { id: true, durationSeconds: true },
-          orderBy: asc(schema.assessmentDimensions.displayOrder),
-        });
-        const qsR = await db.query.questions.findMany({
-          where: and(eq(schema.questions.versionId, v.id), eq(schema.questions.isActive, true)),
-          columns: { id: true, durationSeconds: true },
-          orderBy: asc(schema.questions.displayOrder),
-        });
-        const perQ = Number(c?.time_per_question ?? 30);
-        const dims: { id: string; startISO: string; endISO: string; durationSeconds: number }[] = [];
-        let cursor = now;
-        for (const d of dimsR) {
-          const dur = scope === "dimension" ? Number(d.durationSeconds ?? 0) : 0;
-          if (scope === "dimension" && dur > 0) {
-            dims.push({ id: d.id, startISO: new Date(cursor).toISOString(), endISO: new Date(cursor + dur * 1000).toISOString(), durationSeconds: dur });
-            cursor += dur * 1000;
+        if (c?.timer_enabled === true) {
+          const scope = c?.timer_scope ?? "none";
+          const now = Date.now();
+          // DIMENSION: deadline kumulatif per dimensi (urutan bagian)
+          // QUESTION: deadline kumulatif per soal (mengikuti URUTAN SESI, termasuk hasil acak)
+          const dimsR = await db.query.assessmentDimensions.findMany({
+            where: eq(schema.assessmentDimensions.versionId, v.id),
+            columns: { id: true, durationSeconds: true },
+            orderBy: asc(schema.assessmentDimensions.displayOrder),
+          });
+          const qsR = orderedQs;
+          const perQ = Number(c?.time_per_question ?? 30);
+          const dims: { id: string; startISO: string; endISO: string; durationSeconds: number }[] = [];
+          let cursor = now;
+          for (const d of dimsR) {
+            const dur = scope === "dimension" ? Number(d.durationSeconds ?? 0) : 0;
+            if (scope === "dimension" && dur > 0) {
+              dims.push({
+                id: d.id,
+                startISO: new Date(cursor).toISOString(),
+                endISO: new Date(cursor + dur * 1000).toISOString(),
+                durationSeconds: dur,
+              });
+              cursor += dur * 1000;
+            }
           }
+          const qEnds: string[] = [];
+          if (scope === "question") {
+            // Durasi PER SOAL (custom); fallback ke time_per_question/30s bila kosong
+            let qc = now;
+            for (const qq of qsR) {
+              const secs = Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ;
+              qc += secs * 1000;
+              qEnds.push(new Date(qc).toISOString());
+            }
+          }
+          const qPerMs = perQ * 1000;
+          const totalSeconds =
+            scope === "dimension"
+              ? dims.reduce((a, d) => a + d.durationSeconds, 0)
+              : scope === "question"
+                ? qsR.reduce(
+                    (a, qq) => a + (Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ),
+                    0,
+                  )
+                : 0;
+          const expectedEndISO = new Date(now + (totalSeconds > 0 ? totalSeconds * 1000 : 0)).toISOString();
+          return {
+            scope,
+            totalSeconds,
+            serverNowISO: new Date(now).toISOString(),
+            expectedEndISO,
+            dims,
+            qEnds,
+            qPerMs,
+          };
         }
-        const qEnds: string[] = [];
-        if (scope === "question") {
-          // Durasi PER SOAL (custom); fallback ke time_per_question/30s bila kosong
-          let qc = now;
-          for (const qq of qsR) { const secs = Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ; qc += secs * 1000; qEnds.push(new Date(qc).toISOString()); }
-        }
-        const qPerMs = perQ * 1000;
-        const totalSeconds = scope === "dimension"
-          ? dims.reduce((a, d) => a + d.durationSeconds, 0)
-          : scope === "question"
-            ? qsR.reduce((a, qq) => a + (Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ), 0)
-            : 0;
-        const expectedEndISO = new Date(now + (totalSeconds > 0 ? totalSeconds * 1000 : 0)).toISOString();
-        return {
-          scope,
-          totalSeconds,
-          serverNowISO: new Date(now).toISOString(),
-          expectedEndISO,
-          dims,
-          qEnds,
-          qPerMs,
-        };
-      }
-      return undefined;
+        return undefined;
       };
       const serverTimer = await buildTimer();
-      // RESUME: pakai lagi sesi in_progress terbaru user utk versi ini (refresh/remount tidak bikin sesi dobel;
-      // jawaban yg sudah diketik tetap tersimpan di sesi yg sama)
+      const optionOrder = await buildOptionOrder();
+      // RESUME: pakai lagi sesi yg masih berjalan (in_progress) ATAU yg dijeda (paused).
+      // "Berhenti & lanjutkan nanti" harus bisa dilanjutkan, bukan bikin sesi baru.
       const existingSess = await db.query.assessmentSessions.findFirst({
-        where: and(eq(schema.assessmentSessions.studentId, input.studentId), eq(schema.assessmentSessions.versionId, v.id), eq(schema.assessmentSessions.status, "in_progress")),
+        where: and(
+          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.versionId, v.id),
+          inArray(schema.assessmentSessions.status, ["in_progress", "paused"] as any),
+        ),
         orderBy: (t: any) => [desc(t.startedAt)],
       });
       if (existingSess) {
-        let t = ((existingSess as any).configJson as any)?.timer ?? null;
+        const sessCfg = ((existingSess as any).configJson ?? {}) as any;
+        let t = sessCfg?.timer ?? null;
         if (!t && c?.timer_enabled === true) {
           // Sesi lama (dibuat sebelum timer aktif) → lampirkan deadline dari SEKARANG (server-authoritative)
           t = await buildTimer();
@@ -232,23 +315,32 @@ export const discoverRouter = {
               .where(eq(schema.assessmentSessions.id, existingSess.id));
           }
         }
-        return { ok: true, sessionId: existingSess.id, versionId: v.id, serverTimer: t, resume: true } as const;
+        // Sesi yang dijeda dilanjutkan → kembalikan statusnya agar jawaban bisa masuk lagi.
+        if ((existingSess as any).status === "paused") {
+          await db
+            .update(schema.assessmentSessions)
+            .set({ status: "in_progress" })
+            .where(eq(schema.assessmentSessions.id, existingSess.id));
+        }
+        return {
+          ok: true,
+          sessionId: existingSess.id,
+          versionId: v.id,
+          serverTimer: t,
+          resume: true,
+          orderIds: sessCfg?.questionOrderIds ?? orderIds,
+          optionOrder: sessCfg?.optionOrder,
+        } as const;
       }
-      // Snapshot urutan soal utk sesi ini (konsep ujian: nomor stabil, resume di posisi benar)
-      const orderQs = await db.query.questions.findMany({
-        where: and(eq(schema.questions.versionId, v.id), eq(schema.questions.isActive, true)),
-        columns: { id: true },
-        orderBy: asc(schema.questions.displayOrder),
-      });
       const session = {
         id: uid(),
         studentId: input.studentId,
         versionId: v.id,
         status: "in_progress",
-        configJson: { ...v.configJson, timer: serverTimer, questionOrderIds: orderQs.map((q) => q.id) },
+        configJson: { ...v.configJson, timer: serverTimer, questionOrderIds: orderIds, optionOrder },
       };
       await db.insert(schema.assessmentSessions).values(session as any);
-      return { ok: true, sessionId: session.id, versionId: v.id, serverTimer };
+      return { ok: true, sessionId: session.id, versionId: v.id, serverTimer, orderIds, optionOrder };
     }),
 
   /** Simpan satu jawaban (upsert). */
@@ -269,14 +361,19 @@ export const discoverRouter = {
       // ANTI-TAMPER: tolak submit bila deadline (dimensi ATAU soal) sudah lewat di server
       const timerS = ((sess.configJson as any)?.timer ?? null) as any;
       if (timerS && timerS.scope === "dimension" && (timerS.dims ?? []).length) {
-        const qFor = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId), columns: { id: true, dimensionId: true } });
+        const qFor = await db.query.questions.findFirst({
+          where: eq(schema.questions.id, input.questionId),
+          columns: { id: true, dimensionId: true },
+        });
         const dEnd = (timerS.dims as any[]).find((d: any) => d.id === qFor?.dimensionId)?.endISO;
         if (dEnd && Date.now() >= new Date(dEnd).getTime()) {
           return { ok: false, error: "dimension_timed_out" } as const;
         }
       }
       if (timerS && timerS.scope === "question" && (timerS.qEnds ?? []).length) {
-        const order: string[] = (timerS.questionOrderIds ?? (sess.configJson as any)?.questionOrderIds ?? []) as string[];
+        const order: string[] = (timerS.questionOrderIds ??
+          (sess.configJson as any)?.questionOrderIds ??
+          []) as string[];
         const qi = order.indexOf(input.questionId);
         const qEnd = qi >= 0 ? (timerS.qEnds as string[])[qi] : undefined;
         if (qEnd && Date.now() >= new Date(qEnd).getTime()) {
@@ -315,27 +412,38 @@ export const discoverRouter = {
   submitText: publicProcedure
     .input(z.object({ sessionId: z.string().min(1), questionId: z.string().min(1), textAnswer: z.string().min(1) }))
     .handler(async ({ input }) => {
-      const sess = await db.query.assessmentSessions.findFirst({ where: eq(schema.assessmentSessions.id, input.sessionId) });
+      const sess = await db.query.assessmentSessions.findFirst({
+        where: eq(schema.assessmentSessions.id, input.sessionId),
+      });
       if (!sess || sess.status !== "in_progress") return { ok: false, error: "session_not_found" } as const;
       const q = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId) });
       if (!q) return { ok: false, error: "question_not_found" } as const;
-      const cfg = await db.query.textInputConfigs.findFirst({ where: eq(schema.textInputConfigs.questionId, input.questionId) });
+      const cfg = await db.query.textInputConfigs.findFirst({
+        where: eq(schema.textInputConfigs.questionId, input.questionId),
+      });
       const evalRes = cfg
-        ? evaluateTextInput(
-            cfg.evaluationType as any,
-            cfg.answerKey,
-            input.textAnswer,
-            cfg.numericTolerance ?? "0.01",
-          )
+        ? evaluateTextInput(cfg.evaluationType as any, cfg.answerKey, input.textAnswer, cfg.numericTolerance ?? "0.01")
         : { correct: true, normalized: input.textAnswer.trim() };
       const existing = await db.query.assessmentAnswers.findFirst({
-        where: and(eq(schema.assessmentAnswers.sessionId, input.sessionId), eq(schema.assessmentAnswers.questionId, input.questionId)),
+        where: and(
+          eq(schema.assessmentAnswers.sessionId, input.sessionId),
+          eq(schema.assessmentAnswers.questionId, input.questionId),
+        ),
       });
       const scoreEarned = evalRes.correct ? 1 : 0;
       if (existing) {
-        await db.update(schema.assessmentAnswers).set({ textAnswer: input.textAnswer, scoreEarned, answeredAt: new Date() }).where(eq(schema.assessmentAnswers.id, existing.id));
+        await db
+          .update(schema.assessmentAnswers)
+          .set({ textAnswer: input.textAnswer, scoreEarned, answeredAt: new Date() })
+          .where(eq(schema.assessmentAnswers.id, existing.id));
       } else {
-        await db.insert(schema.assessmentAnswers).values({ id: uid(), sessionId: input.sessionId, questionId: input.questionId, textAnswer: input.textAnswer, scoreEarned });
+        await db.insert(schema.assessmentAnswers).values({
+          id: uid(),
+          sessionId: input.sessionId,
+          questionId: input.questionId,
+          textAnswer: input.textAnswer,
+          scoreEarned,
+        });
       }
       return { ok: true, correct: evalRes.correct, normalized: evalRes.normalized };
     }),
@@ -364,8 +472,10 @@ export const discoverRouter = {
         where: eq(schema.questions.versionId, sess.versionId),
         orderBy: asc(schema.questions.displayOrder),
       });
-      const dimsAll = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, sess.versionId) });
-      const runSecs = computeRunSections((sess.configJson as any), qsAll, dimsAll);
+      const dimsAll = await db.query.assessmentDimensions.findMany({
+        where: eq(schema.assessmentDimensions.versionId, sess.versionId),
+      });
+      const runSecs = computeRunSections(sess.configJson as any, qsAll, dimsAll);
       const purse = await db.query.assessmentAnswers.findMany({
         where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
       });
@@ -383,10 +493,32 @@ export const discoverRouter = {
         : [];
       const qIds = purse.map((a) => a.questionId).filter(Boolean) as string[];
       const qs = qIds.length
-        ? await db.query.questions.findMany({ where: inArray(schema.questions.id, qIds), columns: { id: true, dimensionId: true, weight: true } })
+        ? await db.query.questions.findMany({
+            where: inArray(schema.questions.id, qIds),
+            columns: { id: true, dimensionId: true, weight: true },
+          })
         : [];
       const qBy = new Map(qs.map((q) => [q.id, q]));
       const optBy = new Map(opts.map((o) => [o.id, o]));
+
+      // scoring_mode "likert": poin naik LINIER mengikuti urutan opsi (mengabaikan skor manual
+      // per opsi). Nilai diambil dari urutan displayOrder opsi pada soal tersebut (1..n).
+      const likertMode = cfg?.scoring_mode === "likert";
+      const likertScoreByOpt = new Map<string, number>();
+      if (likertMode && qIds.length) {
+        const allOpts = await db.query.questionOptions.findMany({
+          where: inArray(schema.questionOptions.questionId, qIds),
+          columns: { id: true, questionId: true, displayOrder: true },
+          orderBy: asc(schema.questionOptions.displayOrder),
+        });
+        for (const qid of qIds) {
+          allOpts
+            .filter((o) => o.questionId === qid)
+            .forEach((o, i) => {
+              likertScoreByOpt.set(o.id, i + 1);
+            });
+        }
+      }
 
       // Akumulasi per dimensi: rawscore + count (utk average) + weighted
       const scores = new Map<string, number>();
@@ -398,7 +530,7 @@ export const discoverRouter = {
         if (a.selectedOptionId) {
           const o = optBy.get(a.selectedOptionId);
           dimId = o?.targetDimension ?? q?.dimensionId ?? "";
-          score = o?.score ?? score;
+          score = likertMode ? (likertScoreByOpt.get(a.selectedOptionId) ?? o?.score ?? score) : (o?.score ?? score);
         } else {
           dimId = q?.dimensionId ?? "";
         }
@@ -425,7 +557,12 @@ export const discoverRouter = {
         for (const d of extra) if (d.code && !dimByCode.has(d.id)) dimByCode.set(d.id, d.code);
       }
       const durations = input.durations ?? {};
-      const rows = [...scores.entries()].map(([dimId, total]) => ({ dimId, total, time: durations[dimId] ?? Number.MAX_SAFE_INTEGER }));
+      // completion_time_seconds bertipe INTEGER → bulatkan (durasi dari klien berupa desimal).
+      const rows = [...scores.entries()].map(([dimId, total]) => ({
+        dimId,
+        total,
+        time: durations[dimId] != null ? Math.max(0, Math.round(Number(durations[dimId]))) : Number.MAX_SAFE_INTEGER,
+      }));
       rows.sort(
         (a, b) =>
           b.total - a.total ||
@@ -444,12 +581,15 @@ export const discoverRouter = {
         const code = (dimByCode.get(dimId) ?? "").toLowerCase();
         if (code) abilityCodeScores[code] = Math.round(pct);
       }
-      const diffFactor = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
-        ? Math.max(0, Math.min(1, ((rows[0]!.total - rows[1]!.total) / rows[0]!.total)))
-        : 1;
+      const diffFactor =
+        rows.length >= 2 && (rows[0]?.total ?? 0) > 0
+          ? Math.max(0, Math.min(1, (rows[0]?.total - rows[1]?.total) / rows[0]?.total))
+          : 1;
       const recos = await recommendForResult({ topCodes: top, abilityScores: abilityCodeScores, diffFactor });
 
-      await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
+      await db
+        .delete(schema.assessmentDimensionScores)
+        .where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]!;
         await db.insert(schema.assessmentDimensionScores).values({
@@ -475,23 +615,42 @@ export const discoverRouter = {
       await db.insert(schema.assessmentResults).values(result);
       // ⚙ Backwrite: hasil engine → pipeline hasil LAMA (kontrak tmb) agar page/template hasil yg ada tetap menampilkan
       try {
-        const ver0 = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, sess.versionId) });
-        const ass0 = ver0 ? await db.query.assessments.findFirst({ where: eq(schema.assessments.id, ver0.assessmentId) }) : null;
+        const ver0 = await db.query.assessmentVersions.findFirst({
+          where: eq(schema.assessmentVersions.id, sess.versionId),
+        });
+        const ass0 = ver0
+          ? await db.query.assessments.findFirst({ where: eq(schema.assessments.id, ver0.assessmentId) })
+          : null;
         const fam = ass0?.family ?? null;
         if (fam && (fam === "minat" || fam === "bakat")) {
-          const existing = await db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.userId, sess.studentId), orderBy: (t: any) => [desc(t.createdAt)] });
+          const existing = await db.query.tmbAssessmentResults.findFirst({
+            where: eq(tmbAssessmentResults.userId, sess.studentId),
+            orderBy: (t: any) => [desc(t.createdAt)],
+          });
           // baris jatuh tempo lengkap (minat+bakat) => ini adalah RETEST → attempt baru (baris baru),
           // sehingga duet lama tetap tersimpan di history dan yang baru mulai dari bagian ini saja.
           // 📊 Statistik per dimensi (utk catatan hasil: waktu habis / paling lama)
           const dimStats = await (async () => {
-            const dimsAll2 = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, sess.versionId), orderBy: asc(schema.assessmentDimensions.displayOrder) });
-            const qsAll2 = await db.query.questions.findMany({ where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)), columns: { id: true, dimensionId: true } });
-            const ansAll = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, input.sessionId) });
+            const dimsAll2 = await db.query.assessmentDimensions.findMany({
+              where: eq(schema.assessmentDimensions.versionId, sess.versionId),
+              orderBy: asc(schema.assessmentDimensions.displayOrder),
+            });
+            const qsAll2 = await db.query.questions.findMany({
+              where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)),
+              columns: { id: true, dimensionId: true },
+            });
+            const ansAll = await db.query.assessmentAnswers.findMany({
+              where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
+            });
             const ansByQ = new Map(ansAll.map((a) => [a.questionId, a]));
             const timerCfg = ((sess.configJson as any)?.timer ?? null) as any;
             return dimsAll2.map((d) => {
               const qs = qsAll2.filter((q) => q.dimensionId === d.id);
-              const times = qs.map((q) => ansByQ.get(q.id)?.answeredAt).filter(Boolean).map((t) => new Date(t as any).getTime()).sort((a, b) => a - b);
+              const times = qs
+                .map((q) => ansByQ.get(q.id)?.answeredAt)
+                .filter(Boolean)
+                .map((t) => new Date(t as any).getTime())
+                .sort((a, b) => a - b);
               const seconds = times.length >= 2 ? Math.round((times[times.length - 1]! - times[0]!) / 1000) : 0;
               const answered = qs.filter((q) => ansByQ.has(q.id)).length;
               const dEnd = (timerCfg?.dims ?? []).find((x: any) => x.id === d.id)?.endISO;
@@ -501,7 +660,7 @@ export const discoverRouter = {
           })();
 
           const hReal = !!existing && (existing.hollandCode ?? "").length > 0;
-          const aReal = !!existing && Object.keys(((existing as any).abilityScores ?? {})).length > 0;
+          const aReal = !!existing && Object.keys((existing as any).abilityScores ?? {}).length > 0;
           // Kawin hanya bila row punya TEPAT SATU sisi nyata (minat✓/bakat kosong → lanjut).
           // Junk (kode kosong / {}), row lengkap, atau kosong total → ATTEMPT BARU.
           const existingForAttempt = hReal !== aReal ? existing : null;
@@ -516,37 +675,57 @@ export const discoverRouter = {
             if (fam === "bakat" && code) abilityScores[code] = { correct: Math.round(total), total: cnt };
           }
           // ability disimpan dgn bentuk KONTRAK legacy: { levels, scores } (page hasil baca .levels & .scores)
-          const abilityStore = fam === "bakat"
-            ? {
-                levels: Object.fromEntries(
-                  Object.entries(abilityScores as Record<string, { correct: number; total: number }>).map(([k, v]) => {
-                    const pct = v.total ? v.correct / v.total : 0;
-                    return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
-                  }),
-                ),
-                scores: abilityScores,
-              }
-            : undefined;
-          const diff = rows.length >= 2 && (rows[0]?.total ?? 0) > 0
-            ? (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.4 ? "strong" : (rows[0]!.total - rows[1]!.total) / rows[0]!.total > 0.15 ? "moderate" : "weak"
-            : "moderate";
+          const abilityStore =
+            fam === "bakat"
+              ? {
+                  levels: Object.fromEntries(
+                    Object.entries(abilityScores as Record<string, { correct: number; total: number }>).map(
+                      ([k, v]) => {
+                        const pct = v.total ? v.correct / v.total : 0;
+                        return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
+                      },
+                    ),
+                  ),
+                  scores: abilityScores,
+                }
+              : undefined;
+          const diff =
+            rows.length >= 2 && (rows[0]?.total ?? 0) > 0
+              ? (rows[0]?.total - rows[1]?.total) / rows[0]?.total > 0.4
+                ? "strong"
+                : (rows[0]?.total - rows[1]?.total) / rows[0]?.total > 0.15
+                  ? "moderate"
+                  : "weak"
+              : "moderate";
           const confScore = String(Math.max(0, Math.min(100, Math.round(50 + (diffFactor ?? 0.5) * 40))));
           if (existingForAttempt) {
-            await db.update(tmbAssessmentResults).set({
+            await db
+              .update(tmbAssessmentResults)
+              .set({
+                ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }),
+                differentiation: diff,
+                confidenceScore: confScore,
+                dimStats: dimStats as any,
+              })
+              .where(eq(tmbAssessmentResults.id, rid));
+            await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, rid));
+          } else {
+            await db.insert(tmbAssessmentResults).values({
+              ...(base as any),
               ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }),
               differentiation: diff,
               confidenceScore: confScore,
               dimStats: dimStats as any,
-            }).where(eq(tmbAssessmentResults.id, rid));
-            await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, rid));
-          } else {
-            await db.insert(tmbAssessmentResults).values({ ...(base as any), ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }), differentiation: diff, confidenceScore: confScore, dimStats: dimStats as any });
+            });
           }
           // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
           // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)
           if (existingForAttempt) {
-            const mergedH = { ...((existingForAttempt as any)?.hollandScores ?? {}), ...(fam === "minat" ? hollandScores : {}) };
-            const prevAb = ((existingForAttempt as any)?.abilityScores ?? {});
+            const mergedH = {
+              ...((existingForAttempt as any)?.hollandScores ?? {}),
+              ...(fam === "minat" ? hollandScores : {}),
+            };
+            const prevAb = (existingForAttempt as any)?.abilityScores ?? {};
             const prevScores = prevAb?.scores ?? prevAb ?? {};
             const mergedA = { ...prevScores, ...(fam === "bakat" ? abilityScores : {}) };
             const [prodiList, patterns, careersList] = await Promise.all([
@@ -560,12 +739,12 @@ export const discoverRouter = {
             const lux = Object.fromEntries(
               abilityKeys.map((k) => {
                 const v = (mergedA as Record<string, { correct: number; total: number }>)[k];
-                const pct = v && v.total ? v.correct / v.total : 0.5; // netral bila belum dikerjakan
+                const pct = v?.total ? v.correct / v.total : 0.5; // netral bila belum dikerjakan
                 return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
               }),
             );
             const recoCalc = computeRecommendations(
-              { code: (existingForAttempt?.hollandCode ?? profileCode) ?? "", scores: mergedH as any },
+              { code: existingForAttempt?.hollandCode ?? profileCode ?? "", scores: mergedH as any },
               { levels: lux as any },
               prodiList as any,
               patterns as any,
@@ -573,11 +752,29 @@ export const discoverRouter = {
             );
             for (let i = 0; i < recoCalc.majors.length; i++) {
               const m = recoCalc.majors[i]!;
-              await db.insert(tmbRecommendations).values({ id: uid(), resultId: rid, type: "major", rank: i + 1, itemName: m.itemName, categoryKey: m.categoryKey ?? null, confidence: String(m.confidence ?? 0), prodiRefs: m.prodiRefs ?? [] });
+              await db.insert(tmbRecommendations).values({
+                id: uid(),
+                resultId: rid,
+                type: "major",
+                rank: i + 1,
+                itemName: m.itemName,
+                categoryKey: m.categoryKey ?? null,
+                confidence: String(m.confidence ?? 0),
+                prodiRefs: m.prodiRefs ?? [],
+              });
             }
             for (let i = 0; i < recoCalc.careers.length; i++) {
               const c = recoCalc.careers[i]!;
-              await db.insert(tmbRecommendations).values({ id: uid(), resultId: rid, type: "career", rank: recoCalc.majors.length + i + 1, itemName: c.itemName, categoryKey: c.categoryKey ?? null, confidence: (c as any).confidence ?? null, prodiRefs: [] as any });
+              await db.insert(tmbRecommendations).values({
+                id: uid(),
+                resultId: rid,
+                type: "career",
+                rank: recoCalc.majors.length + i + 1,
+                itemName: c.itemName,
+                categoryKey: c.categoryKey ?? null,
+                confidence: (c as any).confidence ?? null,
+                prodiRefs: [] as any,
+              });
             }
           }
         }
@@ -590,17 +787,34 @@ export const discoverRouter = {
         .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
         .where(eq(schema.assessmentSessions.id, input.sessionId));
 
-      return { ok: true, profileCode, topDimensions: top, rawScores: result.rawScoresJson, xpEarned, streak: sectionsDone, timedOut, recommendations: recos, resultId: result.id };
+      return {
+        ok: true,
+        profileCode,
+        topDimensions: top,
+        rawScores: result.rawScoresJson,
+        xpEarned,
+        streak: sectionsDone,
+        timedOut,
+        recommendations: recos,
+        resultId: result.id,
+      };
     }),
 
   /** Jeda (pause) → lanjutkan nanti. */
   pause: publicProcedure
     .input(z.object({ sessionId: z.string().min(1), currentDimensionId: z.string().optional() }))
     .handler(async ({ input }) => {
-      const sess = await db.query.assessmentSessions.findFirst({ where: eq(schema.assessmentSessions.id, input.sessionId) });
+      const sess = await db.query.assessmentSessions.findFirst({
+        where: eq(schema.assessmentSessions.id, input.sessionId),
+      });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
-      await db.update(schema.assessmentSessions).set({ status: "paused", currentDimensionId: input.currentDimensionId ?? sess.currentDimensionId }).where(eq(schema.assessmentSessions.id, input.sessionId));
+      // Hormati setting "Izinkan lanjut kemudian" dari panel Aturan tes.
+      if ((sess.configJson as any)?.allow_pause === false) return { ok: false, error: "pause_not_allowed" } as const;
+      await db
+        .update(schema.assessmentSessions)
+        .set({ status: "paused", currentDimensionId: input.currentDimensionId ?? sess.currentDimensionId })
+        .where(eq(schema.assessmentSessions.id, input.sessionId));
       return { ok: true };
     }),
 
@@ -609,11 +823,17 @@ export const discoverRouter = {
     .input(z.object({ studentId: z.string().min(1), code: z.string().default("DISCOVER") }))
     .handler(async ({ input }) => {
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
-      const vs = a ? await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) }) : [];
+      const vs = a
+        ? await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) })
+        : [];
       const ids = vs.map((v) => v.id);
       const items = ids.length
         ? await db.query.assessmentSessions.findMany({
-            where: and(inArray(schema.assessmentSessions.versionId, ids), eq(schema.assessmentSessions.studentId, input.studentId), inArray(schema.assessmentSessions.status, ["in_progress", "paused"] as any)),
+            where: and(
+              inArray(schema.assessmentSessions.versionId, ids),
+              eq(schema.assessmentSessions.studentId, input.studentId),
+              inArray(schema.assessmentSessions.status, ["in_progress", "paused"] as any),
+            ),
             orderBy: (t) => [desc(t.startedAt)],
           })
         : [];
@@ -635,42 +855,44 @@ export const discoverRouter = {
         where: eq(tmbAssessmentResults.userId, input.studentId),
         orderBy: (t: any) => [desc(t.createdAt)],
       });
-      const present = !!row && (isMinat ? (row.hollandCode ?? "").length > 0 : Object.keys(((row as any).abilityScores ?? {})).length > 0);
+      const present =
+        !!row &&
+        (isMinat ? (row.hollandCode ?? "").length > 0 : Object.keys((row as any).abilityScores ?? {}).length > 0);
       if (!present) return { ok: true, code: a.code, present: false } as const;
       return {
         ok: true,
         code: a.code,
         name: a.name,
         present: true,
-        profileCode: row!.hollandCode,
-        completedAt: row!.createdAt,
+        profileCode: row?.hollandCode,
+        completedAt: row?.createdAt,
       } as const;
     }),
 
   /** Daftar ATTEMPT (duet minat+bakat) per user, kronologis — utk history & nomor percobaan. */
-  attempts: publicProcedure
-    .input(z.object({ studentId: z.string().min(1) }))
-    .handler(async ({ input }) => {
-      const rows = await db.query.tmbAssessmentResults.findMany({
-        where: eq(tmbAssessmentResults.userId, input.studentId),
-        orderBy: (t: any) => [asc(t.createdAt)],
-      });
-      // Junk (kedua sisi kosong) dari era sesi rusak tidak boleh muncul — cuma attempt nyata yg tampil
-      const nyata = rows.filter((r) => (r.hollandCode ?? "").length > 0 || Object.keys((r as any).abilityScores ?? {}).length > 0);
-      return {
-        ok: true,
-        attempts: nyata.map((r) => ({
-          id: r.id,
-          createdAt: r.createdAt,
-          hollandCode: r.hollandCode,
-          hollandMap: (r.hollandScores ?? {}) as Record<string, number>,
-          hasAbility: !!(r as any).abilityScores,
-          differentiation: r.differentiation,
-          confidenceScore: r.confidenceScore,
-          complete: !!r.hollandCode && !!(r as any).abilityScores,
-        })),
-      } as const;
-    }),
+  attempts: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input }) => {
+    const rows = await db.query.tmbAssessmentResults.findMany({
+      where: eq(tmbAssessmentResults.userId, input.studentId),
+      orderBy: (t: any) => [asc(t.createdAt)],
+    });
+    // Junk (kedua sisi kosong) dari era sesi rusak tidak boleh muncul — cuma attempt nyata yg tampil
+    const nyata = rows.filter(
+      (r) => (r.hollandCode ?? "").length > 0 || Object.keys((r as any).abilityScores ?? {}).length > 0,
+    );
+    return {
+      ok: true,
+      attempts: nyata.map((r) => ({
+        id: r.id,
+        createdAt: r.createdAt,
+        hollandCode: r.hollandCode,
+        hollandMap: (r.hollandScores ?? {}) as Record<string, number>,
+        hasAbility: !!(r as any).abilityScores,
+        differentiation: r.differentiation,
+        confidenceScore: r.confidenceScore,
+        complete: !!r.hollandCode && !!(r as any).abilityScores,
+      })),
+    } as const;
+  }),
 
   /** Buang partial sesi in_progress TERBARU user utk tes (abas 'Mulai ulang' di kartu). */
   abandon: publicProcedure
@@ -678,10 +900,15 @@ export const discoverRouter = {
     .handler(async ({ input }) => {
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: true, dropped: 0 } as const;
-      const vs = await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) });
+      const vs = await db.query.assessmentVersions.findMany({
+        where: eq(schema.assessmentVersions.assessmentId, a.id),
+      });
       const sess = await db.query.assessmentSessions.findFirst({
         where: and(
-          inArray(schema.assessmentSessions.versionId, vs.map((v) => v.id)),
+          inArray(
+            schema.assessmentSessions.versionId,
+            vs.map((v) => v.id),
+          ),
           eq(schema.assessmentSessions.studentId, input.studentId),
           eq(schema.assessmentSessions.status, "in_progress"),
         ),
@@ -696,40 +923,50 @@ export const discoverRouter = {
     }),
 
   /** Heartbeat timer — otoritas SERVER: current_time + deadline aktif + status timeout/lock. */
-  timerState: publicProcedure
-    .input(z.object({ sessionId: z.string().min(1) }))
-    .handler(async ({ input }) => {
-      const sess = await db.query.assessmentSessions.findFirst({ where: eq(schema.assessmentSessions.id, input.sessionId) });
-      if (!sess) return { ok: false, error: "session_not_found" } as const;
-      const timer = ((sess.configJson as any)?.timer ?? null) as any;
-      if (!timer || timer.scope === "none") return { ok: true, scope: "none", serverNow: Date.now() } as const;
-      const now = Date.now();
-      const scope = timer.scope as string;
-      if (scope === "dimension") {
-        const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map((d: any) => ({
+  timerState: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input }) => {
+    const sess = await db.query.assessmentSessions.findFirst({
+      where: eq(schema.assessmentSessions.id, input.sessionId),
+    });
+    if (!sess) return { ok: false, error: "session_not_found" } as const;
+    const timer = ((sess.configJson as any)?.timer ?? null) as any;
+    if (!timer || timer.scope === "none") return { ok: true, scope: "none", serverNow: Date.now() } as const;
+    const now = Date.now();
+    const scope = timer.scope as string;
+    if (scope === "dimension") {
+      const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map(
+        (d: any) => ({
           id: d.id,
           endISO: d.endISO,
           durationSeconds: Number(d.durationSeconds ?? 0),
           expired: now >= new Date(d.endISO).getTime(),
-        }));
-        const active = dims.find((d) => !d.expired);
-        return {
-          ok: true,
-          scope,
-          serverNow: now,
-          dims,
-          activeDimId: active?.id ?? null,
-          timedOut: !active, // semua dimensi habis / sesi timeout
-        } as const;
-      }
-      if (scope === "question") {
-        const qEnds = (timer.qEnds ?? []) as string[];
-        const idx = qEnds.findIndex((iso) => now < new Date(iso).getTime());
-        const qPerMs = Math.max(1000, Number(timer.qPerMs ?? 30000));
-        return { ok: true, scope, serverNow: now, qEnds, qPerMs, activeIndex: idx === -1 ? qEnds.length : idx, timedOut: idx === -1 } as const;
-      }
-      return { ok: true, scope, serverNow: now, timedOut: now >= new Date(timer.expectedEndISO).getTime() } as const;
-    }),
+        }),
+      );
+      const active = dims.find((d) => !d.expired);
+      return {
+        ok: true,
+        scope,
+        serverNow: now,
+        dims,
+        activeDimId: active?.id ?? null,
+        timedOut: !active, // semua dimensi habis / sesi timeout
+      } as const;
+    }
+    if (scope === "question") {
+      const qEnds = (timer.qEnds ?? []) as string[];
+      const idx = qEnds.findIndex((iso) => now < new Date(iso).getTime());
+      const qPerMs = Math.max(1000, Number(timer.qPerMs ?? 30000));
+      return {
+        ok: true,
+        scope,
+        serverNow: now,
+        qEnds,
+        qPerMs,
+        activeIndex: idx === -1 ? qEnds.length : idx,
+        timedOut: idx === -1,
+      } as const;
+    }
+    return { ok: true, scope, serverNow: now, timedOut: now >= new Date(timer.expectedEndISO).getTime() } as const;
+  }),
 
   /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */
   pending: publicProcedure
@@ -737,67 +974,100 @@ export const discoverRouter = {
     .handler(async ({ input }) => {
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: true, present: false } as const;
-      const vs = await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) });
+      const vs = await db.query.assessmentVersions.findMany({
+        where: eq(schema.assessmentVersions.assessmentId, a.id),
+      });
       // Hanya sesi TERBARU yg menentukan: kalau terbaru masih in_progress + sudah ada jawaban → lanjutkan;
       // kalau terbaru sudah selesai (atau kosong) → TIDAK ada progres yg harus dilanjutkan (sesi yg lebih lama superseded).
       const sess = await db.query.assessmentSessions.findFirst({
         where: and(
-          inArray(schema.assessmentSessions.versionId, vs.map((v) => v.id)),
+          inArray(
+            schema.assessmentSessions.versionId,
+            vs.map((v) => v.id),
+          ),
           eq(schema.assessmentSessions.studentId, input.studentId),
         ),
         orderBy: (t: any) => [desc(t.startedAt)],
       });
       if (!sess || sess.status !== "in_progress") return { ok: true, present: false } as const;
-      const answered = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, sess.id), columns: { id: true } });
+      const answered = await db.query.assessmentAnswers.findMany({
+        where: eq(schema.assessmentAnswers.sessionId, sess.id),
+        columns: { id: true },
+      });
       if (answered.length === 0) return { ok: true, present: false } as const;
-      const total = await db.query.questions.findMany({ where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)), columns: { id: true } });
-      return { ok: true, present: true, sessionId: sess.id, answered: answered.length, total: total.length, fullyAnswered: answered.length >= total.length } as const;
+      const total = await db.query.questions.findMany({
+        where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)),
+        columns: { id: true },
+      });
+      return {
+        ok: true,
+        present: true,
+        sessionId: sess.id,
+        answered: answered.length,
+        total: total.length,
+        fullyAnswered: answered.length >= total.length,
+      } as const;
     }),
 
   /** Bersihkan row attempt yang TIDAK lengkap (junk/abandon) utk user — dipanggil saat 'Tes Baru'. */
-  purgeIncomplete: publicProcedure
-    .input(z.object({ studentId: z.string().min(1) }))
-    .handler(async ({ input }) => {
-      const rows = await db.query.tmbAssessmentResults.findMany({ where: eq(tmbAssessmentResults.userId, input.studentId) });
-      let purged = 0;
-      for (const r of rows) {
-        const hReal = (r.hollandCode ?? "").length > 0;
-        const aReal = Object.keys(((r as any).abilityScores ?? {})).length > 0;
-        if (hReal && aReal) continue; // attempt lengkap disimpan
-        await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, r.id));
-        await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.id, r.id));
-        purged++;
-      }
-      // sesi engine yang terkatung-katung (in_progress / selesai tanpa 0 jawaban) dibuang juga
-      const stray = await db.query.assessmentSessions.findMany({ where: eq(schema.assessmentSessions.studentId, input.studentId) });
-      const ghost = [] as string[];
-      for (const ss of stray) {
-        const an = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, ss.id), columns: { id: true } });
-        // 'Tes Baru' = mulai bersih: partial in_progress (sensi sengaja/pause) JUG S dibuang
-        if (ss.status === "in_progress") ghost.push(ss.id);
-        else if (an.length === 0) ghost.push(ss.id);
-      }
-      for (const gid of ghost) {
-        await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, gid));
-        await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, gid));
-        await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, gid));
-        await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, gid));
-        purged++;
-      }
-      return { ok: true, purged } as const;
-    }),
+  purgeIncomplete: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input }) => {
+    const rows = await db.query.tmbAssessmentResults.findMany({
+      where: eq(tmbAssessmentResults.userId, input.studentId),
+    });
+    let purged = 0;
+    for (const r of rows) {
+      const hReal = (r.hollandCode ?? "").length > 0;
+      const aReal = Object.keys((r as any).abilityScores ?? {}).length > 0;
+      if (hReal && aReal) continue; // attempt lengkap disimpan
+      await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, r.id));
+      await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.id, r.id));
+      purged++;
+    }
+    // sesi engine yang terkatung-katung (in_progress / selesai tanpa 0 jawaban) dibuang juga
+    const stray = await db.query.assessmentSessions.findMany({
+      where: eq(schema.assessmentSessions.studentId, input.studentId),
+    });
+    const ghost = [] as string[];
+    for (const ss of stray) {
+      const an = await db.query.assessmentAnswers.findMany({
+        where: eq(schema.assessmentAnswers.sessionId, ss.id),
+        columns: { id: true },
+      });
+      // 'Tes Baru' = mulai bersih: partial in_progress (sensi sengaja/pause) JUG S dibuang
+      if (ss.status === "in_progress") ghost.push(ss.id);
+      else if (an.length === 0) ghost.push(ss.id);
+    }
+    for (const gid of ghost) {
+      await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, gid));
+      await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, gid));
+      await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, gid));
+      await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, gid));
+      purged++;
+    }
+    return { ok: true, purged } as const;
+  }),
 
   /** Detail sesi + jawaban (utk resume/restore posisi). */
-  session: publicProcedure
-    .input(z.object({ sessionId: z.string().min(1) }))
-    .handler(async ({ input }) => {
-      const sess = await db.query.assessmentSessions.findFirst({ where: eq(schema.assessmentSessions.id, input.sessionId) });
-      if (!sess) return { ok: false, error: "session_not_found" } as const;
-      const answered = await db.query.assessmentAnswers.findMany({ where: eq(schema.assessmentAnswers.sessionId, input.sessionId) });
-      const byQ = answered.map((a) => ({ questionId: a.questionId, optionId: a.selectedOptionId, text: a.textAnswer }));
-      const orderIds = ((sess.configJson as any)?.questionOrderIds ?? null) as string[] | null;
-      return { ok: true, session: sess, status: sess.status, answers: byQ, orderIds };
-    }),
+  session: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input }) => {
+    const sess = await db.query.assessmentSessions.findFirst({
+      where: eq(schema.assessmentSessions.id, input.sessionId),
+    });
+    if (!sess) return { ok: false, error: "session_not_found" } as const;
+    const answered = await db.query.assessmentAnswers.findMany({
+      where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
+    });
+    const byQ = answered.map((a) => ({ questionId: a.questionId, optionId: a.selectedOptionId, text: a.textAnswer }));
+    const sessCfg = ((sess.configJson ?? {}) as any) ?? {};
+    const orderIds = (sessCfg?.questionOrderIds ?? null) as string[] | null;
+    return {
+      ok: true,
+      session: sess,
+      status: sess.status,
+      answers: byQ,
+      orderIds,
+      optionOrder: sessCfg?.optionOrder ?? null,
+    };
+  }),
 };
 
 // ─── Admin ─────────────────────────────────────────────
@@ -814,20 +1084,44 @@ function normalizeEval(v?: string): string {
   return "exact_match";
 }
 
-function computeRunSections(cfg: any, qs: { id: string; dimensionId: string; displayOrder: number; isActive: boolean }[], dims: { id: string; name: string }[]) {
+/** Acak array (Fisher–Yates) tanpa memutasi input. Dipakai randomize_q / randomize_a. */
+function shuffle<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+function computeRunSections(
+  cfg: any,
+  qs: { id: string; dimensionId: string; displayOrder: number; isActive: boolean }[],
+  dims: { id: string; name: string }[],
+) {
   const sm = cfg?.section_mode ?? "none";
   if (sm === "by_dimension") {
-    let pos = 0; const arr: { key: string; title: string; from: number; to: number }[] = [];
+    let pos = 0;
+    const arr: { key: string; title: string; from: number; to: number }[] = [];
     for (const d of dims) {
       const cnt = qs.filter((q) => q.dimensionId === d.id).length;
-      if (cnt > 0) { arr.push({ key: d.id, title: d.name, from: pos, to: pos + cnt - 1 }); pos += cnt; }
+      if (cnt > 0) {
+        arr.push({ key: d.id, title: d.name, from: pos, to: pos + cnt - 1 });
+        pos += cnt;
+      }
     }
     return arr;
   }
   if (sm?.startsWith("chunk")) {
     const size = Number(sm.split(":")[1] ?? 10) || 10;
     const arr: { key: string; title: string; from: number; to: number }[] = [];
-    for (let f = 0; f < qs.length; f += size) arr.push({ key: "chunk" + f, title: `Bagian ${arr.length + 1}`, from: f, to: Math.min(f + size - 1, qs.length - 1) });
+    for (let f = 0; f < qs.length; f += size)
+      arr.push({
+        key: `chunk${f}`,
+        title: `Bagian ${arr.length + 1}`,
+        from: f,
+        to: Math.min(f + size - 1, qs.length - 1),
+      });
     return arr;
   }
   return qs.length ? [{ key: "all", title: "Satu Bagian", from: 0, to: qs.length - 1 }] : [];
@@ -840,7 +1134,10 @@ async function contentOfVersion(versionId: string) {
   });
   const qIds = questions.map((q) => q.id);
   const opts = qIds.length
-    ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.questionId, qIds), orderBy: asc(schema.questionOptions.displayOrder) })
+    ? await db.query.questionOptions.findMany({
+        where: inArray(schema.questionOptions.questionId, qIds),
+        orderBy: asc(schema.questionOptions.displayOrder),
+      })
     : [];
   const cfg = qIds.length
     ? await db.query.textInputConfigs.findMany({ where: inArray(schema.textInputConfigs.questionId, qIds) })
@@ -854,9 +1151,13 @@ async function contentOfVersion(versionId: string) {
 }
 
 async function removeAssessment(assessmentId: string) {
-  const vs = await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, assessmentId) });
+  const vs = await db.query.assessmentVersions.findMany({
+    where: eq(schema.assessmentVersions.assessmentId, assessmentId),
+  });
   for (const v of vs) {
-    const sessions = await db.query.assessmentSessions.findMany({ where: eq(schema.assessmentSessions.versionId, v.id) });
+    const sessions = await db.query.assessmentSessions.findMany({
+      where: eq(schema.assessmentSessions.versionId, v.id),
+    });
     for (const s of sessions) {
       await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, s.id));
       await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, s.id));
@@ -870,8 +1171,11 @@ async function removeAssessment(assessmentId: string) {
     }
     await db.delete(schema.questions).where(eq(schema.questions.versionId, v.id));
     await db.delete(schema.assessmentSections).where(eq(schema.assessmentSections.versionId, v.id));
-    const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, v.id) });
-    for (const d of dims) await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, d.id));
+    const dims = await db.query.assessmentDimensions.findMany({
+      where: eq(schema.assessmentDimensions.versionId, v.id),
+    });
+    for (const d of dims)
+      await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, d.id));
     await db.delete(schema.assessmentDimensions).where(eq(schema.assessmentDimensions.versionId, v.id));
     await db.delete(schema.assessmentVersions).where(eq(schema.assessmentVersions.id, v.id));
   }
@@ -885,34 +1189,56 @@ export const discoverAdminRouter = {
       .input(z.object({ code: z.string().optional(), kind: z.enum(["question", "option"]).optional() }))
       .handler(async ({ input }) => {
         // rapi per test: assessment-media/{CODE}/question|option/
-        const prefix = input.code ? `assessment-media/${input.code}/${input.kind ?? ""}` : input.kind ? `assessment-media/${input.kind}/` : "assessment-media/";
+        const prefix = input.code
+          ? `assessment-media/${input.code}/${input.kind ?? ""}`
+          : input.kind
+            ? `assessment-media/${input.kind}/`
+            : "assessment-media/";
         const items = await listR2ObjectsDetailed(prefix);
         return {
-          items: items.map((o) => ({ key: o.key, url: getPublicUrl(o.key), size: o.size, uploadedAt: o.lastModified ?? null, name: o.key.split("/").pop() ?? o.key })),
+          items: items.map((o) => ({
+            key: o.key,
+            url: getPublicUrl(o.key),
+            size: o.size,
+            uploadedAt: o.lastModified ?? null,
+            name: o.key.split("/").pop() ?? o.key,
+          })),
         };
       }),
     upload: adminProcedure
-      .input(z.object({ dataB64: z.string().min(10), mime: z.string().max(80).optional().default("image/png"), filename: z.string().max(120).optional(), kind: z.enum(["question", "option"]).optional().default("question"), code: z.string().optional() }))
+      .input(
+        z.object({
+          dataB64: z.string().min(10),
+          mime: z.string().max(80).optional().default("image/png"),
+          filename: z.string().max(120).optional(),
+          kind: z.enum(["question", "option"]).optional().default("question"),
+          code: z.string().optional(),
+        }),
+      )
       .handler(async ({ input }) => {
         const buf = Buffer.from(input.dataB64, "base64");
         const ext = (input.mime.split("/")[1] ?? "png").replace(/[^a-z0-9]/gi, "").slice(0, 5) || "png";
         const path = input.code ? `assessment-media/${input.code}/${input.kind}` : `assessment-media/${input.kind}`;
-        const res = await uploadToR2(buf, { filename: input.filename ?? `media.${ext}`, mimeType: input.mime || "image/png", path });
+        const res = await uploadToR2(buf, {
+          filename: input.filename ?? `media.${ext}`,
+          mimeType: input.mime || "image/png",
+          path,
+        });
         return { ok: true, key: res.key, url: res.url, size: res.size };
       }),
-    delete: adminProcedure
-      .input(z.object({ key: z.string().min(1) }))
-      .handler(async ({ input }) => {
-        const raw = input.key.startsWith("assessment-media/") ? input.key : (extractKeyFromUrl(input.key) ?? "");
-        if (!raw.startsWith("assessment-media/")) return { ok: false, error: "key_tidak_valid" } as const;
-        await deleteFromR2(raw);
-        return { ok: true };
-      }),
+    delete: adminProcedure.input(z.object({ key: z.string().min(1) })).handler(async ({ input }) => {
+      const raw = input.key.startsWith("assessment-media/") ? input.key : (extractKeyFromUrl(input.key) ?? "");
+      if (!raw.startsWith("assessment-media/")) return { ok: false, error: "key_tidak_valid" } as const;
+      await deleteFromR2(raw);
+      return { ok: true };
+    }),
   },
 
   list: adminProcedure.handler(async () => {
     const assessments = await db.query.assessments.findMany({ orderBy: asc(schema.assessments.code) });
-    const versions = await db.query.assessmentVersions.findMany({ orderBy: asc(schema.assessmentVersions.versionNumber) });
+    const versions = await db.query.assessmentVersions.findMany({
+      orderBy: asc(schema.assessmentVersions.versionNumber),
+    });
     return { assessments, versions };
   }),
 
@@ -927,7 +1253,16 @@ export const discoverAdminRouter = {
       byAss.set(v.assessmentId, arr);
     }
     return {
-      items: assessments.map((a) => ({ ...a, versions: (byAss.get(a.id) ?? []).map((v) => ({ id: v.id, versionNumber: v.versionNumber, status: v.status, publishedAt: v.publishedAt, configJson: v.configJson })) })),
+      items: assessments.map((a) => ({
+        ...a,
+        versions: (byAss.get(a.id) ?? []).map((v) => ({
+          id: v.id,
+          versionNumber: v.versionNumber,
+          status: v.status,
+          publishedAt: v.publishedAt,
+          configJson: v.configJson,
+        })),
+      })),
     };
   }),
   versions: {
@@ -946,74 +1281,72 @@ export const discoverAdminRouter = {
         return { items };
       }),
     /** Snapshot struktural versi live → draft vN (copy dims/questions/options/sections). */
-    createDraft: adminProcedure
-      .input(z.object({ code: z.string().min(1) }))
-      .handler(async ({ input }) => {
-        const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
-        if (!a) return { ok: false, error: "assessment_not_found" } as const;
-        const live = await getLiveVersion(input.code);
-        if (!live) return { ok: false, error: "no_live_version" } as const;
-        const newVerId = uid();
-        await db.insert(schema.assessmentVersions).values({
-          id: newVerId,
-          assessmentId: a.id,
-          versionNumber: live.versionNumber + 1,
-          status: "draft",
-          configJson: live.configJson,
+    createDraft: adminProcedure.input(z.object({ code: z.string().min(1) })).handler(async ({ input }) => {
+      const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
+      if (!a) return { ok: false, error: "assessment_not_found" } as const;
+      const live = await getLiveVersion(input.code);
+      if (!live) return { ok: false, error: "no_live_version" } as const;
+      const newVerId = uid();
+      await db.insert(schema.assessmentVersions).values({
+        id: newVerId,
+        assessmentId: a.id,
+        versionNumber: live.versionNumber + 1,
+        status: "draft",
+        configJson: live.configJson,
+      });
+      // copy dims
+      const dims = await db.query.assessmentDimensions.findMany({
+        where: eq(schema.assessmentDimensions.versionId, live.id),
+      });
+      const dimMap = new Map<string, string>();
+      for (const d of dims) {
+        const nd = uid();
+        dimMap.set(d.id, nd);
+        await db.insert(schema.assessmentDimensions).values({ ...d, id: nd, versionId: newVerId });
+      }
+      // copy questions + options
+      const qs = await questionsOf(live.id);
+      for (const q of qs) {
+        const nq = uid();
+        await db.insert(schema.questions).values({
+          id: nq,
+          versionId: newVerId,
+          dimensionId: dimMap.get(q.dimensionId) ?? q.dimensionId,
+          scaleId: q.scaleId,
+          questionCode: q.questionCode,
+          questionText: q.questionText,
+          hasMathNotation: q.hasMathNotation,
+          mediaUrl: q.mediaUrl,
+          mediaCaption: q.mediaCaption,
+          altText: q.altText,
+          questionType: q.questionType as any,
+          presentationMode: q.presentationMode as any,
+          mediaPosition: (q.mediaPosition ?? null) as any,
+          displayOrder: q.displayOrder,
+          isActive: q.isActive,
         });
-        // copy dims
-        const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, live.id) });
-        const dimMap = new Map<string, string>();
-        for (const d of dims) {
-          const nd = uid();
-          dimMap.set(d.id, nd);
-          await db.insert(schema.assessmentDimensions).values({ ...d, id: nd, versionId: newVerId });
-        }
-        // copy questions + options
-        const qs = await questionsOf(live.id);
-        for (const q of qs) {
-          const nq = uid();
-          await db.insert(schema.questions).values({
-            id: nq,
-            versionId: newVerId,
-            dimensionId: dimMap.get(q.dimensionId) ?? q.dimensionId,
-            scaleId: q.scaleId,
-            questionCode: q.questionCode,
-            questionText: q.questionText,
-            hasMathNotation: q.hasMathNotation,
-            mediaUrl: q.mediaUrl,
-            mediaCaption: q.mediaCaption,
-            altText: q.altText,
-            questionType: q.questionType as any,
-            presentationMode: q.presentationMode as any,
-            mediaPosition: (q.mediaPosition ?? null) as any,
-            displayOrder: q.displayOrder,
-            isActive: q.isActive,
+        for (const o of q.opts ?? []) {
+          await db.insert(schema.questionOptions).values({
+            id: uid(),
+            questionId: nq,
+            optionValue: o.optionValue,
+            targetDimension: dimMap.get(o.targetDimension) ?? o.targetDimension,
+            label: o.label,
+            hasMathNotation: o.hasMathNotation,
+            imageUrl: o.imageUrl,
+            score: o.score,
+            displayOrder: o.displayOrder,
           });
-          for (const o of q.opts ?? []) {
-            await db.insert(schema.questionOptions).values({
-              id: uid(),
-              questionId: nq,
-              optionValue: o.optionValue,
-              targetDimension: dimMap.get(o.targetDimension) ?? o.targetDimension,
-              label: o.label,
-              hasMathNotation: o.hasMathNotation,
-              imageUrl: o.imageUrl,
-              score: o.score,
-              displayOrder: o.displayOrder,
-            });
-          }
         }
-        return { ok: true, versionId: newVerId, versionNumber: live.versionNumber + 1 };
-      }),
+      }
+      return { ok: true, versionId: newVerId, versionNumber: live.versionNumber + 1 };
+    }),
     /** Publish draft → live; versi live sebelumnya → archived. Gatekeeper v1. */
-    publish: adminProcedure
-      .input(z.object({ versionId: z.string().min(1) }))
-      .handler(async ({ input }) => {
-        const r = await publishVersion(input.versionId);
-        if (!r.ok) return { ok: false, errors: r.errors ?? ["publish_failed"] } as const;
-        return { ok: true, versionId: r.versionId };
-      }),
+    publish: adminProcedure.input(z.object({ versionId: z.string().min(1) })).handler(async ({ input }) => {
+      const r = await publishVersion(input.versionId);
+      if (!r.ok) return { ok: false, errors: r.errors ?? ["publish_failed"] } as const;
+      return { ok: true, versionId: r.versionId };
+    }),
 
     /** Daftar konten versi (soal+opsi+config+scales) utk builder. */
     contentList: adminProcedure
@@ -1066,11 +1399,17 @@ export const discoverAdminRouter = {
         // Answer scale bawaan bila tidak disebut — skala reusable (value terpisah dr skor)
         let scaleId = q.scaleId ?? null;
         if (!scaleId && q.questionType === "multiple_choice") {
-          const def = await db.query.answerScales.findFirst({ where: eq(schema.answerScales.name, "Skala Bawaan (A-F, 1 poin)") });
+          const def = await db.query.answerScales.findFirst({
+            where: eq(schema.answerScales.name, "Skala Bawaan (A-F, 1 poin)"),
+          });
           if (def) scaleId = def.id;
           else {
             scaleId = uid();
-            await db.insert(schema.answerScales).values({ id: scaleId, name: "Skala Bawaan (A-F, 1 poin)", description: "Skala default: 1 poin utk opsi ke dimensi, 0 utk lainnya." });
+            await db.insert(schema.answerScales).values({
+              id: scaleId,
+              name: "Skala Bawaan (A-F, 1 poin)",
+              description: "Skala default: 1 poin utk opsi ke dimensi, 0 utk lainnya.",
+            });
             await db.insert(schema.answerScaleOptions).values([
               { id: uid(), scaleId, value: "A", score: 1, label: "A" },
               { id: uid(), scaleId, value: "B", score: 0, label: "B" },
@@ -1083,6 +1422,17 @@ export const discoverAdminRouter = {
         }
         const qid = q.id ?? uid();
         if (!q.id) {
+          // Nomor urut WAJIB unik per dimensi (syarat gate). Klien bisa mengirim nilai yang
+          // basi/duplikat, jadi server menormalkan di sini.
+          const siblings = await db.query.questions.findMany({
+            where: and(eq(schema.questions.versionId, versionId), eq(schema.questions.dimensionId, q.dimensionId)),
+            columns: { displayOrder: true },
+          });
+          const taken = new Set(siblings.map((x) => x.displayOrder));
+          let order = Number(q.displayOrder ?? 0);
+          if (order < 0 || taken.has(order))
+            order = siblings.reduce((m, x) => Math.max(m, (x.displayOrder ?? 0) + 1), 0);
+          q.displayOrder = order;
           await db.insert(schema.questions).values({
             id: qid,
             versionId,
@@ -1147,12 +1497,10 @@ export const discoverAdminRouter = {
         return { ok: true, questionId: qid };
       }),
 
-    contentDelete: adminProcedure
-      .input(z.object({ questionId: z.string().min(1) }))
-      .handler(async ({ input }) => {
-        await db.delete(schema.questions).where(eq(schema.questions.id, input.questionId));
-        return { ok: true };
-      }),
+    contentDelete: adminProcedure.input(z.object({ questionId: z.string().min(1) })).handler(async ({ input }) => {
+      await db.delete(schema.questions).where(eq(schema.questions.id, input.questionId));
+      return { ok: true };
+    }),
 
     /** Urutkan ulang soal (daftar id berurutan). */
     contentReorder: adminProcedure
@@ -1168,23 +1516,27 @@ export const discoverAdminRouter = {
       }),
 
     /** Salin soal berikut opsi/konfig urutan (utk duplikasi cepat). */
-    contentDuplicate: adminProcedure
-      .input(z.object({ questionId: z.string().min(1) }))
-      .handler(async ({ input }) => {
-        const src = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId) });
-        if (!src) return { ok: false, error: "question_not_found" } as const;
-        const maxQ = await db.query.questions.findMany({
-          where: eq(schema.questions.versionId, src.versionId),
-          columns: { displayOrder: true },
-        });
-        const nq = uid();
-        await db.insert(schema.questions).values({ ...src, id: nq, displayOrder: (maxQ.reduce((m, q) => Math.max(m, q.displayOrder ?? 0), 0) + 1) });
-        const opts = await db.query.questionOptions.findMany({ where: eq(schema.questionOptions.questionId, input.questionId) });
-        for (const o of opts) await db.insert(schema.questionOptions).values({ ...o, id: uid(), questionId: nq });
-        const tc = await db.query.textInputConfigs.findFirst({ where: eq(schema.textInputConfigs.questionId, input.questionId) });
-        if (tc) await db.insert(schema.textInputConfigs).values({ ...tc, id: uid(), questionId: nq });
-        return { ok: true, questionId: nq };
-      }),
+    contentDuplicate: adminProcedure.input(z.object({ questionId: z.string().min(1) })).handler(async ({ input }) => {
+      const src = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId) });
+      if (!src) return { ok: false, error: "question_not_found" } as const;
+      const maxQ = await db.query.questions.findMany({
+        where: eq(schema.questions.versionId, src.versionId),
+        columns: { displayOrder: true },
+      });
+      const nq = uid();
+      await db
+        .insert(schema.questions)
+        .values({ ...src, id: nq, displayOrder: maxQ.reduce((m, q) => Math.max(m, q.displayOrder ?? 0), 0) + 1 });
+      const opts = await db.query.questionOptions.findMany({
+        where: eq(schema.questionOptions.questionId, input.questionId),
+      });
+      for (const o of opts) await db.insert(schema.questionOptions).values({ ...o, id: uid(), questionId: nq });
+      const tc = await db.query.textInputConfigs.findFirst({
+        where: eq(schema.textInputConfigs.questionId, input.questionId),
+      });
+      if (tc) await db.insert(schema.textInputConfigs).values({ ...tc, id: uid(), questionId: nq });
+      return { ok: true, questionId: nq };
+    }),
 
     /** Import batch soal dari CSV/Excel (rows JSON hasil parse klien). */
     importQuestions: adminProcedure
@@ -1209,7 +1561,9 @@ export const discoverAdminRouter = {
         }),
       )
       .handler(async ({ input }) => {
-        const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, input.versionId) });
+        const dims = await db.query.assessmentDimensions.findMany({
+          where: eq(schema.assessmentDimensions.versionId, input.versionId),
+        });
         const byCode = new Map(dims.map((d) => [d.code.toLowerCase(), d]));
         const byName = new Map(dims.map((d) => [d.name.toLowerCase(), d]));
         const createdDims: string[] = [];
@@ -1221,147 +1575,238 @@ export const discoverAdminRouter = {
           const hit = byCode.get(low) ?? byName.get(low);
           if (hit) return { id: hit.id };
           // auto-create dimensi baru
-          const codeBase = (val.length === 1 ? val : val.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 4)) || "DIM";
+          const codeBase =
+            (val.length === 1
+              ? val
+              : val
+                  .replace(/[^A-Za-z0-9]/g, "")
+                  .toUpperCase()
+                  .slice(0, 4)) || "DIM";
           let code = codeBase;
           let n = 2;
-          while (byCode.has(code.toLowerCase())) { code = codeBase.slice(0, 4) + n; n++; }
+          while (byCode.has(code.toLowerCase())) {
+            code = codeBase.slice(0, 4) + n;
+            n++;
+          }
           const did = uid();
-          await db.insert(schema.assessmentDimensions).values({ id: did, versionId: input.versionId, code, name: val, shortName: code, displayOrder: maxDimOrder + byCode.size + 1, isActive: true });
+          await db.insert(schema.assessmentDimensions).values({
+            id: did,
+            versionId: input.versionId,
+            code,
+            name: val,
+            shortName: code,
+            displayOrder: maxDimOrder + byCode.size + 1,
+            isActive: true,
+          });
           byCode.set(code.toLowerCase(), { id: did } as any);
           byName.set(low, { id: did } as any);
           createdDims.push(`${val} → ${code}`);
           return { id: did };
         };
-        const defaultScale = await db.query.answerScales.findFirst({ where: eq(schema.answerScales.name, "Skala Bawaan (A-F, 1 poin)") });
+        const defaultScale = await db.query.answerScales.findFirst({
+          where: eq(schema.answerScales.name, "Skala Bawaan (A-F, 1 poin)"),
+        });
         let scaleId = defaultScale?.id ?? null;
         if (!scaleId) {
           scaleId = "defscale0a0b0c0d0e0f0010";
-          await db.insert(schema.answerScales).values({ id: scaleId, name: "Skala Bawaan (A-F, 1 poin)", description: "default" });
+          await db
+            .insert(schema.answerScales)
+            .values({ id: scaleId, name: "Skala Bawaan (A-F, 1 poin)", description: "default" });
         }
         let created = 0;
         const fail: string[] = [];
-        const maxOrder = (await db.query.questions.findMany({ where: eq(schema.questions.versionId, input.versionId), columns: { displayOrder: true } })).reduce((m, q) => Math.max(m, q.displayOrder ?? 0), 0);
+        const maxOrder = (
+          await db.query.questions.findMany({
+            where: eq(schema.questions.versionId, input.versionId),
+            columns: { displayOrder: true },
+          })
+        ).reduce((m, q) => Math.max(m, q.displayOrder ?? 0), 0);
         let order = maxOrder + 1;
         for (let ri = 0; ri < input.rows.length; ri++) {
           const r = input.rows[ri]!;
           const dim = await ensureDim(r.dimension ?? "");
-          if (!dim) { fail.push(`Baris ${ri + 2}: kolom Dimensi kosong atau tidak dikenal "${r.dimension}".`); continue; }
+          if (!dim) {
+            fail.push(`Baris ${ri + 2}: kolom Dimensi kosong atau tidak dikenal "${r.dimension}".`);
+            continue;
+          }
           const typeR = r.type ?? (r.answerKey ? "text_input" : "multiple_choice");
           const qid = uid();
           await db.insert(schema.questions).values({
-            id: qid, versionId: input.versionId, dimensionId: dim.id, scaleId: typeR === "multiple_choice" ? scaleId : null,
-            questionText: r.text, questionType: typeR as any, presentationMode: "standard_option_card",
-            weight: r.weight ?? 1, displayOrder: order++, isActive: true,
+            id: qid,
+            versionId: input.versionId,
+            dimensionId: dim.id,
+            scaleId: typeR === "multiple_choice" ? scaleId : null,
+            questionText: r.text,
+            questionType: typeR as any,
+            presentationMode: "standard_option_card",
+            weight: r.weight ?? 1,
+            displayOrder: order++,
+            isActive: true,
           });
           if (typeR === "multiple_choice") {
             const opts = r.options?.filter((o) => o.trim().length > 0) ?? [];
-            if (opts.length === 0) { fail.push(`Baris ${ri + 2}: tidak ada opsi utk soal "${r.text.slice(0, 40)}".`); await db.delete(schema.questions).where(eq(schema.questions.id, qid)); continue; }
+            if (opts.length === 0) {
+              fail.push(`Baris ${ri + 2}: tidak ada opsi utk soal "${r.text.slice(0, 40)}".`);
+              await db.delete(schema.questions).where(eq(schema.questions.id, qid));
+              continue;
+            }
             const keyIdx = r.key ? Math.max(0, r.key.toUpperCase().charCodeAt(0) - 65) : 0;
             for (let oi = 0; oi < opts.length; oi++) {
               await db.insert(schema.questionOptions).values({
-                id: uid(), questionId: qid, optionValue: String.fromCharCode(65 + oi), targetDimension: dim.id,
-                label: opts[oi]!, score: oi === keyIdx ? 1 : 0, displayOrder: oi,
+                id: uid(),
+                questionId: qid,
+                optionValue: String.fromCharCode(65 + oi),
+                targetDimension: dim.id,
+                label: opts[oi]!,
+                score: oi === keyIdx ? 1 : 0,
+                displayOrder: oi,
               });
             }
           } else {
             const ev = normalizeEval(r.evalType);
             await db.insert(schema.textInputConfigs).values({
-              id: uid(), questionId: qid, evaluationType: ev as any, answerKey: r.answerKey ?? "",
-              numericTolerance: ev === "numeric_tolerance" ? (r.numericTolerance || "0.01") : null,
+              id: uid(),
+              questionId: qid,
+              evaluationType: ev as any,
+              answerKey: r.answerKey ?? "",
+              numericTolerance: ev === "numeric_tolerance" ? r.numericTolerance || "0.01" : null,
             });
           }
           created++;
         }
         // sesuaikan total_dim & clamp result_dim_count bila ada dimensi baru
         if (createdDims.length > 0) {
-          const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) });
-          const all = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, input.versionId) });
+          const v = await db.query.assessmentVersions.findFirst({
+            where: eq(schema.assessmentVersions.id, input.versionId),
+          });
+          const all = await db.query.assessmentDimensions.findMany({
+            where: eq(schema.assessmentDimensions.versionId, input.versionId),
+          });
           const cfg: any = { ...(v?.configJson ?? {}) };
           cfg.total_dim = all.length;
           if (Number(cfg.result_dim_count ?? 0) > cfg.total_dim) cfg.result_dim_count = Math.max(1, cfg.total_dim);
-          if (v) await db.update(schema.assessmentVersions).set({ configJson: cfg }).where(eq(schema.assessmentVersions.id, input.versionId));
+          if (v)
+            await db
+              .update(schema.assessmentVersions)
+              .set({ configJson: cfg })
+              .where(eq(schema.assessmentVersions.id, input.versionId));
         }
         return { ok: true, created, failed: fail, dimsCreated: createdDims };
       }),
 
     /** Media soal — R2 folder khusus (assessment-media/). */
-  /** Kelola section pengantar (intro) utk versi ini. */
-  sectionSave: adminProcedure
-    .input(
-      z.object({
-        versionId: z.string().min(1),
-        id: z.string().optional(),
-        title: z.string().min(1).max(200),
-        contentType: z.enum(["description", "bullet_list", "cards"]).default("description"),
-        contentJson: z.any().optional(),
-        displayOrder: z.number().optional(),
-        visibility: z.boolean().optional().default(true),
+    /** Kelola section pengantar (intro) utk versi ini. */
+    sectionSave: adminProcedure
+      .input(
+        z.object({
+          versionId: z.string().min(1),
+          id: z.string().optional(),
+          title: z.string().min(1).max(200),
+          contentType: z.enum(["description", "bullet_list", "cards"]).default("description"),
+          contentJson: z.any().optional(),
+          displayOrder: z.number().optional(),
+          visibility: z.boolean().optional().default(true),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const cnt = (
+          await db.query.assessmentSections.findMany({
+            where: eq(schema.assessmentSections.versionId, input.versionId),
+          })
+        ).length;
+        const data = {
+          versionId: input.versionId,
+          title: input.title,
+          contentType: input.contentType as any,
+          contentJson: input.contentJson ?? {},
+          displayOrder: input.displayOrder ?? cnt,
+          visibility: input.visibility ?? true,
+        };
+        if (input.id)
+          await db.update(schema.assessmentSections).set(data).where(eq(schema.assessmentSections.id, input.id));
+        else await db.insert(schema.assessmentSections).values({ id: uid(), ...(data as any) });
+        return { ok: true };
       }),
-    )
-    .handler(async ({ input }) => {
-      const cnt = (await db.query.assessmentSections.findMany({ where: eq(schema.assessmentSections.versionId, input.versionId) })).length;
-      const data = {
-        versionId: input.versionId,
-        title: input.title,
-        contentType: input.contentType as any,
-        contentJson: input.contentJson ?? {},
-        displayOrder: input.displayOrder ?? cnt,
-        visibility: input.visibility ?? true,
-      };
-      if (input.id) await db.update(schema.assessmentSections).set(data).where(eq(schema.assessmentSections.id, input.id));
-      else await db.insert(schema.assessmentSections).values({ id: uid(), ...(data as any) });
+    sectionDelete: adminProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
+      await db.delete(schema.assessmentSections).where(eq(schema.assessmentSections.id, input.id));
       return { ok: true };
     }),
-  sectionDelete: adminProcedure
-    .input(z.object({ id: z.string().min(1) }))
-    .handler(async ({ input }) => { await db.delete(schema.assessmentSections).where(eq(schema.assessmentSections.id, input.id)); return { ok: true }; }),
-  instrSave: adminProcedure
-    .input(
-      z.object({
-        dimensionId: z.string().min(1),
-        id: z.string().optional(),
-        header: z.string().min(1).max(200),
-        contentType: z.enum(["description", "bullet_list"]).default("bullet_list"),
-        contentJson: z.any().optional(),
+    instrSave: adminProcedure
+      .input(
+        z.object({
+          dimensionId: z.string().min(1),
+          id: z.string().optional(),
+          header: z.string().min(1).max(200),
+          contentType: z.enum(["description", "bullet_list"]).default("bullet_list"),
+          contentJson: z.any().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const data = {
+          dimensionId: input.dimensionId,
+          header: input.header,
+          contentType: input.contentType as any,
+          contentJson: input.contentJson ?? {},
+        };
+        if (input.id)
+          await db.update(schema.dimensionInstructions).set(data).where(eq(schema.dimensionInstructions.id, input.id));
+        else await db.insert(schema.dimensionInstructions).values({ id: uid(), ...(data as any) });
+        return { ok: true };
       }),
-    )
-    .handler(async ({ input }) => {
-      const data = { dimensionId: input.dimensionId, header: input.header, contentType: input.contentType as any, contentJson: input.contentJson ?? {} };
-      if (input.id) await db.update(schema.dimensionInstructions).set(data).where(eq(schema.dimensionInstructions.id, input.id));
-      else await db.insert(schema.dimensionInstructions).values({ id: uid(), ...(data as any) });
-      return { ok: true };
-    }),
 
-  /** Validasi live tanpa publish (gatekeeper). */
+    /** Validasi live tanpa publish (gatekeeper). */
     validate: adminProcedure
       .input(z.object({ versionId: z.string().min(1) }))
       .handler(async ({ input }) => validatePublish(input.versionId)),
 
     /** Tambah dimensi ke versi (draf) + sesuaikan total_dim di config. */
     dimsAdd: adminProcedure
-      .input(z.object({ versionId: z.string().min(1), code: z.string().min(1).max(20), name: z.string().min(1).max(80) }))
+      .input(
+        z.object({ versionId: z.string().min(1), code: z.string().min(1).max(20), name: z.string().min(1).max(80) }),
+      )
       .handler(async ({ input }) => {
-        const dims = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, input.versionId) });
+        const dims = await db.query.assessmentDimensions.findMany({
+          where: eq(schema.assessmentDimensions.versionId, input.versionId),
+        });
         const maxOrder = dims.reduce((m, d) => Math.max(m, d.displayOrder ?? 0), 0);
         const dup = dims.find((d) => d.code.toLowerCase() === input.code.toLowerCase());
         if (dup) return { ok: false, error: "kode_dimensi_sudah_ada" } as const;
         await db.insert(schema.assessmentDimensions).values({
-          id: uid(), versionId: input.versionId, code: input.code.toUpperCase(), name: input.name,
-          displayOrder: maxOrder + 1, isActive: true,
+          id: uid(),
+          versionId: input.versionId,
+          code: input.code.toUpperCase(),
+          name: input.name,
+          displayOrder: maxOrder + 1,
+          isActive: true,
         });
-        const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) });
+        const v = await db.query.assessmentVersions.findFirst({
+          where: eq(schema.assessmentVersions.id, input.versionId),
+        });
         const cfg: any = { ...(v?.configJson ?? {}) };
         cfg.total_dim = dims.length + 1;
         if (Number(cfg.result_dim_count ?? 0) > cfg.total_dim) cfg.result_dim_count = cfg.total_dim;
-        if (v) await db.update(schema.assessmentVersions).set({ configJson: cfg }).where(eq(schema.assessmentVersions.id, input.versionId));
+        if (v)
+          await db
+            .update(schema.assessmentVersions)
+            .set({ configJson: cfg })
+            .where(eq(schema.assessmentVersions.id, input.versionId));
         return { ok: true };
       }),
 
     /** Update dimensi: nama/kode/durasi (durasi dipakai timer scope dimension). */
     dimsUpdate: adminProcedure
-      .input(z.object({ dimensionId: z.string().min(1), name: z.string().min(1).max(80).optional(), code: z.string().min(1).max(20).optional(), durationSeconds: z.number().int().min(0).max(3600).optional() }))
+      .input(
+        z.object({
+          dimensionId: z.string().min(1),
+          name: z.string().min(1).max(80).optional(),
+          code: z.string().min(1).max(20).optional(),
+          durationSeconds: z.number().int().min(0).max(3600).optional(),
+        }),
+      )
       .handler(async ({ input }) => {
-        const dim = await db.query.assessmentDimensions.findFirst({ where: eq(schema.assessmentDimensions.id, input.dimensionId) });
+        const dim = await db.query.assessmentDimensions.findFirst({
+          where: eq(schema.assessmentDimensions.id, input.dimensionId),
+        });
         if (!dim) return { ok: false, error: "dimension_not_found" } as const;
         await db
           .update(schema.assessmentDimensions)
@@ -1375,27 +1820,35 @@ export const discoverAdminRouter = {
       }),
 
     /** Hapus dimensi + seluruh soalnya dari versi (draf). */
-    dimsDelete: adminProcedure
-      .input(z.object({ dimensionId: z.string().min(1) }))
-      .handler(async ({ input }) => {
-        const dim = await db.query.assessmentDimensions.findFirst({ where: eq(schema.assessmentDimensions.id, input.dimensionId) });
-        if (!dim) return { ok: false, error: "dimension_not_found" } as const;
-        const qs = await db.query.questions.findMany({ where: eq(schema.questions.dimensionId, input.dimensionId) });
-        for (const q of qs) {
-          await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, q.id));
-          await db.delete(schema.textInputConfigs).where(eq(schema.textInputConfigs.questionId, q.id));
-        }
-        await db.delete(schema.questions).where(eq(schema.questions.dimensionId, input.dimensionId));
-        await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, input.dimensionId));
-        await db.delete(schema.assessmentDimensions).where(eq(schema.assessmentDimensions.id, input.dimensionId));
-        const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, dim.versionId) });
-        const rem = await db.query.assessmentDimensions.findMany({ where: eq(schema.assessmentDimensions.versionId, dim.versionId) });
-        const cfg: any = { ...(v?.configJson ?? {}) };
-        cfg.total_dim = rem.length;
-        if (Number(cfg.result_dim_count ?? 0) > cfg.total_dim) cfg.result_dim_count = Math.max(1, cfg.total_dim);
-        if (v) await db.update(schema.assessmentVersions).set({ configJson: cfg }).where(eq(schema.assessmentVersions.id, v.id));
-        return { ok: true };
-      }),
+    dimsDelete: adminProcedure.input(z.object({ dimensionId: z.string().min(1) })).handler(async ({ input }) => {
+      const dim = await db.query.assessmentDimensions.findFirst({
+        where: eq(schema.assessmentDimensions.id, input.dimensionId),
+      });
+      if (!dim) return { ok: false, error: "dimension_not_found" } as const;
+      const qs = await db.query.questions.findMany({ where: eq(schema.questions.dimensionId, input.dimensionId) });
+      for (const q of qs) {
+        await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, q.id));
+        await db.delete(schema.textInputConfigs).where(eq(schema.textInputConfigs.questionId, q.id));
+      }
+      await db.delete(schema.questions).where(eq(schema.questions.dimensionId, input.dimensionId));
+      await db
+        .delete(schema.dimensionInstructions)
+        .where(eq(schema.dimensionInstructions.dimensionId, input.dimensionId));
+      await db.delete(schema.assessmentDimensions).where(eq(schema.assessmentDimensions.id, input.dimensionId));
+      const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, dim.versionId) });
+      const rem = await db.query.assessmentDimensions.findMany({
+        where: eq(schema.assessmentDimensions.versionId, dim.versionId),
+      });
+      const cfg: any = { ...(v?.configJson ?? {}) };
+      cfg.total_dim = rem.length;
+      if (Number(cfg.result_dim_count ?? 0) > cfg.total_dim) cfg.result_dim_count = Math.max(1, cfg.total_dim);
+      if (v)
+        await db
+          .update(schema.assessmentVersions)
+          .set({ configJson: cfg })
+          .where(eq(schema.assessmentVersions.id, v.id));
+      return { ok: true };
+    }),
 
     /** Update config versi (opsional: total_dim, result_dim_count, min_q, scoring, timer, dll). */
     configUpdate: adminProcedure
@@ -1406,43 +1859,80 @@ export const discoverAdminRouter = {
         }),
       )
       .handler(async ({ input }) => {
-        const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, input.versionId) });
+        const v = await db.query.assessmentVersions.findFirst({
+          where: eq(schema.assessmentVersions.id, input.versionId),
+        });
         if (!v) return { ok: false, error: "version_not_found" } as const;
         const merged = { ...(v.configJson ?? {}), ...input.config };
-        await db.update(schema.assessmentVersions).set({ configJson: merged }).where(eq(schema.assessmentVersions.id, input.versionId));
+        await db
+          .update(schema.assessmentVersions)
+          .set({ configJson: merged })
+          .where(eq(schema.assessmentVersions.id, input.versionId));
         return { ok: true, config: merged };
       }),
-
   },
 
-    /** Buat tes baru + versi draf v1 (bahan kerjanyam). */
-    create: adminProcedure
-      .input(z.object({ code: z.string().min(2).max(40), name: z.string().min(1).max(120), description: z.string().optional(), family: z.enum(["minat", "bakat"]).optional().nullable() }))
-      .handler(async ({ input }) => {
-        const dup = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
-        if (dup) return { ok: false, error: "code_sudah_dipakai" } as const;
-        const aid = uid();
-        const vid = uid();
-        const cfg = { total_dim: 1, result_dim_count: 1, min_q_per_dim: 0, randomize_q: false, randomize_a: false, timer_enabled: false, timer_scope: "none", allow_pause: false, scoring_method: "sum" };
-        await db.insert(schema.assessments).values({ id: aid, code: input.code, family: input.family ?? null, name: input.name, description: input.description ?? null, defaultConfigJson: cfg });
-        await db.insert(schema.assessmentVersions).values({ id: vid, assessmentId: aid, versionNumber: 1, status: "draft", configJson: cfg });
-        return { ok: true, assessmentId: aid, versionId: vid };
+  /** Buat tes baru + versi draf v1 (bahan kerjanyam). */
+  create: adminProcedure
+    .input(
+      z.object({
+        code: z.string().min(2).max(40),
+        name: z.string().min(1).max(120),
+        description: z.string().optional(),
+        family: z.enum(["minat", "bakat"]).optional().nullable(),
       }),
+    )
+    .handler(async ({ input }) => {
+      const dup = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
+      if (dup) return { ok: false, error: "code_sudah_dipakai" } as const;
+      const aid = uid();
+      const vid = uid();
+      const cfg = {
+        total_dim: 1,
+        result_dim_count: 1,
+        min_q_per_dim: 0,
+        randomize_q: false,
+        randomize_a: false,
+        timer_enabled: false,
+        timer_scope: "none",
+        allow_pause: false,
+        scoring_method: "sum",
+      };
+      await db.insert(schema.assessments).values({
+        id: aid,
+        code: input.code,
+        family: input.family ?? null,
+        name: input.name,
+        description: input.description ?? null,
+        defaultConfigJson: cfg,
+      });
+      await db
+        .insert(schema.assessmentVersions)
+        .values({ id: vid, assessmentId: aid, versionNumber: 1, status: "draft", configJson: cfg });
+      return { ok: true, assessmentId: aid, versionId: vid };
+    }),
 
-    /** Ubah nama/deskripsi tes. */
-    updateMeta: adminProcedure
-      .input(z.object({ id: z.string().min(1), name: z.string().min(1).max(120), description: z.string().optional().nullable(), family: z.enum(["minat", "bakat"]).optional().nullable() }))
-      .handler(async ({ input }) => {
-        await db.update(schema.assessments).set({ name: input.name, description: input.description ?? null, family: input.family ?? null }).where(eq(schema.assessments.id, input.id));
-        return { ok: true };
+  /** Ubah nama/deskripsi tes. */
+  updateMeta: adminProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1).max(120),
+        description: z.string().optional().nullable(),
+        family: z.enum(["minat", "bakat"]).optional().nullable(),
       }),
+    )
+    .handler(async ({ input }) => {
+      await db
+        .update(schema.assessments)
+        .set({ name: input.name, description: input.description ?? null, family: input.family ?? null })
+        .where(eq(schema.assessments.id, input.id));
+      return { ok: true };
+    }),
 
-    /** Hapus tes beserta seluruh versi & sesi (cascade). */
-    remove: adminProcedure
-      .input(z.object({ id: z.string().min(1) }))
-      .handler(async ({ input }) => {
-        await removeAssessment(input.id);
-        return { ok: true };
-      }),
-
+  /** Hapus tes beserta seluruh versi & sesi (cascade). */
+  remove: adminProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
+    await removeAssessment(input.id);
+    return { ok: true };
+  }),
 };
