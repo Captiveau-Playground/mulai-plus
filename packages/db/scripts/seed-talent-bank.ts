@@ -10,7 +10,7 @@
  *
  * Idempotent: kalau versi target sudah punya soal, berhenti (kecuali --force).
  */
-import { db, desc, eq, schema } from "@mulai-plus/db";
+import { asc, db, desc, eq, inArray, schema } from "@mulai-plus/db";
 import { TALENT_CONFIG, TALENT_DIMS, TALENT_ITEMS, type TemplateRow } from "./assessment-banks";
 import { nanoidish } from "./lib-id";
 
@@ -249,6 +249,43 @@ async function main() {
     .map((t) => `${t}=${qs.filter((q) => q.questionType === t).length}`)
     .join(" ");
   console.log(`\nRingkasan: ${qs.length} soal · ${perDim}\n           ${perType}`);
+
+  // ── Cek kesesuaian bagian ────────────────────────────────────────────────
+  // section_mode "by_dimension" mengelompokkan soal per dimensi mengikuti urutan dimensi.
+  // Kalau displayOrder soal tidak berblok, urutan sesi bisa bikin bagian berlabel salah.
+  // Sekalian laporkan soal isian mana yang butuh keyboard angka vs kata (alfa).
+  const ordered = await db.query.questions.findMany({
+    where: eq(schema.questions.versionId, target.id),
+    columns: { id: true, dimensionId: true, questionType: true },
+    orderBy: asc(schema.questions.displayOrder),
+  });
+  const codeOf = new Map(TALENT_DIMS.map((c) => [dimId[c], c]));
+  const runs: string[] = [];
+  for (const q of ordered) {
+    const c = codeOf.get(q.dimensionId) ?? "?";
+    if (runs[runs.length - 1] !== c) runs.push(c);
+  }
+  const blokOk = runs.length === TALENT_DIMS.length && new Set(runs).size === runs.length;
+  console.log(
+    blokOk
+      ? `\n✅ Urutan soal sudah berblok per dimensi: ${runs.join(" → ")}`
+      : `\n⚠️  Urutan soal BERBELANG (${runs.join(" → ")}) — bagian bisa berlabel salah saat dirilis.`,
+  );
+
+  const textQs = await db.query.questions.findMany({
+    where: eq(schema.questions.versionId, target.id),
+    columns: { id: true, dimensionId: true, questionType: true },
+  });
+  const cfgs = await db.query.textInputConfigs.findMany({
+    where: inArray(
+      schema.textInputConfigs.questionId,
+      textQs.filter((q) => q.questionType === "text_input").map((q) => q.id),
+    ),
+  });
+  const angka = cfgs.filter((c) => /^[\d.,/\s-]+$/.test(String(c.answerKey ?? "").trim())).length;
+  console.log(
+    `   Soal isian: ${cfgs.length} · kunci angka (keyboard angka) = ${angka} · kunci kata/campur (keyboard teks) = ${cfgs.length - angka}`,
+  );
 
   if (publish) {
     await db

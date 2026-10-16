@@ -11,7 +11,7 @@
  *
  * Idempotent: kalau versi target sudah punya soal, script berhenti (kecuali --force).
  */
-import { db, desc, eq, schema } from "@mulai-plus/db";
+import { asc, db, desc, eq, schema } from "@mulai-plus/db";
 import { nanoidish } from "./lib-id";
 
 const id = () => nanoidish();
@@ -390,6 +390,25 @@ async function main() {
   );
   if (kurang.length) console.log(`⚠️ min_q_per_dim=${minQ} belum terpenuhi: ${kurang.map((d) => d.code).join(", ")}`);
   else console.log(`✓ min_q_per_dim=${minQ} terpenuhi di semua dimensi.`);
+
+  // Cek kesesuaian bagian: section_mode "by_dimension" memakai blok soal per dimensi.
+  // Kalau urutan soal berbelang, bagian bisa berlabel salah saat dirilis.
+  const ordered = await db.query.questions.findMany({
+    where: eq(schema.questions.versionId, target.id),
+    columns: { id: true, dimensionId: true },
+    orderBy: asc(schema.questions.displayOrder),
+  });
+  const codeOf = new Map(DIMS.map((d) => [dimId[d.code], d.code]));
+  const runs: string[] = [];
+  for (const q of ordered) {
+    const c = codeOf.get(q.dimensionId) ?? "?";
+    if (runs[runs.length - 1] !== c) runs.push(c);
+  }
+  console.log(
+    runs.length === DIMS.length && new Set(runs).size === runs.length
+      ? `\n✅ Urutan soal sudah berblok per dimensi: ${runs.join(" → ")}`
+      : `\n⚠️  Urutan soal BERBELANG (${runs.join(" → ")}) — bagian bisa berlabel salah saat dirilis.`,
+  );
 
   if (publish) {
     if (kurang.length) throw new Error("Tidak bisa publish: min soal belum terpenuhi.");
