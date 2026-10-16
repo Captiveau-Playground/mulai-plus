@@ -38,29 +38,46 @@ function fireConfetti() {
 
 export default function TmbTestPage() {
   const t = String(useParams().type ?? "");
-  if (t === "DISCOVER" || t === "TALENT") return <EngineWrapper code={t} />;
+  return (
+    <Suspense fallback={<div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light" />}>
+      <TestRoute code={t} />
+    </Suspense>
+  );
+}
+
+/**
+ * Rute tes siswa. Mendukung mode preview (dipakai admin dari editor):
+ *   ?preview=1      → tanpa login, studentId sintetis (tidak mencemari data siswa)
+ *   &v=<versionId>  → memaksa konten versi tertentu (mis. draf yang sedang disunting)
+ */
+function TestRoute({ code }: { code: string }) {
+  const search = useSearchParams();
+  const preview = search?.get("preview") === "1";
+  const versionId = search?.get("v");
+  if (code === "DISCOVER" || code === "TALENT") return <EngineWrapper code={code} preview={preview} versionId={versionId} />;
   return <LegacyWizard />;
 }
 
-function EngineWrapper({ code }: { code: string }) {
+function EngineWrapper({ code, preview = false, versionId = null }: { code: string; preview?: boolean; versionId?: string | null }) {
   const [ready, setReady] = useState<{ sessionId: string; questions: any[]; dims: any[]; otherCode: string; otherLabel: string; studentId: string; sections: number; secData?: any[]; instr?: any[] } | null>(null);
   const [errg, setErrg] = useState("");
   const { data: authSession } = authClient.useSession();
   const startedRef = useRef(false);
+  // id preview dibuat sekali per mount (tidak memicu loop & tidak menyentuh data siswa)
+  const previewSid = useMemo(() => (preview ? `preview-${Math.random().toString(36).slice(2, 9)}` : null), [preview]);
+  const sid = previewSid ?? authSession?.user?.id;
   useEffect(() => {
-    if (!authSession?.user?.id) return;
+    if (!sid) return;
     if (startedRef.current) return; // StrictMode/dev double-mount → jangan start 2x
     startedRef.current = true;
     (async () => {
       try {
-        const sid = authSession!.user!.id;
-        const cfg = (await client.discover.config({ code } as any)) as any;
-        let st: any = { sessionId: "" };
-        try { st = (await client.discover.start({ code, studentId: sid, versionId: null } as any)) as any; } catch { st = (await client.discover.start({ code, studentId: sid } as any)) as any; }
+        const cfg = (await client.discover.config(versionId ? ({ versionId } as any) : ({ code } as any))) as any;
+        const st = (await client.discover.start({ code, studentId: sid, versionId: versionId ?? undefined } as any)) as any;
         setReady({ sessionId: st.sessionId, questions: (cfg.questions ?? []).filter((q: any) => q.isActive), dims: cfg.dimensions ?? [], otherCode: code === "DISCOVER" ? "TALENT" : "DISCOVER", otherLabel: code === "DISCOVER" ? "Tes Bakat" : "Tes Minat", studentId: sid, sections: (cfg.runSections ?? []).length, secData: cfg.sections ?? [], instr: cfg.instructions ?? [] });
       } catch (e: any) { setErrg(e?.message ?? "Gagal memuat tes"); }
     })();
-  }, [code, authSession?.user?.id]);
+  }, [code, sid, versionId]);
   if (errg) return <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light p-4"><p className="font-manrope text-sm text-red-500">{errg}</p></div>;
   if (!ready) return <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light"><span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" /></div>;
   return <LegacyWizard engine={{ code, sessionId: ready.sessionId, questions: ready.questions, dims: ready.dims, otherCode: ready.otherCode, otherLabel: ready.otherLabel, studentId: ready.studentId, sections: ready.sections, secData: ready.secData ?? [], instr: ready.instr ?? [] }} />;

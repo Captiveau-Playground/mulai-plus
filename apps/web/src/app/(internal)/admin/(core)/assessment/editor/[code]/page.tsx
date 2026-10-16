@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/toast";
 import { client, orpc } from "@/utils/orpc";
@@ -78,6 +79,8 @@ export default function AssessmentDetailPage() {
   const [focusDim, setFocusDim] = useState(false);
   // Mode ubah di versi LIVE: draf baru baru dibuat saat perubahan PERTAMA disimpan
   const [intentEdit, setIntentEdit] = useState(false);
+  // Preview memakai HALAMAN SISWA yang asli (rute take) di dalam iframe
+  const [previewV, setPreviewV] = useState<{ id: string; versionNumber: number; status: string } | null>(null);
   const draftRef = useRef<string | null>(null);
   const [_hlQ, setHlQ] = useState<string | null>(null);
   const [hlDim, setHlDim] = useState(false);
@@ -103,7 +106,7 @@ export default function AssessmentDetailPage() {
     if (draft) void queryClient.invalidateQueries({ queryKey: gateKey() });
   };
 
-  const { data: content } = useQuery(
+  const { data: content, isLoading: contentLoading } = useQuery(
     orpc.discoverAdmin.versions.contentList.queryOptions({
       input: { versionId },
       enabled: !!selVer,
@@ -401,14 +404,14 @@ export default function AssessmentDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           {live && (
-            <a
-              href={`/assessment/talent?preview=1&code=${code}`}
-              target="_blank"
+            <button
+              type="button"
+              data-testid="preview-live"
+              onClick={() => setPreviewV({ id: live.id, versionNumber: live.versionNumber, status: live.status })}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 font-manrope font-semibold text-gray-600 text-xs hover:bg-gray-50"
-              rel="noopener"
             >
               <Eye className="h-3.5 w-3.5" /> Lihat sebagai siswa
-            </a>
+            </button>
           )}
           <Button
             disabled={!draft || (gate ? !gate.ok : false)}
@@ -453,7 +456,7 @@ export default function AssessmentDetailPage() {
             gate={selVer?.status === "draft" ? (gate as any) : undefined}
             focusGroup={focusDim ? "dimensi" : null}
             onSelectVersion={pickVer}
-            onPreviewVersion={(v) => window.open(`/assessment/talent?preview=1&v=${v.id}`, "_blank")}
+            onPreviewVersion={(v) => setPreviewV({ id: v.id, versionNumber: v.versionNumber, status: v.status })}
             onPublishVersion={(v) => setVerify({ vid: v.id })}
             onSetFamily={setFamily}
             onSaveRules={(cfg) => void withDraft((vid) => mRules.mutateAsync({ versionId: vid, config: cfg ?? rules }))}
@@ -565,6 +568,7 @@ export default function AssessmentDetailPage() {
             onDuplicate={dupQ}
             onMove={moveQ}
             onDragDrop={dropQ}
+            loading={contentLoading}
           />
         </div>
       </div>
@@ -655,6 +659,50 @@ export default function AssessmentDetailPage() {
       )}
 
       {verify && <ReleaseVerifyModal versionId={verify.vid} publish={mPub} onClose={() => setVerify(null)} />}
+
+      {/* Preview memakai HALAMAN SISWA asli (rute take) di dalam iframe. */}
+      <Dialog open={!!previewV} onOpenChange={(o) => !o && setPreviewV(null)}>
+        <DialogContent className="max-h-[92vh] w-[95vw] gap-3 sm:max-w-6xl">
+          <DialogHeader>
+            <DialogTitle className="font-bricolage text-brand-navy">
+              Preview sebagai siswa — v{previewV?.versionNumber}
+              {previewV?.status !== "live" && (
+                <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 font-manrope font-semibold text-[10px] text-amber-700">
+                  belum dirilis
+                </span>
+              )}
+            </DialogTitle>
+            <DialogDescription className="font-manrope text-xs">
+              Tampilan ini memakai halaman tes siswa yang sebenarnya, dijalankan sebagai tamu preview — jawaban tidak
+              tersimpan ke akun siapa pun.
+            </DialogDescription>
+          </DialogHeader>
+          {previewV && (
+            <iframe
+              key={previewV.id}
+              title="Preview tes sebagai siswa"
+              data-testid="preview-frame"
+              src={`/dashboard/student/assessment/take/${code}?preview=1&v=${previewV.id}`}
+              className="h-[75vh] w-full rounded-xl border border-gray-200 bg-white"
+            />
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-manrope text-[11px] text-muted-foreground">
+              Rute: <code className="rounded bg-gray-100 px-1">/dashboard/student/assessment/take/{code}</code>
+            </p>
+            {previewV && (
+              <a
+                href={`/dashboard/student/assessment/take/${code}?preview=1&v=${previewV.id}`}
+                target="_blank"
+                rel="noopener"
+                className="font-manrope font-semibold text-brand-navy text-xs hover:underline"
+              >
+                Buka di tab baru ↗
+              </a>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

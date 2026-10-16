@@ -38,6 +38,8 @@ interface Props {
   onDuplicate: (id: string) => void;
   onMove: (index: number, dir: -1 | 1) => void;
   onDragDrop: (from: number, to: number) => void;
+  /** true saat daftar soal masih dimuat dari server */
+  loading?: boolean;
 }
 
 /** Kelompokkan index soal menjadi blok-blok dimensi yang berurutan (kalau memang berurutan). */
@@ -64,6 +66,7 @@ export function QuestionList({
   onDuplicate,
   onMove,
   onDragDrop,
+  loading = false,
 }: Props) {
   const [query, setQuery] = useState("");
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -181,6 +184,20 @@ export function QuestionList({
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-2 px-4 py-4" data-testid="question-list-loading">
+        <div className="h-8 w-full animate-pulse rounded-lg bg-gray-100" />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="rounded-xl border border-gray-100 p-3">
+            <div className="h-3 w-1/3 animate-pulse rounded bg-gray-100" />
+            <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-gray-100" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div>
