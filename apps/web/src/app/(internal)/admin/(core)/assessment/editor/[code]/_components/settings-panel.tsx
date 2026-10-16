@@ -45,6 +45,8 @@ export interface SettingsPanelProps {
   onSectionSave: (s: SectionRow) => void;
   onSectionDelete: (id?: string) => void;
   onInstructionSave: (i: InstructionRow) => void;
+  /** true = admin sudah menekan "Ubah" di versi live tapi belum ada perubahan tersimpan */
+  pendingDraft?: boolean;
   savingRules?: boolean;
   creatingDraft?: boolean;
   addingDim?: boolean;
@@ -140,6 +142,19 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   return (
     <div id="aturan" className="rounded-2xl border border-gray-200 bg-white">
+      {props.pendingDraft && (
+        <div
+          className="flex items-start gap-2 border-amber-100 border-b bg-amber-50/70 px-4 py-2.5"
+          data-testid="pending-draft-banner"
+        >
+          <FilePlus2 className="mt-px h-3.5 w-3.5 shrink-0 text-amber-600" />
+          <p className="font-manrope text-[11px] text-amber-800 leading-4">
+            <b>Mode ubah</b> — draf baru dibuat otomatis saat perubahan pertama kamu simpan. Versi yang dipakai siswa
+            belum berubah.
+          </p>
+        </div>
+      )}
+
       {/* ── Rilis & Versi ── */}
       <div className="border-gray-100 border-b px-4 py-3">
         <p className="mb-2 flex items-center gap-1.5 font-bold font-bricolage text-brand-navy text-sm">

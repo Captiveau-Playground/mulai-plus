@@ -1,22 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowDown,
-  ArrowUp,
-  CheckCircle2,
-  Copy,
-  Eye,
-  FilePlus2,
-  FileUp,
-  GripVertical,
-  Loader2,
-  Plus,
-  Rocket,
-  ShieldCheck,
-  Trash2,
-  X,
-} from "lucide-react";
+import { CheckCircle2, Eye, FilePlus2, FileUp, Loader2, Plus, Rocket, ShieldCheck, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/toast";
 import { client, orpc } from "@/utils/orpc";
 import "katex/dist/katex.min.css";
+import { QuestionList } from "./_components/question-list";
 import { SettingsPanel } from "./_components/settings-panel";
 
 interface Ver {
@@ -78,7 +64,7 @@ export default function AssessmentDetailPage() {
   const [_branchOpen, _setBranchOpen] = useState(false);
   const [verify, setVerify] = useState<{ vid: string } | null>(null);
   const [modal, setModal] = useState<{ open: boolean; q?: any } | null>(null);
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [_dragIdx, setDragIdx] = useState<number | null>(null);
   const [_dimCode, setDimCode] = useState("");
   const [_dimName, setDimName] = useState("");
   const [importOpen, setImportOpen] = useState(false);
@@ -90,7 +76,10 @@ export default function AssessmentDetailPage() {
   } | null>(null);
   const [focusQ, setFocusQ] = useState<string | null>(null);
   const [focusDim, setFocusDim] = useState(false);
-  const [hlQ, setHlQ] = useState<string | null>(null);
+  // Mode ubah di versi LIVE: draf baru baru dibuat saat perubahan PERTAMA disimpan
+  const [intentEdit, setIntentEdit] = useState(false);
+  const draftRef = useRef<string | null>(null);
+  const [_hlQ, setHlQ] = useState<string | null>(null);
   const [hlDim, setHlDim] = useState(false);
 
   const summariesKey = orpc.discoverAdmin.summaries.key();
@@ -101,7 +90,8 @@ export default function AssessmentDetailPage() {
   const draft = vers.find((v) => v.status === "draft") ?? null;
   const selVer = vers.find((v) => v.id === selectedId) ?? draft ?? live;
 
-  const canEdit = selVer?.status === "draft" && !!selVer;
+  // Bisa mengedit kalau versi ini draf, ATAU versi live dan admin sudah menekan "Ubah".
+  const canEdit = !!selVer && (selVer.status === "draft" || (selVer.status === "live" && intentEdit));
   const versionId = selVer?.id ?? "";
 
   const contentKey = () => orpc.discoverAdmin.versions.contentList.key({ input: { versionId } });
@@ -158,7 +148,7 @@ export default function AssessmentDetailPage() {
   const mDraft = useMutation(
     orpc.discoverAdmin.versions.createDraft.mutationOptions({
       onSuccess: () => {
-        notify.create("Mode ubah aktif", { description: "Perubahan otomatis tersimpan sebagai draf aman." });
+        notify.create("Draf baru dibuat", { description: "Versi live siswa tidak berubah sampai kamu rilis." });
         void invalidate();
         void queryClient.invalidateQueries({ queryKey: summariesKey });
       },
@@ -315,10 +305,34 @@ export default function AssessmentDetailPage() {
     mPub.isPending;
   const dims = (content?.dimensions ?? []) as Dim[];
 
+  /** Masuk mode ubah. Kalau draf sudah ada, langsung pakai draf itu (tanpa bikin baru). */
   const startEdit = () => {
     if (draft) pickVer(draft.id);
-    else void mDraft.mutateAsync({ code });
+    else setIntentEdit(true);
   };
+
+  /**
+   * Pastikan ada draf sebelum menulis. Draf dibuat HANYA saat aksi perubahan pertama
+   * dijalankan — jadi membuka mode ubah tanpa mengubah apa pun tidak bikin draf kosong.
+   */
+  const ensureDraft = useCallback(async (): Promise<string | null> => {
+    if (selVer?.status === "draft") return selVer.id;
+    if (draftRef.current) return draftRef.current;
+    const r = (await mDraft.mutateAsync({ code })) as { versionId?: string } | undefined;
+    if (!r?.versionId) return null;
+    draftRef.current = r.versionId;
+    pickVer(r.versionId);
+    return r.versionId;
+  }, [code, selVer?.id, selVer?.status, mDraft.mutateAsync, pickVer]);
+
+  /** Jalankan mutasi dengan versionId draf (buat draf dulu bila masih di versi live). */
+  const withDraft = useCallback(
+    async (fn: (vid: string) => unknown) => {
+      const vid = await ensureDraft();
+      if (vid) await fn(vid);
+    },
+    [ensureDraft],
+  );
   const moveQ = useCallback(
     (idx: number, dir: number) => {
       const j = idx + dir;
@@ -329,9 +343,9 @@ export default function AssessmentDetailPage() {
       if (!a || !b) return;
       qs[idx] = b;
       qs[j] = a;
-      void mReorder.mutateAsync({ versionId, orderedIds: qs.map((q) => q.id) });
+      void withDraft((vid) => mReorder.mutateAsync({ versionId: vid, orderedIds: qs.map((q) => q.id) }));
     },
-    [questions, versionId, mReorder.mutateAsync],
+    [questions, withDraft, mReorder.mutateAsync],
   );
   const dropQ = useCallback(
     (from: number, to: number) => {
@@ -339,10 +353,10 @@ export default function AssessmentDetailPage() {
       const qs = [...questions];
       const [moved] = qs.splice(from, 1);
       if (moved) qs.splice(to, 0, moved);
-      void mReorder.mutateAsync({ versionId, orderedIds: qs.map((q) => q.id) });
+      void withDraft((vid) => mReorder.mutateAsync({ versionId: vid, orderedIds: qs.map((q) => q.id) }));
       setDragIdx(null);
     },
-    [questions, versionId, mReorder.mutateAsync],
+    [questions, withDraft, mReorder.mutateAsync],
   );
   const openEdit = (id: string) => {
     const q = questions.find((x) => x.id === id);
@@ -360,8 +374,8 @@ export default function AssessmentDetailPage() {
     });
     setTimeout(() => document.getElementById("q-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
-  const delQ = (id: string) => void mDelQ.mutateAsync({ questionId: id });
-  const dupQ = (id: string) => void mDupQ.mutateAsync({ questionId: id });
+  const delQ = (id: string) => void withDraft(() => mDelQ.mutateAsync({ questionId: id }));
+  const dupQ = (id: string) => void withDraft(() => mDupQ.mutateAsync({ questionId: id }));
 
   if (!assess) return <div className="font-manrope text-muted-foreground text-sm">Tes tidak ditemukan.</div>;
 
@@ -442,21 +456,23 @@ export default function AssessmentDetailPage() {
             onPreviewVersion={(v) => window.open(`/assessment/talent?preview=1&v=${v.id}`, "_blank")}
             onPublishVersion={(v) => setVerify({ vid: v.id })}
             onSetFamily={setFamily}
-            onSaveRules={(cfg) => void mRules.mutateAsync({ versionId, config: cfg ?? rules })}
+            onSaveRules={(cfg) => void withDraft((vid) => mRules.mutateAsync({ versionId: vid, config: cfg ?? rules }))}
             onStartEdit={startEdit}
-            onDimsAdd={(code, name) => void mDimsAdd.mutateAsync({ versionId, code, name })}
+            onDimsAdd={(code, name) => void withDraft((vid) => mDimsAdd.mutateAsync({ versionId: vid, code, name }))}
             onDimsDelete={(id) => void mDimsDel.mutateAsync({ dimensionId: id })}
             onDimsUpdate={(id, durationSeconds) => void mDimsUpd.mutateAsync({ dimensionId: id, durationSeconds })}
             onSectionSave={(s) =>
-              void mSecSave.mutateAsync({
-                versionId,
-                id: s.id,
-                title: s.title,
-                contentType: s.contentType,
-                contentJson: s.contentJson ?? { text: "" },
-                displayOrder: s.displayOrder,
-                visibility: s.visibility ?? true,
-              })
+              void withDraft((vid) =>
+                mSecSave.mutateAsync({
+                  versionId: vid,
+                  id: s.id,
+                  title: s.title,
+                  contentType: s.contentType,
+                  contentJson: s.contentJson ?? { text: "" },
+                  displayOrder: s.displayOrder,
+                  visibility: s.visibility ?? true,
+                }),
+              )
             }
             onSectionDelete={(id) => {
               if (id) void mSecDel.mutateAsync({ id });
@@ -470,6 +486,7 @@ export default function AssessmentDetailPage() {
                 contentJson: i.contentJson ?? { items: [] },
               })
             }
+            pendingDraft={intentEdit && selVer?.status === "live"}
             savingRules={mRules.isPending}
             creatingDraft={mDraft.isPending}
             addingDim={mDimsAdd.isPending}
@@ -527,7 +544,9 @@ export default function AssessmentDetailPage() {
                 openPicker={(cb, kind) => setGal({ open: true, cb, kind: kind ?? "question", code })}
                 onDone={async (qid) => {
                   const id = modal.q?.id;
-                  await mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId, questionData: qid as any });
+                  await withDraft((vid) =>
+                    mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId: vid, questionData: qid as any }),
+                  );
                   setModal(null);
                 }}
                 onClose={() => setModal(null)}
@@ -535,110 +554,18 @@ export default function AssessmentDetailPage() {
             </div>
           )}
 
-          <div className="divide-y divide-gray-50 px-2 pb-2">
-            {!canEdit && questions.length === 0 && (
-              <p className="px-3 py-6 text-center font-manrope text-muted-foreground text-sm">
-                Belum ada soal di versi ini.
-              </p>
-            )}
-            {questions.map((q, i) => {
-              const opts = (content?.options ?? []).filter((o: any) => o.questionId === q.id);
-              const tc = (content?.textConfigs ?? []).find((t: any) => t.questionId === q.id);
-              const dim = dims.find((d) => d.id === q.dimensionId);
-              return (
-                // biome-ignore lint/a11y/noStaticElementInteractions: drag & drop urutan soal (di atas tombol naik/turun)
-                <div
-                  key={q.id}
-                  draggable={canEdit}
-                  onDragStart={() => setDragIdx(i)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                  }}
-                  onDrop={() => dragIdx !== null && canEdit && void dropQ(dragIdx, i)}
-                  onDragEnd={() => setDragIdx(null)}
-                  id={`q-${q.id}`}
-                  data-testid="question-row"
-                  className={`group flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 transition-all ${dragIdx === i ? "opacity-40" : ""} ${hlQ === q.id ? "bg-brand-orange/10 ring-2 ring-brand-orange/60" : ""}`}
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    {canEdit && <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-gray-300" />}
-                    <div className="min-w-0">
-                      <p className="truncate font-manrope font-medium text-gray-800 text-sm">
-                        <span className="mr-2 text-gray-400 text-xs">{i + 1}.</span>
-                        {q.questionText}
-                      </p>
-                      <p className="font-manrope text-[11px] text-muted-foreground">
-                        {(q as any).durationSeconds ? `⏱ ${(q as any).durationSeconds}s · ` : ""}
-                        {dim?.name ?? "—"} ·{" "}
-                        {q.questionType === "text_input"
-                          ? `Isian (${tc?.evaluationType ?? "?"})`
-                          : `${opts.length} pilihan`}{" "}
-                        · bobot {q.weight ?? 1} {q.hasMathNotation ? "· LaTeX" : ""}
-                      </p>
-                    </div>
-                  </div>
-                  {canEdit && (
-                    <div className="flex shrink-0 gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
-                      <button
-                        type="button"
-                        title="Naik"
-                        data-testid={`q-up-${i}`}
-                        onClick={() => moveQ(i, -1)}
-                        disabled={i === 0}
-                        className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"
-                      >
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        title="Turun"
-                        data-testid={`q-down-${i}`}
-                        onClick={() => moveQ(i, 1)}
-                        disabled={i === questions.length - 1}
-                        className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"
-                      >
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        title="Salin soal"
-                        data-testid={`q-dup-${i}`}
-                        onClick={() => dupQ(q.id)}
-                        className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        data-testid={`q-edit-${i}`}
-                        onClick={() =>
-                          setModal({
-                            open: true,
-                            q: {
-                              ...q,
-                              opts: (content?.options ?? []).filter((o: any) => o.questionId === q.id),
-                              tc: (content?.textConfigs ?? []).find((t: any) => t.questionId === q.id),
-                            },
-                          })
-                        }
-                        className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        type="button"
-                        data-testid={`q-del-${i}`}
-                        onClick={() => delQ(q.id)}
-                        className="rounded-md p-1.5 text-red-400 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <QuestionList
+            questions={questions as any}
+            dims={dims}
+            canEdit={canEdit}
+            optionCountOf={(qid) => (content?.options ?? []).filter((o: any) => o.questionId === qid).length}
+            textEvalOf={(qid) => (content?.textConfigs ?? []).find((t: any) => t.questionId === qid)?.evaluationType}
+            onEdit={openEdit}
+            onDelete={delQ}
+            onDuplicate={dupQ}
+            onMove={moveQ}
+            onDragDrop={dropQ}
+          />
         </div>
       </div>
 
@@ -719,7 +646,7 @@ export default function AssessmentDetailPage() {
 
       {importOpen && canEdit && (
         <ImportModal
-          versionId={versionId}
+          getVersionId={ensureDraft}
           dims={dims}
           mImport={mImport}
           onDone={() => setImportOpen(false)}
@@ -809,13 +736,14 @@ function ReleaseVerifyModal({ versionId, publish, onClose }: { versionId: string
 }
 
 function ImportModal({
-  versionId,
+  getVersionId,
   dims,
   mImport,
   onDone: _onDone,
   onClose,
 }: {
-  versionId: string;
+  /** Resolver versi draf — draf dibuat saat impor benar-benar dijalankan. */
+  getVersionId: () => Promise<string | null>;
   dims: Dim[];
   mImport: any;
   onDone: () => void;
@@ -944,7 +872,12 @@ function ImportModal({
     if (!rows?.length) return;
     setBusy(true);
     try {
-      const r = (await mImport.mutateAsync({ versionId, rows })) as any;
+      const vid = await getVersionId();
+      if (!vid) {
+        notify.error("Tidak bisa mengimpor: gagal menyiapkan draf.");
+        return;
+      }
+      const r = (await mImport.mutateAsync({ versionId: vid, rows })) as any;
       setResult({ created: r.created ?? 0, failed: r.failed ?? [] });
       notify.create(`Impor selesai — ${r.created ?? 0} soal ditambahkan`, {
         description: (r.failed ?? []).length
