@@ -13,7 +13,7 @@
     "test:e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
     "test:e2e:headed": "playwright test --config=e2e/playwright.config.ts --headed",
     "test:e2e:report": "playwright show-report",
-    "build:e2e": "NEXT_STANDALONE=0 NEXT_PUBLIC_SERVER_URL=http://localhost:3000 NEXT_PUBLIC_APP_URL=http://localhost:3001 next build",
+    "build:e2e": "NEXT_STANDALONE=0 NEXT_PUBLIC_SERVER_URL=http://localhost:3000 NEXT_PUBLIC_APP_URL=http://localhost:3001 NEXT_PUBLIC_ANALYTICS_DISABLED=1 NEXT_PUBLIC_GA_MEASUREMENT_ID= NEXT_PUBLIC_CLARITY_ID= NEXT_PUBLIC_AMPLITUDE_API_KEY= next build",
     "start:e2e": "next start --port 3001"
   },
   "dependencies": {
