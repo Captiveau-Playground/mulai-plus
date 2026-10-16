@@ -126,7 +126,7 @@ async function main() {
         isActive: true,
       });
 
-      if (type === "pilihan") {
+      if (type === "multiple_choice") {
         const opts = r.opsi ?? [];
         const keyIdx = r.kunci ? r.kunci.toUpperCase().charCodeAt(0) - 65 : 0;
         for (let oi = 0; oi < opts.length; oi++) {
@@ -140,7 +140,7 @@ async function main() {
             displayOrder: oi,
           });
         }
-      } else if (type === "skala") {
+      } else if (type === "likert") {
         const levels = r.opsi ?? [];
         for (const [oi, caption] of levels.entries()) {
           await db.insert(schema.questionOptions).values({
