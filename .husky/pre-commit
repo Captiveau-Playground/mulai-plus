@@ -1,1 +1,13 @@
+#!/bin/sh
+# Untuk MERGE COMMIT: lewati lint-staged.
+#
+# Alasan: lint-staged menyimpan state sementara lewat `git stash`, dan saat commit
+# merge itu mengosongkan index sehingga commit selalu gagal dengan pesan
+# "Prevented an empty git commit" — kejadian saat resolve konflik PR #202.
+# Perbaikan file hasil merge tetap dilakukan manual (biome + tsc) sebelum commit.
+if [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
+  echo "⏭  merge commit terdeteksi — lint-staged dilewati (jalankan biome manual bila perlu)"
+  exit 0
+fi
+
 lint-staged
