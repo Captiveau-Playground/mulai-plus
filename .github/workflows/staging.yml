@@ -523,6 +523,24 @@ jobs:
         working-directory: apps/ai
         run: ./node_modules/.bin/wrangler deploy --env staging
 
+      # Gate deterministik: membuktikan API Worker + Hyperdrive + DB hidup.
+      # (Kegagalan staging 2026-10-17 justru di sini: Hyperdrive menunjuk config
+      # yang dihapus / password Neon lama — smoke AI saja tidak menangkapnya.)
+      - name: Smoke test API database (staging)
+        run: |
+          set -euo pipefail
+          URL="https://api.staging.mulaiplus.id"
+          code=$(curl -s -o /tmp/api-db.json -w "%{http_code}" --max-time 30 \
+            -X POST "$URL/rpc/discover/config" -H 'content-type: application/json' \
+            -d '{"json":{"code":"DISCOVER"}}' || true)
+          n=$(python3 -c "import json;print(len((json.load(open('/tmp/api-db.json')).get('json') or {}).get('questions') or []))" 2>/dev/null || echo 0)
+          echo "[api-db] HTTP=$code | soal=$n"
+          if [ "$code" != "200" ] || [ "$n" -le 0 ]; then
+            echo "❌ API staging gagal query DB (cek Hyperdrive/Neon). Body:"
+            head -c 300 /tmp/api-db.json || true
+            exit 1
+          fi
+
       - name: Smoke test AI — /health + chat /api/chat (workers.dev)
         run: |
           set -euo pipefail
