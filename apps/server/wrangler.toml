@@ -71,7 +71,7 @@ R2_PUBLIC_URL = "https://cdn-dev.mulaiplus.id"
 # its own pooling, so direct :5432 is the supported setup.
 [[env.staging.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "f98f19a5ab114162b2180cb41b0e5499"  # mulai-plus-neon-staging (rolled out 2025-10-01)
+id = "83e87c31773e4ad8affdc3f12b81b48b"  # mulai-plus-neon-staging-v2 (dibuat ulang setelah rotasi password Neon 2026-10-17)
 # ROLLBACK (Supabase): "5d214aea95a842069ee2a0bba93222c4" # mulai-plus-staging-db-direct
 
 # ──────────────────────────── PRODUCTION ────────────────────────────
