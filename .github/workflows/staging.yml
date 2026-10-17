@@ -527,20 +527,35 @@ jobs:
         run: |
           set -euo pipefail
           URL="https://api.staging.mulaiplus.id"
+          ORIGIN="https://staging.mulaiplus.id"
+
           ok=0
           for i in 1 2 3; do
-            code=$(curl -s -o /tmp/ai.html -w "%{http_code}" --max-time 20 "$URL/ai/health" || true)
+            code=$(curl -s -o /tmp/ai-health.txt -w "%{http_code}" --max-time 20 "$URL/ai/health" || true)
             if [ "$code" = "200" ]; then ok=1; break; fi
-            echo "[attempt $i/3] HTTP=$code — retry..."
+            echo "[health $i/3] HTTP=$code — retry..."
             sleep 5
           done
-          [ "$ok" = "1" ] || { echo "❌ AI /health gagal"; exit 1; }
-          reply=$(curl -s -X POST "$URL/ai/chat" -H "Content-Type: application/json" \
-            -H "Origin: https://staging.mulaiplus.id" \
-            -H "User-Agent: Mozilla/5.0 (CI smoke; like browser)" \
-            -H "x-session-id: ci-smoke-$(date +%s)" \
-            -d '{"message":"halo"}' --max-time 90 || true)
-          echo "$reply" | grep -q "full_reply"
+          [ "$ok" = "1" ] || { echo "❌ AI /health gagal (HTTP=$code)"; head -c 300 /tmp/ai-health.txt || true; exit 1; }
+
+          # Chat: retry + SELALU cetak cuplikan respons supaya log CI langsung menunjukkan
+          # penyebab (500 HTML/403 WAF/rate-limit/JSON error) tanpa perlu reproduksi manual.
+          chat_ok=0
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/ai-chat.txt -w "%{http_code}" -X POST "$URL/ai/chat" \
+              -H "Content-Type: application/json" \
+              -H "Origin: $ORIGIN" \
+              -H "User-Agent: Mozilla/5.0 (CI smoke; like browser)" \
+              -H "x-session-id: ci-smoke-$(date +%s)-$i" \
+              -d '{"message":"halo"}' --max-time 90 || true)
+            echo "[chat $i/3] HTTP=$code | body: $(head -c 300 /tmp/ai-chat.txt | tr '\n' ' ')"
+            if [ "$code" = "200" ] && grep -q "full_reply" /tmp/ai-chat.txt; then chat_ok=1; break; fi
+            sleep 6
+          done
+          if [ "$chat_ok" != "1" ]; then
+            echo "❌ AI chat gagal: respons tidak memuat full_reply (lihat cuplikan body di atas)"
+            exit 1
+          fi
           echo "✅ mulai-plus-ai-staging (Workers) sehat"
 
   # ──────────────────────────── DEPLOY VPS (rollback runtime) ────────────────────────────
