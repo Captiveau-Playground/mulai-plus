@@ -6,7 +6,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { signUpViaApi } from "../../../helpers/api";
-import { E2E_PASSWORD, loginUI } from "../../../helpers/auth";
+import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
 import { closeDb, q } from "../../../helpers/db";
 
 const PREFIX = "e2e-portal";
@@ -144,5 +144,39 @@ test.describe("B2B · portal sekolah (UI)", () => {
     await page.goto("/sekolah", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("school-status-title")).toContainText(/belum disetujui/i, { timeout: 20000 });
     await expect(page.getByTestId("school-note")).toContainText("belum bisa diverifikasi");
+  });
+
+  test("tab login 'Sekolah' tampil & akun sekolah diarahkan ke area sekolah", async ({ page }) => {
+    test.setTimeout(240000);
+    // dialog cookie menutupi tombol login → setujui lebih dulu
+    await preAcceptCookies(page);
+    // Siapkan akun school_admin yang sudah aktif (langsung di DB, tanpa antrean approval)
+    const email = `${PREFIX}-login-${Date.now()}-${suffix().toLowerCase()}@test.local`;
+    const created = await signUpViaApi("Admin Sekolah Login", email, E2E_PASSWORD);
+    expect(created.ok, `signup gagal: ${created.raw}`).toBe(true);
+    emails.push(email);
+    const orgId = rid();
+    orgIds.push(orgId);
+    await q("insert into assessment_orgs (id, name, status) values ($1,$2,'aktif')", [orgId, `SMA Login ${suffix()}`]);
+    await q(
+      "insert into assessment_org_members (id, org_id, user_id, role, status) values ($1,$2,$3,'school_admin','aktif')",
+      [rid(), orgId, created.userId],
+    );
+    await q('update "user" set role = $2 where id = $1', [created.userId, "school_admin"]);
+
+    // Tab konteks di halaman login (deep-link ?as=sekolah)
+    await page.goto("/login?as=sekolah", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("login-tab-sekolah")).toHaveAttribute("aria-selected", "true", { timeout: 20000 });
+    await expect(page.getByTestId("login-tab-hint")).toContainText(/admin sekolah/i);
+    await expect(page.getByRole("link", { name: /Daftarkan sekolahmu/i })).toBeVisible();
+    await page.getByTestId("login-tab-siswa").click();
+    await expect(page.getByTestId("login-tab-hint")).toContainText(/untuk siswa/i);
+
+    // Login → harus diarahkan ke /sekolah (bukan dashboard siswa)
+    await page.locator('input[name="email"]').fill(email);
+    await page.locator('input[name="password"]').fill(E2E_PASSWORD);
+    await page.getByRole("button", { name: /^Sign In$/i }).click();
+    await expect(page).toHaveURL(/\/sekolah$/, { timeout: 30000 });
+    await expect(page.getByTestId("school-dashboard")).toBeVisible({ timeout: 30000 });
   });
 });

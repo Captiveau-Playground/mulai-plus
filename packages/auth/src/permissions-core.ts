@@ -46,6 +46,11 @@ const statement = {
   mentor_dashboard: ["access"],
   admin_dashboard: ["access"],
   program_manager_dashboard: ["access"],
+  school_dashboard: ["access"], // B2B: admin sekolah / guru BK
+
+  // B2B sekolah (dipakai role school_admin & school_viewer)
+  schedule: ["create", "read", "update", "delete"],
+  report: ["read"],
 
   // Dynamic catch-all for custom resources created at runtime
   // This allows the AC to be flexible with DB-defined permissions
@@ -86,6 +91,20 @@ const DEFAULT_ROLES: Record<string, Record<string, string[]>> = {
   },
   student: {
     student_dashboard: ["access"],
+  },
+  // B2B: admin sekolah (kelola peserta & jadwal, lihat hasil/laporan sekolahnya)
+  school_admin: {
+    school_dashboard: ["access"],
+    participant: ["read", "update"],
+    schedule: ["create", "read", "update", "delete"],
+    report: ["read"],
+    user: ["read"],
+  },
+  // B2B: guru BK / wakil kepala (hanya melihat)
+  school_viewer: {
+    school_dashboard: ["access"],
+    report: ["read"],
+    user: ["read"],
   },
 };
 

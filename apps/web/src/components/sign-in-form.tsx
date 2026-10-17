@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import z from "zod";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
+import { homeForRole } from "@/lib/role-home";
 import { notify } from "@/lib/toast";
 
 import Loader from "./loader";
@@ -37,14 +38,8 @@ export default function SignInForm({
 
             if (callbackUrl) {
               window.location.href = decodeURIComponent(callbackUrl);
-            } else if (role === "admin") {
-              router.push("/admin");
-            } else if (role === "mentor") {
-              router.push("/mentor");
-            } else if (role === "program_manager") {
-              router.push("/program-manager/programs");
             } else {
-              router.push("/dashboard/student");
+              router.push(homeForRole(role) as Parameters<typeof router.push>[0]);
             }
             notify.success("Sign in successful");
           },

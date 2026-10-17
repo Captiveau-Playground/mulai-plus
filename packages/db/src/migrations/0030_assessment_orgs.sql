@@ -64,12 +64,12 @@ VALUES
     'school_admin',
     'Admin Sekolah',
     'Staff BK / admin sekolah: kelola peserta & jadwal, lihat hasil dan insight sekolahnya.',
-    ARRAY['access:school_dashboard', 'assessment.school.read', 'assessment.school.manage_participants', 'assessment.school.manage_schedule', 'user.read']
+    ARRAY['access:school_dashboard', 'participant.read', 'participant.update', 'schedule.create', 'schedule.read', 'schedule.update', 'schedule.delete', 'report.read', 'user.read']
   ),
   (
     'school_viewer',
     'Guru BK',
     'Guru BK / wakil kepala: hanya melihat peserta, hasil, dan laporan sekolahnya.',
-    ARRAY['access:school_dashboard', 'assessment.school.read', 'user.read']
+    ARRAY['access:school_dashboard', 'report.read', 'user.read']
   )
 ON CONFLICT ("id") DO NOTHING;

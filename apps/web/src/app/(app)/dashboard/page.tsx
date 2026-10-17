@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import Loader from "@/components/loader";
 import { authClient } from "@/lib/auth-client";
+import { homeForRole } from "@/lib/role-home";
 
 function DashboardContent() {
   const router = useRouter();
@@ -19,20 +20,8 @@ function DashboardContent() {
       return;
     }
 
-    const role = session.user.role;
-
-    if (role === "admin") {
-      router.push("/admin");
-    } else if (role === "mentor") {
-      router.push("/mentor");
-    } else if (role === "program_manager") {
-      router.push("/program-manager");
-    } else if (role === "school_admin" || role === "school_viewer") {
-      // Admin sekolah / guru BK (B2B) → dashboard sekolah
-      router.push("/sekolah" as Parameters<typeof router.push>[0]);
-    } else {
-      router.push("/dashboard/student");
-    }
+    // Beranda per role (satu sumber kebenaran: lib/role-home)
+    router.push(homeForRole(session.user.role) as Parameters<typeof router.push>[0]);
   }, [session, isPending, router, searchParams]);
 
   return (
