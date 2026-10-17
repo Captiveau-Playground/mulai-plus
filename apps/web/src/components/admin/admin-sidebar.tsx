@@ -10,12 +10,12 @@ import {
   Fingerprint,
   Key,
   LayoutDashboard,
-  Wrench,
   Link as LinkIcon,
   Settings2,
   Shield,
   Sparkles,
   Users,
+  Wrench,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -51,40 +51,22 @@ const data = {
       icon: LayoutDashboard,
     },
   ],
+  // Satu parent "Assessment" — dikelompokkan sesuai alur kerja admin
+  // (dashboard -> konten/soal -> data pendukung -> analitik), bukan Operasional/Analitik terpisah.
   navAssessment: [
     {
       title: "Assessment",
       url: "/admin/assessment",
       icon: Brain,
       items: [
-        {
-          title: "Dashboard",
-          url: "/admin/assessment",
-        },
-        {
-          title: "Sekolah & Batch",
-          url: "/admin/assessment/schools",
-        },
-        {
-          title: "B2C — Statistik",
-          url: "/admin/assessment/b2c",
-        },
-        {
-          title: "B2C — History",
-          url: "/admin/assessment/b2c/history",
-        },
-        {
-          title: "Konten Test",
-          url: "/admin/assessment/questions",
-        },
-        {
-          title: "Pola Jurusan",
-          url: "/admin/assessment/patterns",
-        },
-        {
-          title: "Mapping Karier",
-          url: "/admin/assessment/careers",
-        },
+        { title: "Dashboard", url: "/admin/assessment" },
+        { title: "Editor Soal & Versi", url: "/admin/assessment/editor", section: "Konten & Soal" },
+        { title: "Konten Legacy", url: "/admin/assessment/questions" },
+        { title: "Pola Jurusan", url: "/admin/assessment/patterns" },
+        { title: "Mapping Karier", url: "/admin/assessment/careers" },
+        { title: "Sekolah & Batch", url: "/admin/assessment/schools", section: "Operasional B2B" },
+        { title: "Statistik B2C", url: "/admin/assessment/b2c", section: "Analitik B2C" },
+        { title: "Riwayat B2C", url: "/admin/assessment/b2c/history" },
       ],
     },
   ],

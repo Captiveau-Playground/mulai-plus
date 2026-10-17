@@ -236,7 +236,7 @@ function matchCareers(
 let prodiCache: { name: string; level: string | null; university: string; idSms: string; idSp: string }[] | null = null;
 let prodiCacheTs = 0;
 
-async function getProdiList() {
+export async function getProdiList() {
   const now = Date.now();
   if (!prodiCache || now - prodiCacheTs > 86400_000) {
     const rows = await db
@@ -316,7 +316,7 @@ function computeAbility(answers: { question: { dimension: string; answer: string
   return { scores, levels };
 }
 
-function computeRecommendations(
+export function computeRecommendations(
   holland: { code: string; scores: Record<string, number> },
   ability: { levels: Record<string, string> },
   prodiList: { name: string; level: string | null; university: string; idSms: string; idSp: string }[],
@@ -344,6 +344,10 @@ function computeRecommendations(
   }
 
   const studentHolland = holland.scores;
+  // Normalisasi skor minat ke 0..1 (engine bisa kirim raw count) — cegah persen kecocokan nggak-realistis (mis. 333%)
+  const rawVals = Object.values(studentHolland ?? {}).map(Number).filter((v) => Number.isFinite(v));
+  const sumV = rawVals.length ? rawVals.reduce((a, b) => a + b, 0) : 1;
+  const nH = (key: string) => (sumV > 0 ? (Number(studentHolland?.[key]) || 0) / sumV : 0);
   const results: {
     category: (typeof patterns)[number];
     confidence: number;
@@ -359,7 +363,7 @@ function computeRecommendations(
 
     const primary = pat.hollandPrimary;
     const secondary = pat.hollandSecondary;
-    const interestMatch = ((studentHolland[primary] ?? 0) + (studentHolland[secondary] ?? 0)) / 2;
+    const interestMatch = (nH(primary) + nH(secondary)) / 2;
 
     const weights = pat.abilityWeights ?? {};
     const weightSum = Object.values(weights).reduce((a: number, b: number) => a + b, 0);
@@ -1035,14 +1039,19 @@ export const tmbRouter = {
       }
 
       if (!summary) {
+        // Fallback TANPA AI — grounded di data (bukan cheerleader generik)
+        const code = result?.hollandCode ?? "—";
+        const RIASEC: Record<string, string> = { R: "Realistic (praktis)", I: "Investigative (analitis)", A: "Artistic (kreatif)", S: "Social (sosial)", E: "Enterprising (meyakinkan)", C: "Conventional (terstruktur)" };
+        const letters = code.split("").filter((x) => RIASEC[x]);
+        const dimsText = letters.length
+          ? [...new Set(letters)].map((x) => `${x} (${RIASEC[x]!})`).join(", ")
+          : "—";
+        const majors3 = recommendations.filter((r) => r.type === "major").slice(0, 3).map((r) => r.itemName).join(", ");
+        const diff = result?.differentiation === "strong" ? "selisih antar-minatmu cukup jelas" : result?.differentiation === "moderate" ? "selisih antar-minatmu sedang" : "selisih antar-minatmu masih kecil (profil belum terlalu menonjol)";
         summary =
-          `Kode minatmu **${result?.hollandCode}** menunjukkan kombinasi unik. Rekomendasi terbaikmu: ` +
-          recommendations
-            .filter((r) => r.type === "major")
-            .slice(0, 3)
-            .map((r) => r.itemName)
-            .join(", ") +
-          ". Terus eksplorasi dan jangan takut mencoba hal baru! 🎉";
+          `Kode minat utamamu **${code}** (${dimsText}). ${diff}. ` +
+          (majors3 ? `Berdasarkan pilihan minatmu, jurusan yang paling cocok saat ini: ${majors3}. ` : "") +
+          "Selesaikan Tes Bakat untuk memperkuat rekomendasi berbasis kemampuan — hasil ini masih gambaran awal dan bukan pengganti pendampingan mentor.";
       }
 
       await db

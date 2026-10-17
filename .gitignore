@@ -69,3 +69,6 @@ scripts
 # build artifacts OpenNext
 .next
 .open-next
+apps/web/tsconfig.tsbuildinfo
+packages/db/tsconfig.tsbuildinfo
+packages/api/tsconfig.tsbuildinfo*

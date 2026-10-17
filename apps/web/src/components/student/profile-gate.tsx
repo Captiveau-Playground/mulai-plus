@@ -27,25 +27,12 @@ export function useProfileGate() {
   const userProfile = useQuery(orpc.user.getProfile.queryOptions());
   const [_tick, setTick] = useState(0);
 
+  // Non-blocking: ambil langsung dari profil user (tanpa memanggil /ai/context)
   useEffect(() => {
-    let cancel = false;
-    setLoading(true);
-    (async () => {
-      try {
-        const r = await fetch(`${API}/ai/context`, { credentials: "include" });
-        const d = await r.json();
-        if (cancel) return;
-        setSchoolLevel(d?.profile ?? null);
-      } catch {
-        /* scheme */
-      } finally {
-        if (!cancel) setLoading(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
+    const up = userProfile.data as any;
+    setSchoolLevel({ school: up?.school ?? up?.schoolName ?? null, level: up?.educationLevel ?? null });
+    setLoading(userProfile.isLoading);
+  }, [userProfile.data, userProfile.isLoading]);
 
   return useMemo(() => {
     const schoolOk = !!(schoolLevel?.school && String(schoolLevel.school).trim());

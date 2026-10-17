@@ -1,0 +1,121 @@
+Teks,Dimensi,Tipe,Opsi A,Opsi B,Opsi C,Opsi D,Opsi E,Opsi F,Kunci,Bobot,Kunci Isian,Cara nilai,Toleransi,Tampilan
+Sinonim dari ABSURD adalah …,verbal,pilihan,Masuk akal,Tidak masuk akal,Menarik,Sederhana,,,B,1,,,,standar
+Antonim dari GERSANG adalah …,verbal,pilihan,Tandus,Subur,Kering,Panas,,,B,1,,,,standar
+DOKTER : PASIEN = GURU : …,verbal,pilihan,Murid,Sekolah,Buku,Papan tulis,,,A,1,,,,standar
+PENSIL : MENULIS = PISAU : …,verbal,pilihan,Memotong,Tajam,Dapur,Besi,,,A,1,,,,standar
+Manakah kata yang TIDAK sekelompok dengan lainnya?,verbal,pilihan,Mawar,Melati,Anggrek,Bambu,,,D,1,,,,standar
+Ungkapan 'kambing hitam' berarti …,verbal,pilihan,Orang yang disalahkan,Orang pemberani,Orang kaya,Orang malas,,,A,1,,,,standar
+Sinonim dari DERIVASI adalah …,verbal,pilihan,Penurunan,Peningkatan,Pemisahan,Penggabungan,,,A,1,,,,standar
+Antonim dari kata PROLETAR adalah …,verbal,pilihan,Buruh,Borjuis,Petani,Rakyat,,,B,1,,,,standar
+AIR : HAUS = MAKANAN : …,verbal,pilihan,Lapar,Kenyang,Nasi,Perut,,,A,1,,,,standar
+Penulisan kata baku yang benar adalah …,verbal,pilihan,Aktivitas,Aktifitas,Aktipitas,Aktiviti,,,A,1,,,,standar
+Kalimat yang paling efektif adalah …,verbal,pilihan,Para siswa-siswa berkumpul di lapangan.,Para siswa berkumpul di lapangan.,Para pada siswa berkumpul di lapangan.,Siswa-siswa para berkumpul di lapangan.,,,B,1,,,,standar
+Kata yang bermakna 'sangat penting sehingga harus ada' adalah …,verbal,pilihan,Esensial,Opsional,Insidental,Marjinal,,,A,1,,,,banding
+Tulis antonim dari kata OPTIMIS.,verbal,isian,,,,,,,,1,pesimis,persis,,standar
+Tulis sinonim dari kata KONTEMPORER.,verbal,isian,,,,,,,,1,modern,persis,,standar
+Berapa jumlah kata pada kalimat: 'Anak itu membaca buku cerita di perpustakaan sekolah'?,verbal,isian,,,,,,,,1,8,persis,,standar
+Berapa banyak huruf vokal pada kata PENDIDIKAN?,verbal,isian,,,,,,,,1,4,persis,,standar
+Sebutkan satu kata yang bermakna 'tidak peduli'.,verbal,isian,,,,,,,,1,acuh|cuek|masa bodoh,kata,,standar
+Tulis satu kata hubung yang menyatakan perlawanan (mis. meskipun).,verbal,isian,,,,,,,,1,walaupun|meskipun|namun|tetapi,kata,,standar
+Tulis satu kata berawalan 'me-' yang minimal 5 huruf.,verbal,isian,,,,,,,,1,"^me[a-z]{3,}$",pola,,standar
+Tulis satu kata yang diakhiri dengan 'kan'.,verbal,isian,,,,,,,,1,^[a-z]+kan$,pola,,standar
+Saya senang membaca artikel atau buku yang panjang.,verbal,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya cepat memahami makna kata yang belum pernah saya dengar.,verbal,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya nyaman menjelaskan gagasan saya dengan kata-kata.,verbal,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya suka bermain teka-teki kata atau silang kata.,verbal,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+24 × 5 ÷ 8 = …,numerical,pilihan,12,15,18,20,,,B,1,,,,standar
+"Lanjutkan deret: 2, 6, 12, 20, 30, …",numerical,pilihan,36,40,42,44,,,C,1,,,,standar
+"Jika 3x = 21, maka x = …",numerical,pilihan,6,7,8,9,,,B,1,,,,standar
+15% dari 240 adalah …,numerical,pilihan,30,36,40,48,,,B,1,,,,standar
+1/4 + 1/3 = …,numerical,pilihan,2/7,5/12,7/12,1/2,,,C,1,,,,standar
+Perbandingan dua bilangan 3 : 5 dan jumlahnya 64. Bilangan terkecil adalah …,numerical,pilihan,20,24,28,32,,,B,1,,,,standar
+Harga barang Rp50.000 naik 20%. Harga barunya …,numerical,pilihan,Rp55.000,Rp58.000,Rp60.000,Rp62.000,,,C,1,,,,standar
+Rata-rata 5 bilangan adalah 12. Jumlah kelima bilangan itu …,numerical,pilihan,55,58,60,65,,,C,1,,,,standar
+"Lanjutkan deret: 1, 1, 2, 3, 5, 8, …",numerical,pilihan,11,12,13,14,,,C,1,,,,standar
+"5 pekerja menyelesaikan pekerjaan dalam 10 hari. Jika 10 pekerja, waktu yang diperlukan …",numerical,pilihan,4 hari,5 hari,6 hari,8 hari,,,B,1,,,,standar
+"0,25 × 80 = …",numerical,pilihan,16,18,20,24,,,C,1,,,,standar
+Akar kuadrat dari 169 adalah …,numerical,pilihan,11,12,13,14,,,C,1,,,,banding
+Hitung 7 × 8 − 6 = …,numerical,isian,,,,,,,,1,50,persis,,standar
+"Jika 2/5 dari sebuah angka adalah 18, berapa angka itu?",numerical,isian,,,,,,,,1,45,persis,,standar
+Berapa persen 45 dari 180?,numerical,isian,,,,,,,,1,25,persis,,standar
+"Deret 3, 9, 27, … Berapa suku ke-5?",numerical,isian,,,,,,,,1,243,persis,,standar
+"Hitung 3/4 + 0,5 (tulis dalam desimal).",numerical,isian,,,,,,,,1,1.25,angka,0.01,standar
+"Sebuah barang Rp80.000 didiskon 12,5%. Berapa harga setelah diskon (dalam rupiah)?",numerical,isian,,,,,,,,1,70000,angka,1,standar
+Tulis hasil 12 × 12 (3 digit).,numerical,isian,,,,,,,,1,^144$,pola,,standar
+Tulis satu bilangan kelipatan 7 antara 20 dan 30.,numerical,isian,,,,,,,,1,^21$|^28$,pola,,standar
+Saya senang bekerja dengan angka dan hitungan.,numerical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+"Saya cepat dalam operasi hitung dasar (kali, bagi, persen).",numerical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya suka menyelesaikan soal cerita matematika.,numerical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya nyaman membaca tabel atau grafik berisi angka.,numerical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Semua A adalah B. Sebagian B adalah C. Kesimpulan yang tepat …,logical,pilihan,Semua A adalah C,Sebagian A mungkin C,Semua C adalah A,Tidak ada A yang C,,,B,1,,,,standar
+"Lanjutkan deret huruf: A, C, E, G, …",logical,pilihan,H,I,J,K,,,B,1,,,,standar
+Jika hujan maka jalan basah. Ternyata jalan tidak basah. Maka …,logical,pilihan,Hujan turun,Tidak hujan,Jalan kering karena angin,Tidak dapat disimpulkan,,,B,1,,,,standar
+Andi lebih tinggi dari Budi. Budi lebih tinggi dari Cici. Yang paling tinggi …,logical,pilihan,Andi,Budi,Cici,Sama tinggi,,,A,1,,,,standar
+"Lanjutkan deret: 1, 4, 9, 16, …",logical,pilihan,20,24,25,30,,,C,1,,,,standar
+Semua siswa wajib mengikuti ujian. Dita adalah siswa. Maka …,logical,pilihan,Dita wajib mengikuti ujian,Dita boleh tidak ikut,Dita belum tentu ikut,Dita pengawas ujian,,,A,1,,,,standar
+"Lanjutkan deret: 100, 50, 25, …",logical,pilihan,10,"12,5",15,20,,,B,1,,,,standar
+Jika P maka Q. Ternyata Q salah. Maka …,logical,pilihan,P benar,P salah,P dan Q benar,Tidak dapat disimpulkan,,,B,1,,,,standar
+"Lanjutkan deret bilangan prima: 2, 3, 5, 7, 11, …",logical,pilihan,12,13,14,15,,,B,1,,,,standar
+KIRI : KANAN = ATAS : …,logical,pilihan,Bawah,Depan,Samping,Tengah,,,A,1,,,,standar
+"A lebih tua dari B, B lebih tua dari C. Siapa yang paling muda?",logical,pilihan,A,B,C,Tidak dapat ditentukan,,,C,1,,,,standar
+"Jika hari ini Senin, maka 3 hari setelah lusa adalah …",logical,pilihan,Kamis,Jumat,Sabtu,Minggu,,,A,1,,,,banding
+"Deret 2, 6, 18, 54, … Berapa suku berikutnya?",logical,isian,,,,,,,,1,162,persis,,standar
+"Jika 1+4=5, 2+5=12, 3+6=21, maka 4+7=… (pola a+b = a×b+a)",logical,isian,,,,,,,,1,32,persis,,standar
+"Berapa banyak susunan 3 huruf berbeda dari {A, B, C}?",logical,isian,,,,,,,,1,6,persis,,standar
+"Jika hari ini Rabu, 10 hari lagi hari apa? (1=Senin … 7=Minggu)",logical,isian,,,,,,,,1,6,persis,,standar
+"Lanjutkan deret huruf: B, D, F, H, … (tulis satu huruf)",logical,isian,,,,,,,,1,J,persis,,standar
+"A lebih tua dari B, B lebih tua dari C. Siapa paling tua? (tulis hurufnya)",logical,isian,,,,,,,,1,A,persis,,standar
+Tulis 'benar' bila valid: Semua kucing adalah hewan. Tom adalah kucing. Maka Tom adalah hewan.,logical,isian,,,,,,,,1,benar,persis,,standar
+Tulis satu kata penghubung sebab-akibat (mis. karena).,logical,isian,,,,,,,,1,karena|sebab|akibat,kata,,standar
+Saya suka memecahkan teka-teki logika.,logical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya cepat menemukan pola pada deret atau data.,logical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya senang menyusun argumen yang runtut.,logical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya suka menganalisis sebab dan akibat suatu kejadian.,logical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+"Jika kubus dibuka menjadi jaring-jaring, berapa banyak persegi yang terbentuk?",spatial,pilihan,4,5,6,8,,,C,1,,,,standar
+Huruf 'b' diputar 180° akan tampak seperti huruf …,spatial,pilihan,d,p,q,b,,,C,1,,,,standar
+Kamu menghadap utara lalu berbalik 90° ke kanan. Sekarang menghadap …,spatial,pilihan,Timur,Barat,Selatan,Utara,,,A,1,,,,standar
+Berapa banyak sisi pada limas segi empat?,spatial,pilihan,4,5,6,8,,,B,1,,,,standar
+"Kertas dilipat dua kali lalu dilubangi sekali di tengah. Saat dibuka, ada berapa lubang?",spatial,pilihan,1,2,4,8,,,C,1,,,,standar
+Huruf yang tampak sama saat dicerminkan pada cermin datar adalah …,spatial,pilihan,A,B,C,F,,,A,1,,,,standar
+Kubus 2×2×2 terdiri dari berapa kubus kecil?,spatial,pilihan,4,6,8,12,,,C,1,,,,standar
+Dari titik A berjalan 3 langkah ke utara lalu 4 langkah ke timur. Jarak lurus dari A …,spatial,pilihan,4,5,6,7,,,B,1,,,,standar
+Berapa jumlah rusuk pada balok?,spatial,pilihan,6,8,12,16,,,C,1,,,,standar
+Sudut terkecil antara jarum jam dan menit pada pukul 15.00 adalah …,spatial,pilihan,30°,60°,90°,120°,,,C,1,,,,standar
+Kamu menghadap barat lalu berbalik 180°. Sekarang menghadap …,spatial,pilihan,Timur,Utara,Selatan,Barat,,,A,1,,,,standar
+Berapa jumlah titik sudut pada kubus?,spatial,pilihan,6,8,10,12,,,B,1,,,,banding
+Berapa banyak rusuk pada prisma segitiga?,spatial,isian,,,,,,,,1,9,persis,,standar
+Berapa derajat sudut terkecil jarum jam pada pukul 03.00?,spatial,isian,,,,,,,,1,90,persis,,standar
+Kubus dengan panjang sisi 3 cm memiliki volume berapa cm³?,spatial,isian,,,,,,,,1,27,persis,,standar
+Berapa banyak diagonal sisi pada persegi panjang?,spatial,isian,,,,,,,,1,2,persis,,standar
+Huruf apa yang terbentuk bila 'p' diputar 180 derajat?,spatial,isian,,,,,,,,1,d,persis,,standar
+"Menghadap utara lalu berputar 90° searah jarum jam, kini menghadap?",spatial,isian,,,,,,,,1,timur,persis,,standar
+Tulis jumlah sisi pada limas segi enam.,spatial,isian,,,,,,,,1,^7$,pola,,standar
+Tulis satu bangun ruang yang memiliki 6 sisi berbentuk persegi.,spatial,isian,,,,,,,,1,kubus|kubik,kata,,standar
+Saya mudah membayangkan bentuk benda dalam tiga dimensi.,spatial,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya suka menggambar denah atau sketsa ruang.,spatial,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya cepat memahami peta dan arah mata angin.,spatial,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya senang merakit atau menyusun benda.,spatial,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Manakah pasangan angka yang SAMA?,clerical,pilihan,8291 – 8291,4712 – 4721,9063 – 9036,5580 – 5508,,,A,1,,,,standar
+Manakah pasangan kode yang SAMA?,clerical,pilihan,KLM-092,KLM-029,KLM-902,KLM-290,,,A,1,,,,standar
+"Dari deret 3412, 3421, 3412, 3412 — manakah yang berbeda?",clerical,pilihan,Yang pertama,Yang kedua,Yang ketiga,Yang keempat,,,B,1,,,,standar
+Manakah yang BUKAN bilangan genap?,clerical,pilihan,14,27,32,48,,,B,1,,,,standar
+"Jika A=1, B=2, C=3, maka E = …",clerical,pilihan,4,5,6,7,,,B,1,,,,standar
+"Berapa banyak angka 7 pada deret: 7, 17, 27, 37, 47?",clerical,pilihan,3,4,5,6,,,C,1,,,,standar
+Manakah bilangan yang paling kecil?,clerical,pilihan,1.021,1.012,1.201,1.120,,,B,1,,,,standar
+Manakah tanggal yang SAMA?,clerical,pilihan,12/08/2026 – 12/08/2026,12/08/2026 – 21/08/2026,12/08/2026 – 12/08/2062,12/08/2026 – 12/18/2026,,,A,1,,,,standar
+"Pada kata 'KATA', berapa jumlah huruf 'a'?",clerical,pilihan,1,2,3,4,,,B,1,,,,standar
+"Pada kata 'MaKaN', berapa jumlah huruf kapital?",clerical,pilihan,1,2,3,4,,,C,1,,,,standar
+Manakah yang berbeda tanda?,clerical,pilihan,808,880,808,808,,,B,1,,,,standar
+Manakah urutan abjad yang benar?,clerical,pilihan,"B, D, A, C","D, C, B, A","A, B, C, D","C, A, D, B",,,C,1,,,,banding
+Tulis ulang kode ini tanpa spasi: 'MX 4471',clerical,isian,,,,,,,,1,MX4471,persis,,standar
+Berapa jumlah huruf 'i' pada kata INISIATIF?,clerical,isian,,,,,,,,1,4,persis,,standar
+Berapa jumlah angka pada bilangan 1.234.567 (tanpa titik)?,clerical,isian,,,,,,,,1,7,persis,,standar
+"Berapa banyak angka ganjil dari: 3, 8, 11, 14, 17, 20?",clerical,isian,,,,,,,,1,3,persis,,standar
+Berapa karakter pada 'A1-B2-C3' (termasuk tanda hubung)?,clerical,isian,,,,,,,,1,8,persis,,standar
+Tulis 4 digit kode pos berawalan 60.,clerical,isian,,,,,,,,1,^60\d{2}$,pola,,standar
+Tulis bilangan 3 digit yang sama dibaca dari kiri dan kanan (mis. 121).,clerical,isian,,,,,,,,1,^([0-9])\1\1$,pola,,standar
+Sebutkan satu warna yang diawali huruf 'm'.,clerical,isian,,,,,,,,1,merah|maroon|magenta,kata,,standar
+Saya teliti dalam memeriksa detail pekerjaan.,clerical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya cepat menemukan salah ketik atau angka yang berbeda.,clerical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+"Saya suka pekerjaan yang rapi, teratur, dan berulang.",clerical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji
+Saya cepat membandingkan dua daftar data.,clerical,skala,Sangat tidak suka,Tidak suka,Netral,Suka,Sangat suka,,,1,,,,emoji

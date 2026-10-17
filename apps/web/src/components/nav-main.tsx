@@ -3,6 +3,7 @@
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Fragment } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -29,6 +30,8 @@ export function NavMain({
     items?: {
       title: string;
       url: string;
+      /** judul grup kecil di dalam submenu (mis. "Konten & Soal") */
+      section?: string;
     }[];
   }[];
 }) {
@@ -60,6 +63,11 @@ export function NavMain({
           const isAnySubItemActive = item.items?.some(
             (sub) => pathname === sub.url || pathname.startsWith(`${sub.url}/`),
           );
+          /* Hanya sub-item dengan URL PALING spesifik yang di-highlight, supaya path induk
+             (mis. /admin/assessment) tidak ikut terlihat aktif saat berada di sub-halamannya. */
+          const activeSubUrl = item.items
+            ?.filter((sub) => pathname === sub.url || pathname.startsWith(`${sub.url}/`))
+            .sort((a, b) => b.url.length - a.url.length)[0]?.url;
 
           return (
             <Collapsible
@@ -78,14 +86,31 @@ export function NavMain({
                   />
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {item.items?.map((subItem) => {
-                        const isSubActive = pathname === subItem.url || pathname.startsWith(`${subItem.url}/`);
+                      {item.items?.map((subItem, idx) => {
+                        const isSubActive = subItem.url === activeSubUrl;
+                        // Judul grup hanya dicetak saat berubah dari item sebelumnya
+                        const prevSection = item.items?.[idx - 1]?.section;
+                        const showSection = !!subItem.section && subItem.section !== prevSection;
                         return (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton href={subItem.url} isActive={isSubActive}>
-                              <span>{subItem.title}</span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
+                          <Fragment key={subItem.title}>
+                            {showSection && (
+                              <li
+                                data-testid={`nav-section-${subItem.section?.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                                className="mt-2 px-2 pb-0.5 font-bold font-manrope text-[9px] text-sidebar-foreground/45 uppercase tracking-wider first:mt-0"
+                              >
+                                {subItem.section}
+                              </li>
+                            )}
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton
+                                href={subItem.url}
+                                isActive={isSubActive}
+                                data-testid={`nav-${subItem.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                              >
+                                <span>{subItem.title}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          </Fragment>
                         );
                       })}
                     </SidebarMenuSub>

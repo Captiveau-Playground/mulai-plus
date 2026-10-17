@@ -1,6 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { MaintenanceGate } from "@/components/dashboard/maintenance-gate";
 import DashboardFooter from "@/components/dashboard-footer";
 import DashboardHeader from "@/components/dashboard-header";
 import { FeedbackProvider } from "@/components/feedback-provider";
@@ -9,7 +11,6 @@ import { StudentSidebar } from "@/components/student-sidebar";
 import { PageState } from "@/components/ui/page-state";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { useAuthorizePage } from "@/lib/auth-client";
-import { MaintenanceGate } from "@/components/dashboard/maintenance-gate";
 
 function StudentDashboardContent({ children }: { children: React.ReactNode }) {
   const { setOpenMobile } = useSidebar();
@@ -17,10 +18,21 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
   // Asisten: area chat mengisi sisa tinggi viewport (scroll di dalam chat),
   // tapi header/footer dashboard & tombol toggle sidebar TETAP ada (konsisten dgn page lain).
   const fullVh = pathname.startsWith("/dashboard/student/assistant");
+  // TEST (take/*): MODE UJIAN IMERSIF — sidebar (Test/Hasil/Karir/History), header & footer disembunyikan
+  // → fokus penuh mengerjakan soal; navigasi kembali normal setelah selesai/keluar.
+  const isTest = pathname.startsWith("/dashboard/student/assessment/take/");
 
   const handleNavigate = () => {
     setOpenMobile(false);
   };
+
+  if (isTest) {
+    return (
+      <div className="min-h-screen bg-bg-light">
+        <MaintenanceGate>{children}</MaintenanceGate>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -42,9 +54,16 @@ export default function StudentDashboardLayout({ children }: { children: React.R
   const { isAuthorized, isLoading } = useAuthorizePage({
     student_dashboard: ["access"],
   });
+  // Preview oleh admin/staff: rute tes siswa dibuka dengan ?preview=1 dan tidak butuh izin
+  // dashboard siswa. Hanya membuka SHELL-nya — data tetap dijaga izin di sisi API
+  // (preview memakai studentId sintetis & hanya memanggil prosedur publik discover.*).
+  const [preview, setPreview] = useState(false);
+  useEffect(() => {
+    setPreview(new URLSearchParams(window.location.search).get("preview") === "1");
+  }, []);
 
   return (
-    <PageState fillViewport isLoading={isLoading} isAuthorized={isAuthorized}>
+    <PageState fillViewport isLoading={preview ? false : isLoading} isAuthorized={preview ? true : isAuthorized}>
       <SidebarProvider
         style={
           {

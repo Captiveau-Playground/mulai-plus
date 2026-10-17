@@ -8,11 +8,13 @@ import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
 import { aiRouter } from "./ai";
 import { auditRouter } from "./audit";
 import { articlesRouter, authorsRouter, categoriesRouter, mediaRouter, newsletterRouter, tagsRouter } from "./cms";
+import { discoverAdminRouter, discoverRouter } from "./discover";
 import { emailAdminRouter } from "./email-admin";
 import { esignRouter } from "./esign";
 import { feedbackRouter } from "./feedback";
 import { hermesRouter } from "./hermes";
 import { lmsRouter } from "./lms";
+import { maintenanceRouter } from "./maintenance";
 import { newsletterAdminRouter } from "./newsletter-admin";
 import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
@@ -20,7 +22,6 @@ import { pddiktiRouter } from "./pddikti";
 import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
 import { settingsRouter } from "./settings";
-import { maintenanceRouter } from "./maintenance";
 import { shortLinksRouter } from "./short-links";
 import { testimonialsRouter } from "./testimonials";
 import { tmbAdminRouter, tmbRouter } from "./tmb";
@@ -38,6 +39,8 @@ export const appRouter = {
   user: userRouter,
   settings: settingsRouter,
   maintenance: maintenanceRouter,
+  discover: discoverRouter,
+  discoverAdmin: discoverAdminRouter,
   features: {
     get: publicProcedure.handler(async () => {
       const nowMs = Date.now();

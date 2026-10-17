@@ -3,7 +3,9 @@ import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // "standalone" dipakai untuk deploy (Docker/Cloudflare). Untuk e2e lokal kita pakai
+  // `next build && next start` (lebih cepat & SSR-nya normal) → set NEXT_STANDALONE=0.
+  output: process.env.NEXT_STANDALONE === "0" ? undefined : "standalone",
   typedRoutes: true,
   reactCompiler: true,
   images: {

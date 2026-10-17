@@ -66,6 +66,7 @@ export default function TmbResultPage() {
   const recommendations = data?.recommendations ?? [];
   const majors = useMemo(() => recommendations.filter((r: any) => r.type === "major"), [recommendations]);
   const careers = useMemo(() => recommendations.filter((r: any) => r.type === "career"), [recommendations]);
+  const hasRecos = majors.length > 0;
 
   if (isLoading) {
     return (
@@ -93,6 +94,35 @@ export default function TmbResultPage() {
     );
   }
 
+  // Jika hasil belum lengkap (belum ada rekomendasi): tampilkan CTA tes, bukan seksi-seksi kosong
+  if (!hasRecos) {
+    const minatDone = (result.hollandCode ?? "").length > 0;
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-col items-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
+          <span className="text-5xl">🧭</span>
+          <h1 className="mt-4 font-bold font-bricolage text-gray-900 text-xl">Hasil belum lengkap</h1>
+          <p className="mt-2 max-w-sm font-manrope text-gray-500 text-sm">
+            {minatDone
+              ? "Tes Minat sudah selesai. Selesaikan Tes Bakat agar jurusan, karier, dan peta rekomendasi muncul."
+              : "Kerjakan Tes Minat & Tes Bakat untuk mendapatkan rekomendasi jurusan dan karier."}
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <Link href="/dashboard/student/assessment/take/TALENT" className="rounded-2xl bg-brand-orange px-6 py-3.5 font-bold font-bricolage text-white shadow-md transition-all hover:brightness-110">
+              {minatDone ? "Lanjut Tes Bakat →" : "Mulai Tes Bakat →"}
+            </Link>
+            {!minatDone && (
+              <Link href="/dashboard/student/assessment/take/DISCOVER" className="rounded-2xl border border-gray-200 px-6 py-3.5 font-manrope font-semibold text-gray-600 hover:bg-gray-50">
+                Mulai Tes Minat →
+              </Link>
+            )}
+          </div>
+          <p className="mt-4 font-manrope text-[11px] text-gray-400">Hasil akan muncul otomatis setelah kedua tes selesai. Progresmu tersimpan.</p>
+        </div>
+      </div>
+    );
+  }
+
   const hollandScores = (result.hollandScores ?? {}) as Record<string, number>;
   const abilityRaw = (result.abilityScores ?? {}) as {
     scores?: Record<string, { correct: number; total: number }>;
@@ -100,6 +130,7 @@ export default function TmbResultPage() {
   };
   const abilityScores = abilityRaw.scores ?? {};
   const abilityLevels = abilityRaw.levels ?? {};
+  const noAbility = Object.keys(abilityScores).length === 0;
   const hollandCode = result.hollandCode ?? "---";
   const differentiation = result.differentiation ?? "moderate";
 
@@ -218,6 +249,15 @@ export default function TmbResultPage() {
           className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
         >
           <h2 className="font-bold font-bricolage text-gray-900">Profil Kemampuan</h2>
+          {noAbility ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
+              <p className="font-manrope text-sm text-gray-600">
+                Profil kemampuan belum tersedia — selesaikan <b>Tes Bakat</b> dulu, biar rekomendasi jurusan &amp; karir diperkuat.
+              </p>
+              <Link href="/dashboard/student/assessment/take/TALENT" className="mt-3 inline-flex items-center rounded-xl bg-brand-navy px-4 py-2 font-manrope text-xs font-semibold text-white hover:brightness-110">Lanjut Tes Bakat →</Link>
+            </div>
+          ) : (
+          <>
           <div className="mt-4 space-y-3">
             {Object.entries(ABILITY_INFO).map(([key, info]) => {
               const s = abilityScores[key] ?? { correct: 0, total: 0 };
@@ -254,7 +294,7 @@ export default function TmbResultPage() {
             })}
           </div>
 
-          {Object.entries(ABILITY_INFO).some(([key]) => (abilityLevels[key] ?? "medium") === "low") && (
+          {!noAbility && Object.entries(ABILITY_INFO).some(([key]) => (abilityLevels[key] ?? "medium") === "low") && (
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <p className="font-bold font-bricolage text-gray-900 text-sm">
@@ -274,8 +314,44 @@ export default function TmbResultPage() {
               </Link>
             </div>
           )}
+          </>
+          )}
         </motion.div>
       </div>
+
+      {/* Catatan Pengerjaan — dimensi yg waktu habis / paling lama (coaching + CTA) */}
+      {(() => {
+        const stats: any[] = ((result as any).dimStats ?? []) as any[];
+        if (!stats.length) return null;
+        const timedOut = stats.filter((d) => d.timedOut || (d.answered ?? 0) < (d.total ?? 0));
+        const slowest = [...stats].filter((d) => (d.seconds ?? 0) > 60 && !timedOut.includes(d)).sort((a, b) => (b.seconds ?? 0) - (a.seconds ?? 0))[0];
+        if (!timedOut.length && !slowest) return null;
+        return (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-amber-200 bg-amber-50/60 p-5">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⏱</span>
+              <h2 className="font-bold font-bricolage text-gray-900">Catatan Pengerjaan</h2>
+            </div>
+            <ul className="mt-3 space-y-1.5">
+              {timedOut.map((d) => (
+                <li key={d.dimId} className="font-manrope text-sm text-amber-800">
+                  • <b>{d.name}</b>: waktu habis — {d.answered}/{d.total} soal terjawab (bagian ini belum selesai).
+                </li>
+              ))}
+              {slowest && (
+                <li className="font-manrope text-sm text-amber-800">
+                  • <b>{slowest.name}</b>: kamu paling lama di bagian ini ({slowest.seconds}s). Coba lebih tenang & cepat.
+                </li>
+              )}
+            </ul>
+            <p className="mt-3 font-manrope text-xs text-amber-700">Jawabanmu tetap tersimpan. Ulangi tes untuk hasil yang lebih akurat.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/dashboard/student/assessment/take/TALENT" className="rounded-xl bg-brand-orange px-5 py-2.5 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110">Ulangi Tes Bakat →</Link>
+              <Link href="/dashboard/student/assessment/take/DISCOVER" className="rounded-xl border border-amber-300 bg-white px-5 py-2.5 font-manrope text-sm font-semibold text-amber-800 hover:bg-amber-50">Ulangi Tes Minat</Link>
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* AI Summary */}
       <motion.div

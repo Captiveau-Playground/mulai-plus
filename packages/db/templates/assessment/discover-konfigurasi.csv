@@ -1,0 +1,14 @@
+key,value,catatan
+total_dim,6,"R, I, A, S, E, C"
+result_dim_count,3,tampilkan 3 kode minat teratas (mis. S-I-A)
+min_q_per_dim,4,syarat minimal soal per dimensi saat rilis
+scoring_method,sum,sum | average | weighted
+scoring_mode,free_text,free_text (skor manual/opsi) | likert (poin linier)
+randomize_q,FALSE,WAJIB false kalau pakai Pembagian bagian = Per dimensi
+randomize_a,FALSE,WAJIB false untuk soal skala (urutan opsinya bermakna)
+allow_pause,TRUE,siswa boleh berhenti & melanjutkan
+section_mode,by_dimension,none | by_dimension | chunk:10 | chunk:20
+timer_enabled,FALSE,true bila ingin membatasi waktu
+timer_scope,none,none | dimension (durasi per dimensi) | question (detik per soal)
+time_per_question,60,dipakai hanya bila timer_scope = question
+lang,id,id | en

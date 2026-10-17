@@ -103,6 +103,7 @@ export const viewport = {
   maximumScale: 5,
   userScalable: true,
   themeColor: "#ffffff",
+  viewportFit: "cover", // penting: env(safe-area-inset-*) aktif utk bottom bar iPhone/Android
 };
 
 export default function RootLayout({

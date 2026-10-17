@@ -12,7 +12,9 @@
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
     "test:e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
     "test:e2e:headed": "playwright test --config=e2e/playwright.config.ts --headed",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "build:e2e": "NEXT_STANDALONE=0 NEXT_PUBLIC_SERVER_URL=http://localhost:3000 NEXT_PUBLIC_APP_URL=http://localhost:3001 NEXT_PUBLIC_ANALYTICS_DISABLED=1 NEXT_PUBLIC_GA_MEASUREMENT_ID= NEXT_PUBLIC_CLARITY_ID= NEXT_PUBLIC_AMPLITUDE_API_KEY= next build",
+    "start:e2e": "next start --port 3001"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.117",
@@ -63,6 +65,7 @@
     "@tiptap/pm": "^2.17.0",
     "@tiptap/react": "^2.17.0",
     "@tiptap/starter-kit": "^2.17.0",
+    "@types/katex": "^0.16.8",
     "ai": "7.0.114",
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "catalog:",
@@ -78,6 +81,7 @@
     "framer-motion": "^12.38.0",
     "goey-toast": "^0.5.0",
     "jspdf": "^4.2.1",
+    "katex": "^0.18.10",
     "lucide-react": "^0.546.0",
     "mind-elixir": "^5.15.1",
     "motion": "^13.4.3",

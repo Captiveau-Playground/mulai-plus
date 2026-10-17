@@ -17,7 +17,7 @@ export function ChatbotProvider() {
   const pathname = usePathname();
 
   if (!features.chatbot_enabled) return null;
-  if (pathname.includes("/assistant") || pathname.includes("/trial/chat")) return null;
+  if (pathname.includes("/assistant") || pathname.includes("/trial/chat") || pathname.startsWith("/dashboard/student/assessment/take/")) return null;
 
   return <ChatbotWidget />;
 }
