@@ -11,7 +11,6 @@ import { StudentSidebar } from "@/components/student-sidebar";
 import { PageState } from "@/components/ui/page-state";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { useAuthorizePage } from "@/lib/auth-client";
-import { MaintenanceGate } from "@/components/dashboard/maintenance-gate";
 
 function StudentDashboardContent({ children }: { children: React.ReactNode }) {
   const { setOpenMobile } = useSidebar();

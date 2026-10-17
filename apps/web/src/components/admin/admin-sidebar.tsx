@@ -10,7 +10,6 @@ import {
   Fingerprint,
   Key,
   LayoutDashboard,
-  Wrench,
   Link as LinkIcon,
   Settings2,
   Shield,
