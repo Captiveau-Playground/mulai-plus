@@ -27,6 +27,9 @@ function DashboardContent() {
       router.push("/mentor");
     } else if (role === "program_manager") {
       router.push("/program-manager");
+    } else if (role === "school_admin" || role === "school_viewer") {
+      // Admin sekolah / guru BK (B2B) → dashboard sekolah
+      router.push("/sekolah" as Parameters<typeof router.push>[0]);
     } else {
       router.push("/dashboard/student");
     }

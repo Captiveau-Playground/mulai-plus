@@ -1,0 +1,148 @@
+// E2E B2B — M1b (UI): pendaftaran sekolah lewat form → verifikasi di admin MULAI+
+// → dashboard sekolah aktif (peserta, progres, sebaran Holland).
+//
+// Prasyarat data: sekolah legacy + batch + 1 peserta selesai (dengan hasil Holland)
+// disemai lebih dulu supaya dashboard benar-benar menampilkan angka, bukan 0.
+import { expect, type Page, test } from "@playwright/test";
+import { createAdminPage } from "../../../helpers/admin-ui";
+import { signUpViaApi } from "../../../helpers/api";
+import { E2E_PASSWORD, loginUI } from "../../../helpers/auth";
+import { closeDb, q } from "../../../helpers/db";
+
+const PREFIX = "e2e-portal";
+const orgIds: string[] = [];
+const schoolIds: string[] = [];
+const emails: string[] = [];
+const resultIds: string[] = [];
+let admin: Page;
+
+const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
+
+async function applicant(page: Page, tag: string) {
+  const email = `${PREFIX}-${tag}-${Date.now()}-${suffix().toLowerCase()}@test.local`;
+  const created = await signUpViaApi("PIC Sekolah", email, E2E_PASSWORD);
+  expect(created.ok, `signup gagal: ${created.raw}`).toBe(true);
+  emails.push(email);
+  await loginUI(page, email, E2E_PASSWORD);
+  return { email, userId: created.userId as string };
+}
+
+/** Sekolah legacy + batch + 1 peserta yang sudah selesai (punya hasil Holland). */
+async function seedSchoolWithResult(name: string) {
+  const schoolId = rid();
+  const batchId = rid();
+  const resId = rid();
+  schoolIds.push(schoolId);
+  resultIds.push(resId);
+  await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
+  await q(
+    "insert into tmb_batches (id, school_id, name, class_name, major, invite_code) values ($1,$2,'XII IPA 1','XII IPA 1','IPA',$3)",
+    [batchId, schoolId, `E2E${suffix()}`],
+  );
+  await q(
+    `insert into tmb_assessment_results (id, user_id, holland_code, holland_scores)
+     values ($1,$2,'RIA','{"R":5,"I":3,"A":2}'::jsonb)`,
+    [resId, `e2e-portal-siswa-${suffix()}`],
+  );
+  await q(
+    "insert into tmb_batch_students (id, batch_id, name, status, result_id) values ($1,$2,'Siswa Portal','completed',$3)",
+    [rid(), batchId, resId],
+  );
+  return { schoolId, batchId };
+}
+
+const orgIdByName = async (name: string) => {
+  const rows = await q<{ id: string }>("select id from assessment_orgs where name = $1 order by created_at desc", [
+    name,
+  ]);
+  return rows[0]?.id ?? null;
+};
+
+/** Isi formulir pendaftaran sekolah. */
+async function isiForm(page: Page, nama: string) {
+  await page.goto("/sekolah/daftar", { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("school-register-form")).toBeVisible({ timeout: 20000 });
+  await page.getByTestId("school-name").fill(nama);
+  await page.getByTestId("school-city").fill("Bandung");
+  await page.getByTestId("school-npsn").fill("12345678");
+  await page.getByTestId("school-pic-name").fill("Budi Santoso");
+  await page.getByTestId("school-pic-position").fill("Guru BK");
+  await page.getByTestId("school-pic-phone").fill("081234567890");
+  await page.getByTestId("school-submit").click();
+  await expect(page.getByTestId("school-register-done")).toBeVisible({ timeout: 20000 });
+}
+
+test.beforeAll(async ({ browser }) => {
+  admin = await createAdminPage(browser);
+});
+
+test.afterAll(async () => {
+  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
+  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
+  if (resultIds.length)
+    await q("delete from tmb_assessment_results where id = any($1)", [resultIds]).catch(() => undefined);
+  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
+  await closeDb();
+  await admin.context().close();
+});
+
+test.describe("B2B · portal sekolah (UI)", () => {
+  test("daftar dari form → menunggu → admin setujui → dashboard aktif + routing role", async ({ page }) => {
+    test.setTimeout(240000);
+    const nama = `SMA Portal ${suffix()}`;
+    await seedSchoolWithResult(nama);
+    await applicant(page, "approve");
+
+    // 1) daftar lewat form
+    await isiForm(page, nama);
+    const orgId = await orgIdByName(nama);
+    expect(orgId, "organisasi harus terbentuk").toBeTruthy();
+    orgIds.push(orgId!);
+
+    // 2) dashboard sekolah masih terkunci
+    await page.goto("/sekolah", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("school-status-title")).toContainText(/Menunggu persetujuan/i, { timeout: 20000 });
+
+    // 3) admin menyetujui dari antrean verifikasi
+    await admin.goto("/admin/assessment/schools/pendaftaran", { waitUntil: "domcontentloaded" });
+    const row = admin.locator('[data-testid="pending-row"]').filter({ hasText: nama });
+    await expect(row).toBeVisible({ timeout: 30000 });
+    await admin.getByTestId(`approve-${orgId}`).click();
+    await expect(row).toBeHidden({ timeout: 30000 });
+
+    // 4) dashboard sekolah terbuka dengan angka dari data yang sudah ada
+    await page.goto("/sekolah", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("school-dashboard")).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId("stat-peserta")).toContainText("1");
+    await expect(page.getByTestId("stat-selesai")).toContainText("1");
+    await expect(page.getByTestId("holland-R")).toContainText("1");
+    await expect(page.getByTestId("batch-row")).toContainText("XII IPA 1");
+
+    // 5) routing role: /dashboard mengarah ke area sekolah
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/sekolah$/, { timeout: 20000 });
+  });
+
+  test("tolak pendaftaran dari admin menampilkan catatan di dashboard sekolah", async ({ page }) => {
+    test.setTimeout(240000);
+    const nama = `SMK Ditolak ${suffix()}`;
+    await applicant(page, "reject");
+    await isiForm(page, nama);
+    const orgId = await orgIdByName(nama);
+    expect(orgId).toBeTruthy();
+    orgIds.push(orgId!);
+
+    await admin.goto("/admin/assessment/schools/pendaftaran", { waitUntil: "domcontentloaded" });
+    const row = admin.locator('[data-testid="pending-row"]').filter({ hasText: nama });
+    await expect(row).toBeVisible({ timeout: 30000 });
+    await admin.getByTestId(`reject-${orgId}`).click();
+    await admin.getByTestId("reject-note").fill("Data sekolah belum bisa diverifikasi");
+    await admin.getByTestId("reject-confirm").click();
+    await expect(row).toBeHidden({ timeout: 30000 });
+
+    await page.goto("/sekolah", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("school-status-title")).toContainText(/belum disetujui/i, { timeout: 20000 });
+    await expect(page.getByTestId("school-note")).toContainText("belum bisa diverifikasi");
+  });
+});
