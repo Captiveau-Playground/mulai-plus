@@ -217,7 +217,7 @@ export const assessmentSessions = pgTable(
     studentId: text("student_id").notNull(), // user_id atau guest-<batch_student_id>
     versionId: varchar("version_id", { length: 24 })
       .notNull()
-      .references(() => assessmentVersions.id),
+      .references(() => assessmentVersions.id, { onDelete: "cascade" }),
     status: assessmentSessionStatusEnum("status").notNull().default("in_progress"),
     currentDimensionId: varchar("current_dimension_id", { length: 24 }),
     configJson: jsonb("config_json"), // snapshot config utk anti-tamper

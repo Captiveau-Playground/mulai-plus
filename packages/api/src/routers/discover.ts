@@ -1234,35 +1234,15 @@ async function contentOfVersion(versionId: string) {
   return { questions, options: opts, textConfigs: cfg, dimensions: dims, scales };
 }
 
+/**
+ * Hapus tes beserta seluruh turunannya.
+ *
+ * Cukup SATU query: `assessment_versions` → `assessment_dimensions` / `questions` /
+ * `assessment_sections` / `assessment_sessions` semuanya ON DELETE CASCADE, dan
+ * jawaban/hasil/skor ikut cascade dari sesi. Versi lama (hapus per baris) menembus
+ * batas subrequest/CPU Worker untuk tes besar (120 soal) sehingga gagal.
+ */
 async function removeAssessment(assessmentId: string) {
-  const vs = await db.query.assessmentVersions.findMany({
-    where: eq(schema.assessmentVersions.assessmentId, assessmentId),
-  });
-  for (const v of vs) {
-    const sessions = await db.query.assessmentSessions.findMany({
-      where: eq(schema.assessmentSessions.versionId, v.id),
-    });
-    for (const s of sessions) {
-      await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, s.id));
-      await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, s.id));
-      await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, s.id));
-      await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, s.id));
-    }
-    const qs = await db.query.questions.findMany({ where: eq(schema.questions.versionId, v.id) });
-    for (const q of qs) {
-      await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, q.id));
-      await db.delete(schema.textInputConfigs).where(eq(schema.textInputConfigs.questionId, q.id));
-    }
-    await db.delete(schema.questions).where(eq(schema.questions.versionId, v.id));
-    await db.delete(schema.assessmentSections).where(eq(schema.assessmentSections.versionId, v.id));
-    const dims = await db.query.assessmentDimensions.findMany({
-      where: eq(schema.assessmentDimensions.versionId, v.id),
-    });
-    for (const d of dims)
-      await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, d.id));
-    await db.delete(schema.assessmentDimensions).where(eq(schema.assessmentDimensions.versionId, v.id));
-    await db.delete(schema.assessmentVersions).where(eq(schema.assessmentVersions.id, v.id));
-  }
   await db.delete(schema.assessments).where(eq(schema.assessments.id, assessmentId));
 }
 
@@ -2056,9 +2036,95 @@ export const discoverAdminRouter = {
       return { ok: true };
     }),
 
-  /** Hapus tes beserta seluruh versi & sesi (cascade). */
-  remove: adminProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
-    await removeAssessment(input.id);
-    return { ok: true };
+  /** Ringkasan dampak sebelum menghapus (dipakai tangga konfirmasi di UI). */
+  inspect: adminProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
+    const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, input.id) });
+    if (!a) return { ok: false, error: "not_found" } as const;
+    const vs = await db.query.assessmentVersions.findMany({
+      where: eq(schema.assessmentVersions.assessmentId, a.id),
+      columns: { id: true, status: true, versionNumber: true },
+    });
+    const vIds = vs.map((v) => v.id);
+    const qs = vIds.length
+      ? await db.query.questions.findMany({ where: inArray(schema.questions.versionId, vIds), columns: { id: true } })
+      : [];
+    const sessions = vIds.length
+      ? await db.query.assessmentSessions.findMany({
+          where: inArray(schema.assessmentSessions.versionId, vIds),
+          columns: { id: true },
+        })
+      : [];
+    return {
+      ok: true,
+      assessment: { id: a.id, code: a.code, name: a.name, family: a.family },
+      counts: {
+        versions: vs.length,
+        liveVersions: vs.filter((v) => v.status === "live").length,
+        questions: qs.length,
+        sessions: sessions.length,
+      },
+      // Tes minat/bakat resmi tidak boleh dihapus dari UI (dipakai kanal B2C/B2B).
+      protectedFamily: a.family === "minat" || a.family === "bakat",
+    } as const;
   }),
+
+  /** Unduh backup JSON lengkap (WAJIB sebelum menghapus permanen). */
+  exportAssessment: adminProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
+    const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, input.id) });
+    if (!a) return { ok: false, error: "not_found" } as const;
+    const versions = await db.query.assessmentVersions.findMany({
+      where: eq(schema.assessmentVersions.assessmentId, a.id),
+    });
+    const vIds = versions.map((v) => v.id);
+    const dims = vIds.length
+      ? await db.query.assessmentDimensions.findMany({ where: inArray(schema.assessmentDimensions.versionId, vIds) })
+      : [];
+    const sections = vIds.length
+      ? await db.query.assessmentSections.findMany({ where: inArray(schema.assessmentSections.versionId, vIds) })
+      : [];
+    const questions = vIds.length
+      ? await db.query.questions.findMany({ where: inArray(schema.questions.versionId, vIds) })
+      : [];
+    const qIds = questions.map((q) => q.id);
+    const options = qIds.length
+      ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.questionId, qIds) })
+      : [];
+    const textConfigs = qIds.length
+      ? await db.query.textInputConfigs.findMany({ where: inArray(schema.textInputConfigs.questionId, qIds) })
+      : [];
+    const instructions = dims.length
+      ? await db.query.dimensionInstructions.findMany({
+          where: inArray(
+            schema.dimensionInstructions.dimensionId,
+            dims.map((d) => d.id),
+          ),
+        })
+      : [];
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    return {
+      ok: true,
+      filename: `${a.code}-backup-${stamp}.json`,
+      json: { exportedAt: new Date().toISOString(), assessment: a, versions, dimensions: dims, sections, instructions, questions, options, textConfigs },
+    } as const;
+  }),
+
+  /**
+   * Hapus PERMANEN. Tangga pengamanannya:
+   *  1) UI menampilkan ringkasan dampak (`inspect`) + wajib unduh backup (`exportAssessment`).
+   *  2) Admin wajib MENGETIK kode tes (`confirmCode`) — dicek di server.
+   *  3) Tes minat/bakat resmi tidak bisa dihapus (`protected_assessment`).
+   * Penghapusan sendiri = satu query dengan cascade (cepat, tidak kena limit Worker).
+   */
+  remove: adminProcedure
+    .input(z.object({ id: z.string().min(1), confirmCode: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, input.id) });
+      if (!a) return { ok: false, error: "not_found" } as const;
+      if (a.family === "minat" || a.family === "bakat") return { ok: false, error: "protected_assessment" } as const;
+      if (input.confirmCode.trim().toUpperCase() !== a.code.toUpperCase()) {
+        return { ok: false, error: "confirm_mismatch" } as const;
+      }
+      await removeAssessment(a.id);
+      return { ok: true, deleted: { code: a.code, name: a.name } } as const;
+    }),
 };
