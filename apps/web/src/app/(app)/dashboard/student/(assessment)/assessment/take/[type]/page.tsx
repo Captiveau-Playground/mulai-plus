@@ -82,6 +82,8 @@ function EngineWrapper({
     sections: number;
     secData?: any[];
     instr?: any[];
+    sectionMode?: string;
+    allowPause?: boolean;
   } | null>(null);
   const [errg, setErrg] = useState("");
   const { data: authSession } = authClient.useSession();
@@ -111,6 +113,11 @@ function EngineWrapper({
           sections: (cfg.runSections ?? []).length,
           secData: cfg.sections ?? [],
           instr: cfg.instructions ?? [],
+          // Config yang HARUS dihormati UI siswa:
+          //  section_mode "none" → tanpa layar per bagian/instruksi (soal mengalir terus)
+          //  allow_pause false   → tombol jeda disembunyikan
+          sectionMode: (cfg.config?.section_mode ?? "none") as string,
+          allowPause: cfg.config?.allow_pause !== false,
         });
       } catch (e: any) {
         setErrg(e?.message ?? "Gagal memuat tes");
@@ -142,6 +149,8 @@ function EngineWrapper({
         sections: ready.sections,
         secData: ready.secData ?? [],
         instr: ready.instr ?? [],
+        sectionMode: ready.sectionMode,
+        allowPause: ready.allowPause,
       }}
     />
   );
@@ -161,9 +170,16 @@ function LegacyWizard({
     sections?: number;
     secData?: any[];
     instr?: any[];
+    sectionMode?: string;
+    allowPause?: boolean;
   };
 }) {
   const isEngine = !!engine;
+  // Mode bagian: hanya bila config section_mode ≠ "none". Saat "none", soal mengalir tanpa
+  // layar "Bagian X dari Y" + instruksi dimensi (permintaan analis untuk Tes Minat), dan tetap
+  // bisa diatur dari editor (Aturan tes → pembagian bagian).
+  const sectionsOn = isEngine && (engine?.sectionMode ?? "none") !== "none";
+  const allowPause = engine?.allowPause !== false;
   const engineQs = engine?.questions ?? [];
   const [orderIds, setOrderIds] = useState<string[] | null>(null); // urutan soal sesi (ujian) — stabil utk resume & grid
   const [answeredSet, setAnsweredSet] = useState<Set<string> | null>(null);
@@ -416,6 +432,11 @@ function LegacyWizard({
   const totalDims = new Set(effQs.map((q: any) => q.dimensionId).filter(Boolean)).size || engine?.sections || 1;
   // Segmen top-bar per bagian (Duolingo-style) — dari urutan sesi
   const secs = useMemo(() => {
+    // Tanpa pembagian bagian → satu segmen saja (top-bar tidak menampilkan "bagian")
+    if (!sectionsOn) {
+      const ids = (effQs as any[]).map((q) => q?.id).filter(Boolean);
+      return [{ name: "Tes", ids, count: ids.length }];
+    }
     const out: { name: string; ids: string[]; count: number }[] = [];
     for (const q of effQs as any[]) {
       const nm = dimNameOf(q?.dimensionId);
@@ -426,7 +447,7 @@ function LegacyWizard({
       } else out.push({ name: nm, ids: [q.id], count: 1 });
     }
     return out;
-  }, [effQs]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effQs, sectionsOn]); // eslint-disable-line react-hooks/exhaustive-deps
   const curSec = Math.min(dimIdxOf(eq), Math.max(0, secs.length - 1));
   const curSecName = secs[curSec]?.name ?? "";
   // Suara mikro (tanpa berkas) — WebAudio
@@ -456,8 +477,8 @@ function LegacyWizard({
       void engineFinish();
       return;
     }
-    // Tampilkan opening dimensi saat mulai (termasuk RESUME di dimensi mana pun) & di tiap perpindahan dimensi
-    if (lastDimRef.current !== q.dimensionId && (secStart || secOverlay || !lastDimRef.current)) {
+    // Layar pembuka bagian hanya bila pembagian bagian aktif (section_mode ≠ none)
+    if (sectionsOn && lastDimRef.current !== q.dimensionId && (secStart || secOverlay || !lastDimRef.current)) {
       setSecStart({ eqIndex: i, name: dimNameOf(q.dimensionId) });
       lastDimRef.current = q.dimensionId;
       return;
@@ -469,7 +490,7 @@ function LegacyWizard({
     const cur = effQs[i - 1];
     const nxt = effQs[i];
     const dimName = (id: string) => engine?.dims?.find((d: any) => d.id === id)?.name ?? "Bagian berikutnya";
-    if (nxt && cur && cur.dimensionId !== nxt.dimensionId) {
+    if (sectionsOn && nxt && cur && cur.dimensionId !== nxt.dimensionId) {
       setSecDone((c) => c + 1);
       setSecStreak((c) => c + 1);
       setXpFlash(10);
@@ -1160,7 +1181,7 @@ function LegacyWizard({
         >
           Mulai bagian →
         </button>
-        {dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
+        {allowPause && dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
           <button
             onClick={() => router.push("/dashboard/student/assessment")}
             className="mt-3 font-manrope font-semibold text-gray-400 text-sm underline-offset-2 hover:text-gray-600 hover:underline"
@@ -1207,7 +1228,7 @@ function LegacyWizard({
             >
               Lanjut ke {secOverlay.nextName} →
             </button>
-            {dimIdxOf(secOverlay.nextEq) < totalDims && (
+            {allowPause && dimIdxOf(secOverlay.nextEq) < totalDims && (
               <button
                 onClick={() => router.push("/dashboard/student/assessment")}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
@@ -1643,9 +1664,7 @@ function LegacyWizard({
                     autoComplete="off"
                     autoFocus
                     value={etv}
-                    onChange={(e) =>
-                      setEtv(_textNumeric ? e.target.value.replace(/[^\d.,/-]/g, "") : e.target.value)
-                    }
+                    onChange={(e) => setEtv(_textNumeric ? e.target.value.replace(/[^\d.,/-]/g, "") : e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") engineSubmitText();
                     }}

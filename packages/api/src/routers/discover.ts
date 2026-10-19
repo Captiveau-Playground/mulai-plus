@@ -176,8 +176,7 @@ export const discoverRouter = {
           t.questionId,
           {
             evaluationType: t.evaluationType,
-            inputMode:
-              t.evaluationType === "numeric_tolerance" || isNumericKey(t.answerKey) ? "numeric" : "text",
+            inputMode: t.evaluationType === "numeric_tolerance" || isNumericKey(t.answerKey) ? "numeric" : "text",
           },
         ]),
       );
@@ -231,21 +230,17 @@ export const discoverRouter = {
         columns: { id: true, durationSeconds: true, dimensionId: true, displayOrder: true },
         orderBy: asc(schema.questions.displayOrder),
       });
-      // section_mode = by_dimension → soal DIKELOMPOKKAN per dimensi mengikuti urutan dimensi.
-      // Tanpa ini, urutan soal yang berselang (hasil impor/manual) bikin bagian berlabel salah
-      // (mis. "Bagian Numerik" isinya soal verbal) karena rentang bagian dihitung dari urutan soal.
+      // section_mode = by_dimension → soal DIKELOMPOKKAN per dimensi, mengikuti URUTAN BLOK SOAL
+      // (displayOrder soal pertama tiap dimensi), BUKAN urutan baris dimensi. Dengan begitu urutan
+      // yang disusun penulis tetap dihormati (mis. RIASEC: R→I→A→S→E→C) walau baris dimensinya
+      // tidak sengaja urut alfabet/E,C,R,…
       let seqQs: typeof baseQs = baseQs;
       if ((c?.section_mode ?? "none") === "by_dimension") {
-        const dimRows = await db.query.assessmentDimensions.findMany({
-          where: eq(schema.assessmentDimensions.versionId, v.id),
-          columns: { id: true },
-          orderBy: asc(schema.assessmentDimensions.displayOrder),
-        });
-        const rank = new Map(dimRows.map((d, i) => [d.id, i]));
+        const dimFirst = new Map<string, number>();
+        for (const q of baseQs) if (!dimFirst.has(q.dimensionId)) dimFirst.set(q.dimensionId, q.displayOrder);
+        const rank = (id: string) => dimFirst.get(id) ?? Number.MAX_SAFE_INTEGER;
         seqQs = [...baseQs].sort(
-          (a, b) =>
-            (rank.get(a.dimensionId) ?? Number.MAX_SAFE_INTEGER) -
-              (rank.get(b.dimensionId) ?? Number.MAX_SAFE_INTEGER) || a.displayOrder - b.displayOrder,
+          (a, b) => rank(a.dimensionId) - rank(b.dimensionId) || a.displayOrder - b.displayOrder,
         );
       }
       const orderedQs = c?.randomize_q === true ? shuffle(seqQs) : seqQs;

@@ -291,7 +291,7 @@ async function main() {
     console.log(`✅ ${inserted} soal (skala emoji 😡🙁😐🙂😍) ditambahkan ke DISCOVER v${target.versionNumber}.`);
 
   // Konfigurasi versi yang cocok untuk bank item ini.
-  // - section_mode "by_dimension": 6 bagian = 6 dimensi, tiap bagian punya layar instruksi sendiri
+  // - section_mode "none": 120 soal mengalir (tanpa layar per bagian) — permintaan analis untuk minat
   //   (butuh urutan soal mengelompok per dimensi → displayOrder di atas sudah begitu).
   // - randomize_q OFF: kalau soal diacak, batas bagian jadi tidak valid.
   // - randomize_a OFF: opsinya adalah tangga emoji 😡→😍 yang urutannya bermakna; kalau diacak
@@ -304,8 +304,8 @@ async function main() {
     scoring_method: "sum",
     randomize_q: false,
     randomize_a: false,
-    allow_pause: true,
-    section_mode: "by_dimension",
+    allow_pause: false, // minat: tidak ada jeda (permintaan analis)
+    section_mode: "none", // minat: soal mengalir tanpa layar bagian/instruksi per dimensi
   };
   const current = (target.configJson ?? {}) as Record<string, unknown>;
   const changed = Object.entries(RECOMMENDED).filter(([k, v]) => current[k] !== v);
