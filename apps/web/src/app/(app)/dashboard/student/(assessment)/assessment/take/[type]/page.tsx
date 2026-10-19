@@ -626,7 +626,9 @@ function LegacyWizard({
     if (jumpRef.current === key) return;
     jumpRef.current = key;
     const dl = deadlineOf(eq);
-    setTimerNotice(dl.kind === "dimension" ? "⏱ Waktu bagian habis — lanjut otomatis" : "⏱ Waktu soal habis — lanjut otomatis");
+    setTimerNotice(
+      dl.kind === "dimension" ? "⏱ Waktu bagian habis — lanjut otomatis" : "⏱ Waktu soal habis — lanjut otomatis",
+    );
     timerJump(target);
     setTimeout(() => setTimerNotice(null), 3000);
   }, [timerSt, eq]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1658,7 +1660,14 @@ function LegacyWizard({
 
           {/* Options — bila ada gambar jawaban: 2×2 grid & isi sisa tinggi (tanpa scroll) */}
           <div
-            className={`min-h-0 flex-1 overflow-y-auto ${_imgOptions ? "grid grid-cols-2 content-center gap-3 pb-4" : "mt-2 space-y-3"}`}
+            data-testid="options-area"
+            // (#2) Opsi tidak boleh terpotong di layar kecil:
+            //  · `content-start` (bukan center) supaya konten yang lebih tinggi dari wadah tidak terpotong di ATAS
+            //  · padding bawah + safe-area supaya opsi terakhir tidak menempel/tertutup bar bawah
+            //  · `overscroll-contain` agar scroll tidak "bocor" ke halaman
+            className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+              _imgOptions ? "grid grid-cols-2 content-start gap-3" : "mt-2 space-y-3"
+            } pb-[max(1rem,env(safe-area-inset-bottom))]`}
           >
             {isEngine && (effQs[eq] as any)?.questionType === "text_input" ? (
               <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
