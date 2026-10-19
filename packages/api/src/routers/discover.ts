@@ -272,64 +272,73 @@ export const discoverRouter = {
       };
 
       const buildTimer = async (): Promise<Record<string, unknown> | undefined> => {
-        if (c?.timer_enabled === true) {
-          const scope = c?.timer_scope ?? "none";
-          const now = Date.now();
-          // DIMENSION: deadline kumulatif per dimensi (urutan bagian)
-          // QUESTION: deadline kumulatif per soal (mengikuti URUTAN SESI, termasuk hasil acak)
-          const dimsR = await db.query.assessmentDimensions.findMany({
-            where: eq(schema.assessmentDimensions.versionId, v.id),
-            columns: { id: true, durationSeconds: true },
-            orderBy: asc(schema.assessmentDimensions.displayOrder),
-          });
-          const qsR = orderedQs;
-          const perQ = Number(c?.time_per_question ?? 30);
-          const dims: { id: string; startISO: string; endISO: string; durationSeconds: number }[] = [];
-          let cursor = now;
-          for (const d of dimsR) {
-            const dur = scope === "dimension" ? Number(d.durationSeconds ?? 0) : 0;
-            if (scope === "dimension" && dur > 0) {
-              dims.push({
-                id: d.id,
-                startISO: new Date(cursor).toISOString(),
-                endISO: new Date(cursor + dur * 1000).toISOString(),
-                durationSeconds: dur,
-              });
-              cursor += dur * 1000;
-            }
-          }
-          const qEnds: string[] = [];
-          if (scope === "question") {
-            // Durasi PER SOAL (custom); fallback ke time_per_question/30s bila kosong
-            let qc = now;
-            for (const qq of qsR) {
-              const secs = Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ;
-              qc += secs * 1000;
-              qEnds.push(new Date(qc).toISOString());
-            }
-          }
-          const qPerMs = perQ * 1000;
-          const totalSeconds =
-            scope === "dimension"
-              ? dims.reduce((a, d) => a + d.durationSeconds, 0)
-              : scope === "question"
-                ? qsR.reduce(
-                    (a, qq) => a + (Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ),
-                    0,
-                  )
-                : 0;
-          const expectedEndISO = new Date(now + (totalSeconds > 0 ? totalSeconds * 1000 : 0)).toISOString();
-          return {
-            scope,
-            totalSeconds,
-            serverNowISO: new Date(now).toISOString(),
-            expectedEndISO,
-            dims,
-            qEnds,
-            qPerMs,
-          };
+        if (c?.timer_enabled !== true) return undefined;
+        // (#7) Scope timer bisa DIATUR PER DIMENSI: kolom `assessment_dimensions.timer_scope`
+        // (null = ikut config global). Dimensi ber-scope "dimension" memakai durasi
+        // `durationSeconds`; dimensi ber-scope "question" memakai `questions.durationSeconds`
+        // (fallback `time_per_question`).
+        const globalScope = (c?.timer_scope ?? "none") as "none" | "dimension" | "question";
+        const now = Date.now();
+        const dimsR = await db.query.assessmentDimensions.findMany({
+          where: eq(schema.assessmentDimensions.versionId, v.id),
+          columns: { id: true, durationSeconds: true, timerScope: true },
+          orderBy: asc(schema.assessmentDimensions.displayOrder),
+        });
+        const qsR = orderedQs;
+        const perQ = Number(c?.time_per_question ?? 30);
+        const eff = new Map<string, "none" | "dimension" | "question">();
+        for (const d of dimsR) {
+          const raw = (d.timerScope ?? "").trim();
+          const sc = raw === "none" || raw === "dimension" || raw === "question" ? raw : globalScope;
+          eff.set(d.id, sc === "dimension" || sc === "question" ? sc : "none");
         }
-        return undefined;
+
+        const dims: { id: string; startISO: string; endISO: string; durationSeconds: number }[] = [];
+        let cursor = now;
+        for (const d of dimsR) {
+          const dur = eff.get(d.id) === "dimension" ? Number(d.durationSeconds ?? 0) : 0;
+          if (dur > 0) {
+            dims.push({
+              id: d.id,
+              startISO: new Date(cursor).toISOString(),
+              endISO: new Date(cursor + dur * 1000).toISOString(),
+              durationSeconds: dur,
+            });
+            cursor += dur * 1000;
+          }
+        }
+
+        // qEnds sejajar dengan urutan sesi; string kosong = soal itu tidak ber-scope soal.
+        const qEnds: string[] = [];
+        let qCursor = now;
+        let qSeconds = 0;
+        let hasQuestionScope = false;
+        for (const qq of qsR) {
+          if (eff.get(qq.dimensionId) === "question") {
+            hasQuestionScope = true;
+            const secs = Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ;
+            qCursor += secs * 1000;
+            qSeconds += secs;
+            qEnds.push(new Date(qCursor).toISOString());
+          } else {
+            qEnds.push("");
+          }
+        }
+
+        const dimSeconds = dims.reduce((a, d) => a + d.durationSeconds, 0);
+        const totalSeconds = dimSeconds + qSeconds;
+        const activeScopes = new Set([...eff.values()].filter((x) => x !== "none"));
+        return {
+          scope: globalScope, // kompatibilitas klien lama
+          dimScopes: Object.fromEntries(eff), // scope efektif per dimensi
+          mixed: activeScopes.size > 1,
+          totalSeconds,
+          serverNowISO: new Date(now).toISOString(),
+          expectedEndISO: new Date(now + totalSeconds * 1000).toISOString(),
+          dims,
+          qEnds: hasQuestionScope ? qEnds : [],
+          qPerMs: perQ * 1000,
+        };
       };
       const serverTimer = await buildTimer();
       const optionOrder = await buildOptionOrder();
@@ -425,19 +434,10 @@ export const discoverRouter = {
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
-      // ANTI-TAMPER: tolak submit bila deadline (dimensi ATAU soal) sudah lewat di server
+      // ANTI-TAMPER: tolak submit bila deadline (per SOAL atau per DIMENSI) sudah lewat.
+      // Timer bisa beda scope per dimensi (#7), jadi tidak lagi bergantung `timer.scope` global.
       const timerS = ((sess.configJson as any)?.timer ?? null) as any;
-      if (timerS && timerS.scope === "dimension" && (timerS.dims ?? []).length) {
-        const qFor = await db.query.questions.findFirst({
-          where: eq(schema.questions.id, input.questionId),
-          columns: { id: true, dimensionId: true },
-        });
-        const dEnd = (timerS.dims as any[]).find((d: any) => d.id === qFor?.dimensionId)?.endISO;
-        if (dEnd && Date.now() >= new Date(dEnd).getTime()) {
-          return { ok: false, error: "dimension_timed_out" } as const;
-        }
-      }
-      if (timerS && timerS.scope === "question" && (timerS.qEnds ?? []).length) {
+      if (timerS) {
         const order: string[] = (timerS.questionOrderIds ??
           (sess.configJson as any)?.questionOrderIds ??
           []) as string[];
@@ -445,6 +445,16 @@ export const discoverRouter = {
         const qEnd = qi >= 0 ? (timerS.qEnds as string[])[qi] : undefined;
         if (qEnd && Date.now() >= new Date(qEnd).getTime()) {
           return { ok: false, error: "question_timed_out" } as const;
+        }
+        if (!qEnd && (timerS.dims ?? []).length) {
+          const qFor = await db.query.questions.findFirst({
+            where: eq(schema.questions.id, input.questionId),
+            columns: { id: true, dimensionId: true },
+          });
+          const dEnd = (timerS.dims as any[]).find((d: any) => d.id === qFor?.dimensionId)?.endISO;
+          if (dEnd && Date.now() >= new Date(dEnd).getTime()) {
+            return { ok: false, error: "dimension_timed_out" } as const;
+          }
         }
       }
       const opt = await db.query.questionOptions.findFirst({
@@ -989,43 +999,35 @@ export const discoverRouter = {
     });
     if (!sess) return { ok: false, error: "session_not_found" } as const;
     const timer = ((sess.configJson as any)?.timer ?? null) as any;
-    if (!timer || timer.scope === "none") return { ok: true, scope: "none", serverNow: Date.now() } as const;
+    if (!timer) return { ok: true, scope: "none", serverNow: Date.now() } as const;
     const now = Date.now();
-    const scope = timer.scope as string;
-    if (scope === "dimension") {
-      const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map(
-        (d: any) => ({
-          id: d.id,
-          endISO: d.endISO,
-          durationSeconds: Number(d.durationSeconds ?? 0),
-          expired: now >= new Date(d.endISO).getTime(),
-        }),
-      );
-      const active = dims.find((d) => !d.expired);
-      return {
-        ok: true,
-        scope,
-        serverNow: now,
-        dims,
-        activeDimId: active?.id ?? null,
-        timedOut: !active, // semua dimensi habis / sesi timeout
-      } as const;
-    }
-    if (scope === "question") {
-      const qEnds = (timer.qEnds ?? []) as string[];
-      const idx = qEnds.findIndex((iso) => now < new Date(iso).getTime());
-      const qPerMs = Math.max(1000, Number(timer.qPerMs ?? 30000));
-      return {
-        ok: true,
-        scope,
-        serverNow: now,
-        qEnds,
-        qPerMs,
-        activeIndex: idx === -1 ? qEnds.length : idx,
-        timedOut: idx === -1,
-      } as const;
-    }
-    return { ok: true, scope, serverNow: now, timedOut: now >= new Date(timer.expectedEndISO).getTime() } as const;
+    // (#7) Timer bisa beda scope antar dimensi → kirim keduanya; klien menentukan
+    // deadline efektif per soal (qEnds[i] bila ada, kalau tidak deadline dimensinya).
+    const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map(
+      (d: any) => ({
+        id: d.id,
+        endISO: d.endISO,
+        durationSeconds: Number(d.durationSeconds ?? 0),
+        expired: now >= new Date(d.endISO).getTime(),
+      }),
+    );
+    const qEnds: string[] = (timer.qEnds ?? []) as string[];
+    const hasQ = qEnds.some((iso) => !!iso);
+    const activeIndex = qEnds.findIndex((iso) => !!iso && now < new Date(iso).getTime());
+    const anyActive =
+      dims.some((d) => !d.expired) || qEnds.some((iso) => !!iso && now < new Date(iso).getTime()) || (!dims.length && !hasQ);
+    return {
+      ok: true,
+      scope: timer.mixed ? "mixed" : (timer.scope ?? "none"),
+      dimScopes: timer.dimScopes ?? {},
+      serverNow: now,
+      dims,
+      qEnds,
+      qPerMs: Math.max(1000, Number(timer.qPerMs ?? 30000)),
+      activeIndex: activeIndex === -1 ? qEnds.length : activeIndex,
+      activeDimId: dims.find((d) => !d.expired)?.id ?? null,
+      timedOut: !anyActive,
+    } as const;
   }),
 
   /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */
@@ -1920,6 +1922,8 @@ export const discoverAdminRouter = {
           name: z.string().min(1).max(80).optional(),
           code: z.string().min(1).max(20).optional(),
           durationSeconds: z.number().int().min(0).max(3600).optional(),
+          // (#7) scope timer per dimensi; null/"" = ikut config global
+          timerScope: z.enum(["none", "dimension", "question", "inherit"]).optional(),
         }),
       )
       .handler(async ({ input }) => {
@@ -1933,6 +1937,9 @@ export const discoverAdminRouter = {
             ...(input.name ? { name: input.name } : {}),
             ...(input.code ? { code: input.code.toUpperCase() } : {}),
             ...(input.durationSeconds !== undefined ? { durationSeconds: input.durationSeconds } : {}),
+            ...(input.timerScope !== undefined
+              ? { timerScope: input.timerScope === "inherit" ? null : input.timerScope }
+              : {}),
           })
           .where(eq(schema.assessmentDimensions.id, input.dimensionId));
         return { ok: true } as const;

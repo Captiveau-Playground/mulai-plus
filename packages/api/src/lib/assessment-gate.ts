@@ -39,16 +39,19 @@ export async function validatePublish(versionId: string): Promise<{
   if (activeDims.length !== totalDim)
     errors.push(`Dimensi aktif (${activeDims.length}) harus sesuai total_dim (${totalDim}).`);
 
-  // ⚠️ Warnings (tidak memblok publish): timer per-bagian butuh durasi tiap dimensi; pengantar/instrusi disarankan
-  if (cfg.timer_enabled === true && cfg.timer_scope === "dimension") {
-    const noDur = activeDims.filter((d) => !d.durationSeconds || d.durationSeconds <= 0);
+  // ⚠️ Warnings (tidak memblok publish): timer bisa per dimensi (#7).
+  // Scope efektif: override dimensi → fallback config global.
+  const effTimerScope = (d: { timerScope?: string | null }) => {
+    const raw = String(d.timerScope ?? "").trim();
+    if (raw === "none" || raw === "dimension" || raw === "question") return raw;
+    return String(cfg.timer_scope ?? "none");
+  };
+  if (cfg.timer_enabled === true) {
+    const noDur = activeDims.filter((d) => effTimerScope(d) === "dimension" && !(Number(d.durationSeconds ?? 0) > 0));
     if (noDur.length) {
       warnings.push(`Timer per bagian aktif, tapi ${noDur.length} dimensi belum punya durasi (detik).`);
       details.push({ kind: "config", message: `Durasi dimensi belum diisi: ${noDur.map((d) => d.name).join(", ")}` });
     }
-  }
-  if (cfg.timer_enabled === true && cfg.timer_scope === "question" && !(Number(cfg.time_per_question) > 0)) {
-    warnings.push("Timer per soal aktif, tapi 'detik per soal' belum diisi (default 30s).");
   }
 
   const questions = await db.query.questions.findMany({ where: eq(schema.questions.versionId, versionId) });
@@ -66,6 +69,14 @@ export async function validatePublish(versionId: string): Promise<{
       '"Acak urutan soal" aktif bersamaan dengan pembagian bagian — batas tiap bagian jadi tidak menentu. Matikan salah satunya.';
     warnings.push(msg);
     details.push({ kind: "config", message: msg });
+  }
+  if (
+    cfg.timer_enabled === true &&
+    activeDims.some((d) => effTimerScope(d) === "question") &&
+    !(Number(cfg.time_per_question) > 0) &&
+    !activeQs.some((q) => Number(q.durationSeconds ?? 0) > 0)
+  ) {
+    warnings.push("Timer per soal aktif, tapi durasi soal & 'detik per soal' belum diisi (default 30s).");
   }
   const qIds = activeQs.map((q) => q.id);
   const opts = qIds.length

@@ -564,20 +564,28 @@ function LegacyWizard({
   const [, setTick] = useState(0); // re-render tiap detik utk countdown
   const jumpRef = useRef<string>(""); // cegah lompat dobel
 
-  // ⏱ auto-jump saat deadline lewat (dimension/question) + guard
-  const dimExpiredNow = () => {
-    if (timerSt?.scope !== "dimension") return false;
-    const cur = effQs[eq]?.dimensionId;
-    return !!(timerSt.dims ?? []).find((d: any) => d.id === cur)?.expired;
+  // ⏱ Deadline EFEKTIF untuk satu soal — timer bisa beda scope per dimensi (#7):
+  //   · soal ber-scope "question" → qEnds[i]
+  //   · soal di dimensi ber-scope "dimension" → dims[dimId].endISO
+  //   · selain itu → tanpa batas
+  const deadlineOf = (i: number): { kind: "none" | "question" | "dimension"; endISO?: string; totalMs?: number } => {
+    const t: any = timerSt;
+    if (!t?.ok) return { kind: "none" };
+    const qEnd = (t.qEnds ?? [])[i];
+    if (qEnd) return { kind: "question", endISO: qEnd, totalMs: Math.max(1000, Number(t.qPerMs ?? 30000)) };
+    const dimId = effQs[i]?.dimensionId;
+    const d = (t.dims ?? []).find((x: any) => x.id === dimId);
+    if (d?.endISO) return { kind: "dimension", endISO: d.endISO, totalMs: Number(d.durationSeconds ?? 0) * 1000 };
+    return { kind: "none" };
   };
-  const questionExpiredNow = () => {
-    if (timerSt?.scope !== "question") return false;
-    const endIso = (timerSt.qEnds ?? [])[eq];
-    return (
-      !!endIso &&
-      Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now())) >= new Date(endIso).getTime()
-    );
+  const serverNowEst = () =>
+    Number(timerSt?.serverNow ?? Date.now()) + (Date.now() - Number(timerSt?._localAt ?? Date.now()));
+  const timeExpiredNow = () => {
+    const dl = deadlineOf(eq);
+    return dl.kind !== "none" && serverNowEst() >= new Date(dl.endISO as string).getTime();
   };
+  const dimExpiredNow = timeExpiredNow;
+  const questionExpiredNow = timeExpiredNow;
   const timerJump = (target: number) => {
     if (target < 0 || target >= effQs.length) {
       void engineFinish();
@@ -590,36 +598,37 @@ function LegacyWizard({
     engineLoad(target);
   };
   useEffect(() => {
-    if (!isEngine || !timerSt?.ok || timerSt.scope === "none") return;
-    if (timerSt.scope === "dimension") {
-      const expired = new Set((timerSt.dims ?? []).filter((d: any) => d.expired).map((d: any) => d.id));
-      const cur = effQs[eq]?.dimensionId;
-      if (cur && expired.has(cur)) {
-        const target = effQs.findIndex((q: any) => !expired.has(q.dimensionId));
-        const key = `dim:${target}`;
-        if (jumpRef.current !== key) {
-          jumpRef.current = key;
-          setTimerNotice("⏱ Waktu bagian habis — lanjut otomatis");
-          timerJump(target);
-          setTimeout(() => setTimerNotice(null), 3000);
+    if (!isEngine || !timerSt?.ok) return;
+    const nowS = serverNowEst();
+    const expiredAt = (i: number) => {
+      const dl = deadlineOf(i);
+      return dl.kind !== "none" && nowS >= new Date(dl.endISO as string).getTime();
+    };
+    if (!expiredAt(eq)) return; // soal sekarang masih ada waktu
+    // Cari soal berikutnya yang deadlinenya belum lewat (mixed scope: per soal & per bagian)
+    let target = -1;
+    for (let i = eq + 1; i < effQs.length; i++)
+      if (!expiredAt(i)) {
+        target = i;
+        break;
+      }
+    if (target === -1)
+      for (let i = 0; i < effQs.length; i++)
+        if (!expiredAt(i)) {
+          target = i;
+          break;
         }
-      }
-    } else if (timerSt.scope === "question") {
-      const ai = Number(timerSt.activeIndex ?? 0);
-      if (ai >= effQs.length) {
-        void engineFinish();
-        return;
-      }
-      if (ai > eq) {
-        const key = `q:${ai}`;
-        if (jumpRef.current !== key) {
-          jumpRef.current = key;
-          setTimerNotice("⏱ Waktu soal habis — lanjut otomatis");
-          timerJump(ai);
-          setTimeout(() => setTimerNotice(null), 2500);
-        }
-      }
+    if (target === -1) {
+      void engineFinish();
+      return;
     }
+    const key = `exp:${target}`;
+    if (jumpRef.current === key) return;
+    jumpRef.current = key;
+    const dl = deadlineOf(eq);
+    setTimerNotice(dl.kind === "dimension" ? "⏱ Waktu bagian habis — lanjut otomatis" : "⏱ Waktu soal habis — lanjut otomatis");
+    timerJump(target);
+    setTimeout(() => setTimerNotice(null), 3000);
   }, [timerSt, eq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
@@ -1080,11 +1089,14 @@ function LegacyWizard({
             💾 auto-simpan
           </span>
           <span className="rounded-xl bg-sky-50 px-3 py-2 font-bold font-manrope text-sky-700 text-xs shadow-sm">
-            {timerSt?.scope === "dimension"
-              ? `⏱ ${Number(timerSt?.dims?.[0]?.durationSeconds ?? 0)} detik / bagian`
-              : timerSt?.scope === "question"
-                ? `⏱ ${Math.round(Number(timerSt?.qPerMs ?? 0) / 1000)} detik / soal`
-                : "⏱ Tanpa batas waktu"}
+            {(() => {
+              const dimsWithTime = (timerSt?.dims ?? []).length;
+              const hasQ = (timerSt?.qEnds ?? []).some((x: string) => !!x);
+              if (!timerSt?.ok || (!dimsWithTime && !hasQ)) return "⏱ Tanpa batas waktu";
+              if (dimsWithTime && hasQ) return "⏱ Waktu diatur per bagian & per soal";
+              if (dimsWithTime) return `⏱ ${Number(timerSt?.dims?.[0]?.durationSeconds ?? 0)} detik / bagian`;
+              return `⏱ ${Math.round(Number(timerSt?.qPerMs ?? 0) / 1000)} detik / soal`;
+            })()}
           </span>
         </div>
         {(engine.secData ?? []).length > 0 && (
@@ -1288,15 +1300,11 @@ function LegacyWizard({
     : Date.now();
   let _remainMs: number | null = null;
   let _ratio = 1;
-  if (timerSt?.ok && timerSt.scope && timerSt.scope !== "none") {
-    if (timerSt.scope === "dimension") {
-      const d = (timerSt.dims ?? []).find((x: any) => !x.expired);
-      _remainMs = d ? new Date(d.endISO).getTime() - _nowServer : 0;
-      _ratio = d?.durationSeconds ? Math.max(0, _remainMs) / (Number(d.durationSeconds) * 1000) : 0;
-    } else if (timerSt.scope === "question") {
-      const endIso = (timerSt.qEnds ?? [])[eq];
-      _remainMs = endIso ? new Date(endIso).getTime() - _nowServer : null;
-      _ratio = _remainMs != null ? Math.max(0, _remainMs) / (Number(timerSt.qPerMs) || 30000) : 1;
+  {
+    const dl = deadlineOf(eq);
+    if (timerSt?.ok && dl.kind !== "none") {
+      _remainMs = new Date(dl.endISO as string).getTime() - _nowServer;
+      _ratio = dl.totalMs && dl.totalMs > 0 ? Math.max(0, _remainMs) / dl.totalMs : 0;
     }
   }
   const _tone: "none" | "normal" | "warn" | "crit" =

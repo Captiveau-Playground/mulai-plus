@@ -465,6 +465,7 @@ export default function AssessmentDetailPage() {
             onDimsAdd={(code, name) => void withDraft((vid) => mDimsAdd.mutateAsync({ versionId: vid, code, name }))}
             onDimsDelete={(id) => void mDimsDel.mutateAsync({ dimensionId: id })}
             onDimsUpdate={(id, durationSeconds) => void mDimsUpd.mutateAsync({ dimensionId: id, durationSeconds })}
+            onDimTimerScope={(id, timerScope) => void mDimsUpd.mutateAsync({ dimensionId: id, timerScope })}
             onSectionSave={(s) =>
               void withDraft((vid) =>
                 mSecSave.mutateAsync({

@@ -108,6 +108,8 @@ export const assessmentDimensions = pgTable("assessment_dimensions", {
   description: text("description"),
   iconUrl: text("icon_url"),
   durationSeconds: integer("duration_seconds"),
+  /** Timer per dimensi: null = ikut config global | "none" | "dimension" | "question" */
+  timerScope: text("timer_scope"),
   displayOrder: integer("display_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
