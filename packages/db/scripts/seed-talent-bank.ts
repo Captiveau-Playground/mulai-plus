@@ -89,6 +89,10 @@ async function main() {
         shortName: code.slice(0, 3).toUpperCase(),
         displayOrder: i,
         isActive: true,
+        // (#7) timer per dimensi: tiap bagian punya durasi sendiri (default 120 detik).
+        // Admin bisa mengubah scope-nya per dimensi dari editor.
+        durationSeconds: 120,
+        timerScope: "dimension",
       });
     }
   }

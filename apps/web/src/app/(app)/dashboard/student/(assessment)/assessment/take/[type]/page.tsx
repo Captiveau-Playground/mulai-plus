@@ -82,6 +82,8 @@ function EngineWrapper({
     sections: number;
     secData?: any[];
     instr?: any[];
+    sectionMode?: string;
+    allowPause?: boolean;
   } | null>(null);
   const [errg, setErrg] = useState("");
   const { data: authSession } = authClient.useSession();
@@ -111,6 +113,11 @@ function EngineWrapper({
           sections: (cfg.runSections ?? []).length,
           secData: cfg.sections ?? [],
           instr: cfg.instructions ?? [],
+          // Config yang HARUS dihormati UI siswa:
+          //  section_mode "none" → tanpa layar per bagian/instruksi (soal mengalir terus)
+          //  allow_pause false   → tombol jeda disembunyikan
+          sectionMode: (cfg.config?.section_mode ?? "none") as string,
+          allowPause: cfg.config?.allow_pause !== false,
         });
       } catch (e: any) {
         setErrg(e?.message ?? "Gagal memuat tes");
@@ -142,6 +149,8 @@ function EngineWrapper({
         sections: ready.sections,
         secData: ready.secData ?? [],
         instr: ready.instr ?? [],
+        sectionMode: ready.sectionMode,
+        allowPause: ready.allowPause,
       }}
     />
   );
@@ -161,9 +170,16 @@ function LegacyWizard({
     sections?: number;
     secData?: any[];
     instr?: any[];
+    sectionMode?: string;
+    allowPause?: boolean;
   };
 }) {
   const isEngine = !!engine;
+  // Mode bagian: hanya bila config section_mode ≠ "none". Saat "none", soal mengalir tanpa
+  // layar "Bagian X dari Y" + instruksi dimensi (permintaan analis untuk Tes Minat), dan tetap
+  // bisa diatur dari editor (Aturan tes → pembagian bagian).
+  const sectionsOn = isEngine && (engine?.sectionMode ?? "none") !== "none";
+  const allowPause = engine?.allowPause !== false;
   const engineQs = engine?.questions ?? [];
   const [orderIds, setOrderIds] = useState<string[] | null>(null); // urutan soal sesi (ujian) — stabil utk resume & grid
   const [answeredSet, setAnsweredSet] = useState<Set<string> | null>(null);
@@ -416,6 +432,11 @@ function LegacyWizard({
   const totalDims = new Set(effQs.map((q: any) => q.dimensionId).filter(Boolean)).size || engine?.sections || 1;
   // Segmen top-bar per bagian (Duolingo-style) — dari urutan sesi
   const secs = useMemo(() => {
+    // Tanpa pembagian bagian → satu segmen saja (top-bar tidak menampilkan "bagian")
+    if (!sectionsOn) {
+      const ids = (effQs as any[]).map((q) => q?.id).filter(Boolean);
+      return [{ name: "Tes", ids, count: ids.length }];
+    }
     const out: { name: string; ids: string[]; count: number }[] = [];
     for (const q of effQs as any[]) {
       const nm = dimNameOf(q?.dimensionId);
@@ -426,7 +447,7 @@ function LegacyWizard({
       } else out.push({ name: nm, ids: [q.id], count: 1 });
     }
     return out;
-  }, [effQs]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effQs, sectionsOn]); // eslint-disable-line react-hooks/exhaustive-deps
   const curSec = Math.min(dimIdxOf(eq), Math.max(0, secs.length - 1));
   const curSecName = secs[curSec]?.name ?? "";
   // Suara mikro (tanpa berkas) — WebAudio
@@ -456,8 +477,8 @@ function LegacyWizard({
       void engineFinish();
       return;
     }
-    // Tampilkan opening dimensi saat mulai (termasuk RESUME di dimensi mana pun) & di tiap perpindahan dimensi
-    if (lastDimRef.current !== q.dimensionId && (secStart || secOverlay || !lastDimRef.current)) {
+    // Layar pembuka bagian hanya bila pembagian bagian aktif (section_mode ≠ none)
+    if (sectionsOn && lastDimRef.current !== q.dimensionId && (secStart || secOverlay || !lastDimRef.current)) {
       setSecStart({ eqIndex: i, name: dimNameOf(q.dimensionId) });
       lastDimRef.current = q.dimensionId;
       return;
@@ -469,7 +490,7 @@ function LegacyWizard({
     const cur = effQs[i - 1];
     const nxt = effQs[i];
     const dimName = (id: string) => engine?.dims?.find((d: any) => d.id === id)?.name ?? "Bagian berikutnya";
-    if (nxt && cur && cur.dimensionId !== nxt.dimensionId) {
+    if (sectionsOn && nxt && cur && cur.dimensionId !== nxt.dimensionId) {
       setSecDone((c) => c + 1);
       setSecStreak((c) => c + 1);
       setXpFlash(10);
@@ -543,20 +564,28 @@ function LegacyWizard({
   const [, setTick] = useState(0); // re-render tiap detik utk countdown
   const jumpRef = useRef<string>(""); // cegah lompat dobel
 
-  // ⏱ auto-jump saat deadline lewat (dimension/question) + guard
-  const dimExpiredNow = () => {
-    if (timerSt?.scope !== "dimension") return false;
-    const cur = effQs[eq]?.dimensionId;
-    return !!(timerSt.dims ?? []).find((d: any) => d.id === cur)?.expired;
+  // ⏱ Deadline EFEKTIF untuk satu soal — timer bisa beda scope per dimensi (#7):
+  //   · soal ber-scope "question" → qEnds[i]
+  //   · soal di dimensi ber-scope "dimension" → dims[dimId].endISO
+  //   · selain itu → tanpa batas
+  const deadlineOf = (i: number): { kind: "none" | "question" | "dimension"; endISO?: string; totalMs?: number } => {
+    const t: any = timerSt;
+    if (!t?.ok) return { kind: "none" };
+    const qEnd = (t.qEnds ?? [])[i];
+    if (qEnd) return { kind: "question", endISO: qEnd, totalMs: Math.max(1000, Number(t.qPerMs ?? 30000)) };
+    const dimId = effQs[i]?.dimensionId;
+    const d = (t.dims ?? []).find((x: any) => x.id === dimId);
+    if (d?.endISO) return { kind: "dimension", endISO: d.endISO, totalMs: Number(d.durationSeconds ?? 0) * 1000 };
+    return { kind: "none" };
   };
-  const questionExpiredNow = () => {
-    if (timerSt?.scope !== "question") return false;
-    const endIso = (timerSt.qEnds ?? [])[eq];
-    return (
-      !!endIso &&
-      Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now())) >= new Date(endIso).getTime()
-    );
+  const serverNowEst = () =>
+    Number(timerSt?.serverNow ?? Date.now()) + (Date.now() - Number(timerSt?._localAt ?? Date.now()));
+  const timeExpiredNow = () => {
+    const dl = deadlineOf(eq);
+    return dl.kind !== "none" && serverNowEst() >= new Date(dl.endISO as string).getTime();
   };
+  const dimExpiredNow = timeExpiredNow;
+  const questionExpiredNow = timeExpiredNow;
   const timerJump = (target: number) => {
     if (target < 0 || target >= effQs.length) {
       void engineFinish();
@@ -569,36 +598,39 @@ function LegacyWizard({
     engineLoad(target);
   };
   useEffect(() => {
-    if (!isEngine || !timerSt?.ok || timerSt.scope === "none") return;
-    if (timerSt.scope === "dimension") {
-      const expired = new Set((timerSt.dims ?? []).filter((d: any) => d.expired).map((d: any) => d.id));
-      const cur = effQs[eq]?.dimensionId;
-      if (cur && expired.has(cur)) {
-        const target = effQs.findIndex((q: any) => !expired.has(q.dimensionId));
-        const key = `dim:${target}`;
-        if (jumpRef.current !== key) {
-          jumpRef.current = key;
-          setTimerNotice("⏱ Waktu bagian habis — lanjut otomatis");
-          timerJump(target);
-          setTimeout(() => setTimerNotice(null), 3000);
+    if (!isEngine || !timerSt?.ok) return;
+    const nowS = serverNowEst();
+    const expiredAt = (i: number) => {
+      const dl = deadlineOf(i);
+      return dl.kind !== "none" && nowS >= new Date(dl.endISO as string).getTime();
+    };
+    if (!expiredAt(eq)) return; // soal sekarang masih ada waktu
+    // Cari soal berikutnya yang deadlinenya belum lewat (mixed scope: per soal & per bagian)
+    let target = -1;
+    for (let i = eq + 1; i < effQs.length; i++)
+      if (!expiredAt(i)) {
+        target = i;
+        break;
+      }
+    if (target === -1)
+      for (let i = 0; i < effQs.length; i++)
+        if (!expiredAt(i)) {
+          target = i;
+          break;
         }
-      }
-    } else if (timerSt.scope === "question") {
-      const ai = Number(timerSt.activeIndex ?? 0);
-      if (ai >= effQs.length) {
-        void engineFinish();
-        return;
-      }
-      if (ai > eq) {
-        const key = `q:${ai}`;
-        if (jumpRef.current !== key) {
-          jumpRef.current = key;
-          setTimerNotice("⏱ Waktu soal habis — lanjut otomatis");
-          timerJump(ai);
-          setTimeout(() => setTimerNotice(null), 2500);
-        }
-      }
+    if (target === -1) {
+      void engineFinish();
+      return;
     }
+    const key = `exp:${target}`;
+    if (jumpRef.current === key) return;
+    jumpRef.current = key;
+    const dl = deadlineOf(eq);
+    setTimerNotice(
+      dl.kind === "dimension" ? "⏱ Waktu bagian habis — lanjut otomatis" : "⏱ Waktu soal habis — lanjut otomatis",
+    );
+    timerJump(target);
+    setTimeout(() => setTimerNotice(null), 3000);
   }, [timerSt, eq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
@@ -1059,11 +1091,14 @@ function LegacyWizard({
             💾 auto-simpan
           </span>
           <span className="rounded-xl bg-sky-50 px-3 py-2 font-bold font-manrope text-sky-700 text-xs shadow-sm">
-            {timerSt?.scope === "dimension"
-              ? `⏱ ${Number(timerSt?.dims?.[0]?.durationSeconds ?? 0)} detik / bagian`
-              : timerSt?.scope === "question"
-                ? `⏱ ${Math.round(Number(timerSt?.qPerMs ?? 0) / 1000)} detik / soal`
-                : "⏱ Tanpa batas waktu"}
+            {(() => {
+              const dimsWithTime = (timerSt?.dims ?? []).length;
+              const hasQ = (timerSt?.qEnds ?? []).some((x: string) => !!x);
+              if (!timerSt?.ok || (!dimsWithTime && !hasQ)) return "⏱ Tanpa batas waktu";
+              if (dimsWithTime && hasQ) return "⏱ Waktu diatur per bagian & per soal";
+              if (dimsWithTime) return `⏱ ${Number(timerSt?.dims?.[0]?.durationSeconds ?? 0)} detik / bagian`;
+              return `⏱ ${Math.round(Number(timerSt?.qPerMs ?? 0) / 1000)} detik / soal`;
+            })()}
           </span>
         </div>
         {(engine.secData ?? []).length > 0 && (
@@ -1160,7 +1195,7 @@ function LegacyWizard({
         >
           Mulai bagian →
         </button>
-        {dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
+        {allowPause && dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
           <button
             onClick={() => router.push("/dashboard/student/assessment")}
             className="mt-3 font-manrope font-semibold text-gray-400 text-sm underline-offset-2 hover:text-gray-600 hover:underline"
@@ -1207,7 +1242,7 @@ function LegacyWizard({
             >
               Lanjut ke {secOverlay.nextName} →
             </button>
-            {dimIdxOf(secOverlay.nextEq) < totalDims && (
+            {allowPause && dimIdxOf(secOverlay.nextEq) < totalDims && (
               <button
                 onClick={() => router.push("/dashboard/student/assessment")}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
@@ -1267,15 +1302,11 @@ function LegacyWizard({
     : Date.now();
   let _remainMs: number | null = null;
   let _ratio = 1;
-  if (timerSt?.ok && timerSt.scope && timerSt.scope !== "none") {
-    if (timerSt.scope === "dimension") {
-      const d = (timerSt.dims ?? []).find((x: any) => !x.expired);
-      _remainMs = d ? new Date(d.endISO).getTime() - _nowServer : 0;
-      _ratio = d?.durationSeconds ? Math.max(0, _remainMs) / (Number(d.durationSeconds) * 1000) : 0;
-    } else if (timerSt.scope === "question") {
-      const endIso = (timerSt.qEnds ?? [])[eq];
-      _remainMs = endIso ? new Date(endIso).getTime() - _nowServer : null;
-      _ratio = _remainMs != null ? Math.max(0, _remainMs) / (Number(timerSt.qPerMs) || 30000) : 1;
+  {
+    const dl = deadlineOf(eq);
+    if (timerSt?.ok && dl.kind !== "none") {
+      _remainMs = new Date(dl.endISO as string).getTime() - _nowServer;
+      _ratio = dl.totalMs && dl.totalMs > 0 ? Math.max(0, _remainMs) / dl.totalMs : 0;
     }
   }
   const _tone: "none" | "normal" | "warn" | "crit" =
@@ -1629,7 +1660,14 @@ function LegacyWizard({
 
           {/* Options — bila ada gambar jawaban: 2×2 grid & isi sisa tinggi (tanpa scroll) */}
           <div
-            className={`min-h-0 flex-1 overflow-y-auto ${_imgOptions ? "grid grid-cols-2 content-center gap-3 pb-4" : "mt-2 space-y-3"}`}
+            data-testid="options-area"
+            // (#2) Opsi tidak boleh terpotong di layar kecil:
+            //  · `content-start` (bukan center) supaya konten yang lebih tinggi dari wadah tidak terpotong di ATAS
+            //  · padding bawah + safe-area supaya opsi terakhir tidak menempel/tertutup bar bawah
+            //  · `overscroll-contain` agar scroll tidak "bocor" ke halaman
+            className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+              _imgOptions ? "grid grid-cols-2 content-start gap-3" : "mt-2 space-y-3"
+            } pb-[max(1rem,env(safe-area-inset-bottom))]`}
           >
             {isEngine && (effQs[eq] as any)?.questionType === "text_input" ? (
               <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
@@ -1643,9 +1681,7 @@ function LegacyWizard({
                     autoComplete="off"
                     autoFocus
                     value={etv}
-                    onChange={(e) =>
-                      setEtv(_textNumeric ? e.target.value.replace(/[^\d.,/-]/g, "") : e.target.value)
-                    }
+                    onChange={(e) => setEtv(_textNumeric ? e.target.value.replace(/[^\d.,/-]/g, "") : e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") engineSubmitText();
                     }}

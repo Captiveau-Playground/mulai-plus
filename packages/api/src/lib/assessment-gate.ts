@@ -10,6 +10,7 @@ export async function validatePublish(versionId: string): Promise<{
   ok: boolean;
   errors: string[];
   warnings: string[];
+  /** rincian per item (kind + id) supaya UI bisa "klik untuk lompat" ke soal/dimensi */
   details?: { kind: "question" | "dimension" | "config"; id?: string; message: string }[];
 }> {
   const errors: string[] = [];
@@ -39,16 +40,19 @@ export async function validatePublish(versionId: string): Promise<{
   if (activeDims.length !== totalDim)
     errors.push(`Dimensi aktif (${activeDims.length}) harus sesuai total_dim (${totalDim}).`);
 
-  // ⚠️ Warnings (tidak memblok publish): timer per-bagian butuh durasi tiap dimensi; pengantar/instrusi disarankan
-  if (cfg.timer_enabled === true && cfg.timer_scope === "dimension") {
-    const noDur = activeDims.filter((d) => !d.durationSeconds || d.durationSeconds <= 0);
+  // ⚠️ Warnings (tidak memblok publish): timer bisa per dimensi (#7).
+  // Scope efektif: override dimensi → fallback config global.
+  const effTimerScope = (d: { timerScope?: string | null }) => {
+    const raw = String(d.timerScope ?? "").trim();
+    if (raw === "none" || raw === "dimension" || raw === "question") return raw;
+    return String(cfg.timer_scope ?? "none");
+  };
+  if (cfg.timer_enabled === true) {
+    const noDur = activeDims.filter((d) => effTimerScope(d) === "dimension" && !(Number(d.durationSeconds ?? 0) > 0));
     if (noDur.length) {
       warnings.push(`Timer per bagian aktif, tapi ${noDur.length} dimensi belum punya durasi (detik).`);
       details.push({ kind: "config", message: `Durasi dimensi belum diisi: ${noDur.map((d) => d.name).join(", ")}` });
     }
-  }
-  if (cfg.timer_enabled === true && cfg.timer_scope === "question" && !(Number(cfg.time_per_question) > 0)) {
-    warnings.push("Timer per soal aktif, tapi 'detik per soal' belum diisi (default 30s).");
   }
 
   const questions = await db.query.questions.findMany({ where: eq(schema.questions.versionId, versionId) });
@@ -66,6 +70,14 @@ export async function validatePublish(versionId: string): Promise<{
       '"Acak urutan soal" aktif bersamaan dengan pembagian bagian — batas tiap bagian jadi tidak menentu. Matikan salah satunya.';
     warnings.push(msg);
     details.push({ kind: "config", message: msg });
+  }
+  if (
+    cfg.timer_enabled === true &&
+    activeDims.some((d) => effTimerScope(d) === "question") &&
+    !(Number(cfg.time_per_question) > 0) &&
+    !activeQs.some((q) => Number(q.durationSeconds ?? 0) > 0)
+  ) {
+    warnings.push("Timer per soal aktif, tapi durasi soal & 'detik per soal' belum diisi (default 30s).");
   }
   const qIds = activeQs.map((q) => q.id);
   const opts = qIds.length
@@ -92,10 +104,16 @@ export async function validatePublish(versionId: string): Promise<{
     }
     if (q.questionType !== "text_input")
       for (const oo of o)
-        if (!oo.label && !oo.imageUrl && !oo.icon)
-          errors.push(`Opsi pada soal ${q.questionCode ?? q.id} harus punya teks atau gambar/ikon.`);
-    if (q.questionType === "likert" && o.length < 2)
-      errors.push(`Skala Likert pada soal ${q.questionCode ?? q.id} butuh minimal 2 titik skala.`);
+        if (!oo.label && !oo.imageUrl && !oo.icon) {
+          const msg = `Opsi pada soal ${q.questionCode ?? q.id} harus punya teks atau gambar/ikon.`;
+          errors.push(msg);
+          details.push({ kind: "question", id: q.id, message: msg });
+        }
+    if (q.questionType === "likert" && o.length < 2) {
+      const msg = `Skala Likert pada soal ${q.questionCode ?? q.id} butuh minimal 2 titik skala (kini ${o.length}).`;
+      errors.push(msg);
+      details.push({ kind: "question", id: q.id, message: msg });
+    }
     const key = `${q.dimensionId}:${q.displayOrder}`;
     if (orderSeen.has(key)) {
       errors.push(
@@ -117,7 +135,7 @@ export async function validatePublish(versionId: string): Promise<{
       if (n < minQ) errors.push(`Dimensi ${d.name} (${d.code}) butuh minimal ${minQ} soal aktif (kini ${n}).`);
     }
   }
-  return { ok: errors.length === 0, errors, warnings };
+  return { ok: errors.length === 0, errors, warnings, details };
 }
 
 /** Publish versi → live; versi live lain → archived. Gatekeeper dulu. */
