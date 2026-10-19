@@ -10,6 +10,7 @@ export async function validatePublish(versionId: string): Promise<{
   ok: boolean;
   errors: string[];
   warnings: string[];
+  /** rincian per item (kind + id) supaya UI bisa "klik untuk lompat" ke soal/dimensi */
   details?: { kind: "question" | "dimension" | "config"; id?: string; message: string }[];
 }> {
   const errors: string[] = [];
@@ -103,10 +104,16 @@ export async function validatePublish(versionId: string): Promise<{
     }
     if (q.questionType !== "text_input")
       for (const oo of o)
-        if (!oo.label && !oo.imageUrl && !oo.icon)
-          errors.push(`Opsi pada soal ${q.questionCode ?? q.id} harus punya teks atau gambar/ikon.`);
-    if (q.questionType === "likert" && o.length < 2)
-      errors.push(`Skala Likert pada soal ${q.questionCode ?? q.id} butuh minimal 2 titik skala.`);
+        if (!oo.label && !oo.imageUrl && !oo.icon) {
+          const msg = `Opsi pada soal ${q.questionCode ?? q.id} harus punya teks atau gambar/ikon.`;
+          errors.push(msg);
+          details.push({ kind: "question", id: q.id, message: msg });
+        }
+    if (q.questionType === "likert" && o.length < 2) {
+      const msg = `Skala Likert pada soal ${q.questionCode ?? q.id} butuh minimal 2 titik skala (kini ${o.length}).`;
+      errors.push(msg);
+      details.push({ kind: "question", id: q.id, message: msg });
+    }
     const key = `${q.dimensionId}:${q.displayOrder}`;
     if (orderSeen.has(key)) {
       errors.push(
@@ -128,7 +135,7 @@ export async function validatePublish(versionId: string): Promise<{
       if (n < minQ) errors.push(`Dimensi ${d.name} (${d.code}) butuh minimal ${minQ} soal aktif (kini ${n}).`);
     }
   }
-  return { ok: errors.length === 0, errors, warnings };
+  return { ok: errors.length === 0, errors, warnings, details };
 }
 
 /** Publish versi → live; versi live lain → archived. Gatekeeper dulu. */

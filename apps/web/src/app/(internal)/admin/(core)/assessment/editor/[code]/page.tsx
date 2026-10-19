@@ -82,6 +82,14 @@ export default function AssessmentDetailPage() {
   const [intentEdit, setIntentEdit] = useState(false);
   // Preview memakai HALAMAN SISWA yang asli (rute take) di dalam iframe
   const [previewV, setPreviewV] = useState<{ id: string; versionNumber: number; status: string } | null>(null);
+  // (#5) Nonce memaksa iframe reload: id versi draf TIDAK berubah saat admin mengubah
+  // setting/soal, sehingga preview lama tetap tampil. Nonce di-bump tiap kali preview
+  // dibuka / tombol "Muat ulang" ditekan, dan dipakai di `key` + query `t`.
+  const [previewNonce, setPreviewNonce] = useState(0);
+  const openPreview = (v: { id: string; versionNumber: number; status: string }) => {
+    setPreviewNonce(Date.now());
+    setPreviewV(v);
+  };
   const draftRef = useRef<string | null>(null);
   const [_hlQ, setHlQ] = useState<string | null>(null);
   const [hlDim, setHlDim] = useState(false);
@@ -408,7 +416,7 @@ export default function AssessmentDetailPage() {
             <button
               type="button"
               data-testid="preview-live"
-              onClick={() => setPreviewV({ id: live.id, versionNumber: live.versionNumber, status: live.status })}
+              onClick={() => openPreview({ id: live.id, versionNumber: live.versionNumber, status: live.status })}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 font-manrope font-semibold text-gray-600 text-xs hover:bg-gray-50"
             >
               <Eye className="h-3.5 w-3.5" /> Lihat sebagai siswa
@@ -457,7 +465,7 @@ export default function AssessmentDetailPage() {
             gate={selVer?.status === "draft" ? (gate as any) : undefined}
             focusGroup={focusDim ? "dimensi" : null}
             onSelectVersion={pickVer}
-            onPreviewVersion={(v) => setPreviewV({ id: v.id, versionNumber: v.versionNumber, status: v.status })}
+            onPreviewVersion={(v) => openPreview({ id: v.id, versionNumber: v.versionNumber, status: v.status })}
             onPublishVersion={(v) => setVerify({ vid: v.id })}
             onSetFamily={setFamily}
             onSaveRules={(cfg) => void withDraft((vid) => mRules.mutateAsync({ versionId: vid, config: cfg ?? rules }))}
@@ -514,7 +522,7 @@ export default function AssessmentDetailPage() {
                   variant="outline"
                   data-testid="q-preview"
                   onClick={() =>
-                    selVer && setPreviewV({ id: selVer.id, versionNumber: selVer.versionNumber, status: selVer.status })
+                    selVer && openPreview({ id: selVer.id, versionNumber: selVer.versionNumber, status: selVer.status })
                   }
                   title="Lihat versi ini seperti yang dilihat siswa"
                 >
@@ -679,6 +687,15 @@ export default function AssessmentDetailPage() {
           <DialogHeader>
             <DialogTitle className="font-bricolage text-brand-navy">
               Preview sebagai siswa — v{previewV?.versionNumber}
+              <button
+                type="button"
+                data-testid="preview-reload"
+                onClick={() => setPreviewNonce(Date.now())}
+                className="ml-2 rounded-lg border border-gray-200 px-2 py-0.5 font-manrope font-semibold text-[10px] text-gray-600 hover:bg-gray-50"
+                title="Muat ulang preview (mis. setelah mengubah soal/setting)"
+              >
+                ⟳ Muat ulang
+              </button>
               {previewV?.status !== "live" && (
                 <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 font-manrope font-semibold text-[10px] text-amber-700">
                   belum dirilis
@@ -692,10 +709,10 @@ export default function AssessmentDetailPage() {
           </DialogHeader>
           {previewV && (
             <iframe
-              key={previewV.id}
+              key={`${previewV.id}-${previewNonce}`}
               title="Preview tes sebagai siswa"
               data-testid="preview-frame"
-              src={`/dashboard/student/assessment/take/${code}?preview=1&v=${previewV.id}`}
+              src={`/dashboard/student/assessment/take/${code}?preview=1&v=${previewV.id}&t=${previewNonce}`}
               className="h-[75vh] w-full rounded-xl border border-gray-200 bg-white"
             />
           )}
@@ -705,7 +722,7 @@ export default function AssessmentDetailPage() {
             </p>
             {previewV && (
               <a
-                href={`/dashboard/student/assessment/take/${code}?preview=1&v=${previewV.id}`}
+                href={`/dashboard/student/assessment/take/${code}?preview=1&v=${previewV.id}&t=${previewNonce}`}
                 target="_blank"
                 rel="noopener"
                 className="font-manrope font-semibold text-brand-navy text-xs hover:underline"
@@ -1573,7 +1590,27 @@ function QuestionPanel({
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-manrope text-sm"
                 data-testid="q-type"
                 value={form.questionType}
-                onChange={(e) => patch("questionType", e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  patch("questionType", next);
+                  // Soal skala baru: isi 5 titik emoji (bukan 2 opsi kosong) supaya
+                  // langsung valid & tidak memicu error gate "titik skala < 2".
+                  if (next === "likert" && form.options.every((o: any) => !String(o.label || "").trim() && !o.icon)) {
+                    const cap = ["Sangat tidak suka", "Tidak suka", "Netral", "Suka", "Sangat suka"];
+                    const emo = ["😡", "🙁", "😐", "🙂", "😍"];
+                    patch(
+                      "options",
+                      cap.map((c, i) => ({
+                        optionValue: "ABCDE"[i],
+                        label: c,
+                        imageCaption: c,
+                        score: i + 1,
+                        imageUrl: null,
+                        icon: emo[i],
+                      })),
+                    );
+                  }
+                }}
               >
                 <option value="multiple_choice">Pilihan ganda</option>
                 <option value="likert">Skala Likert 1–5 (kuisioner)</option>
