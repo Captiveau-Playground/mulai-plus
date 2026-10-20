@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { randomUUID } from "node:crypto";
-import { db, desc, eq, inArray } from "@mulai-plus/db/db";
+import { asc, db, desc, eq, inArray } from "@mulai-plus/db/db";
 import { assessmentOrgMembers, assessmentOrgs } from "@mulai-plus/db/schema/assessment";
 import { user } from "@mulai-plus/db/schema/auth";
 import { tmbAssessmentResults, tmbBatches, tmbBatchStudents, tmbSchools } from "@mulai-plus/db/schema/tmb";
@@ -35,6 +35,19 @@ async function findLegacySchoolByName(name: string) {
   const rows = await db.query.tmbSchools.findMany({ columns: { id: true, name: true } });
   const target = name.trim().toLowerCase();
   return rows.find((r) => (r.name ?? "").trim().toLowerCase() === target) ?? null;
+}
+
+/**
+ * Guard data sekolah: user harus anggota organisasi yang AKTIF dan organisasinya aktif.
+ * Dipakai semua endpoint baca (dashboard, kelas, peserta) supaya aturannya konsisten.
+ */
+async function activeSchool(userId: string) {
+  const { member, org } = await orgOfUser(userId);
+  if (!member || !org) return { error: "belum_terdaftar" as const };
+  if (member.status !== "aktif" || org.status !== "aktif") {
+    return { error: "belum_aktif" as const, status: org.status, memberStatus: member.status };
+  }
+  return { member, org, schoolId: org.schoolId ?? null };
 }
 
 export const schoolRouter = {
@@ -135,6 +148,95 @@ export const schoolRouter = {
    * Ringkasan sekolah untuk admin sekolah: jumlah peserta, progres, sebaran Holland.
    * Hanya bisa diakses anggota yang sudah AKTIF (dan organisasinya aktif).
    */
+  /** (M2.1) Daftar kelas/batch milik sekolah + ringkasan progres peserta. */
+  cohorts: protectedProcedure.handler(async ({ context }) => {
+    const g = await activeSchool(context.session.user.id);
+    if ("error" in g) return { ok: false as const, ...g };
+    if (!g.schoolId) return { ok: true as const, items: [] as any[] };
+
+    const batches = await db.query.tmbBatches.findMany({
+      where: eq(tmbBatches.schoolId, g.schoolId),
+      orderBy: desc(tmbBatches.createdAt),
+    });
+    const ids = batches.map((b) => b.id);
+    const students = ids.length
+      ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.batchId, ids) })
+      : [];
+
+    return {
+      ok: true as const,
+      items: batches.map((b) => {
+        const rows = students.filter((s) => s.batchId === b.id);
+        const selesai = rows.filter((s) => s.status === "completed").length;
+        const mulai = rows.filter((s) => s.status === "in_progress").length;
+        return {
+          id: b.id,
+          name: b.name,
+          className: b.className,
+          major: b.major,
+          graduationYear: b.graduationYear,
+          inviteCode: b.inviteCode,
+          total: rows.length,
+          selesai,
+          mulai,
+          belum: rows.length - selesai - mulai,
+          progress: rows.length ? Math.round((selesai / rows.length) * 100) : 0,
+        };
+      }),
+    };
+  }),
+
+  /** (M2.1) Peserta satu kelas + status & hasil ringkas. Hanya kelas milik sekolahnya. */
+  participants: protectedProcedure
+    .input(z.object({ batchId: z.string().min(1) }))
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, input.batchId) });
+      // isolasi: batch harus milik sekolah org ini
+      if (!batch || !g.schoolId || batch.schoolId !== g.schoolId) {
+        return { ok: false as const, error: "not_found" as const };
+      }
+      const students = await db.query.tmbBatchStudents.findMany({
+        where: eq(tmbBatchStudents.batchId, batch.id),
+        orderBy: asc(tmbBatchStudents.name),
+      });
+      const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+      const results = resultIds.length
+        ? await db.query.tmbAssessmentResults.findMany({
+            where: inArray(tmbAssessmentResults.id, resultIds),
+            columns: { id: true, hollandCode: true, confidenceScore: true, createdAt: true },
+          })
+        : [];
+      const byId = new Map(results.map((r) => [r.id, r]));
+      const selesai = students.filter((s) => s.status === "completed").length;
+      const mulai = students.filter((s) => s.status === "in_progress").length;
+      return {
+        ok: true as const,
+        batch: {
+          id: batch.id,
+          name: batch.name,
+          className: batch.className,
+          major: batch.major,
+          inviteCode: batch.inviteCode,
+        },
+        totals: { total: students.length, selesai, mulai, belum: students.length - selesai - mulai },
+        items: students.map((s) => {
+          const r = s.resultId ? byId.get(s.resultId) : undefined;
+          return {
+            id: s.id,
+            name: s.name,
+            email: s.email,
+            nis: s.nis,
+            status: s.status,
+            hollandCode: r?.hollandCode ?? null,
+            confidence: r?.confidenceScore ?? null,
+            selesaiPada: r?.createdAt ?? null,
+          };
+        }),
+      };
+    }),
+
   overview: protectedProcedure.handler(async ({ context }) => {
     const { member, org } = await orgOfUser(context.session.user.id);
     if (!member || !org) return { ok: false as const, error: "belum_terdaftar" as const };
