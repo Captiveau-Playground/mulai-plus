@@ -119,11 +119,33 @@ export default function SchoolCohortsPage() {
                 <p className="font-manrope text-gray-500 text-xs">
                   {[c.className, c.major, c.graduationYear].filter(Boolean).join(" · ") || "—"}
                 </p>
-                {c.inviteCode && (
-                  <p className="mt-1 font-manrope text-[10px] text-gray-400">
-                    Kode undangan: <code className="rounded bg-gray-100 px-1">{c.inviteCode}</code>
-                  </p>
-                )}
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {c.inviteCode && (
+                    <span className="font-manrope text-[10px] text-gray-400">
+                      Kode undangan: <code className="rounded bg-gray-100 px-1">{c.inviteCode}</code>
+                    </span>
+                  )}
+                  <span
+                    data-testid="cohort-window-state"
+                    className={`rounded-full px-1.5 py-0.5 font-manrope font-semibold text-[9px] ${
+                      c.windowState === "berjalan"
+                        ? "bg-teal-50 text-teal-700"
+                        : c.windowState === "belum_mulai"
+                          ? "bg-sky-50 text-sky-700"
+                          : c.windowState === "selesai"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {c.windowState === "berjalan"
+                      ? "Jadwal berjalan"
+                      : c.windowState === "belum_mulai"
+                        ? "Jadwal: belum mulai"
+                        : c.windowState === "selesai"
+                          ? "Jadwal selesai"
+                          : "Tanpa jadwal"}
+                  </span>
+                </div>
               </div>
 
               <div className="min-w-[150px] flex-1">

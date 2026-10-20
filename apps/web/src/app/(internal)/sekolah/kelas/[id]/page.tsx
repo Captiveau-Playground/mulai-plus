@@ -41,6 +41,7 @@ export default function SchoolCohortDetailPage() {
   const [csv, setCsv] = useState("nama,email,nis\n");
   const [manual, setManual] = useState({ name: "", email: "", nis: "" });
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; failed: any[] } | null>(null);
+  const [sched, setSched] = useState<{ mode: "anytime" | "scheduled"; start: string; end: string } | null>(null);
 
   const data = useQuery({
     ...orpc.school.participants.queryOptions({ input: { batchId } }),
@@ -54,6 +55,59 @@ export default function SchoolCohortDetailPage() {
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: orpc.school.participants.key() });
     await qc.invalidateQueries({ queryKey: orpc.school.cohorts.key() });
+  };
+
+  /** ISO → nilai untuk <input type="datetime-local"> (waktu lokal). */
+  const toLocalInput = (iso?: string | Date | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const fmtWaktu = (iso?: string | Date | null) =>
+    iso
+      ? new Date(iso).toLocaleString("id-ID", {
+          weekday: "short",
+          day: "2-digit",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
+  const WSTATE: Record<string, { label: string; cls: string }> = {
+    tanpa_jadwal: { label: "Tanpa jadwal (bebas kapan saja)", cls: "bg-gray-100 text-gray-600" },
+    belum_mulai: { label: "Belum mulai", cls: "bg-sky-50 text-sky-700" },
+    berjalan: { label: "Berjalan", cls: "bg-teal-50 text-teal-700" },
+    selesai: { label: "Selesai", cls: "bg-amber-50 text-amber-700" },
+  };
+
+  const simpanJadwal = async (mode: "anytime" | "scheduled" | "off") => {
+    setBusy(true);
+    try {
+      const payload: any = { batchId, mode };
+      if (mode !== "off") {
+        if (!sched?.start || !sched?.end) {
+          notify.warn("Isi tanggal & jam mulai dan selesai");
+          return;
+        }
+        payload.startISO = new Date(sched.start).toISOString();
+        payload.endISO = new Date(sched.end).toISOString();
+      }
+      const r: any = await (client as any).school.cohortSchedule(payload);
+      if (!r?.ok) {
+        notify.error(
+          r?.error === "selesai_harus_setelah_mulai"
+            ? "Waktu selesai harus setelah waktu mulai"
+            : "Gagal menyimpan jadwal",
+        );
+        return;
+      }
+      notify.success(mode === "off" ? "Jadwal dihapus — tes bebas kapan saja" : "Jadwal tes disimpan");
+      await qc.invalidateQueries({ queryKey: orpc.school.participants.key() });
+      await qc.invalidateQueries({ queryKey: orpc.school.cohorts.key() });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const copy = async (text: string, label: string) => {
@@ -264,6 +318,88 @@ export default function SchoolCohortDetailPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Kartu jadwal tes (M2.3) */}
+      <div className="mt-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm" data-testid="schedule-card">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-manrope font-semibold text-gray-800 text-xs">Jadwal tes kelas</p>
+          <span
+            data-testid="schedule-state"
+            className={`rounded-full px-2 py-0.5 font-manrope font-semibold text-[10px] ${
+              (WSTATE[batch?.windowState as string] ?? WSTATE.tanpa_jadwal!).cls
+            }`}
+          >
+            {(WSTATE[batch?.windowState as string] ?? WSTATE.tanpa_jadwal!).label}
+          </span>
+        </div>
+        <p className="mt-1 font-manrope text-[11px] text-gray-500">
+          {batch?.windowStart
+            ? `${fmtWaktu(batch.windowStart)} → ${fmtWaktu(batch.windowEnd)}`
+            : "Siswa bisa mengerjakan kapan saja. Atur jadwal untuk ujian serentak."}
+        </p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <div>
+            <Label className="font-manrope font-semibold text-gray-600 text-xs">Mulai</Label>
+            <Input
+              type="datetime-local"
+              data-testid="schedule-start"
+              value={sched?.start ?? toLocalInput(batch?.windowStart)}
+              onChange={(e) =>
+                setSched((v) => ({
+                  mode: v?.mode ?? (batch?.scheduleMode as any) ?? "anytime",
+                  start: e.target.value,
+                  end: v?.end ?? toLocalInput(batch?.windowEnd),
+                }))
+              }
+              className="mt-1 rounded-xl border-gray-200 bg-gray-50 text-xs"
+            />
+          </div>
+          <div>
+            <Label className="font-manrope font-semibold text-gray-600 text-xs">Selesai</Label>
+            <Input
+              type="datetime-local"
+              data-testid="schedule-end"
+              value={sched?.end ?? toLocalInput(batch?.windowEnd)}
+              onChange={(e) =>
+                setSched((v) => ({
+                  mode: v?.mode ?? (batch?.scheduleMode as any) ?? "anytime",
+                  start: v?.start ?? toLocalInput(batch?.windowStart),
+                  end: e.target.value,
+                }))
+              }
+              className="mt-1 rounded-xl border-gray-200 bg-gray-50 text-xs"
+            />
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button
+            data-testid="schedule-save-scheduled"
+            onClick={() => void simpanJadwal("scheduled")}
+            disabled={busy}
+            className="rounded-lg bg-brand-navy px-3 py-1.5 font-bold font-manrope text-[11px] text-white hover:brightness-110"
+          >
+            Simpan jadwal (serentak)
+          </Button>
+          <Button
+            data-testid="schedule-save-anytime"
+            variant="outline"
+            onClick={() => void simpanJadwal("anytime")}
+            disabled={busy}
+            className="rounded-lg px-3 py-1.5 font-manrope text-[11px]"
+          >
+            Simpan sebagai rentang bebas
+          </Button>
+          <Button
+            data-testid="schedule-clear"
+            variant="ghost"
+            onClick={() => void simpanJadwal("off")}
+            disabled={busy}
+            className="rounded-lg px-3 py-1.5 font-manrope text-[11px] text-gray-500"
+          >
+            Hapus jadwal
+          </Button>
+        </div>
       </div>
 
       {/* Kartu undangan (M2.2) */}

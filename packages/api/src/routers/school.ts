@@ -51,6 +51,17 @@ async function activeSchool(userId: string) {
   return { member, org, schoolId: org.schoolId ?? null };
 }
 
+/** Status window jadwal kelas: tanpa jadwal / belum mulai / berjalan / selesai. */
+function windowState(b: { windowStart?: Date | null; windowEnd?: Date | null }) {
+  const now = Date.now();
+  const s = b.windowStart ? new Date(b.windowStart).getTime() : null;
+  const e = b.windowEnd ? new Date(b.windowEnd).getTime() : null;
+  if (s === null && e === null) return "tanpa_jadwal" as const;
+  if (s !== null && now < s) return "belum_mulai" as const;
+  if (e !== null && now > e) return "selesai" as const;
+  return "berjalan" as const;
+}
+
 /** Pastikan batch milik sekolah org ini (isolasi data). */
 async function ownedBatch(batchId: string, schoolId: string | null) {
   if (!schoolId) return null;
@@ -189,6 +200,10 @@ export const schoolRouter = {
           mulai,
           belum: rows.length - selesai - mulai,
           progress: rows.length ? Math.round((selesai / rows.length) * 100) : 0,
+          scheduleMode: b.scheduleMode ?? "anytime",
+          windowStart: b.windowStart,
+          windowEnd: b.windowEnd,
+          windowState: windowState(b),
         };
       }),
     };
@@ -227,6 +242,10 @@ export const schoolRouter = {
           className: batch.className,
           major: batch.major,
           inviteCode: batch.inviteCode,
+          scheduleMode: batch.scheduleMode ?? "anytime",
+          windowStart: batch.windowStart,
+          windowEnd: batch.windowEnd,
+          windowState: windowState(batch),
         },
         totals: { total: students.length, selesai, mulai, belum: students.length - selesai - mulai },
         items: students.map((s) => {
@@ -374,6 +393,51 @@ export const schoolRouter = {
 
       if (toInsert.length) await db.insert(tmbBatchStudents).values(toInsert);
       return { ok: true as const, imported: toInsert.length, skipped, failed };
+    }),
+
+  /**
+   * (M2.3) Atur jadwal tes kelas.
+   * `mode: "anytime"` → boleh dikerjakan di dalam rentang (tanggal saja cukup).
+   * `mode: "scheduled"` → serentak pada jam tertentu (tanggal + jam).
+   * `mode: "off"` → hapus jadwal (tes bebas kapan saja).
+   */
+  cohortSchedule: protectedProcedure
+    .input(
+      z.object({
+        batchId: z.string().min(1),
+        mode: z.enum(["anytime", "scheduled", "off"]),
+        startISO: z.string().datetime({ offset: true }).optional().nullable(),
+        endISO: z.string().datetime({ offset: true }).optional().nullable(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      const owned = await ownedBatch(input.batchId, g.schoolId);
+      if (!owned) return { ok: false as const, error: "not_found" as const };
+
+      if (input.mode === "off") {
+        await db
+          .update(tmbBatches)
+          .set({ scheduleMode: "anytime", windowStart: null, windowEnd: null })
+          .where(eq(tmbBatches.id, input.batchId));
+        return { ok: true as const, windowState: "tanpa_jadwal" as const };
+      }
+
+      const start = input.startISO ? new Date(input.startISO) : null;
+      const end = input.endISO ? new Date(input.endISO) : null;
+      if (!start || !end) return { ok: false as const, error: "jadwal_kosong" as const };
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return { ok: false as const, error: "jadwal_invalid" as const };
+      }
+      if (end.getTime() <= start.getTime())
+        return { ok: false as const, error: "selesai_harus_setelah_mulai" as const };
+
+      await db
+        .update(tmbBatches)
+        .set({ scheduleMode: input.mode, windowStart: start, windowEnd: end })
+        .where(eq(tmbBatches.id, input.batchId));
+      return { ok: true as const, windowState: windowState({ windowStart: start, windowEnd: end }) };
     }),
 
   /** (M2.2) Link & teks undangan siap-bagikan (WA/email). */

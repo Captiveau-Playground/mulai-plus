@@ -204,6 +204,13 @@
       "when": 1730000000000,
       "tag": "0033_school_role_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0034_batch_window",
+      "breakpoints": true
     }
   ]
 }

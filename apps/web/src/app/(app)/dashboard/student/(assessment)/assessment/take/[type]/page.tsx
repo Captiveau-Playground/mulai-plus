@@ -103,6 +103,29 @@ function EngineWrapper({
           studentId: sid,
           versionId: versionId ?? undefined,
         } as any)) as any;
+        // (M2.3) Kelas punya jadwal & sedang di luar window → tampilkan pesan jadwal,
+        // bukan error generik. (Server tetap sumber kebenaran penolakannya.)
+        if (st?.ok === false) {
+          const fmt = (iso?: string | null) =>
+            iso
+              ? new Date(iso).toLocaleString("id-ID", {
+                  weekday: "short",
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "-";
+          const kelas = (st as any).className ? `kelas ${(st as any).className}` : "kelasmu";
+          setErrg(
+            (st as any).error === "window_not_started"
+              ? `Tes untuk ${kelas} dibuka mulai ${fmt((st as any).windowStart)}.`
+              : (st as any).error === "window_ended"
+                ? `Jadwal tes untuk ${kelas} sudah berakhir (${fmt((st as any).windowStart)} – ${fmt((st as any).windowEnd)}).`
+                : "Gagal memuat tes",
+          );
+          return;
+        }
         setReady({
           sessionId: st.sessionId,
           questions: (cfg.questions ?? []).filter((q: any) => q.isActive),

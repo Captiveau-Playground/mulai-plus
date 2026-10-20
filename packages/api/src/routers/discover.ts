@@ -1,5 +1,5 @@
 import { and, asc, db, desc, eq, inArray, schema } from "@mulai-plus/db/db";
-import { tmbAssessmentResults, tmbBatchStudents, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
+import { tmbAssessmentResults, tmbBatches, tmbBatchStudents, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
 import {
   deleteFromR2,
   extractKeyFromUrl,
@@ -222,6 +222,48 @@ export const discoverRouter = {
         : await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
       const c = (v.configJson ?? {}) as any;
+
+      // (M2.3) WINDOW JADWAL KELAS (B2B): siswa hanya boleh MEMULAI di dalam rentang
+      // jadwal kelasnya. Jika kelas punya jadwal dan semuanya sedang tutup → tolak dengan
+      // kode yang jelas (UI menampilkan waktu bukanya). Yang sudah mulai tetap boleh
+      // menyelesaikan (grace) karena pemeriksaan hanya di titik mulai.
+      try {
+        const roster = await db.query.tmbBatchStudents.findMany({
+          where: eq(tmbBatchStudents.userId, input.studentId),
+          columns: { batchId: true },
+        });
+        if (roster.length) {
+          const batches = await db.query.tmbBatches.findMany({
+            where: inArray(
+              tmbBatches.id,
+              roster.map((r) => r.batchId),
+            ),
+            columns: { id: true, name: true, scheduleMode: true, windowStart: true, windowEnd: true },
+          });
+          const nowMs = Date.now();
+          const winStart = (b: any) => (b.windowStart ? new Date(b.windowStart).getTime() : null);
+          const winEnd = (b: any) => (b.windowEnd ? new Date(b.windowEnd).getTime() : null);
+          const withWindow = batches.filter((b) => winStart(b) !== null || winEnd(b) !== null);
+          if (withWindow.length) {
+            const open = withWindow.find(
+              (b) => (winStart(b) === null || nowMs >= winStart(b)!) && (winEnd(b) === null || nowMs <= winEnd(b)!),
+            );
+            if (!open) {
+              const b = withWindow[0]!;
+              const startMs = winStart(b);
+              return {
+                ok: false,
+                error: startMs !== null && nowMs < startMs ? "window_not_started" : "window_ended",
+                className: b.name,
+                windowStart: b.windowStart,
+                windowEnd: b.windowEnd,
+              } as const;
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error("[engine][b2b] gagal cek window kelas:", e?.message ?? e);
+      }
 
       // B2B: siswa undangan yang mulai mengerjakan → status roster jadi "in_progress" (guru bisa pantau)
       try {
@@ -1034,7 +1076,9 @@ export const discoverRouter = {
     const hasQ = qEnds.some((iso) => !!iso);
     const activeIndex = qEnds.findIndex((iso) => !!iso && now < new Date(iso).getTime());
     const anyActive =
-      dims.some((d) => !d.expired) || qEnds.some((iso) => !!iso && now < new Date(iso).getTime()) || (!dims.length && !hasQ);
+      dims.some((d) => !d.expired) ||
+      qEnds.some((iso) => !!iso && now < new Date(iso).getTime()) ||
+      (!dims.length && !hasQ);
     return {
       ok: true,
       scope: timer.mixed ? "mixed" : (timer.scope ?? "none"),
@@ -2154,7 +2198,17 @@ export const discoverAdminRouter = {
     return {
       ok: true,
       filename: `${a.code}-backup-${stamp}.json`,
-      json: { exportedAt: new Date().toISOString(), assessment: a, versions, dimensions: dims, sections, instructions, questions, options, textConfigs },
+      json: {
+        exportedAt: new Date().toISOString(),
+        assessment: a,
+        versions,
+        dimensions: dims,
+        sections,
+        instructions,
+        questions,
+        options,
+        textConfigs,
+      },
     } as const;
   }),
 
