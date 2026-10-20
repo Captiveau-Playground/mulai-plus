@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { randomUUID } from "node:crypto";
-import { asc, db, desc, eq, inArray } from "@mulai-plus/db/db";
+import { and, asc, db, desc, eq, inArray } from "@mulai-plus/db/db";
 import { assessmentOrgMembers, assessmentOrgs } from "@mulai-plus/db/schema/assessment";
 import { user } from "@mulai-plus/db/schema/auth";
 import { tmbAssessmentResults, tmbBatches, tmbBatchStudents, tmbSchools } from "@mulai-plus/db/schema/tmb";
@@ -19,6 +19,7 @@ import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { z } from "zod";
 import { adminProcedure, protectedProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
+import { generateClaimCode, parseCsv } from "./tmb";
 
 /** Keanggotaan + organisasi milik user (fase ini: satu akun = satu organisasi). */
 export async function orgOfUser(userId: string) {
@@ -48,6 +49,13 @@ async function activeSchool(userId: string) {
     return { error: "belum_aktif" as const, status: org.status, memberStatus: member.status };
   }
   return { member, org, schoolId: org.schoolId ?? null };
+}
+
+/** Pastikan batch milik sekolah org ini (isolasi data). */
+async function ownedBatch(batchId: string, schoolId: string | null) {
+  if (!schoolId) return null;
+  const b = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, batchId) });
+  return b && b.schoolId === schoolId ? b : null;
 }
 
 export const schoolRouter = {
@@ -236,6 +244,153 @@ export const schoolRouter = {
         }),
       };
     }),
+
+  /** (M2.2) Buat kelas baru milik sekolah + kode undangan otomatis. */
+  cohortCreate: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().trim().min(1).max(120),
+        className: z.string().trim().max(60).optional().or(z.literal("")),
+        major: z.string().trim().max(60).optional().or(z.literal("")),
+        graduationYear: z.number().int().min(2000).max(2100).optional(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      if (!g.schoolId) return { ok: false as const, error: "sekolah_belum_terhubung" as const };
+
+      // kode undangan harus unik global — coba beberapa kali
+      let inviteCode = generateClaimCode();
+      for (let i = 0; i < 5; i++) {
+        const dup = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, inviteCode) });
+        if (!dup) break;
+        inviteCode = generateClaimCode();
+      }
+      const id = randomUUID();
+      await db.insert(tmbBatches).values({
+        id,
+        schoolId: g.schoolId,
+        name: input.name,
+        className: input.className || null,
+        major: input.major || null,
+        graduationYear: input.graduationYear ?? null,
+        inviteCode,
+      });
+      return { ok: true as const, id, inviteCode };
+    }),
+
+  /** (M2.2) Tambah satu peserta ke kelas (manual). */
+  participantAdd: protectedProcedure
+    .input(
+      z.object({
+        batchId: z.string().min(1),
+        name: z.string().trim().min(1).max(120),
+        email: z.string().trim().email().optional().or(z.literal("")),
+        nis: z.string().trim().max(30).optional().or(z.literal("")),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      const owned = await ownedBatch(input.batchId, g.schoolId);
+      if (!owned) return { ok: false as const, error: "not_found" as const };
+      const email = input.email ? input.email.toLowerCase() : null;
+      if (email) {
+        const dup = await db.query.tmbBatchStudents.findFirst({
+          where: and(eq(tmbBatchStudents.batchId, input.batchId), eq(tmbBatchStudents.email, email)),
+        });
+        if (dup) return { ok: false as const, error: "peserta_sudah_ada" as const };
+      }
+      const id = randomUUID();
+      await db.insert(tmbBatchStudents).values({
+        id,
+        batchId: input.batchId,
+        name: input.name,
+        email,
+        nis: input.nis || null,
+        status: "invited",
+      });
+      return { ok: true as const, id };
+    }),
+
+  /**
+   * (M2.2) Import peserta dari CSV (header: nama | email | nis).
+   * Duplikat (email/NIS yang sudah ada di kelas, atau dobel di file) dilewati dan
+   * dilaporkan — bukan menggagalkan seluruh import.
+   */
+  participantsImport: protectedProcedure
+    .input(z.object({ batchId: z.string().min(1), csv: z.string().min(1).max(200_000) }))
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      const owned = await ownedBatch(input.batchId, g.schoolId);
+      if (!owned) return { ok: false as const, error: "not_found" as const };
+
+      const rows = parseCsv(input.csv);
+      if (rows.length < 2) return { ok: false as const, error: "csv_kosong" as const };
+      const header = (rows[0] ?? []).map((h) => h.trim().toLowerCase());
+      const idxName = header.findIndex((h) => h.includes("nama") || h === "name");
+      const idxEmail = header.findIndex((h) => h.includes("email"));
+      const idxNis = header.findIndex((h) => h === "nis" || h.includes("nis"));
+      if (idxName < 0) return { ok: false as const, error: "kolom_nama_wajib" as const };
+
+      const existing = await db.query.tmbBatchStudents.findMany({
+        where: eq(tmbBatchStudents.batchId, input.batchId),
+        columns: { email: true, nis: true },
+      });
+      const seenEmail = new Set(existing.map((s) => (s.email ?? "").toLowerCase()).filter(Boolean));
+      const seenNis = new Set(existing.map((s) => (s.nis ?? "").trim()).filter(Boolean));
+
+      const toInsert: any[] = [];
+      const failed: { row: number; reason: string }[] = [];
+      let skipped = 0;
+      const data = rows.slice(1);
+      if (data.length > 500) return { ok: false as const, error: "terlalu_banyak_baris" as const };
+
+      data.forEach((r, i) => {
+        const line = i + 2; // nomor baris di file (1-based + header)
+        const name = (r[idxName] ?? "").trim();
+        if (!name) return failed.push({ row: line, reason: "nama kosong" });
+        const email = (idxEmail >= 0 ? (r[idxEmail] ?? "").trim().toLowerCase() : "") || "";
+        const nis = (idxNis >= 0 ? (r[idxNis] ?? "").trim() : "") || "";
+        if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+          return failed.push({ row: line, reason: "email tidak valid" });
+        if ((email && seenEmail.has(email)) || (nis && seenNis.has(nis))) {
+          skipped++;
+          return;
+        }
+        if (email) seenEmail.add(email);
+        if (nis) seenNis.add(nis);
+        toInsert.push({
+          id: randomUUID(),
+          batchId: input.batchId,
+          name,
+          email: email || null,
+          nis: nis || null,
+          status: "invited",
+        });
+      });
+
+      if (toInsert.length) await db.insert(tmbBatchStudents).values(toInsert);
+      return { ok: true as const, imported: toInsert.length, skipped, failed };
+    }),
+
+  /** (M2.2) Link & teks undangan siap-bagikan (WA/email). */
+  invite: protectedProcedure.input(z.object({ batchId: z.string().min(1) })).handler(async ({ input, context }) => {
+    const g = await activeSchool(context.session.user.id);
+    if ("error" in g) return { ok: false as const, ...g };
+    const owned = await ownedBatch(input.batchId, g.schoolId);
+    if (!owned) return { ok: false as const, error: "not_found" as const };
+    const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+    const link = `${base}/assessment/invite/${owned.inviteCode ?? ""}`;
+    const school = g.org?.name ?? "sekolah";
+    const waText =
+      `Halo! Kamu diundang mengerjakan Tes Minat & Bakat di MULAI+ untuk kelas *${owned.name}* (${school}).\n\n` +
+      `Buka link ini lalu masuk/daftar dengan email yang terdaftar di sekolah:\n${link}\n\n` +
+      "Tes ±30–45 menit, hasilnya langsung muncul dan dipakai untuk bimbingan jurusan. Terima kasih!";
+    return { ok: true as const, code: owned.inviteCode ?? null, link, waText };
+  }),
 
   overview: protectedProcedure.handler(async ({ context }) => {
     const { member, org } = await orgOfUser(context.session.user.id);

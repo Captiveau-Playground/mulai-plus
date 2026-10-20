@@ -1184,7 +1184,7 @@ async function computeResult(userId: string, interestAttemptId: string, abilityA
 
 // ─── B2B (School Admin) ─────────────────────────────────
 
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let cur = "";
   let row: string[] = [];
@@ -2120,7 +2120,7 @@ async function resolveResultSource(resultId: string) {
 // ─── Short claim code (tanpa huruf ambigu O/0/I/1/L) ───
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-function generateClaimCode(len = 6): string {
+export function generateClaimCode(len = 6): string {
   let out = "";
   for (let i = 0; i < len; i++) {
     out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];

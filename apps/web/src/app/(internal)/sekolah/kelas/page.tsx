@@ -2,15 +2,62 @@
 
 // (M2.1) Daftar kelas/batch milik sekolah + progres peserta. READ-ONLY dulu
 // (buat kelas & import peserta menyusul di M2.2).
-import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Users } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, Loader2, Plus, Users } from "lucide-react";
 import Link from "next/link";
-import { orpc } from "@/utils/orpc";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { notify } from "@/lib/toast";
+import { client, orpc } from "@/utils/orpc";
 
 const EMPTY = "Belum ada kelas";
 
 export default function SchoolCohortsPage() {
+  const qc = useQueryClient();
   const q = useQuery(orpc.school.cohorts.queryOptions());
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ name: "", className: "", major: "", graduationYear: "" });
+
+  const buatKelas = async () => {
+    if (!form.name.trim()) {
+      notify.warn("Nama kelas wajib diisi");
+      return;
+    }
+    setBusy(true);
+    try {
+      const r: any = await (client as any).school.cohortCreate({
+        name: form.name.trim(),
+        className: form.className.trim(),
+        major: form.major.trim(),
+        ...(form.graduationYear ? { graduationYear: Number(form.graduationYear) } : {}),
+      });
+      if (!r?.ok) {
+        notify.error(
+          r?.error === "sekolah_belum_terhubung"
+            ? "Sekolah belum terhubung ke data kelas — hubungi admin MULAI+"
+            : "Gagal membuat kelas",
+        );
+        return;
+      }
+      notify.success(`Kelas dibuat — kode undangan ${r.inviteCode}`);
+      setOpen(false);
+      setForm({ name: "", className: "", major: "", graduationYear: "" });
+      await qc.invalidateQueries({ queryKey: orpc.school.cohorts.key() });
+    } finally {
+      setBusy(false);
+    }
+  };
   const items: any[] = (q.data as any)?.items ?? [];
   const notActive = q.data && (q.data as any).ok === false;
 
@@ -26,9 +73,19 @@ export default function SchoolCohortsPage() {
             Progres tiap kelas: siapa sudah selesai, sedang mengerjakan, dan belum mulai.
           </p>
         </div>
-        <Link href="/sekolah" className="font-manrope font-semibold text-mentor-teal text-xs hover:underline">
-          ← Dashboard
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/sekolah" className="font-manrope font-semibold text-mentor-teal text-xs hover:underline">
+            ← Dashboard
+          </Link>
+          <Button
+            data-testid="cohort-create-open"
+            onClick={() => setOpen(true)}
+            disabled={notActive}
+            className="rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-white text-xs hover:brightness-110 disabled:opacity-50"
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" /> Buat kelas
+          </Button>
+        </div>
       </div>
 
       {q.isLoading ? (
@@ -88,6 +145,76 @@ export default function SchoolCohortsPage() {
           ))}
         </div>
       )}
+
+      {/* Dialog buat kelas (M2.2) */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md" data-testid="cohort-create-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-bricolage">Buat kelas baru</DialogTitle>
+            <DialogDescription className="font-manrope text-sm">
+              Kode undangan dibuat otomatis. Peserta bisa ditambahkan lewat import CSV setelah kelas dibuat.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="font-manrope font-semibold text-gray-600 text-xs">Nama kelas *</Label>
+              <Input
+                data-testid="cohort-name"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="cth: XII IPA 1"
+                className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="font-manrope font-semibold text-gray-600 text-xs">Kelas</Label>
+                <Input
+                  data-testid="cohort-class"
+                  value={form.className}
+                  onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))}
+                  placeholder="cth: XII"
+                  className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+                />
+              </div>
+              <div>
+                <Label className="font-manrope font-semibold text-gray-600 text-xs">Jurusan</Label>
+                <Input
+                  data-testid="cohort-major"
+                  value={form.major}
+                  onChange={(e) => setForm((f) => ({ ...f, major: e.target.value }))}
+                  placeholder="cth: IPA / TKJ"
+                  className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+                />
+              </div>
+              <div>
+                <Label className="font-manrope font-semibold text-gray-600 text-xs">Tahun lulus</Label>
+                <Input
+                  data-testid="cohort-year"
+                  value={form.graduationYear}
+                  onChange={(e) => setForm((f) => ({ ...f, graduationYear: e.target.value.replace(/\D/g, "") }))}
+                  placeholder="cth: 2027"
+                  inputMode="numeric"
+                  className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+              Batal
+            </Button>
+            <Button
+              data-testid="cohort-create-submit"
+              onClick={() => void buatKelas()}
+              disabled={busy}
+              className="bg-brand-navy font-bold font-manrope text-white text-xs hover:brightness-110"
+            >
+              {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null} Buat kelas
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
