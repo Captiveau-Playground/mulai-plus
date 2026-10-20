@@ -237,21 +237,17 @@ export const discoverRouter = {
         columns: { id: true, durationSeconds: true, dimensionId: true, displayOrder: true },
         orderBy: asc(schema.questions.displayOrder),
       });
-      // section_mode = by_dimension → soal DIKELOMPOKKAN per dimensi mengikuti urutan dimensi.
-      // Tanpa ini, urutan soal yang berselang (hasil impor/manual) bikin bagian berlabel salah
-      // (mis. "Bagian Numerik" isinya soal verbal) karena rentang bagian dihitung dari urutan soal.
+      // section_mode = by_dimension → soal DIKELOMPOKKAN per dimensi, mengikuti URUTAN BLOK SOAL
+      // (displayOrder soal pertama tiap dimensi), BUKAN urutan baris dimensi. Dengan begitu urutan
+      // yang disusun penulis tetap dihormati (mis. RIASEC: R→I→A→S→E→C) walau baris dimensinya
+      // tidak sengaja urut alfabet/E,C,R,…
       let seqQs: typeof baseQs = baseQs;
       if ((c?.section_mode ?? "none") === "by_dimension") {
-        const dimRows = await db.query.assessmentDimensions.findMany({
-          where: eq(schema.assessmentDimensions.versionId, v.id),
-          columns: { id: true },
-          orderBy: asc(schema.assessmentDimensions.displayOrder),
-        });
-        const rank = new Map(dimRows.map((d, i) => [d.id, i]));
+        const dimFirst = new Map<string, number>();
+        for (const q of baseQs) if (!dimFirst.has(q.dimensionId)) dimFirst.set(q.dimensionId, q.displayOrder);
+        const rank = (id: string) => dimFirst.get(id) ?? Number.MAX_SAFE_INTEGER;
         seqQs = [...baseQs].sort(
-          (a, b) =>
-            (rank.get(a.dimensionId) ?? Number.MAX_SAFE_INTEGER) -
-              (rank.get(b.dimensionId) ?? Number.MAX_SAFE_INTEGER) || a.displayOrder - b.displayOrder,
+          (a, b) => rank(a.dimensionId) - rank(b.dimensionId) || a.displayOrder - b.displayOrder,
         );
       }
       const orderedQs = c?.randomize_q === true ? shuffle(seqQs) : seqQs;
@@ -283,64 +279,73 @@ export const discoverRouter = {
       };
 
       const buildTimer = async (): Promise<Record<string, unknown> | undefined> => {
-        if (c?.timer_enabled === true) {
-          const scope = c?.timer_scope ?? "none";
-          const now = Date.now();
-          // DIMENSION: deadline kumulatif per dimensi (urutan bagian)
-          // QUESTION: deadline kumulatif per soal (mengikuti URUTAN SESI, termasuk hasil acak)
-          const dimsR = await db.query.assessmentDimensions.findMany({
-            where: eq(schema.assessmentDimensions.versionId, v.id),
-            columns: { id: true, durationSeconds: true },
-            orderBy: asc(schema.assessmentDimensions.displayOrder),
-          });
-          const qsR = orderedQs;
-          const perQ = Number(c?.time_per_question ?? 30);
-          const dims: { id: string; startISO: string; endISO: string; durationSeconds: number }[] = [];
-          let cursor = now;
-          for (const d of dimsR) {
-            const dur = scope === "dimension" ? Number(d.durationSeconds ?? 0) : 0;
-            if (scope === "dimension" && dur > 0) {
-              dims.push({
-                id: d.id,
-                startISO: new Date(cursor).toISOString(),
-                endISO: new Date(cursor + dur * 1000).toISOString(),
-                durationSeconds: dur,
-              });
-              cursor += dur * 1000;
-            }
-          }
-          const qEnds: string[] = [];
-          if (scope === "question") {
-            // Durasi PER SOAL (custom); fallback ke time_per_question/30s bila kosong
-            let qc = now;
-            for (const qq of qsR) {
-              const secs = Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ;
-              qc += secs * 1000;
-              qEnds.push(new Date(qc).toISOString());
-            }
-          }
-          const qPerMs = perQ * 1000;
-          const totalSeconds =
-            scope === "dimension"
-              ? dims.reduce((a, d) => a + d.durationSeconds, 0)
-              : scope === "question"
-                ? qsR.reduce(
-                    (a, qq) => a + (Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ),
-                    0,
-                  )
-                : 0;
-          const expectedEndISO = new Date(now + (totalSeconds > 0 ? totalSeconds * 1000 : 0)).toISOString();
-          return {
-            scope,
-            totalSeconds,
-            serverNowISO: new Date(now).toISOString(),
-            expectedEndISO,
-            dims,
-            qEnds,
-            qPerMs,
-          };
+        if (c?.timer_enabled !== true) return undefined;
+        // (#7) Scope timer bisa DIATUR PER DIMENSI: kolom `assessment_dimensions.timer_scope`
+        // (null = ikut config global). Dimensi ber-scope "dimension" memakai durasi
+        // `durationSeconds`; dimensi ber-scope "question" memakai `questions.durationSeconds`
+        // (fallback `time_per_question`).
+        const globalScope = (c?.timer_scope ?? "none") as "none" | "dimension" | "question";
+        const now = Date.now();
+        const dimsR = await db.query.assessmentDimensions.findMany({
+          where: eq(schema.assessmentDimensions.versionId, v.id),
+          columns: { id: true, durationSeconds: true, timerScope: true },
+          orderBy: asc(schema.assessmentDimensions.displayOrder),
+        });
+        const qsR = orderedQs;
+        const perQ = Number(c?.time_per_question ?? 30);
+        const eff = new Map<string, "none" | "dimension" | "question">();
+        for (const d of dimsR) {
+          const raw = (d.timerScope ?? "").trim();
+          const sc = raw === "none" || raw === "dimension" || raw === "question" ? raw : globalScope;
+          eff.set(d.id, sc === "dimension" || sc === "question" ? sc : "none");
         }
-        return undefined;
+
+        const dims: { id: string; startISO: string; endISO: string; durationSeconds: number }[] = [];
+        let cursor = now;
+        for (const d of dimsR) {
+          const dur = eff.get(d.id) === "dimension" ? Number(d.durationSeconds ?? 0) : 0;
+          if (dur > 0) {
+            dims.push({
+              id: d.id,
+              startISO: new Date(cursor).toISOString(),
+              endISO: new Date(cursor + dur * 1000).toISOString(),
+              durationSeconds: dur,
+            });
+            cursor += dur * 1000;
+          }
+        }
+
+        // qEnds sejajar dengan urutan sesi; string kosong = soal itu tidak ber-scope soal.
+        const qEnds: string[] = [];
+        let qCursor = now;
+        let qSeconds = 0;
+        let hasQuestionScope = false;
+        for (const qq of qsR) {
+          if (eff.get(qq.dimensionId) === "question") {
+            hasQuestionScope = true;
+            const secs = Number(qq.durationSeconds ?? 0) > 0 ? Number(qq.durationSeconds) : perQ;
+            qCursor += secs * 1000;
+            qSeconds += secs;
+            qEnds.push(new Date(qCursor).toISOString());
+          } else {
+            qEnds.push("");
+          }
+        }
+
+        const dimSeconds = dims.reduce((a, d) => a + d.durationSeconds, 0);
+        const totalSeconds = dimSeconds + qSeconds;
+        const activeScopes = new Set([...eff.values()].filter((x) => x !== "none"));
+        return {
+          scope: globalScope, // kompatibilitas klien lama
+          dimScopes: Object.fromEntries(eff), // scope efektif per dimensi
+          mixed: activeScopes.size > 1,
+          totalSeconds,
+          serverNowISO: new Date(now).toISOString(),
+          expectedEndISO: new Date(now + totalSeconds * 1000).toISOString(),
+          dims,
+          qEnds: hasQuestionScope ? qEnds : [],
+          qPerMs: perQ * 1000,
+        };
       };
       const serverTimer = await buildTimer();
       const optionOrder = await buildOptionOrder();
@@ -436,19 +441,10 @@ export const discoverRouter = {
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
-      // ANTI-TAMPER: tolak submit bila deadline (dimensi ATAU soal) sudah lewat di server
+      // ANTI-TAMPER: tolak submit bila deadline (per SOAL atau per DIMENSI) sudah lewat.
+      // Timer bisa beda scope per dimensi (#7), jadi tidak lagi bergantung `timer.scope` global.
       const timerS = ((sess.configJson as any)?.timer ?? null) as any;
-      if (timerS && timerS.scope === "dimension" && (timerS.dims ?? []).length) {
-        const qFor = await db.query.questions.findFirst({
-          where: eq(schema.questions.id, input.questionId),
-          columns: { id: true, dimensionId: true },
-        });
-        const dEnd = (timerS.dims as any[]).find((d: any) => d.id === qFor?.dimensionId)?.endISO;
-        if (dEnd && Date.now() >= new Date(dEnd).getTime()) {
-          return { ok: false, error: "dimension_timed_out" } as const;
-        }
-      }
-      if (timerS && timerS.scope === "question" && (timerS.qEnds ?? []).length) {
+      if (timerS) {
         const order: string[] = (timerS.questionOrderIds ??
           (sess.configJson as any)?.questionOrderIds ??
           []) as string[];
@@ -456,6 +452,16 @@ export const discoverRouter = {
         const qEnd = qi >= 0 ? (timerS.qEnds as string[])[qi] : undefined;
         if (qEnd && Date.now() >= new Date(qEnd).getTime()) {
           return { ok: false, error: "question_timed_out" } as const;
+        }
+        if (!qEnd && (timerS.dims ?? []).length) {
+          const qFor = await db.query.questions.findFirst({
+            where: eq(schema.questions.id, input.questionId),
+            columns: { id: true, dimensionId: true },
+          });
+          const dEnd = (timerS.dims as any[]).find((d: any) => d.id === qFor?.dimensionId)?.endISO;
+          if (dEnd && Date.now() >= new Date(dEnd).getTime()) {
+            return { ok: false, error: "dimension_timed_out" } as const;
+          }
         }
       }
       const opt = await db.query.questionOptions.findFirst({
@@ -1012,43 +1018,35 @@ export const discoverRouter = {
     });
     if (!sess) return { ok: false, error: "session_not_found" } as const;
     const timer = ((sess.configJson as any)?.timer ?? null) as any;
-    if (!timer || timer.scope === "none") return { ok: true, scope: "none", serverNow: Date.now() } as const;
+    if (!timer) return { ok: true, scope: "none", serverNow: Date.now() } as const;
     const now = Date.now();
-    const scope = timer.scope as string;
-    if (scope === "dimension") {
-      const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map(
-        (d: any) => ({
-          id: d.id,
-          endISO: d.endISO,
-          durationSeconds: Number(d.durationSeconds ?? 0),
-          expired: now >= new Date(d.endISO).getTime(),
-        }),
-      );
-      const active = dims.find((d) => !d.expired);
-      return {
-        ok: true,
-        scope,
-        serverNow: now,
-        dims,
-        activeDimId: active?.id ?? null,
-        timedOut: !active, // semua dimensi habis / sesi timeout
-      } as const;
-    }
-    if (scope === "question") {
-      const qEnds = (timer.qEnds ?? []) as string[];
-      const idx = qEnds.findIndex((iso) => now < new Date(iso).getTime());
-      const qPerMs = Math.max(1000, Number(timer.qPerMs ?? 30000));
-      return {
-        ok: true,
-        scope,
-        serverNow: now,
-        qEnds,
-        qPerMs,
-        activeIndex: idx === -1 ? qEnds.length : idx,
-        timedOut: idx === -1,
-      } as const;
-    }
-    return { ok: true, scope, serverNow: now, timedOut: now >= new Date(timer.expectedEndISO).getTime() } as const;
+    // (#7) Timer bisa beda scope antar dimensi → kirim keduanya; klien menentukan
+    // deadline efektif per soal (qEnds[i] bila ada, kalau tidak deadline dimensinya).
+    const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map(
+      (d: any) => ({
+        id: d.id,
+        endISO: d.endISO,
+        durationSeconds: Number(d.durationSeconds ?? 0),
+        expired: now >= new Date(d.endISO).getTime(),
+      }),
+    );
+    const qEnds: string[] = (timer.qEnds ?? []) as string[];
+    const hasQ = qEnds.some((iso) => !!iso);
+    const activeIndex = qEnds.findIndex((iso) => !!iso && now < new Date(iso).getTime());
+    const anyActive =
+      dims.some((d) => !d.expired) || qEnds.some((iso) => !!iso && now < new Date(iso).getTime()) || (!dims.length && !hasQ);
+    return {
+      ok: true,
+      scope: timer.mixed ? "mixed" : (timer.scope ?? "none"),
+      dimScopes: timer.dimScopes ?? {},
+      serverNow: now,
+      dims,
+      qEnds,
+      qPerMs: Math.max(1000, Number(timer.qPerMs ?? 30000)),
+      activeIndex: activeIndex === -1 ? qEnds.length : activeIndex,
+      activeDimId: dims.find((d) => !d.expired)?.id ?? null,
+      timedOut: !anyActive,
+    } as const;
   }),
 
   /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */
@@ -1286,35 +1284,15 @@ async function contentOfVersion(versionId: string) {
   return { questions, options: opts, textConfigs: cfg, dimensions: dims, scales };
 }
 
+/**
+ * Hapus tes beserta seluruh turunannya.
+ *
+ * Cukup SATU query: `assessment_versions` → `assessment_dimensions` / `questions` /
+ * `assessment_sections` / `assessment_sessions` semuanya ON DELETE CASCADE, dan
+ * jawaban/hasil/skor ikut cascade dari sesi. Versi lama (hapus per baris) menembus
+ * batas subrequest/CPU Worker untuk tes besar (120 soal) sehingga gagal.
+ */
 async function removeAssessment(assessmentId: string) {
-  const vs = await db.query.assessmentVersions.findMany({
-    where: eq(schema.assessmentVersions.assessmentId, assessmentId),
-  });
-  for (const v of vs) {
-    const sessions = await db.query.assessmentSessions.findMany({
-      where: eq(schema.assessmentSessions.versionId, v.id),
-    });
-    for (const s of sessions) {
-      await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, s.id));
-      await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, s.id));
-      await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, s.id));
-      await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, s.id));
-    }
-    const qs = await db.query.questions.findMany({ where: eq(schema.questions.versionId, v.id) });
-    for (const q of qs) {
-      await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, q.id));
-      await db.delete(schema.textInputConfigs).where(eq(schema.textInputConfigs.questionId, q.id));
-    }
-    await db.delete(schema.questions).where(eq(schema.questions.versionId, v.id));
-    await db.delete(schema.assessmentSections).where(eq(schema.assessmentSections.versionId, v.id));
-    const dims = await db.query.assessmentDimensions.findMany({
-      where: eq(schema.assessmentDimensions.versionId, v.id),
-    });
-    for (const d of dims)
-      await db.delete(schema.dimensionInstructions).where(eq(schema.dimensionInstructions.dimensionId, d.id));
-    await db.delete(schema.assessmentDimensions).where(eq(schema.assessmentDimensions.versionId, v.id));
-    await db.delete(schema.assessmentVersions).where(eq(schema.assessmentVersions.id, v.id));
-  }
   await db.delete(schema.assessments).where(eq(schema.assessments.id, assessmentId));
 }
 
@@ -1974,6 +1952,8 @@ export const discoverAdminRouter = {
           name: z.string().min(1).max(80).optional(),
           code: z.string().min(1).max(20).optional(),
           durationSeconds: z.number().int().min(0).max(3600).optional(),
+          // (#7) scope timer per dimensi; null/"" = ikut config global
+          timerScope: z.enum(["none", "dimension", "question", "inherit"]).optional(),
         }),
       )
       .handler(async ({ input }) => {
@@ -1987,6 +1967,9 @@ export const discoverAdminRouter = {
             ...(input.name ? { name: input.name } : {}),
             ...(input.code ? { code: input.code.toUpperCase() } : {}),
             ...(input.durationSeconds !== undefined ? { durationSeconds: input.durationSeconds } : {}),
+            ...(input.timerScope !== undefined
+              ? { timerScope: input.timerScope === "inherit" ? null : input.timerScope }
+              : {}),
           })
           .where(eq(schema.assessmentDimensions.id, input.dimensionId));
         return { ok: true } as const;
@@ -2103,9 +2086,95 @@ export const discoverAdminRouter = {
       return { ok: true };
     }),
 
-  /** Hapus tes beserta seluruh versi & sesi (cascade). */
-  remove: adminProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
-    await removeAssessment(input.id);
-    return { ok: true };
+  /** Ringkasan dampak sebelum menghapus (dipakai tangga konfirmasi di UI). */
+  inspect: adminProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
+    const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, input.id) });
+    if (!a) return { ok: false, error: "not_found" } as const;
+    const vs = await db.query.assessmentVersions.findMany({
+      where: eq(schema.assessmentVersions.assessmentId, a.id),
+      columns: { id: true, status: true, versionNumber: true },
+    });
+    const vIds = vs.map((v) => v.id);
+    const qs = vIds.length
+      ? await db.query.questions.findMany({ where: inArray(schema.questions.versionId, vIds), columns: { id: true } })
+      : [];
+    const sessions = vIds.length
+      ? await db.query.assessmentSessions.findMany({
+          where: inArray(schema.assessmentSessions.versionId, vIds),
+          columns: { id: true },
+        })
+      : [];
+    return {
+      ok: true,
+      assessment: { id: a.id, code: a.code, name: a.name, family: a.family },
+      counts: {
+        versions: vs.length,
+        liveVersions: vs.filter((v) => v.status === "live").length,
+        questions: qs.length,
+        sessions: sessions.length,
+      },
+      // Tes minat/bakat resmi tidak boleh dihapus dari UI (dipakai kanal B2C/B2B).
+      protectedFamily: a.family === "minat" || a.family === "bakat",
+    } as const;
   }),
+
+  /** Unduh backup JSON lengkap (WAJIB sebelum menghapus permanen). */
+  exportAssessment: adminProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
+    const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, input.id) });
+    if (!a) return { ok: false, error: "not_found" } as const;
+    const versions = await db.query.assessmentVersions.findMany({
+      where: eq(schema.assessmentVersions.assessmentId, a.id),
+    });
+    const vIds = versions.map((v) => v.id);
+    const dims = vIds.length
+      ? await db.query.assessmentDimensions.findMany({ where: inArray(schema.assessmentDimensions.versionId, vIds) })
+      : [];
+    const sections = vIds.length
+      ? await db.query.assessmentSections.findMany({ where: inArray(schema.assessmentSections.versionId, vIds) })
+      : [];
+    const questions = vIds.length
+      ? await db.query.questions.findMany({ where: inArray(schema.questions.versionId, vIds) })
+      : [];
+    const qIds = questions.map((q) => q.id);
+    const options = qIds.length
+      ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.questionId, qIds) })
+      : [];
+    const textConfigs = qIds.length
+      ? await db.query.textInputConfigs.findMany({ where: inArray(schema.textInputConfigs.questionId, qIds) })
+      : [];
+    const instructions = dims.length
+      ? await db.query.dimensionInstructions.findMany({
+          where: inArray(
+            schema.dimensionInstructions.dimensionId,
+            dims.map((d) => d.id),
+          ),
+        })
+      : [];
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    return {
+      ok: true,
+      filename: `${a.code}-backup-${stamp}.json`,
+      json: { exportedAt: new Date().toISOString(), assessment: a, versions, dimensions: dims, sections, instructions, questions, options, textConfigs },
+    } as const;
+  }),
+
+  /**
+   * Hapus PERMANEN. Tangga pengamanannya:
+   *  1) UI menampilkan ringkasan dampak (`inspect`) + wajib unduh backup (`exportAssessment`).
+   *  2) Admin wajib MENGETIK kode tes (`confirmCode`) — dicek di server.
+   *  3) Tes minat/bakat resmi tidak bisa dihapus (`protected_assessment`).
+   * Penghapusan sendiri = satu query dengan cascade (cepat, tidak kena limit Worker).
+   */
+  remove: adminProcedure
+    .input(z.object({ id: z.string().min(1), confirmCode: z.string().min(1) }))
+    .handler(async ({ input }) => {
+      const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, input.id) });
+      if (!a) return { ok: false, error: "not_found" } as const;
+      if (a.family === "minat" || a.family === "bakat") return { ok: false, error: "protected_assessment" } as const;
+      if (input.confirmCode.trim().toUpperCase() !== a.code.toUpperCase()) {
+        return { ok: false, error: "confirm_mismatch" } as const;
+      }
+      await removeAssessment(a.id);
+      return { ok: true, deleted: { code: a.code, name: a.name } } as const;
+    }),
 };

@@ -42,6 +42,8 @@ export interface SettingsPanelProps {
   onDimsAdd: (code: string, name: string) => void;
   onDimsDelete: (id: string) => void;
   onDimsUpdate: (id: string, durationSeconds: number) => void;
+  /** (#7) scope timer per dimensi */
+  onDimTimerScope: (id: string, scope: "inherit" | "none" | "dimension" | "question") => void;
   onSectionSave: (s: SectionRow) => void;
   onSectionDelete: (id?: string) => void;
   onInstructionSave: (i: InstructionRow) => void;
@@ -437,6 +439,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               onAdd={props.onDimsAdd}
               onDelete={props.onDimsDelete}
               onDurationChange={props.onDimsUpdate}
+              onTimerScopeChange={props.onDimTimerScope}
               adding={addingDim}
             />
           </AccordionContent>

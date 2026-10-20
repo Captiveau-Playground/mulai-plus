@@ -13,6 +13,8 @@ export interface DimRow {
   code: string;
   name: string;
   durationSeconds?: number | null;
+  /** (#7) scope timer dimensi: null = ikut aturan global */
+  timerScope?: string | null;
 }
 
 export function DimensionsCard({
@@ -24,6 +26,7 @@ export function DimensionsCard({
   onAdd,
   onDelete,
   onDurationChange,
+  onTimerScopeChange,
   adding,
 }: {
   dims: DimRow[];
@@ -34,6 +37,7 @@ export function DimensionsCard({
   onAdd: (code: string, name: string) => void;
   onDelete: (id: string) => void;
   onDurationChange: (id: string, seconds: number) => void;
+  onTimerScopeChange: (id: string, scope: "inherit" | "none" | "dimension" | "question") => void;
   adding?: boolean;
 }) {
   const [code, setCode] = useState("");
@@ -49,7 +53,7 @@ export function DimensionsCard({
               <th className="w-14 px-2 py-1.5 font-semibold">Kode</th>
               <th className="px-2 py-1.5 font-semibold">Nama dimensi</th>
               <th className="w-20 px-2 py-1.5 text-center font-semibold">Soal</th>
-              <th className="w-20 px-2 py-1.5 text-center font-semibold">Durasi</th>
+              <th className="w-20 px-2 py-1.5 text-center font-semibold">Timer</th>
               {canEdit && <th className="w-8 px-2 py-1.5" />}
             </tr>
           </thead>
@@ -64,7 +68,9 @@ export function DimensionsCard({
             {dims.map((d) => {
               const n = countByDim[d.id] ?? 0;
               const kurang = minQPerDim > 0 && n < minQPerDim;
-              const noDur = needDuration && !(d.durationSeconds && d.durationSeconds > 0);
+              // effective scope: override dimensi → fallback aturan global
+              const effScope = d.timerScope ?? (needDuration ? "dimension" : "none");
+              const noDur = effScope === "dimension" && !(d.durationSeconds && d.durationSeconds > 0);
               return (
                 <tr key={d.id} className="border-gray-50 border-t" data-testid={`dim-row-${d.code}`}>
                   <td className="px-2 py-1.5 font-semibold text-gray-700">{d.code}</td>
@@ -82,7 +88,22 @@ export function DimensionsCard({
                   </td>
                   <td className="px-2 py-1.5 text-center">
                     {canEdit ? (
-                      <span className="inline-flex items-center gap-0.5" title="Durasi timer bagian ini (detik)">
+                      <span className="inline-flex flex-col items-end gap-0.5">
+                        <select
+                          value={d.timerScope ?? "inherit"}
+                          data-testid={`dim-timer-scope-${d.code}`}
+                          title="Scope timer untuk dimensi ini (#7)"
+                          onChange={(e) =>
+                            onTimerScopeChange(d.id, e.target.value as "inherit" | "none" | "dimension" | "question")
+                          }
+                          className="rounded border border-gray-200 px-1 py-0.5 font-manrope text-[9px] text-gray-600 outline-none focus:border-brand-orange/50"
+                        >
+                          <option value="inherit">Ikuti aturan</option>
+                          <option value="none">Tanpa timer</option>
+                          <option value="dimension">Per bagian</option>
+                          <option value="question">Per soal</option>
+                        </select>
+                        <span className="inline-flex items-center gap-0.5" title="Durasi timer bagian ini (detik)">
                         <input
                           type="number"
                           min={0}
@@ -96,6 +117,7 @@ export function DimensionsCard({
                           className="w-12 rounded border border-gray-200 px-1 py-0.5 text-right font-manrope text-[10px] outline-none focus:border-brand-orange/50"
                         />
                         <span className="text-[9px] text-gray-400">s</span>
+                        </span>
                       </span>
                     ) : (
                       <span className="text-gray-400">{d.durationSeconds ?? 0}s</span>
