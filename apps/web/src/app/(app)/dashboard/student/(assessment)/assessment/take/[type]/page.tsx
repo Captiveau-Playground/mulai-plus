@@ -196,6 +196,18 @@ function LegacyWizard({
     }
     router.push("/dashboard/student/assessment");
   };
+  /** Tombol keleluar (X) yang bisa dipakai di layar mana pun: intro, bagian, overlay. */
+  const exitBtn = (
+    <button
+      type="button"
+      onClick={() => setExitOpen(true)}
+      aria-label="Keluar test"
+      data-testid="exit-button"
+      className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm transition-colors hover:bg-gray-200"
+    >
+      <X className="h-4 w-4" />
+    </button>
+  );
   /** Cegat klik Link saat preview (halaman selesai/CTA) agar tidak pindah rute. */
   const guardLink = (e: React.MouseEvent) => {
     if (!isPreviewMode) return;
@@ -578,6 +590,45 @@ function LegacyWizard({
   const [etv, setEtv] = useState("");
   const [savedByQ, setSavedByQ] = useState<Record<string, { letter?: string; text?: string }>>({}); // jawaban tersimpan per soal (resume)
   const [exitOpen, setExitOpen] = useState(false); // konfirmasi keluar ala Duolingo
+  /**
+   * Dialog konfirmasi keluar — dirender sebagai overlay yang SAMA di semua layar
+   * (intro, layar bagian, soal). Dulu hanya ada di layar soal sehingga X di intro
+   * tidak memunculkan apa pun.
+   */
+  const exitOverlay = exitOpen ? (
+    <div
+      className="fixed inset-0 z-[95] flex items-center justify-center bg-bg-light/60 backdrop-blur-sm"
+      onClick={() => setExitOpen(false)}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10 text-2xl">
+          💾
+        </span>
+        <h3 className="mt-3 font-bold font-bricolage text-gray-900 text-lg">Progresmu aman</h3>
+        <p className="mt-1 font-manrope text-gray-500 text-sm">
+          Jawaban tersimpan otomatis — lanjutkan kapan saja dari posisi terakhir.
+        </p>
+        <div className="mt-5 space-y-2">
+          <button
+            onClick={() => setExitOpen(false)}
+            className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110"
+          >
+            Lanjut Test
+          </button>
+          <button
+            onClick={keluar}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
+          >
+            Keluar & Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   const [mapOpen, setMapOpen] = useState(false); // panel Peta Soal (bottom sheet)
   const [savedFlash, setSavedFlash] = useState(false); // chip "tersimpan" singkat
   const [achPop, setAchPop] = useState(false); // modal perayaan brand saat tes selesai
@@ -1087,6 +1138,8 @@ function LegacyWizard({
     const nSec = engine?.sections ?? Math.max(1, new Set(effQs.map((q) => q.dimensionId)).size);
     return (
       <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-start overflow-y-auto bg-bg-light px-6 py-10 text-center sm:justify-center">
+        {exitBtn}
+        {exitOverlay}
         <div className="h-24 w-24 overflow-hidden">
           <Image
             src="/maskot/masko-book.webp"
@@ -1175,6 +1228,8 @@ function LegacyWizard({
         animate={{ opacity: 1, scale: 1 }}
         className="fixed inset-0 z-[90] flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-light px-6 py-10 text-center"
       >
+        {exitBtn}
+        {exitOverlay}
         <div className="h-24 w-24 overflow-hidden">
           <Image
             src="/maskot/masko-book.webp"
@@ -1241,6 +1296,8 @@ function LegacyWizard({
         animate={{ opacity: 1, scale: 1 }}
         className="fixed inset-0 z-[90] flex items-center justify-center bg-bg-light p-4"
       >
+        {exitBtn}
+        {exitOverlay}
         <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
             <Image
@@ -1484,10 +1541,22 @@ function LegacyWizard({
                   >
                     🗺 {answeredSet?.size ?? 0}/{effQs.length}
                   </button>
-                  {_mmss ? (
+                  {/* (B) Elapsed time SELALU tampil (termasuk mobile); countdown tampil
+                      bersamanya saat timer aktif — jadi siswa tahu berjalan & sisa waktu. */}
+                  <span
+                    data-testid="elapsed-chip"
+                    title="Waktu berjalan"
+                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 font-manrope font-semibold text-[10px] text-slate-600 tabular-nums sm:px-2 sm:text-[11px]"
+                  >
+                    <Timer className="h-3 w-3" />
+                    {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
+                  </span>
+                  {_mmss && (
                     <span
+                      data-testid="countdown-chip"
+                      title="Sisa waktu"
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold font-manrope text-[11px] tabular-nums",
+                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-bold font-manrope text-[10px] tabular-nums sm:px-2 sm:text-[11px]",
                         _tone === "crit"
                           ? "animate-pulse bg-red-100 text-red-600"
                           : _tone === "warn"
@@ -1497,11 +1566,6 @@ function LegacyWizard({
                     >
                       <Timer className="h-3 w-3" />
                       {_mmss}
-                    </span>
-                  ) : (
-                    <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
-                      <Timer className="h-3 w-3" />
-                      {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
                     </span>
                   )}
                   <span className="hidden sm:inline-flex">
@@ -1581,39 +1645,8 @@ function LegacyWizard({
           )}
 
           {/* KONFIRMASI KELUAR (Duolingo-style): progres aman */}
-          {exitOpen && (
-            <div
-              className="fixed inset-0 z-[95] flex items-center justify-center bg-bg-light/60 backdrop-blur-sm"
-              onClick={() => setExitOpen(false)}
-            >
-              <div
-                className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10 text-2xl">
-                  💾
-                </span>
-                <h3 className="mt-3 font-bold font-bricolage text-gray-900 text-lg">Progresmu aman</h3>
-                <p className="mt-1 font-manrope text-gray-500 text-sm">
-                  Jawaban tersimpan otomatis — lanjutkan kapan saja dari posisi terakhir.
-                </p>
-                <div className="mt-5 space-y-2">
-                  <button
-                    onClick={() => setExitOpen(false)}
-                    className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110"
-                  >
-                    Lanjut Test
-                  </button>
-                  <button
-                    onClick={keluar}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
-                  >
-                    Keluar & Simpan
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+
+          {exitOverlay}
 
           {/* Combo bubble */}
           {comboPop >= 3 && (
