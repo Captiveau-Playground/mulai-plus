@@ -2,7 +2,7 @@
 
 // Halaman Sekolah & Batch — daftar sekolah partner (B2B) + rekap batch & siswa.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Building2, Plus, School, Search, Trash2, Users } from "lucide-react";
+import { ArrowRight, Building2, Loader2, Plus, School, Search, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AssessmentPageHeader, EmptyBlock, SkeletonRows } from "@/components/admin/assessment-page-header";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   prospek: { label: "Prospek", cls: "bg-amber-50 text-amber-700 border-amber-200" },
@@ -22,6 +22,8 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 const STATUS_ORDER = ["prospek", "aktif", "selesai"];
 
 export default function AdminSchoolsPage() {
+  // (M5.1) kirim pengingat ke sekolah yang pesertanya tertinggal
+  const [reminding, setReminding] = useState(false);
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({ ...orpc.tmbAdmin.schools.list.queryOptions({ input: {} }) });
 
@@ -80,12 +82,41 @@ export default function AdminSchoolsPage() {
           </span>
         }
         actions={
-          <Button
-            onClick={() => setOpen(true)}
-            className="rounded-xl bg-brand-navy font-bold font-bricolage hover:bg-brand-navy-light"
-          >
-            <Plus className="mr-1.5 h-4 w-4" /> Daftarkan Sekolah
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              data-testid="run-reminders"
+              disabled={reminding}
+              onClick={async () => {
+                setReminding(true);
+                try {
+                  const r: any = await (client as any).schoolAdmin.runReminders({});
+                  if (!r?.ok) {
+                    notify.error("Gagal mengirim pengingat");
+                    return;
+                  }
+                  notify.success(
+                    r.notified > 0
+                      ? `${r.notified} pengingat terkirim untuk ${r.details?.length ?? 0} kelas`
+                      : "Tidak ada kelas yang perlu diingatkan",
+                  );
+                } catch {
+                  notify.error("Gagal mengirim pengingat");
+                } finally {
+                  setReminding(false);
+                }
+              }}
+              className="rounded-xl font-bold font-bricolage"
+            >
+              {reminding ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null} Kirim pengingat
+            </Button>
+            <Button
+              onClick={() => setOpen(true)}
+              className="rounded-xl bg-brand-navy font-bold font-bricolage hover:bg-brand-navy-light"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Daftarkan Sekolah
+            </Button>
+          </>
         }
       />
 

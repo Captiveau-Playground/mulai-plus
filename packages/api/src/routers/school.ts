@@ -29,7 +29,9 @@ import {
 import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { z } from "zod";
 import { adminProcedure, protectedProcedure } from "../index";
+import { notifyBatchComplete, runBatchReminders } from "../lib/assessment-notify";
 import { notFound, preconditionFailed } from "../lib/errors";
+import { notifyUser } from "../lib/notify-user";
 import { buildBatchRekap, generateClaimCode, parseCsv } from "./tmb";
 
 /** Keanggotaan + organisasi milik user (fase ini: satu akun = satu organisasi). */
@@ -1302,6 +1304,27 @@ export const schoolAdminRouter = {
         roleChanged = true;
       }
 
+      // (M5.1) beri tahu PIC bahwa sekolahnya sudah aktif
+      if (target?.id) {
+        await notifyUser({
+          userId: target.id,
+          title: "Sekolah kamu sudah aktif ✅",
+          message: `${org.name} sudah disetujui. Kamu bisa membuat kelas, mengimpor peserta, dan membagikan undangan dari portal sekolah.`,
+          type: "success",
+          link: "/sekolah",
+          dedupeKey: `school-approved:${org.id}`,
+          email: {
+            subject: `${org.name} sudah aktif di MULAI+`,
+            html: `<div style="font-family:system-ui,sans-serif">
+              <h2>Sekolah kamu sudah aktif</h2>
+              <p>${org.name} sudah disetujui sebagai mitra MULAI+. Langkah berikutnya:</p>
+              <ol><li>Buat kelas &amp; impor peserta</li><li>Bagikan undangan (link/kode akses)</li><li>Lihat hasil &amp; insight kelas</li></ol>
+              <p><a href="${(process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "")}/sekolah" style="background:#0f766e;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none">Buka portal sekolah</a></p>
+            </div>`,
+          },
+        }).catch((e: any) => console.error("[notify] approve gagal:", e?.message ?? e));
+      }
+
       notifyDiscord({
         webhookUrl: (context.env as { DISCORD_WEBHOOK_URL?: string } | undefined)?.DISCORD_WEBHOOK_URL,
         event: "school.approved",
@@ -1322,6 +1345,24 @@ export const schoolAdminRouter = {
 
       return { ok: true as const, orgId: org.id, schoolId, schoolCreated, roleChanged };
     }),
+
+  /**
+   * (M5.1) Jalankan pengingat harian: kelas yang jadwalnya berakhir ≤3 hari dan
+   * masih ada peserta tertinggal. Aman dipanggil berulang (dedupe harian) —
+   * dipakai tombol admin sekarang, nanti bisa dipanggil cron.
+   */
+  runReminders: adminProcedure
+    .input(z.object({ windowDays: z.number().int().min(1).max(30).default(3) }).optional())
+    .handler(async ({ input }) => {
+      const r = await runBatchReminders(input?.windowDays ?? 3);
+      return { ok: true as const, ...r };
+    }),
+
+  /** (M5.1) Kirim ulang notifikasi "kelas selesai" untuk satu kelas (idempoten). */
+  notifyBatchComplete: adminProcedure.input(z.object({ batchId: z.string().min(1) })).handler(async ({ input }) => {
+    const r = await notifyBatchComplete(input.batchId);
+    return { ok: true as const, ...r };
+  }),
 
   /** Tolak pendaftaran (akun tidak jadi admin sekolah; role tidak diubah). */
   reject: adminProcedure

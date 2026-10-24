@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
+import { notifyBatchComplete, notifyResultReady } from "../lib/assessment-notify";
 import { evaluateTextInput } from "../lib/evaluate-input";
 import { recommendForResult } from "../lib/recommend";
 import { computeRecommendations, getProdiList } from "./tmb";
@@ -245,11 +246,14 @@ export const discoverRouter = {
           const winEnd = (b: any) => (b.windowEnd ? new Date(b.windowEnd).getTime() : null);
           const withWindow = batches.filter((b) => winStart(b) !== null || winEnd(b) !== null);
           if (withWindow.length) {
-            const open = withWindow.find(
-              (b) => (winStart(b) === null || nowMs >= winStart(b)!) && (winEnd(b) === null || nowMs <= winEnd(b)!),
-            );
+            const open = withWindow.find((b) => {
+              const ws = winStart(b);
+              const we = winEnd(b);
+              return (ws === null || nowMs >= ws) && (we === null || nowMs <= we);
+            });
             if (!open) {
-              const b = withWindow[0]!;
+              const b = withWindow[0];
+              if (!b) return null;
               const startMs = winStart(b);
               return {
                 ok: false,
@@ -666,7 +670,8 @@ export const discoverRouter = {
         counts.set(dimId, (counts.get(dimId) ?? 0) + 1);
       }
       if (method === "average") {
-        for (const [k, v] of scores) scores.set(k, counts.get(k) ? Math.round((v / counts.get(k)!) * 1000) / 1000 : 0);
+        for (const [k, v] of scores)
+          scores.set(k, counts.get(k) ? Math.round((v / (counts.get(k) ?? 1)) * 1000) / 1000 : 0);
       }
       const dims = await db.query.assessmentDimensions.findMany({
         where: eq(schema.assessmentDimensions.versionId, sess.versionId),
@@ -716,7 +721,8 @@ export const discoverRouter = {
         .delete(schema.assessmentDimensionScores)
         .where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
       for (let i = 0; i < rows.length; i++) {
-        const row = rows[i]!;
+        const row = rows[i];
+        if (!row) continue;
         await db.insert(schema.assessmentDimensionScores).values({
           id: uid(),
           sessionId: input.sessionId,
@@ -778,7 +784,10 @@ export const discoverRouter = {
                 .filter(Boolean)
                 .map((t) => new Date(t as any).getTime())
                 .sort((a, b) => a - b);
-              const seconds = times.length >= 2 ? Math.round((times[times.length - 1]! - times[0]!) / 1000) : 0;
+              const first = times[0];
+              const last = times[times.length - 1];
+              const seconds =
+                times.length >= 2 && first !== undefined && last !== undefined ? Math.round((last - first) / 1000) : 0;
               const answered = qs.filter((q) => ansByQ.has(q.id)).length;
               const dEnd = (timerCfg?.dims ?? []).find((x: any) => x.id === d.id)?.endISO;
               const timedOut = !!dEnd && Date.now() >= new Date(dEnd).getTime() && answered < qs.length;
@@ -873,7 +882,8 @@ export const discoverRouter = {
               careersList as any,
             );
             for (let i = 0; i < recoCalc.majors.length; i++) {
-              const m = recoCalc.majors[i]!;
+              const m = recoCalc.majors[i];
+              if (!m) continue;
               await db.insert(tmbRecommendations).values({
                 id: uid(),
                 resultId: rid,
@@ -886,7 +896,8 @@ export const discoverRouter = {
               });
             }
             for (let i = 0; i < recoCalc.careers.length; i++) {
-              const c = recoCalc.careers[i]!;
+              const c = recoCalc.careers[i];
+              if (!c) continue;
               await db.insert(tmbRecommendations).values({
                 id: uid(),
                 resultId: rid,
@@ -909,10 +920,20 @@ export const discoverRouter = {
         try {
           const n = await linkRosterResult(sess.studentId, b2bResultId);
           if (n > 0) console.log(`[engine][b2b] hasil ${b2bResultId} ditautkan ke ${n} baris roster sekolah`);
+          // (M5.1) kelas penuh selesai → beri tahu admin sekolah & guru BK
+          const roster = await db.query.tmbBatchStudents.findMany({
+            where: eq(tmbBatchStudents.userId, sess.studentId),
+            columns: { batchId: true },
+          });
+          for (const r of roster) await notifyBatchComplete(r.batchId);
         } catch (e: any) {
           console.error("[engine][b2b] gagal menautkan hasil ke roster:", e?.message ?? e);
         }
       }
+      // (M5.1) beri tahu siswa bahwa hasilnya siap
+      await notifyResultReady(sess.studentId, profileCode).catch((e: any) =>
+        console.error("[notify] hasil siap gagal:", e?.message ?? e),
+      );
       await db
         .update(schema.assessmentSessions)
         .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
@@ -1214,7 +1235,11 @@ function shuffle<T>(arr: T[]): T[] {
   const out = [...arr];
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
+    const a = out[i];
+    const b = out[j];
+    if (a === undefined || b === undefined) continue;
+    out[i] = b;
+    out[j] = a;
   }
   return out;
 }
@@ -1646,7 +1671,8 @@ export const discoverAdminRouter = {
         }
         await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, qid));
         for (let oi = 0; oi < q.options.length; oi++) {
-          const o = q.options[oi]!;
+          const o = q.options[oi];
+          if (!o) continue;
           await db.insert(schema.questionOptions).values({
             id: o.id ?? uid(),
             questionId: qid,
@@ -1683,10 +1709,12 @@ export const discoverAdminRouter = {
       .input(z.object({ versionId: z.string().min(1), orderedIds: z.array(z.string()).min(1) }))
       .handler(async ({ input }) => {
         for (let i = 0; i < input.orderedIds.length; i++) {
+          const qid = input.orderedIds[i];
+          if (!qid) continue;
           await db
             .update(schema.questions)
             .set({ displayOrder: i })
-            .where(and(eq(schema.questions.id, input.orderedIds[i]!), eq(schema.questions.versionId, input.versionId)));
+            .where(and(eq(schema.questions.id, qid), eq(schema.questions.versionId, input.versionId)));
         }
         return { ok: true };
       }),
@@ -1799,7 +1827,8 @@ export const discoverAdminRouter = {
         ).reduce((m, q) => Math.max(m, q.displayOrder ?? 0), 0);
         let order = maxOrder + 1;
         for (let ri = 0; ri < input.rows.length; ri++) {
-          const r = input.rows[ri]!;
+          const r = input.rows[ri];
+          if (!r) continue;
           const dim = await ensureDim(r.dimension ?? "");
           if (!dim) {
             fail.push(`Baris ${ri + 2}: kolom Dimensi kosong atau tidak dikenal "${r.dimension}".`);
@@ -1852,7 +1881,7 @@ export const discoverAdminRouter = {
                 questionId: qid,
                 optionValue: String.fromCharCode(65 + oi),
                 targetDimension: dim.id,
-                label: opts[oi]!,
+                label: opts[oi] ?? "",
                 score: oi === keyIdx ? 1 : 0,
                 displayOrder: oi,
               });

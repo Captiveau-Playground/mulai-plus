@@ -239,6 +239,13 @@
       "when": 1730000000000,
       "tag": "0038_org_referral",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0039_notification_dedupe",
+      "breakpoints": true
     }
   ]
 }
