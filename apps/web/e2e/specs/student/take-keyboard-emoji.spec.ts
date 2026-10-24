@@ -147,7 +147,7 @@ test.describe("Siswa · layout soal di mobile", () => {
     await loginAdmin(page);
   });
 
-  test("mobile: maskot di atas, soal full-width, font Manrope, 5 opsi tampil", async ({ page }) => {
+  test("mobile: maskot & soal SATU BARIS, font Manrope, 5 opsi tampil", async ({ page }) => {
     test.setTimeout(240000);
     await page.setViewportSize({ width: 390, height: 844 });
     const longQuestion =
@@ -192,15 +192,15 @@ test.describe("Siswa · layout soal di mobile", () => {
       };
     });
 
-    // maskot & soal tidak sebaris lagi (soal dapat lebar penuh)
+    // (perubahan 20 Okt) maskot & soal kini SATU BARIS: maskot kiri, soal kanan
     expect(maskot, "maskot tampil").toBeTruthy();
     expect(soal, "teks soal tampil").toBeTruthy();
-    expect(
-      soal!.y,
-      `soal harus di bawah maskot (maskot y=${maskot!.y} h=${maskot!.h}, soal y=${soal!.y})`,
-    ).toBeGreaterThanOrEqual(maskot!.y + maskot!.h - 4);
-    // lebar soal memakai hampir seluruh lebar layar
-    expect(soal!.w).toBeGreaterThan(390 - 80);
+    const overlap = Math.min(maskot!.y + maskot!.h, soal!.y + soal!.h) - Math.max(maskot!.y, soal!.y);
+    expect(overlap, `maskot & soal harus sebaris (maskot y=${maskot!.y} h=${maskot!.h}, soal y=${soal!.y} h=${soal!.h})`)
+      .toBeGreaterThan(10);
+    expect(maskot!.y + maskot!.h, "maskot tidak menumpuk teks soal").toBeLessThan(soal!.y + soal!.h + 1);
+    // soal tetap memakai sebagian besar lebar layar (dikurangi maskot + gap)
+    expect(soal!.w).toBeGreaterThan(250);
     // tipografi soal memakai Manrope (lebih terbaca untuk kalimat panjang)
     expect(font.toLowerCase()).toContain("manrope");
     // semua 5 opsi dirender (opsi ke-5 tidak lagi hilang)
