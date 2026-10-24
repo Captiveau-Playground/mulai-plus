@@ -437,6 +437,87 @@ export const schoolRouter = {
   }),
 
   /** (M2.1) Peserta satu kelas + status & hasil ringkas. Hanya kelas milik sekolahnya. */
+  /**
+   * (M4.2) Rekap lintas angkatan: jumlah kelas/peserta, progres, sebaran Holland
+   * dominan, dan rata-rata keyakinan per tahun lulus.
+   */
+  cohortYears: protectedProcedure.handler(async ({ context }) => {
+    const g = await activeSchool(context.session.user.id);
+    if ("error" in g) return { ok: false as const, ...g };
+    if (!g.schoolId) return { ok: true as const, items: [] as any[], years: [] as number[] };
+
+    const batches = await db.query.tmbBatches.findMany({ where: eq(tmbBatches.schoolId, g.schoolId) });
+    const ids = batches.map((b) => b.id);
+    let students: any[] = ids.length
+      ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.batchId, ids) })
+      : [];
+    if (students.some((x) => !x.email && !x.claimCode)) {
+      await ensureClaimCodes(students);
+      students = await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.batchId, ids) });
+    }
+    const resultIds = [...new Set(students.map((x) => x.resultId).filter(Boolean))] as string[];
+    const results = resultIds.length
+      ? await db.query.tmbAssessmentResults.findMany({
+          where: inArray(tmbAssessmentResults.id, resultIds),
+          columns: { id: true, hollandCode: true, confidenceScore: true },
+        })
+      : [];
+    const byId = new Map(results.map((r) => [r.id, r]));
+    const batchYear = new Map(batches.map((b) => [b.id, b.graduationYear ?? null]));
+
+    const groups = new Map<
+      number | null,
+      { total: number; completed: number; batches: Set<string>; holland: Record<string, number>; conf: number[] }
+    >();
+    for (const st of students) {
+      const year = batchYear.get(st.batchId) ?? null;
+      const grp = groups.get(year) ?? {
+        total: 0,
+        completed: 0,
+        batches: new Set<string>(),
+        holland: {},
+        conf: [] as number[],
+      };
+      grp.total++;
+      grp.batches.add(st.batchId);
+      if (st.status === "completed") grp.completed++;
+      const res = st.resultId ? byId.get(st.resultId) : undefined;
+      if (res) {
+        const code = String(res.hollandCode ?? "")
+          .slice(0, 1)
+          .toUpperCase();
+        if (code) grp.holland[code] = (grp.holland[code] ?? 0) + 1;
+        const c = Number(res.confidenceScore ?? 0);
+        if (c) grp.conf.push(c);
+      }
+      groups.set(year, grp);
+    }
+
+    const items = [...groups.entries()]
+      .map(([year, grp]) => {
+        const top = Object.entries(grp.holland).sort((a, b) => b[1] - a[1])[0] ?? null;
+        return {
+          year,
+          batches: grp.batches.size,
+          total: grp.total,
+          completed: grp.completed,
+          progress: grp.total ? Math.round((grp.completed / grp.total) * 100) : 0,
+          topHolland: top ? { code: top[0], count: top[1] } : null,
+          holland: grp.holland,
+          confidenceAvg: grp.conf.length
+            ? Math.round((grp.conf.reduce((a, b) => a + b, 0) / grp.conf.length) * 10) / 10
+            : null,
+        };
+      })
+      .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+
+    return {
+      ok: true as const,
+      items,
+      years: items.map((i) => i.year).filter((y): y is number => typeof y === "number"),
+    };
+  }),
+
   participants: protectedProcedure
     .input(z.object({ batchId: z.string().min(1) }))
     .handler(async ({ input, context }) => {

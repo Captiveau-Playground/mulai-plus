@@ -25,6 +25,9 @@ const EMPTY = "Belum ada kelas";
 export default function SchoolCohortsPage() {
   const qc = useQueryClient();
   const q = useQuery(orpc.school.cohorts.queryOptions());
+  // (M4.2) lintas angkatan: filter tahun + perbandingan
+  const yearsQ = useQuery(orpc.school.cohortYears.queryOptions());
+  const [yearFilter, setYearFilter] = useState<number | "all">("all");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ name: "", className: "", major: "", graduationYear: "" });
@@ -58,7 +61,17 @@ export default function SchoolCohortsPage() {
       setBusy(false);
     }
   };
-  const items: any[] = (q.data as any)?.items ?? [];
+  const allItems: any[] = (q.data as any)?.items ?? [];
+  const items = yearFilter === "all" ? allItems : allItems.filter((c: any) => c.graduationYear === yearFilter);
+  const years: Array<{
+    year: number | null;
+    batches: number;
+    total: number;
+    completed: number;
+    progress: number;
+    topHolland: { code: string; count: number } | null;
+    confidenceAvg: number | null;
+  }> = (yearsQ.data as any)?.ok ? (yearsQ.data as any).items : [];
   const notActive = q.data && (q.data as any).ok === false;
 
   return (
@@ -74,7 +87,10 @@ export default function SchoolCohortsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={"/sekolah" as any} className="font-manrope font-semibold text-mentor-teal text-xs hover:underline">
+          <Link
+            href={"/sekolah" as any}
+            className="font-manrope font-semibold text-mentor-teal text-xs hover:underline"
+          >
             ← Dashboard
           </Link>
           <Button
@@ -88,6 +104,54 @@ export default function SchoolCohortsPage() {
         </div>
       </div>
 
+      {/* (M4.2) Filter & perbandingan angkatan */}
+      {years.length > 1 && (
+        <section className="mt-4 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm" data-testid="year-compare">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-manrope font-semibold text-[10px] text-gray-500 uppercase">Angkatan</span>
+            <button
+              type="button"
+              data-testid="year-all"
+              onClick={() => setYearFilter("all")}
+              className={`rounded-full px-2.5 py-1 font-manrope font-semibold text-[10px] ${
+                yearFilter === "all" ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Semua
+            </button>
+            {years.map((y) => (
+              <button
+                key={String(y.year)}
+                type="button"
+                data-testid={`year-${y.year ?? "tanpa"}`}
+                onClick={() => setYearFilter(y.year ?? "all")}
+                className={`rounded-full px-2.5 py-1 font-manrope font-semibold text-[10px] ${
+                  yearFilter === y.year ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {y.year ?? "Tanpa angkatan"}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {years
+              .filter((y) => y.year !== null)
+              .map((y) => (
+                <div key={String(y.year)} className="rounded-xl bg-gray-50 px-3 py-2" data-testid="year-card">
+                  <p className="font-bold font-bricolage text-brand-navy text-sm">Angkatan {y.year}</p>
+                  <p className="font-manrope text-[10px] text-gray-500">
+                    {y.batches} kelas · {y.completed}/{y.total} selesai · Holland dominan {y.topHolland?.code ?? "—"}
+                    {y.confidenceAvg ? ` · keyakinan ${y.confidenceAvg}%` : ""}
+                  </p>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
+                    <div className="h-full rounded-full bg-teal-500" style={{ width: `${y.progress}%` }} />
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
       {q.isLoading ? (
         <div className="flex min-h-[30vh] items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-mentor-teal" />
@@ -96,7 +160,7 @@ export default function SchoolCohortsPage() {
         <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 font-manrope text-amber-800 text-sm">
           Akun sekolah belum aktif — kelas akan muncul setelah pendaftaran disetujui.
         </div>
-      ) : items.length === 0 ? (
+      ) : allItems.length === 0 ? (
         <div className="mt-6 rounded-3xl border border-gray-200 border-dashed bg-white p-8 text-center">
           <Users className="mx-auto h-6 w-6 text-gray-300" />
           <p className="mt-2 font-manrope font-semibold text-gray-700 text-sm">{EMPTY}</p>
