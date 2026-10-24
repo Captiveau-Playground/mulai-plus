@@ -307,6 +307,9 @@ export const assessmentOrgs = pgTable(
     name: text("name").notNull(),
     type: text("type").default("sekolah").notNull(), // sekolah | kampus | bimbel | korporat
     npsn: text("npsn"),
+    // (M4.3) kode rujukan sekolah (referral antar sekolah)
+    referralCode: text("referral_code"),
+    referredByOrgId: text("referred_by_org_id"),
     city: text("city"),
     address: text("address"),
     picName: text("pic_name"),

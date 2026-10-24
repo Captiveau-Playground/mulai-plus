@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, GraduationCap, Loader2, Users } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const HOLLAND: { code: string; name: string; emoji: string }[] = [
@@ -34,6 +35,8 @@ export default function SchoolDashboardPage() {
   const me = useQuery(orpc.school.me.queryOptions());
   const aktif = me.data?.member?.status === "aktif" && me.data?.org?.status === "aktif";
   const overview = useQuery({ ...orpc.school.overview.queryOptions(), enabled: aktif });
+  // (M4.3) kode rujukan sekolah (referral antar sekolah)
+  const referral = useQuery({ ...orpc.school.referral.queryOptions({ input: {} }), enabled: aktif });
 
   if (me.isLoading) {
     return (
@@ -196,6 +199,49 @@ export default function SchoolDashboardPage() {
               </div>
             </div>
           )}
+
+          {/* (M4.3) Referral antar sekolah */}
+          <div className="mt-5 rounded-3xl border border-teal-100 bg-teal-50/40 p-4" data-testid="referral-card">
+            <h2 className="font-bold font-bricolage text-sm text-teal-900">Ajak sekolah lain</h2>
+            <p className="mt-1 font-manrope text-[11px] text-teal-800">
+              Bagikan kode rujukan ini — sekolah yang mendaftar lewat kode tersebut tercatat sebagai rujukan sekolah
+              Anda.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <code
+                data-testid="referral-code"
+                className="rounded-lg bg-white px-2 py-1 font-bold font-mono text-teal-800 text-xs shadow-sm"
+              >
+                {(referral.data as any)?.code ?? "…"}
+              </code>
+              <button
+                type="button"
+                data-testid="copy-referral"
+                onClick={async () => {
+                  const link = (referral.data as any)?.link;
+                  if (!link) return;
+                  await navigator.clipboard.writeText(link);
+                  notify.success("Link rujukan tersalin");
+                }}
+                className="rounded-lg bg-teal-700 px-2 py-1 font-manrope font-semibold text-[10px] text-white hover:bg-teal-800"
+              >
+                Salin link rujukan
+              </button>
+              <span className="font-manrope text-[10px] text-teal-700" data-testid="referral-count">
+                {(referral.data as any)?.total ?? 0} sekolah mendaftar lewat kode Anda
+              </span>
+            </div>
+            {((referral.data as any)?.referred ?? []).length > 0 && (
+              <ul className="mt-2 space-y-0.5">
+                {(referral.data as any).referred.slice(0, 6).map((r: any) => (
+                  <li key={r.id} className="font-manrope text-[11px] text-teal-900">
+                    • {r.name}
+                    {r.city ? ` · ${r.city}` : ""} <span className="text-teal-600">({r.status})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {(t?.peserta ?? 0) === 0 && (
             <div className="mt-5 rounded-3xl border border-gray-200 border-dashed bg-white p-6 text-center">

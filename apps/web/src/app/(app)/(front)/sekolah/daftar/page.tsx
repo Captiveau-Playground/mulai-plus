@@ -6,8 +6,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, GraduationCap, Loader2, Send } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,8 +21,11 @@ const TIPE = [
   { value: "korporat", label: "Korporat / Instansi" },
 ];
 
-export default function DaftarSekolahPage() {
+function DaftarSekolahPageInner() {
   const router = useRouter();
+  // (M4.3) kode rujukan sekolah asal: /sekolah/daftar?ref=SCH-XXXXXX
+  const searchParams = useSearchParams();
+  const refCode = (searchParams.get("ref") ?? "").trim().toUpperCase();
   const qc = useQueryClient();
   const me = useQuery(orpc.school.me.queryOptions());
   const [form, setForm] = useState({
@@ -70,6 +73,7 @@ export default function DaftarSekolahPage() {
       picPosition: form.picPosition.trim(),
       picPhone: form.picPhone.trim(),
       picEmail: form.picEmail.trim(),
+      ...(refCode ? { ref: refCode } : {}),
     });
   };
 
@@ -116,6 +120,11 @@ export default function DaftarSekolahPage() {
   // ── Formulir ─────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-2xl px-4 py-10" data-testid="school-register-form">
+      {refCode && (
+        <p className="mb-3 rounded-xl bg-teal-50 px-3 py-2 font-manrope text-teal-800 text-xs" data-testid="ref-badge">
+          Mendaftar lewat rujukan <b className="font-mono">{refCode}</b>
+        </p>
+      )}
       <p className="font-manrope font-semibold text-[11px] text-teal-600 uppercase tracking-wide">Kemitraan Sekolah</p>
       <h1 className="mt-1 font-bold font-bricolage text-2xl text-gray-900">Daftarkan sekolahmu</h1>
       <p className="mt-2 font-manrope text-gray-500 text-sm">
@@ -245,5 +254,14 @@ export default function DaftarSekolahPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// `useSearchParams` (kode rujukan ?ref=…) butuh Suspense agar bisa diprerender.
+export default function DaftarSekolahPagePage() {
+  return (
+    <Suspense fallback={<div className="min-h-[60vh]" />}>
+      <DaftarSekolahPageInner />
+    </Suspense>
   );
 }

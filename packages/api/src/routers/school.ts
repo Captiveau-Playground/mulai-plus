@@ -312,6 +312,7 @@ export const schoolRouter = {
         picPosition: z.string().trim().max(60).optional().or(z.literal("")),
         picPhone: z.string().trim().min(8).max(24),
         picEmail: z.string().trim().email().optional().or(z.literal("")),
+        ref: z.string().trim().max(16).optional().or(z.literal("")),
       }),
     )
     .handler(async ({ input, context }) => {
@@ -326,9 +327,20 @@ export const schoolRouter = {
         };
       }
 
+      // (M4.3) referral: sekolah yang mendaftar lewat kode rujukan sekolah lain
+      let referredByOrgId: string | null = null;
+      if (input.ref) {
+        const refOrg = await db.query.assessmentOrgs.findFirst({
+          where: eq(assessmentOrgs.referralCode, input.ref.trim().toUpperCase()),
+          columns: { id: true },
+        });
+        referredByOrgId = refOrg?.id ?? null;
+      }
+
       const orgId = randomUUID();
       await db.insert(assessmentOrgs).values({
         id: orgId,
+        referredByOrgId,
         name: input.name,
         type: input.type,
         npsn: input.npsn || null,
@@ -361,6 +373,7 @@ export const schoolRouter = {
           { name: "PIC", value: `${input.picName}${input.picPosition ? ` (${input.picPosition})` : ""}`, inline: true },
           { name: "Kontak", value: `${input.picPhone}${input.picEmail ? ` · ${input.picEmail}` : ""}`, inline: false },
           { name: "Akun", value: `${u.name ?? "-"} · ${u.email ?? "-"}`, inline: false },
+          ...(input.ref ? [{ name: "Referral", value: input.ref.toUpperCase(), inline: true }] : []),
         ],
         throttleMs: 0,
         waitUntil: context.executionCtx?.waitUntil,
@@ -981,6 +994,50 @@ export const schoolRouter = {
       return { ok: true as const, code: owned.inviteCode ?? null, link, waText, studentName, claimCode: personalCode };
     }),
 
+  /**
+   * (M4.3) Kode rujukan sekolah + daftar sekolah yang mendaftar lewat kode ini.
+   */
+  referral: protectedProcedure.handler(async ({ context }) => {
+    const g = await activeSchool(context.session.user.id);
+    if ("error" in g) return { ok: false as const, ...g };
+
+    let code = g.org.referralCode;
+    if (!code) {
+      for (let i = 0; i < 6; i++) {
+        const candidate = `SCH-${generateClaimCode(6)}`;
+        const dup = await db.query.assessmentOrgs.findFirst({
+          where: eq(assessmentOrgs.referralCode, candidate),
+          columns: { id: true },
+        });
+        if (dup) continue;
+        await db.update(assessmentOrgs).set({ referralCode: candidate }).where(eq(assessmentOrgs.id, g.org.id));
+        code = candidate;
+        break;
+      }
+    }
+
+    const referred = await db
+      .select({
+        id: assessmentOrgs.id,
+        name: assessmentOrgs.name,
+        city: assessmentOrgs.city,
+        status: assessmentOrgs.status,
+        createdAt: assessmentOrgs.createdAt,
+      })
+      .from(assessmentOrgs)
+      .where(eq(assessmentOrgs.referredByOrgId, g.org.id))
+      .orderBy(desc(assessmentOrgs.createdAt));
+
+    const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+    return {
+      ok: true as const,
+      code: code ?? null,
+      link: code ? `${base}/sekolah/daftar?ref=${code}` : `${base}/sekolah/daftar`,
+      referred,
+      total: referred.length,
+    };
+  }),
+
   /** (M4.1) Daftar tim sekolah + undangan yang masih pending. */
   team: protectedProcedure.handler(async ({ context }) => {
     await consumeInvites(context.session.user.id);
@@ -1255,6 +1312,9 @@ export const schoolAdminRouter = {
           { name: "Akun", value: `${target?.name ?? "-"} · ${target?.email ?? "-"}`, inline: true },
           { name: "Role dinaikkan", value: roleChanged ? "ya" : "tidak (sudah role lain)", inline: true },
           { name: "Sekolah legacy", value: schoolCreated ? "dibuat baru" : `ditautkan (${schoolId})`, inline: false },
+          ...(org.referredByOrgId
+            ? [{ name: "Referral dari", value: `org ${org.referredByOrgId}`, inline: false }]
+            : []),
         ],
         throttleMs: 0,
         waitUntil: context.executionCtx?.waitUntil,
