@@ -840,30 +840,31 @@ export const tmbRouter = {
       const userId = context.session.user.id;
       const code = input.code.trim().toUpperCase();
 
-      // (M2.6) kode akses personal — untuk peserta yang TIDAK punya email.
-      // Kode dipakai sekali: setelah terikat ke akun, tidak bisa dipakai akun lain.
-      const personal = await db.query.tmbBatchStudents.findFirst({
-        where: eq(tmbBatchStudents.claimCode, code),
-      });
-      if (personal) {
-        if (personal.userId && personal.userId !== userId) {
-          preconditionFailed("Kode akses ini sudah dipakai akun lain — minta kode baru ke sekolahmu");
-        }
-        if (!personal.userId) {
-          await db
-            .update(tmbBatchStudents)
-            .set({ userId, claimCodeUsedAt: new Date() })
-            .where(eq(tmbBatchStudents.id, personal.id));
-        }
-        const pBatch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, personal.batchId) });
-        const pSchool = pBatch
-          ? await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, pBatch.schoolId) })
-          : null;
-        return { studentName: personal.name, schoolName: pSchool?.name ?? pBatch?.name ?? null };
-      }
-
       const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, code) });
-      if (!batch) notFound("Kode undangan tidak valid — pastikan kode sesuai dari sekolahmu");
+      if (!batch) {
+        // (M2.6) bukan kode batch → coba kode akses personal (peserta tanpa email).
+        // Kode dipakai sekali: setelah terikat ke akun, tidak bisa dipakai akun lain.
+        const personal = await db.query.tmbBatchStudents.findFirst({
+          where: eq(tmbBatchStudents.claimCode, code),
+        });
+        if (personal) {
+          if (personal.userId && personal.userId !== userId) {
+            preconditionFailed("Kode akses ini sudah dipakai akun lain — minta kode baru ke sekolahmu");
+          }
+          if (!personal.userId) {
+            await db
+              .update(tmbBatchStudents)
+              .set({ userId, claimCodeUsedAt: new Date() })
+              .where(eq(tmbBatchStudents.id, personal.id));
+          }
+          const pBatch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, personal.batchId) });
+          const pSchool = pBatch
+            ? await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, pBatch.schoolId) })
+            : null;
+          return { studentName: personal.name, schoolName: pSchool?.name ?? pBatch?.name ?? null };
+        }
+        notFound("Kode undangan tidak valid — pastikan kode sesuai dari sekolahmu");
+      }
 
       // cari siswa di batch ini yang emailnya cocok dengan akun login
       const [currentUser] = await db
