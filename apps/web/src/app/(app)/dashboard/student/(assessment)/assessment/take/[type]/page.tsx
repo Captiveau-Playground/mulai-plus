@@ -180,6 +180,28 @@ function LegacyWizard({
   // bisa diatur dari editor (Aturan tes → pembagian bagian).
   const sectionsOn = isEngine && (engine?.sectionMode ?? "none") !== "none";
   const allowPause = engine?.allowPause !== false;
+  // (Temuan analis #2) Di PREVIEW admin, "Keluar" JANGAN bernavigasi ke area siswa
+  // (dulu iframe preview terlempar ke dashboard student). Kirim pesan ke parent →
+  // editor menutup dialog preview.
+  const isPreviewMode =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "1";
+  const keluar = () => {
+    if (isPreviewMode) {
+      try {
+        window.parent?.postMessage({ type: "assessment-preview-exit" }, "*");
+      } catch {
+        /* abaikan */
+      }
+      return;
+    }
+    router.push("/dashboard/student/assessment");
+  };
+  /** Cegat klik Link saat preview (halaman selesai/CTA) agar tidak pindah rute. */
+  const guardLink = (e: React.MouseEvent) => {
+    if (!isPreviewMode) return;
+    e.preventDefault();
+    keluar();
+  };
   const engineQs = engine?.questions ?? [];
   const [orderIds, setOrderIds] = useState<string[] | null>(null); // urutan soal sesi (ujian) — stabil utk resume & grid
   const [answeredSet, setAnsweredSet] = useState<Set<string> | null>(null);
@@ -561,7 +583,7 @@ function LegacyWizard({
   const [achPop, setAchPop] = useState(false); // modal perayaan brand saat tes selesai
   const [timerSt, setTimerSt] = useState<any | null>(null); // heartbeat timer (otoritas server)
   const [timerNotice, setTimerNotice] = useState<string | null>(null); // banner "waktu habis"
-  const [, setTick] = useState(0); // re-render tiap detik utk countdown
+  const [tick, setTick] = useState(0); // re-render tiap detik utk countdown & cek deadline
   const jumpRef = useRef<string>(""); // cegah lompat dobel
 
   // ⏱ Deadline EFEKTIF untuk satu soal — timer bisa beda scope per dimensi (#7):
@@ -631,7 +653,7 @@ function LegacyWizard({
     );
     timerJump(target);
     setTimeout(() => setTimerNotice(null), 3000);
-  }, [timerSt, eq]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [timerSt, eq, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
@@ -981,6 +1003,7 @@ function LegacyWizard({
                 ) : (
                   <Link
                     href={`/dashboard/student/assessment/take/${engine!.otherCode}`}
+                    onClick={guardLink}
                     className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
                   >
                     Lanjut ke {engine!.otherLabel} <ArrowRight className="h-5 w-5" />
@@ -990,6 +1013,7 @@ function LegacyWizard({
             ) : bothDone || (!isInterest && resultId) ? (
               <Link
                 href="/dashboard/student/assessment/result"
+                onClick={guardLink}
                 className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
               >
                 <Sparkles className="h-5 w-5" /> Lihat Rekomendasi
@@ -997,6 +1021,7 @@ function LegacyWizard({
             ) : (
               <Link
                 href="/dashboard/student/assessment"
+                onClick={guardLink}
                 className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
               >
                 Kembali ke Beranda <ArrowRight className="h-5 w-5" />
@@ -1004,6 +1029,7 @@ function LegacyWizard({
             )}
             <Link
               href="/dashboard/student/assessment"
+              onClick={guardLink}
               className="flex items-center justify-center gap-1.5 font-manrope font-semibold text-gray-400 text-sm hover:text-gray-600"
             >
               <Home className="h-4 w-4" /> Beranda
@@ -1060,7 +1086,7 @@ function LegacyWizard({
   if (isEngine && intro === true) {
     const nSec = engine?.sections ?? Math.max(1, new Set(effQs.map((q) => q.dimensionId)).size);
     return (
-      <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-light px-6 py-10 text-center">
+      <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-start overflow-y-auto bg-bg-light px-6 py-10 text-center sm:justify-center">
         <div className="h-24 w-24 overflow-hidden">
           <Image
             src="/maskot/masko-book.webp"
@@ -1197,7 +1223,7 @@ function LegacyWizard({
         </button>
         {allowPause && dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
           <button
-            onClick={() => router.push("/dashboard/student/assessment")}
+            onClick={keluar}
             className="mt-3 font-manrope font-semibold text-gray-400 text-sm underline-offset-2 hover:text-gray-600 hover:underline"
           >
             Berhenti dulu — lanjut kapan saja
@@ -1244,7 +1270,7 @@ function LegacyWizard({
             </button>
             {allowPause && dimIdxOf(secOverlay.nextEq) < totalDims && (
               <button
-                onClick={() => router.push("/dashboard/student/assessment")}
+                onClick={keluar}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
               >
                 ⏸ Berhenti di sini — lanjut nanti dari bagian ini
@@ -1478,7 +1504,9 @@ function LegacyWizard({
                       {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
                     </span>
                   )}
-                  <StreakFlame days={streak} showDots={false} showLabel={false} />
+                  <span className="hidden sm:inline-flex">
+                    <StreakFlame days={streak} showDots={false} showLabel={false} />
+                  </span>
                 </span>
               </div>
             </div>
@@ -1577,7 +1605,7 @@ function LegacyWizard({
                     Lanjut Test
                   </button>
                   <button
-                    onClick={() => router.push("/dashboard/student/assessment")}
+                    onClick={keluar}
                     className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
                   >
                     Keluar & Simpan
@@ -1618,8 +1646,10 @@ function LegacyWizard({
           )}
 
           {/* QUESTION — bubble chat maskot bertanya (tanpa label duplikat; maskot polos & lebih besar) */}
-          <div className="mb-4 flex min-h-0 flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-            <div className="h-20 w-20 shrink-0 overflow-hidden sm:h-16 sm:w-16">
+          {/* SATU BARIS di semua ukuran (permintaan analis): maskot di kiri, soal di kanan.
+              Maskot dikecilkan di mobile supaya teks soal tetap lega & area opsi tidak terpotong. */}
+          <div className="mb-3 flex min-h-0 flex-row items-start gap-2 sm:items-end sm:gap-3">
+            <div className="h-12 w-12 shrink-0 overflow-hidden sm:h-16 sm:w-16">
               <Image
                 src={_mascotNow}
                 alt="Maskot bertanya"
@@ -1632,7 +1662,7 @@ function LegacyWizard({
               key={liveQuestion.id}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative flex-1 rounded-3xl rounded-bl-md border border-gray-100 bg-white px-5 pt-4 pb-4 shadow-sm"
+              className="relative max-h-[30vh] min-w-0 flex-1 overflow-y-auto rounded-3xl rounded-bl-md border border-gray-100 bg-white px-4 pt-3 pb-3 shadow-sm sm:px-5 sm:pt-4 sm:pb-4"
             >
               <span className="absolute top-4 -left-1.5 hidden h-3 w-3 rotate-45 border-gray-100 border-b border-l bg-white sm:block" />
               <h2
