@@ -74,7 +74,7 @@ export default function SchoolCohortsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/sekolah" className="font-manrope font-semibold text-mentor-teal text-xs hover:underline">
+          <Link href={"/sekolah" as any} className="font-manrope font-semibold text-mentor-teal text-xs hover:underline">
             ← Dashboard
           </Link>
           <Button
