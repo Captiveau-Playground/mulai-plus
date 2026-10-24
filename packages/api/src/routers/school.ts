@@ -12,7 +12,7 @@
 
 import { randomUUID } from "node:crypto";
 import { and, asc, db, desc, eq, inArray } from "@mulai-plus/db/db";
-import { assessmentOrgMembers, assessmentOrgs } from "@mulai-plus/db/schema/assessment";
+import { assessmentCohortReports, assessmentOrgMembers, assessmentOrgs } from "@mulai-plus/db/schema/assessment";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   tmbAssessmentResults,
@@ -73,6 +73,154 @@ async function ownedBatch(batchId: string, schoolId: string | null) {
   if (!schoolId) return null;
   const b = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, batchId) });
   return b && b.schoolId === schoolId ? b : null;
+}
+
+/** (M3) Hitung insight kelas — dipakai endpoint insight & snapshot laporan. */
+async function computeCohortInsight(
+  batchId: string,
+  schoolName: string | null,
+  batchMeta: { id: string; name: string | null; className: string | null; major: string | null },
+) {
+  const students = await db.query.tmbBatchStudents.findMany({
+    where: eq(tmbBatchStudents.batchId, batchId),
+    orderBy: asc(tmbBatchStudents.name),
+  });
+  const resultIds = [...new Set(students.map((x) => x.resultId).filter(Boolean))] as string[];
+  const [results, recos] = await Promise.all([
+    resultIds.length
+      ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+      : Promise.resolve([]),
+    resultIds.length
+      ? db.query.tmbRecommendations.findMany({ where: inArray(tmbRecommendations.resultId, resultIds) })
+      : Promise.resolve([]),
+  ]);
+  const byId = new Map(results.map((r) => [r.id, r]));
+  const recosByResult = new Map<string, typeof recos>();
+  for (const r of recos) {
+    const arr = recosByResult.get(r.resultId) ?? [];
+    arr.push(r);
+    recosByResult.set(r.resultId, arr);
+  }
+
+  const HOLLAND = ["R", "I", "A", "S", "E", "C"] as const;
+  const hollandCount: Record<string, number> = Object.fromEntries(HOLLAND.map((k) => [k, 0]));
+  const hollandSum: Record<string, number> = Object.fromEntries(HOLLAND.map((k) => [k, 0]));
+  const majorCount = new Map<string, number>();
+  const careerCount = new Map<string, number>();
+  const abilSum = new Map<string, { correct: number; total: number }>();
+  const attention: Array<{ participantId: string; name: string; reasons: string[] }> = [];
+  let confSum = 0;
+  let confN = 0;
+  let firstAt: Date | null = null;
+  let lastAt: Date | null = null;
+  let completed = 0;
+  let inProgress = 0;
+
+  for (const st of students) {
+    if (st.status === "in_progress") inProgress++;
+    const res = st.resultId ? byId.get(st.resultId) : null;
+    if (!res) {
+      if (st.status !== "completed")
+        attention.push({ participantId: st.id, name: st.name, reasons: ["belum selesai"] });
+      continue;
+    }
+    completed++;
+
+    const hs = (res.hollandScores ?? {}) as Record<string, number>;
+    for (const k of HOLLAND) {
+      const v = Number(hs[k] ?? 0);
+      hollandSum[k] = (hollandSum[k] ?? 0) + v;
+    }
+    const top = String(res.hollandCode ?? "")
+      .slice(0, 1)
+      .toUpperCase();
+    if (top in hollandCount) hollandCount[top] = (hollandCount[top] ?? 0) + 1;
+
+    const myRecos = recosByResult.get(res.id) ?? [];
+    for (const rc of myRecos) {
+      if (rc.type === "major" && (rc.rank ?? 99) <= 3) {
+        majorCount.set(rc.itemName, (majorCount.get(rc.itemName) ?? 0) + 1);
+      } else if (rc.type === "career" && (rc.rank ?? 99) <= 3) {
+        careerCount.set(rc.itemName, (careerCount.get(rc.itemName) ?? 0) + 1);
+      }
+    }
+
+    const ab = (res.abilityScores ?? {}) as any;
+    const scores = ab?.scores ?? ab ?? {};
+    let weakest: { key: string; pct: number } | null = null;
+    for (const [k, v] of Object.entries(scores)) {
+      if (!v || typeof v !== "object") continue;
+      const correct = Number((v as any).correct ?? 0);
+      const total = Number((v as any).total ?? 0);
+      if (!total) continue;
+      const acc = abilSum.get(k) ?? { correct: 0, total: 0 };
+      acc.correct += correct;
+      acc.total += total;
+      abilSum.set(k, acc);
+      const pct = Math.round((correct / total) * 100);
+      if (!weakest || pct < weakest.pct) weakest = { key: k, pct };
+    }
+
+    const conf = Number(res.confidenceScore ?? 0);
+    if (conf) {
+      confSum += conf;
+      confN++;
+    }
+    const reasons: string[] = [];
+    if (conf && conf < 50) reasons.push("keyakinan rendah");
+    if (
+      String(res.differentiation ?? "")
+        .toLowerCase()
+        .startsWith("flat")
+    )
+      reasons.push("minat menyebar (belum jelas)");
+    if (weakest && weakest.pct < 40) reasons.push(`kemampuan ${weakest.key} terendah`);
+    if (reasons.length) attention.push({ participantId: st.id, name: st.name, reasons });
+
+    const at = res.createdAt ? new Date(res.createdAt) : null;
+    if (at) {
+      if (!firstAt || at < firstAt) firstAt = at;
+      if (!lastAt || at > lastAt) lastAt = at;
+    }
+  }
+
+  const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+  const hollandDist = HOLLAND.map((k) => ({
+    code: k,
+    count: hollandCount[k] ?? 0,
+    pct: pct(hollandCount[k] ?? 0, completed),
+    avg: completed ? Math.round(((hollandSum[k] ?? 0) / completed) * 10) / 10 : 0,
+  })).sort((a, b) => b.count - a.count || b.avg - a.avg);
+
+  const ability = [...abilSum.entries()]
+    .map(([key, v]) => ({ key, correct: v.correct, total: v.total, pct: pct(v.correct, v.total) }))
+    .sort((a, b) => b.pct - a.pct);
+
+  const topOf = (m: Map<string, number>, limit = 8) =>
+    [...m.entries()]
+      .map(([name, count]) => ({ name, count, pct: pct(count, Math.max(1, completed)) }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, limit);
+
+  return {
+    batch: batchMeta,
+    school: schoolName,
+    counts: {
+      total: students.length,
+      completed,
+      inProgress,
+      invited: Math.max(0, students.length - completed - inProgress),
+    },
+    confidenceAvg: confN ? Math.round((confSum / confN) * 10) / 10 : null,
+    hollandDist,
+    ability,
+    strongest: ability[0] ?? null,
+    weakest: ability.length > 1 ? ability[ability.length - 1] : null,
+    topMajors: topOf(majorCount),
+    topCareers: topOf(careerCount),
+    attention: attention.slice(0, 40),
+    range: { first: firstAt, last: lastAt },
+  };
 }
 
 export const schoolRouter = {
@@ -529,149 +677,89 @@ export const schoolRouter = {
       if ("error" in g) return { ok: false as const, ...g };
       const owned = await ownedBatch(input.batchId, g.schoolId);
       if (!owned) return { ok: false as const, error: "not_found" as const };
-
-      const students = await db.query.tmbBatchStudents.findMany({
-        where: eq(tmbBatchStudents.batchId, input.batchId),
-        orderBy: asc(tmbBatchStudents.name),
+      const data = await computeCohortInsight(input.batchId, g.org?.name ?? null, {
+        id: owned.id,
+        name: owned.name,
+        className: owned.className,
+        major: owned.major,
       });
-      const resultIds = [...new Set(students.map((x) => x.resultId).filter(Boolean))] as string[];
-      const [results, recos] = await Promise.all([
-        resultIds.length
-          ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
-          : Promise.resolve([]),
-        resultIds.length
-          ? db.query.tmbRecommendations.findMany({ where: inArray(tmbRecommendations.resultId, resultIds) })
-          : Promise.resolve([]),
-      ]);
-      const byId = new Map(results.map((r) => [r.id, r]));
-      const recosByResult = new Map<string, typeof recos>();
-      for (const r of recos) {
-        const arr = recosByResult.get(r.resultId) ?? [];
-        arr.push(r);
-        recosByResult.set(r.resultId, arr);
-      }
-
-      const HOLLAND = ["R", "I", "A", "S", "E", "C"] as const;
-      const hollandCount: Record<string, number> = Object.fromEntries(HOLLAND.map((k) => [k, 0]));
-      const hollandSum: Record<string, number> = Object.fromEntries(HOLLAND.map((k) => [k, 0]));
-      const majorCount = new Map<string, number>();
-      const careerCount = new Map<string, number>();
-      const abilSum = new Map<string, { correct: number; total: number }>();
-      const attention: Array<{ participantId: string; name: string; reasons: string[] }> = [];
-      let confSum = 0;
-      let confN = 0;
-      let firstAt: Date | null = null;
-      let lastAt: Date | null = null;
-      let completed = 0;
-      let inProgress = 0;
-
-      for (const st of students) {
-        if (st.status === "in_progress") inProgress++;
-        const res = st.resultId ? byId.get(st.resultId) : null;
-        if (!res) {
-          if (st.status !== "completed")
-            attention.push({ participantId: st.id, name: st.name, reasons: ["belum selesai"] });
-          continue;
-        }
-        completed++;
-
-        const hs = (res.hollandScores ?? {}) as Record<string, number>;
-        for (const k of HOLLAND) {
-          const v = Number(hs[k] ?? 0);
-          hollandSum[k] = (hollandSum[k] ?? 0) + v;
-        }
-        const top = String(res.hollandCode ?? "")
-          .slice(0, 1)
-          .toUpperCase();
-        if (top in hollandCount) hollandCount[top] = (hollandCount[top] ?? 0) + 1;
-
-        const myRecos = recosByResult.get(res.id) ?? [];
-        for (const rc of myRecos) {
-          if (rc.type === "major" && (rc.rank ?? 99) <= 3) {
-            majorCount.set(rc.itemName, (majorCount.get(rc.itemName) ?? 0) + 1);
-          } else if (rc.type === "career" && (rc.rank ?? 99) <= 3) {
-            careerCount.set(rc.itemName, (careerCount.get(rc.itemName) ?? 0) + 1);
-          }
-        }
-
-        const ab = (res.abilityScores ?? {}) as any;
-        const scores = ab?.scores ?? ab ?? {};
-        let weakest: { key: string; pct: number } | null = null;
-        for (const [k, v] of Object.entries(scores)) {
-          if (!v || typeof v !== "object") continue;
-          const correct = Number((v as any).correct ?? 0);
-          const total = Number((v as any).total ?? 0);
-          if (!total) continue;
-          const acc = abilSum.get(k) ?? { correct: 0, total: 0 };
-          acc.correct += correct;
-          acc.total += total;
-          abilSum.set(k, acc);
-          const pct = Math.round((correct / total) * 100);
-          if (!weakest || pct < weakest.pct) weakest = { key: k, pct };
-        }
-
-        const conf = Number(res.confidenceScore ?? 0);
-        if (conf) {
-          confSum += conf;
-          confN++;
-        }
-        const reasons: string[] = [];
-        if (conf && conf < 50) reasons.push("keyakinan rendah");
-        if (
-          String(res.differentiation ?? "")
-            .toLowerCase()
-            .startsWith("flat")
-        )
-          reasons.push("minat menyebar (belum jelas)");
-        if (weakest && weakest.pct < 40) reasons.push(`kemampuan ${weakest.key} terendah`);
-        if (reasons.length) attention.push({ participantId: st.id, name: st.name, reasons });
-
-        const at = res.createdAt ? new Date(res.createdAt) : null;
-        if (at) {
-          if (!firstAt || at < firstAt) firstAt = at;
-          if (!lastAt || at > lastAt) lastAt = at;
-        }
-      }
-
-      const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
-      const hollandDist = HOLLAND.map((k) => ({
-        code: k,
-        count: hollandCount[k] ?? 0,
-        pct: pct(hollandCount[k] ?? 0, completed),
-        avg: completed ? Math.round(((hollandSum[k] ?? 0) / completed) * 10) / 10 : 0,
-      })).sort((a, b) => b.count - a.count || b.avg - a.avg);
-
-      const ability = [...abilSum.entries()]
-        .map(([key, v]) => ({ key, correct: v.correct, total: v.total, pct: pct(v.correct, v.total) }))
-        .sort((a, b) => b.pct - a.pct);
-
-      const topOf = (m: Map<string, number>, limit = 8) =>
-        [...m.entries()]
-          .map(([name, count]) => ({ name, count, pct: pct(count, Math.max(1, completed)) }))
-          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-          .slice(0, limit);
-
-      return {
-        ok: true as const,
-        batch: { id: owned.id, name: owned.name, className: owned.className, major: owned.major },
-        school: g.org?.name ?? null,
-        counts: {
-          total: students.length,
-          completed,
-          inProgress,
-          invited: Math.max(0, students.length - completed - inProgress),
-        },
-        confidenceAvg: confN ? Math.round((confSum / confN) * 10) / 10 : null,
-        hollandDist,
-        ability,
-        strongest: ability[0] ?? null,
-        weakest: ability.length > 1 ? ability[ability.length - 1] : null,
-        topMajors: topOf(majorCount),
-        topCareers: topOf(careerCount),
-        attention: attention.slice(0, 40),
-        range: { first: firstAt, last: lastAt },
-      };
+      return { ok: true as const, ...data };
     }),
+
+  /**
+   * (M3.3) Simpan snapshot laporan insight kelas (angka "dibekukan").
+   */
+  saveReport: protectedProcedure
+    .input(z.object({ batchId: z.string().min(1), note: z.string().max(300).optional() }))
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      const owned = await ownedBatch(input.batchId, g.schoolId);
+      if (!owned) return { ok: false as const, error: "not_found" as const };
+      const schoolId = g.schoolId;
+      if (!schoolId) return { ok: false as const, error: "belum_aktif" as const };
+
+      const data = await computeCohortInsight(input.batchId, g.org?.name ?? null, {
+        id: owned.id,
+        name: owned.name,
+        className: owned.className,
+        major: owned.major,
+      });
+      if (!data.counts.completed) return { ok: false as const, error: "belum_ada_hasil" as const };
+
+      const id = randomUUID();
+      await db.insert(assessmentCohortReports).values({
+        id,
+        batchId: input.batchId,
+        orgId: schoolId,
+        createdBy: context.session.user.id,
+        periodStart: data.range.first ? new Date(data.range.first) : null,
+        periodEnd: data.range.last ? new Date(data.range.last) : null,
+        snapshot: data,
+        note: input.note?.trim() || null,
+      });
+      return { ok: true as const, id };
+    }),
+
+  /** Riwayat snapshot laporan satu kelas (terbaru dulu). */
+  reports: protectedProcedure.input(z.object({ batchId: z.string().min(1) })).handler(async ({ input, context }) => {
+    const g = await activeSchool(context.session.user.id);
+    if ("error" in g) return { ok: false as const, ...g };
+    const owned = await ownedBatch(input.batchId, g.schoolId);
+    if (!owned) return { ok: false as const, error: "not_found" as const };
+    const schoolId = g.schoolId;
+    if (!schoolId) return { ok: false as const, error: "belum_aktif" as const };
+    const rows = await db.query.assessmentCohortReports.findMany({
+      where: and(eq(assessmentCohortReports.batchId, input.batchId), eq(assessmentCohortReports.orgId, schoolId)),
+      orderBy: desc(assessmentCohortReports.createdAt),
+      limit: 30,
+    });
+    return {
+      ok: true as const,
+      items: rows.map((r) => ({
+        id: r.id,
+        createdAt: r.createdAt,
+        note: r.note,
+        periodStart: r.periodStart,
+        periodEnd: r.periodEnd,
+        completed: (r.snapshot as any)?.counts?.completed ?? 0,
+        total: (r.snapshot as any)?.counts?.total ?? 0,
+      })),
+    };
+  }),
+
+  /** Ambil satu snapshot (untuk cetak ulang PDF-nya). */
+  report: protectedProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input, context }) => {
+    const g = await activeSchool(context.session.user.id);
+    if ("error" in g) return { ok: false as const, ...g };
+    const schoolId = g.schoolId;
+    if (!schoolId) return { ok: false as const, error: "belum_aktif" as const };
+    const row = await db.query.assessmentCohortReports.findFirst({
+      where: and(eq(assessmentCohortReports.id, input.id), eq(assessmentCohortReports.orgId, schoolId)),
+    });
+    if (!row) return { ok: false as const, error: "not_found" as const };
+    return { ok: true as const, snapshot: row.snapshot, note: row.note, createdAt: row.createdAt };
+  }),
 
   /** (M2.5) Rekap kelas untuk export Excel — hanya kelas milik sekolah pemanggil. */
   exportRekap: protectedProcedure

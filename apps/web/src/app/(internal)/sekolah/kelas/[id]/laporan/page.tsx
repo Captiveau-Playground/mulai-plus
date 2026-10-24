@@ -2,8 +2,8 @@
 
 // (M3) Laporan insight kelas: distribusi Holland, jurusan/karier teratas,
 // kemampuan per dimensi, daftar "perlu perhatian" + unduh PDF ber-kop sekolah.
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Download, FileText, Loader2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Download, FileText, History, Loader2, Save } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { generateCohortReportPdf } from "@/lib/cohort-report-pdf";
 import { HOLLAND_ORDER, holland } from "@/lib/holland";
 import { notify } from "@/lib/toast";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 const DIM_LABEL: Record<string, string> = {
   verbal: "Verbal",
@@ -28,9 +28,15 @@ export default function SchoolCohortReportPage() {
   const params = useParams<{ id: string }>();
   const batchId = String(params?.id ?? "");
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const qc = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
     ...orpc.school.cohortInsight.queryOptions({ input: { batchId } }),
+    enabled: !!batchId,
+  });
+  const reports = useQuery({
+    ...orpc.school.reports.queryOptions({ input: { batchId } }),
     enabled: !!batchId,
   });
   const d: any = data;
@@ -52,6 +58,44 @@ export default function SchoolCohortReportPage() {
       notify.error("Gagal membuat PDF");
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** Simpan snapshot: angka laporan "dibekukan" pada tanggal ini. */
+  const simpan = async () => {
+    setSaving(true);
+    try {
+      const r: any = await (client as any).school.saveReport({ batchId });
+      if (!r?.ok) {
+        notify.error(r?.error === "belum_ada_hasil" ? "Belum ada hasil untuk disimpan" : "Gagal menyimpan laporan");
+        return;
+      }
+      notify.success("Laporan tersimpan (snapshot)");
+      await qc.invalidateQueries({ queryKey: orpc.school.reports.queryKey({ input: { batchId } }) });
+    } catch {
+      notify.error("Gagal menyimpan laporan");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Cetak ulang PDF dari snapshot tersimpan (angka tidak berubah). */
+  const unduhSnapshot = async (id: string) => {
+    try {
+      const r: any = await (client as any).school.report({ id });
+      if (!r?.ok) {
+        notify.error("Snapshot tidak ditemukan");
+        return;
+      }
+      const blob = await generateCohortReportPdf(r.snapshot as any);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `laporan-tersimpan-${String(r.createdAt ?? "").slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      notify.error("Gagal membuat PDF");
     }
   };
 
@@ -104,6 +148,16 @@ export default function SchoolCohortReportPage() {
         >
           {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1 h-3.5 w-3.5" />}
           Unduh PDF
+        </Button>
+        <Button
+          data-testid="save-report"
+          variant="outline"
+          onClick={() => void simpan()}
+          disabled={saving || !c?.completed}
+          className="rounded-xl font-bold font-manrope text-xs"
+        >
+          {saving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
+          Simpan
         </Button>
       </div>
 
@@ -278,6 +332,40 @@ export default function SchoolCohortReportPage() {
           </section>
         </>
       )}
+
+      {/* Riwayat snapshot laporan */}
+      <section className="mt-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm" data-testid="report-history">
+        <h2 className="flex items-center gap-1 font-bold font-bricolage text-brand-navy text-sm">
+          <History className="h-4 w-4" /> Riwayat laporan
+        </h2>
+        {!(reports.data as any)?.items?.length ? (
+          <p className="mt-1 font-manrope text-gray-400 text-xs">
+            Belum ada laporan tersimpan. Tekan "Simpan" untuk membekukan angka hari ini.
+          </p>
+        ) : (
+          <ul className="mt-2 divide-y divide-gray-50">
+            {(reports.data as any).items.map((r: any) => (
+              <li key={r.id} className="flex items-center justify-between gap-2 py-1.5">
+                <div className="min-w-0">
+                  <p className="font-manrope font-semibold text-gray-800 text-xs">{fmt(r.createdAt)}</p>
+                  <p className="font-manrope text-[10px] text-gray-500">
+                    {r.completed}/{r.total} peserta selesai
+                    {r.note ? ` · ${r.note}` : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  data-testid="history-pdf"
+                  onClick={() => void unduhSnapshot(r.id)}
+                  className="shrink-0 rounded-lg border border-gray-200 px-2 py-1 font-manrope font-semibold text-[10px] text-gray-700 hover:bg-gray-50"
+                >
+                  ⬇ PDF
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <p className="mt-4 font-manrope text-[10px] text-gray-400">
         Kode Holland: {HOLLAND_ORDER.map((k) => `${k}=${holland(k).name}`).join(" · ")}

@@ -147,6 +147,9 @@ test.beforeAll(async ({ browser }) => {
 
 test.afterAll(async () => {
   for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
+  if (orgIds.length) {
+    await q("delete from assessment_cohort_reports where org_id = any($1)", [orgIds]).catch(() => undefined);
+  }
   for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
   if (resultIds.length) {
     await q("delete from tmb_recommendations where result_id = any($1)", [resultIds]).catch(() => undefined);
@@ -195,6 +198,50 @@ test.describe("B2B · insight kelas (M3)", () => {
     const bad = await rpcAs<any>(page, "school/cohortInsight", { batchId: other.batchId });
     expect(bad.ok).toBe(false);
     expect(bad.error).toBe("not_found");
+  });
+
+  test("API+UI: snapshot laporan tersimpan & bisa dicetak ulang", async ({ page }) => {
+    test.setTimeout(240000);
+    await preAcceptCookies(page);
+    const nama = `SMA Snapshot ${suffix()}`;
+    const fx = await seedInsightClass(nama);
+    const other = await seedInsightClass(`SMA Snapshot Lain ${suffix()}`);
+    await approveSchool(page, "snap", nama);
+
+    // simpan snapshot
+    const saved = await rpcAs<any>(page, "school/saveReport", { batchId: fx.batchId, note: "laporan awal" });
+    expect(saved.ok, JSON.stringify(saved)).toBe(true);
+    expect(saved.id).toBeTruthy();
+
+    // daftar & isi snapshot
+    const list = await rpcAs<any>(page, "school/reports", { batchId: fx.batchId });
+    expect(list.ok).toBe(true);
+    expect(list.items.length).toBe(1);
+    expect(list.items[0].completed).toBe(3);
+    expect(list.items[0].note).toBe("laporan awal");
+
+    const one = await rpcAs<any>(page, "school/report", { id: saved.id });
+    expect(one.ok).toBe(true);
+    expect(one.snapshot.counts.completed).toBe(3);
+    expect(one.snapshot.hollandDist[0].code).toBe("R");
+
+    // isolasi: kelas sekolah lain tidak bisa disimpan lewat akun ini
+    const bad = await rpcAs<any>(page, "school/saveReport", { batchId: other.batchId });
+    expect(bad.ok).toBe(false);
+    expect(bad.error).toBe("not_found");
+
+    // UI: tombol simpan + riwayat + PDF dari snapshot
+    await page.goto(`/sekolah/kelas/${fx.batchId}/laporan`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("report-title")).toBeVisible({ timeout: 30000 });
+    await page.getByTestId("save-report").click();
+    await expect(page.locator("body")).toContainText(/tersimpan/i, { timeout: 15000 });
+    await expect(page.getByTestId("report-history")).toContainText("3/4", { timeout: 15000 });
+
+    const dl = page.waitForEvent("download", { timeout: 30000 }).catch(() => null);
+    await page.getByTestId("history-pdf").first().click();
+    const file = await dl;
+    expect(file, "PDF snapshot harus terunduh").toBeTruthy();
+    expect(file?.suggestedFilename() ?? "").toMatch(/\.pdf$/);
   });
 
   test("UI: halaman insight tampil & PDF berhasil diunduh", async ({ page }) => {

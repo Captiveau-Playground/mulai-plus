@@ -337,6 +337,30 @@ export const assessmentOrgs = pgTable(
  * Satu akun hanya boleh terikat ke satu organisasi pada fase ini supaya
  * "sekolah mana yang saya lihat" tidak ambigu (multi-sekolah = pengembangan lanjut).
  */
+/**
+ * (M3.3) Snapshot laporan insight kelas — disimpan saat sekolah menekan
+ * "Simpan laporan" agar angka yang dilaporkan ke yayasan tidak berubah
+ * walaupun data peserta berubah setelahnya.
+ */
+export const assessmentCohortReports = pgTable(
+  "assessment_cohort_reports",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id").notNull(),
+    orgId: text("org_id").notNull(),
+    createdBy: text("created_by"),
+    periodStart: timestamp("period_start"),
+    periodEnd: timestamp("period_end"),
+    snapshot: jsonb("snapshot").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("assessment_cohort_reports_batch_idx").on(table.batchId),
+    index("assessment_cohort_reports_org_idx").on(table.orgId),
+  ],
+);
+
 export const assessmentOrgMembers = pgTable(
   "assessment_org_members",
   {
