@@ -1214,6 +1214,85 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
+/**
+ * Baris rekap satu kelas (dipakai admin MULAI+ **dan** portal sekolah).
+ * Dipisah supaya kolom rekap konsisten & tidak ada duplikasi logika.
+ */
+export async function buildBatchRekap(batchId: string) {
+  const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, batchId) });
+  const students = await db.query.tmbBatchStudents.findMany({
+    where: eq(tmbBatchStudents.batchId, batchId),
+    orderBy: asc(tmbBatchStudents.name),
+  });
+  // Ambil hasil & rekomendasi sekali jalan (hindari N+1 saat satu kelas berisi puluhan siswa)
+  const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+  const [results, recos] = await Promise.all([
+    resultIds.length
+      ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+      : [],
+    resultIds.length
+      ? db.query.tmbRecommendations.findMany({
+          where: inArray(tmbRecommendations.resultId, resultIds),
+          orderBy: asc(tmbRecommendations.rank),
+        })
+      : [],
+  ]);
+  const rById = new Map(results.map((r) => [r.id, r]));
+  const recosBy = new Map<string, typeof recos>();
+  for (const rc of recos) {
+    const arr = recosBy.get(rc.resultId) ?? [];
+    arr.push(rc);
+    recosBy.set(rc.resultId, arr);
+  }
+
+  const rows = students.map((s) => {
+    const r = s.resultId ? rById.get(s.resultId) : undefined;
+    const ab: any = (r as any)?.abilityScores ?? null;
+    // kontrak baru: { levels, scores } · warisan: { verbal: {correct,total} }
+    const scores: Record<string, { correct?: number; total?: number }> = ab?.scores ?? ab ?? {};
+    const holland: Record<string, number> = ((r as any)?.hollandScores ?? {}) as any;
+    const dimStats: any[] = (((r as any)?.dimStats ?? []) as any[]) ?? [];
+    const dim = (k: string) => {
+      const v = scores[k];
+      return v && typeof v.total === "number" ? `${v.correct ?? 0}/${v.total}` : "";
+    };
+    const topMajors = (recosBy.get(r?.id ?? "") ?? [])
+      .filter((x) => x.type === "major")
+      .slice(0, 3)
+      .map((x) => x.itemName);
+    return {
+      nama: s.name,
+      email: s.email ?? "",
+      nis: s.nis ?? "",
+      kelas: batch?.className ?? "",
+      jurusan: batch?.major ?? "",
+      status: s.status,
+      hollandCode: r?.hollandCode ?? "",
+      R: holland.R ?? "",
+      I: holland.I ?? "",
+      A: holland.A ?? "",
+      S: holland.S ?? "",
+      E: holland.E ?? "",
+      C: holland.C ?? "",
+      verbal: dim("verbal"),
+      numerical: dim("numerical"),
+      logical: dim("logical"),
+      spatial: dim("spatial"),
+      clerical: dim("clerical"),
+      confidence: r?.confidenceScore ?? "",
+      differentiation: r?.differentiation ?? "",
+      topMajors: topMajors.join(", "),
+      selesai: r?.createdAt ? new Date(r.createdAt).toISOString().slice(0, 16).replace("T", " ") : "",
+      durasiDetik: dimStats.reduce((a, d) => a + (Number(d?.seconds) || 0), 0) || "",
+      jumlahTimeout: dimStats.filter((d) => d?.timedOut).length,
+    };
+  });
+  return {
+    rows,
+    batch: batch ? { name: batch.name, className: batch.className, major: batch.major } : null,
+  };
+}
+
 export const tmbAdminRouter = {
   schools: {
     list: adminProcedure.handler(async () => {
@@ -1551,80 +1630,9 @@ export const tmbAdminRouter = {
       return { sent, failed, code: batch.inviteCode, link };
     }),
 
-    exportRekap: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
-      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, input.batchId) });
-      const students = await db.query.tmbBatchStudents.findMany({
-        where: eq(tmbBatchStudents.batchId, input.batchId),
-        orderBy: asc(tmbBatchStudents.name),
-      });
-      // Ambil hasil & rekomendasi sekali jalan (hindari N+1 saat satu kelas berisi puluhan siswa)
-      const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
-      const [results, recos] = await Promise.all([
-        resultIds.length
-          ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
-          : [],
-        resultIds.length
-          ? db.query.tmbRecommendations.findMany({
-              where: inArray(tmbRecommendations.resultId, resultIds),
-              orderBy: asc(tmbRecommendations.rank),
-            })
-          : [],
-      ]);
-      const rById = new Map(results.map((r) => [r.id, r]));
-      const recosBy = new Map<string, typeof recos>();
-      for (const rc of recos) {
-        const arr = recosBy.get(rc.resultId) ?? [];
-        arr.push(rc);
-        recosBy.set(rc.resultId, arr);
-      }
-
-      const rows = students.map((s) => {
-        const r = s.resultId ? rById.get(s.resultId) : undefined;
-        const ab: any = (r as any)?.abilityScores ?? null;
-        // kontrak baru: { levels, scores } · warisan: { verbal: {correct,total} }
-        const scores: Record<string, { correct?: number; total?: number }> = ab?.scores ?? ab ?? {};
-        const holland: Record<string, number> = ((r as any)?.hollandScores ?? {}) as any;
-        const dimStats: any[] = (((r as any)?.dimStats ?? []) as any[]) ?? [];
-        const dim = (k: string) => {
-          const v = scores[k];
-          return v && typeof v.total === "number" ? `${v.correct ?? 0}/${v.total}` : "";
-        };
-        const topMajors = (recosBy.get(r?.id ?? "") ?? [])
-          .filter((x) => x.type === "major")
-          .slice(0, 3)
-          .map((x) => x.itemName);
-        return {
-          nama: s.name,
-          email: s.email ?? "",
-          nis: s.nis ?? "",
-          kelas: batch?.className ?? "",
-          jurusan: batch?.major ?? "",
-          status: s.status,
-          hollandCode: r?.hollandCode ?? "",
-          R: holland.R ?? "",
-          I: holland.I ?? "",
-          A: holland.A ?? "",
-          S: holland.S ?? "",
-          E: holland.E ?? "",
-          C: holland.C ?? "",
-          verbal: dim("verbal"),
-          numerical: dim("numerical"),
-          logical: dim("logical"),
-          spatial: dim("spatial"),
-          clerical: dim("clerical"),
-          confidence: r?.confidenceScore ?? "",
-          differentiation: r?.differentiation ?? "",
-          topMajors: topMajors.join(", "),
-          selesai: r?.createdAt ? new Date(r.createdAt).toISOString().slice(0, 16).replace("T", " ") : "",
-          durasiDetik: dimStats.reduce((a, d) => a + (Number(d?.seconds) || 0), 0) || "",
-          jumlahTimeout: dimStats.filter((d) => d?.timedOut).length,
-        };
-      });
-      return {
-        rows,
-        batch: batch ? { name: batch.name, className: batch.className, major: batch.major } : null,
-      };
-    }),
+    exportRekap: adminProcedure
+      .input(z.object({ batchId: z.string() }))
+      .handler(async ({ input }) => buildBatchRekap(input.batchId)),
 
     /**
      * Perbaiki tautan hasil → roster (data lama) & status yang tidak konsisten.

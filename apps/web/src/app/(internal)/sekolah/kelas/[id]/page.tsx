@@ -7,6 +7,7 @@ import { ArrowLeft, Copy, FileUp, Loader2, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,6 +43,9 @@ export default function SchoolCohortDetailPage() {
   const [manual, setManual] = useState({ name: "", email: "", nis: "" });
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; failed: any[] } | null>(null);
   const [sched, setSched] = useState<{ mode: "anytime" | "scheduled"; start: string; end: string } | null>(null);
+  // (M2.5) dialog hasil per peserta + export rekap
+  const [detail, setDetail] = useState<any | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const data = useQuery({
     ...orpc.school.participants.queryOptions({ input: { batchId } }),
@@ -50,6 +54,10 @@ export default function SchoolCohortDetailPage() {
   const invite = useQuery({
     ...orpc.school.invite.queryOptions({ input: { batchId } }),
     enabled: !!batchId,
+  });
+  const hasil = useQuery({
+    ...orpc.school.participantResult.queryOptions({ input: { batchId, participantId: detail?.id ?? "" } }),
+    enabled: !!detail?.id,
   });
 
   const refresh = async () => {
@@ -107,6 +115,26 @@ export default function SchoolCohortDetailPage() {
       await qc.invalidateQueries({ queryKey: orpc.school.cohorts.key() });
     } finally {
       setBusy(false);
+    }
+  };
+
+  const exportRekap = async () => {
+    setExporting(true);
+    try {
+      const r: any = await (client as any).school.exportRekap({ batchId });
+      if (!r?.ok || !Array.isArray(r.rows)) {
+        notify.error("Gagal menyiapkan rekap");
+        return;
+      }
+      const ws = XLSX.utils.json_to_sheet(r.rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Rekap");
+      XLSX.writeFile(wb, `rekap-${(r.batch?.name ?? "kelas").replace(/\s+/g, "-")}.xlsx`);
+      notify.success("Rekap Excel diunduh");
+    } catch {
+      notify.error("Gagal export rekap");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -232,6 +260,15 @@ export default function SchoolCohortDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
+            data-testid="export-rekap"
+            variant="outline"
+            onClick={() => void exportRekap()}
+            disabled={exporting}
+            className="rounded-xl px-3 py-2 font-bold font-manrope text-xs"
+          >
+            {exporting ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null} ⬇ Export rekap
+          </Button>
+          <Button
             data-testid="participant-import-open"
             onClick={() => setDlg("import")}
             className="rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-white text-xs hover:brightness-110"
@@ -298,8 +335,17 @@ export default function SchoolCohortDetailPage() {
               filtered.map((p) => {
                 const st = STATUS[p.status] ?? { label: p.status, cls: "bg-gray-100 text-gray-600" };
                 return (
-                  <tr key={p.id} data-testid="participant-row" className="border-gray-50 border-t">
-                    <td className="px-3 py-2 font-manrope font-semibold text-gray-800 text-xs">{p.name}</td>
+                  <tr
+                    key={p.id}
+                    data-testid="participant-row"
+                    onClick={() => setDetail(p)}
+                    className="cursor-pointer border-gray-50 border-t transition-colors hover:bg-teal-50/40"
+                    title="Lihat hasil peserta"
+                  >
+                    <td className="px-3 py-2 font-manrope font-semibold text-gray-800 text-xs">
+                      {p.name}
+                      <span className="ml-1 text-[10px] text-teal-600">›</span>
+                    </td>
                     <td className="px-3 py-2 font-manrope text-[11px] text-gray-500">
                       {[p.email, p.nis].filter(Boolean).join(" · ") || "—"}
                     </td>
@@ -439,6 +485,118 @@ export default function SchoolCohortDetailPage() {
       <p className="mt-3 font-manrope text-[10px] text-gray-400">
         Hasil lengkap per peserta (skor per dimensi + rekomendasi jurusan) menyusul di tahap berikutnya.
       </p>
+
+      {/* Dialog hasil peserta (M2.5) */}
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg" data-testid="result-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-bricolage">{detail?.name}</DialogTitle>
+            <DialogDescription className="font-manrope text-xs">
+              {[detail?.email, detail?.nis].filter(Boolean).join(" · ") || "—"}
+            </DialogDescription>
+          </DialogHeader>
+          {hasil.isLoading ? (
+            <div className="flex min-h-[120px] items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-mentor-teal" />
+            </div>
+          ) : !(hasil.data as any)?.result ? (
+            <p className="rounded-lg bg-gray-50 p-3 font-manrope text-gray-600 text-xs" data-testid="result-empty">
+              Belum ada hasil — peserta ini belum menyelesaikan tes.
+            </p>
+          ) : (
+            <div className="space-y-4" data-testid="result-content">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-teal-50 px-2.5 py-1 font-bold font-bricolage text-sm text-teal-700">
+                  Holland: {(hasil.data as any).result.hollandCode || "—"}
+                </span>
+                <span className="font-manrope text-[11px] text-gray-500">
+                  Selesai {(hasil.data as any).result.completedAt ? fmt(detail?.selesaiPada) : "—"} · keyakinan{" "}
+                  {(hasil.data as any).result.confidenceScore ?? "—"}%
+                </span>
+              </div>
+
+              {/* Sebaran minat (Holland) */}
+              {(() => {
+                const hs = (hasil.data as any).result.hollandScores ?? {};
+                const keys = ["R", "I", "A", "S", "E", "C"];
+                const max = Math.max(1, ...keys.map((k) => Number(hs[k] ?? 0)));
+                return (
+                  <div>
+                    <p className="font-manrope font-semibold text-gray-700 text-xs">Sebaran minat</p>
+                    <div className="mt-1 space-y-1">
+                      {keys.map((k) => {
+                        const v = Number(hs[k] ?? 0);
+                        return (
+                          <div key={k} className="flex items-center gap-2">
+                            <span className="w-4 font-manrope font-semibold text-[10px] text-gray-500">{k}</span>
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                              <div
+                                className="h-full rounded-full bg-brand-navy"
+                                style={{ width: `${Math.round((v / max) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="w-6 text-right font-manrope text-[10px] text-gray-500">{v}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Kemampuan per dimensi */}
+              {(() => {
+                const ab: any = (hasil.data as any).result.abilityScores ?? {};
+                const scores = ab?.scores ?? ab ?? {};
+                const entries = Object.entries(scores).filter(([, v]: any) => v && typeof v === "object");
+                if (!entries.length) return null;
+                return (
+                  <div>
+                    <p className="font-manrope font-semibold text-gray-700 text-xs">Kemampuan per dimensi</p>
+                    <div className="mt-1 grid grid-cols-2 gap-1.5">
+                      {entries.map(([k, v]: any) => (
+                        <div key={k} className="rounded-lg bg-gray-50 px-2 py-1.5 font-manrope text-[11px]">
+                          <span className="text-gray-500 capitalize">{k}</span>:{" "}
+                          <b className="text-gray-800">
+                            {v.correct ?? 0}/{v.total ?? 0}
+                          </b>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Rekomendasi jurusan & karier */}
+              {(hasil.data as any).majors?.length > 0 && (
+                <div>
+                  <p className="font-manrope font-semibold text-gray-700 text-xs">Rekomendasi jurusan</p>
+                  <ol className="mt-1 space-y-0.5">
+                    {(hasil.data as any).majors.slice(0, 5).map((m: any) => (
+                      <li key={m.rank} className="font-manrope text-[11px] text-gray-700">
+                        {m.rank}. {m.name}
+                        {m.confidence ? <span className="text-gray-400"> · {m.confidence}%</span> : null}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {(hasil.data as any).careers?.length > 0 && (
+                <div>
+                  <p className="font-manrope font-semibold text-gray-700 text-xs">Rekomendasi karier</p>
+                  <ol className="mt-1 space-y-0.5">
+                    {(hasil.data as any).careers.slice(0, 5).map((c: any) => (
+                      <li key={c.rank} className="font-manrope text-[11px] text-gray-700">
+                        {c.name}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog import CSV */}
       <Dialog

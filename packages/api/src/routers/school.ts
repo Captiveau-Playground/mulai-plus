@@ -14,12 +14,18 @@ import { randomUUID } from "node:crypto";
 import { and, asc, db, desc, eq, inArray } from "@mulai-plus/db/db";
 import { assessmentOrgMembers, assessmentOrgs } from "@mulai-plus/db/schema/assessment";
 import { user } from "@mulai-plus/db/schema/auth";
-import { tmbAssessmentResults, tmbBatches, tmbBatchStudents, tmbSchools } from "@mulai-plus/db/schema/tmb";
+import {
+  tmbAssessmentResults,
+  tmbBatches,
+  tmbBatchStudents,
+  tmbRecommendations,
+  tmbSchools,
+} from "@mulai-plus/db/schema/tmb";
 import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { z } from "zod";
 import { adminProcedure, protectedProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
-import { generateClaimCode, parseCsv } from "./tmb";
+import { buildBatchRekap, generateClaimCode, parseCsv } from "./tmb";
 
 /** Keanggotaan + organisasi milik user (fase ini: satu akun = satu organisasi). */
 export async function orgOfUser(userId: string) {
@@ -438,6 +444,85 @@ export const schoolRouter = {
         .set({ scheduleMode: input.mode, windowStart: start, windowEnd: end })
         .where(eq(tmbBatches.id, input.batchId));
       return { ok: true as const, windowState: windowState({ windowStart: start, windowEnd: end }) };
+    }),
+
+  /**
+   * (M2.5) Hasil lengkap satu peserta: skor per dimensi, Holland, rekomendasi.
+   * Siswa hanya bisa dibuka kalau memang anggota kelas milik sekolah ini.
+   */
+  participantResult: protectedProcedure
+    .input(z.object({ batchId: z.string().min(1), participantId: z.string().min(1) }))
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      const owned = await ownedBatch(input.batchId, g.schoolId);
+      if (!owned) return { ok: false as const, error: "not_found" as const };
+      const student = await db.query.tmbBatchStudents.findFirst({
+        where: and(eq(tmbBatchStudents.id, input.participantId), eq(tmbBatchStudents.batchId, input.batchId)),
+      });
+      if (!student) return { ok: false as const, error: "not_found" as const };
+      if (!student.resultId) {
+        return {
+          ok: true as const,
+          participant: {
+            id: student.id,
+            name: student.name,
+            email: student.email,
+            nis: student.nis,
+            status: student.status,
+          },
+          result: null,
+          majors: [] as any[],
+          careers: [] as any[],
+        };
+      }
+      const resultId = student.resultId;
+      const [result, recos] = await Promise.all([
+        db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
+        db.query.tmbRecommendations.findMany({
+          where: eq(tmbRecommendations.resultId, resultId),
+          orderBy: asc(tmbRecommendations.rank),
+        }),
+      ]);
+      return {
+        ok: true as const,
+        participant: {
+          id: student.id,
+          name: student.name,
+          email: student.email,
+          nis: student.nis,
+          status: student.status,
+        },
+        result: result
+          ? {
+              hollandCode: result.hollandCode,
+              hollandScores: result.hollandScores,
+              abilityScores: result.abilityScores,
+              confidenceScore: result.confidenceScore,
+              differentiation: result.differentiation,
+              dimStats: result.dimStats,
+              completedAt: result.createdAt,
+            }
+          : null,
+        majors: recos
+          .filter((r) => r.type === "major")
+          .map((r) => ({ rank: r.rank, name: r.itemName, confidence: r.confidence })),
+        careers: recos
+          .filter((r) => r.type === "career")
+          .map((r) => ({ rank: r.rank, name: r.itemName, confidence: r.confidence })),
+      };
+    }),
+
+  /** (M2.5) Rekap kelas untuk export Excel — hanya kelas milik sekolah pemanggil. */
+  exportRekap: protectedProcedure
+    .input(z.object({ batchId: z.string().min(1) }))
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      const owned = await ownedBatch(input.batchId, g.schoolId);
+      if (!owned) return { ok: false as const, error: "not_found" as const };
+      const { rows, batch } = await buildBatchRekap(input.batchId);
+      return { ok: true as const, rows, batch };
     }),
 
   /** (M2.2) Link & teks undangan siap-bagikan (WA/email). */
