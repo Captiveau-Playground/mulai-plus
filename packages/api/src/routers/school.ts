@@ -894,7 +894,8 @@ export const schoolRouter = {
       await db.insert(assessmentCohortReports).values({
         id,
         batchId: input.batchId,
-        orgId: schoolId,
+        orgId: g.org.id,
+        schoolId,
         createdBy: context.session.user.id,
         periodStart: data.range.first ? new Date(data.range.first) : null,
         periodEnd: data.range.last ? new Date(data.range.last) : null,
@@ -913,7 +914,7 @@ export const schoolRouter = {
     const schoolId = g.schoolId;
     if (!schoolId) return { ok: false as const, error: "belum_aktif" as const };
     const rows = await db.query.assessmentCohortReports.findMany({
-      where: and(eq(assessmentCohortReports.batchId, input.batchId), eq(assessmentCohortReports.orgId, schoolId)),
+      where: and(eq(assessmentCohortReports.batchId, input.batchId), eq(assessmentCohortReports.orgId, g.org.id)),
       orderBy: desc(assessmentCohortReports.createdAt),
       limit: 30,
     });
@@ -935,10 +936,8 @@ export const schoolRouter = {
   report: protectedProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input, context }) => {
     const g = await activeSchool(context.session.user.id);
     if ("error" in g) return { ok: false as const, ...g };
-    const schoolId = g.schoolId;
-    if (!schoolId) return { ok: false as const, error: "belum_aktif" as const };
     const row = await db.query.assessmentCohortReports.findFirst({
-      where: and(eq(assessmentCohortReports.id, input.id), eq(assessmentCohortReports.orgId, schoolId)),
+      where: and(eq(assessmentCohortReports.id, input.id), eq(assessmentCohortReports.orgId, g.org.id)),
     });
     if (!row) return { ok: false as const, error: "not_found" as const };
     return { ok: true as const, snapshot: row.snapshot, note: row.note, createdAt: row.createdAt };

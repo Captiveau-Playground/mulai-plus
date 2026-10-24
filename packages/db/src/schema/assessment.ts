@@ -371,7 +371,8 @@ export const assessmentCohortReports = pgTable(
   {
     id: text("id").primaryKey(),
     batchId: text("batch_id").notNull(),
-    orgId: text("org_id").notNull(),
+    orgId: text("org_id").notNull(), // assessment_orgs.id (tenant)
+    schoolId: text("school_id"), // tmb_schools.id (jembatan legacy)
     createdBy: text("created_by"),
     periodStart: timestamp("period_start"),
     periodEnd: timestamp("period_end"),
@@ -382,6 +383,7 @@ export const assessmentCohortReports = pgTable(
   (table) => [
     index("assessment_cohort_reports_batch_idx").on(table.batchId),
     index("assessment_cohort_reports_org_idx").on(table.orgId),
+    index("assessment_cohort_reports_school_idx").on(table.schoolId),
   ],
 );
 

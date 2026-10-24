@@ -125,6 +125,12 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
+  if (schoolIds.length) {
+    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
+  }
+  if (schoolIds.length) {
+    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
+  }
   for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
   for (const c of codes) await deleteAssessmentByCode(c).catch(() => false);
   // bersihkan hasil percobaan — HANYA siswa yang dibuat spec ini (test paralel!)

@@ -86,6 +86,9 @@ test.beforeAll(async ({ browser }) => {
 
 test.afterAll(async () => {
   for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
+  if (schoolIds.length) {
+    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
+  }
   for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
   if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
   await closeDb();
@@ -123,6 +126,7 @@ test.describe("B2B · pendaftaran & approval sekolah", () => {
 
     const appr = await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: reg.orgId, note: "Terverifikasi" });
     expect(appr.ok).toBe(true);
+    if (appr.schoolId) schoolIds.push(appr.schoolId);
     expect(appr.roleChanged).toBe(true);
     expect(appr.schoolCreated, "nama sekolah unik → sekolah legacy dibuat baru").toBe(true);
     expect(appr.schoolId).toBeTruthy();

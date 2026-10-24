@@ -2,6 +2,8 @@
 //  • sekolah disetujui → PIC dapat notifikasi
 //  • pengingat kelas (jadwal ≤3 hari, peserta tertinggal) → notifikasi admin sekolah, tidak dobel
 //  • kelas 100% selesai → notifikasi admin sekolah
+
+import { isTestRecipient } from "@mulai-plus/api/lib/email-guard";
 import { expect, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
@@ -56,6 +58,9 @@ async function seedSchoolWithSchedule(name: string) {
 
 test.afterAll(async () => {
   for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
+  if (schoolIds.length) {
+    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
+  }
   for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
   if (userIds.length) await q("delete from notification where user_id = any($1)", [userIds]).catch(() => undefined);
   if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
@@ -63,6 +68,25 @@ test.afterAll(async () => {
 });
 
 test.describe("M5.1 · notifikasi otomatis", () => {
+  // Regresi insiden 24 Okt 2026: email ke alamat uji BENAR-BENAR terkirim oleh
+  // notifikasi otomatis → bounce + kuota Resend terkuras. Guard terpusat
+  // (`lib/email-guard.ts`, dipakai ResendClient) harus mengenali semua alamat uji.
+  test("guard email: alamat uji tidak pernah dikirimi email", async () => {
+    for (const bad of [
+      "e2e-mng-ui-1792823679552-jqxe@test.local",
+      "guru@test.local",
+      "siswa@example.com",
+      "x@mail.local",
+      "a@foo.invalid",
+      "b@localhost",
+    ]) {
+      expect(isTestRecipient(bad), `${bad} harus dianggap alamat uji`).toBe(true);
+    }
+    for (const good of ["guru.bk@sman1lamongan.sch.id", "pic@sekolah.id", "admin@mulaiplus.id"]) {
+      expect(isTestRecipient(good), `${good} harus dianggap alamat nyata`).toBe(false);
+    }
+  });
+
   test("persetujuan sekolah & pengingat kelas masuk ke notifikasi PIC (tanpa dobel)", async ({ page, browser }) => {
     test.setTimeout(300000);
     const admin = await createAdminPage(browser);
@@ -95,7 +119,9 @@ test.describe("M5.1 · notifikasi otomatis", () => {
     );
 
     // approve → notifikasi masuk
-    expect((await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: reg.orgId })).ok).toBe(true);
+    const appr = await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: reg.orgId });
+    expect(appr.ok).toBe(true);
+    if (appr.schoolId) schoolIds.push(appr.schoolId);
     const approved = await q("select title, type from notification where dedupe_key = $1", [
       `school-approved:${reg.orgId}`,
     ]);

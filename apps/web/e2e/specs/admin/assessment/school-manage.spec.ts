@@ -52,6 +52,7 @@ async function setupSchool(page: Page, tag: string) {
   orgIds.push(reg.orgId);
   const appr = await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: reg.orgId });
   expect(appr.ok).toBe(true);
+  if (appr.schoolId) schoolIds.push(appr.schoolId);
   return { name, schoolId };
 }
 
@@ -61,6 +62,9 @@ test.beforeAll(async ({ browser }) => {
 
 test.afterAll(async () => {
   for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
+  if (schoolIds.length) {
+    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
+  }
   for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
   if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
   await closeDb();

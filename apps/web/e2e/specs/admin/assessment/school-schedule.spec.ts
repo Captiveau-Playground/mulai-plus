@@ -13,6 +13,7 @@ import { API_URL } from "../../../helpers/env";
 const PREFIX = "e2e-jdw";
 const orgIds: string[] = [];
 const schoolIds: string[] = [];
+const studentIds: string[] = [];
 const emails: string[] = [];
 let admin: Page;
 
@@ -55,6 +56,7 @@ async function setupSchool(page: Page, tag: string) {
   orgIds.push(reg.orgId);
   const appr = await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: reg.orgId });
   expect(appr.ok).toBe(true);
+  if (appr.schoolId) schoolIds.push(appr.schoolId);
   return { name, schoolId };
 }
 
@@ -76,6 +78,12 @@ test.beforeAll(async ({ browser }) => {
 
 test.afterAll(async () => {
   for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
+  if (studentIds.length) {
+    await q("delete from assessment_sessions where student_id = any($1)", [studentIds]).catch(() => undefined);
+  }
+  if (schoolIds.length) {
+    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
+  }
   for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
   if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
   await closeDb();
@@ -132,6 +140,7 @@ test.describe("B2B · jadwal & window kelas (M2.3)", () => {
 
     // (a) window di masa depan → tidak boleh mulai
     const siswaA = `e2e-jdw-a-${Date.now()}`;
+    studentIds.push(siswaA);
     await addRosterStudent(c.id, siswaA);
     await rpcAs<any>(page, "school/cohortSchedule", {
       batchId: c.id,
@@ -145,6 +154,7 @@ test.describe("B2B · jadwal & window kelas (M2.3)", () => {
 
     // (b) window sudah lewat → tidak boleh mulai
     const siswaB = `e2e-jdw-b-${Date.now()}`;
+    studentIds.push(siswaB);
     await addRosterStudent(c.id, siswaB);
     await rpcAs<any>(page, "school/cohortSchedule", {
       batchId: c.id,
@@ -158,6 +168,7 @@ test.describe("B2B · jadwal & window kelas (M2.3)", () => {
 
     // (c) window mencakup sekarang → boleh mulai
     const siswaC = `e2e-jdw-c-${Date.now()}`;
+    studentIds.push(siswaC);
     await addRosterStudent(c.id, siswaC);
     await rpcAs<any>(page, "school/cohortSchedule", {
       batchId: c.id,

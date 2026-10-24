@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db, eq } from "@mulai-plus/db/db";
 import { user } from "@mulai-plus/db/schema/auth";
 import { notification } from "@mulai-plus/db/schema/notification";
+import { isTestRecipient, shouldSkipEmail } from "./email-guard";
 import { resend } from "./resend";
 
 export type NotifyType = "info" | "success" | "warning" | "error";
@@ -26,15 +27,27 @@ export interface NotifyUserInput {
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** Kirim email best-effort: kegagalan tidak boleh menggagalkan alur utama. */
+/** Kirim email best-effort: kegagalan (atau guard) tidak menggagalkan alur utama. */
 async function maybeSendEmail(to: string | null | undefined, subject: string, html: string) {
   if (!to || !process.env.RESEND_API_KEY) return;
+  // guard terpusat (alamat uji + kill-switch) — juga dipasang di ResendClient
+  if (shouldSkipEmail(to)) return;
+  if (isTestRecipient(to)) {
+    // jangan pernah kirim ke alamat uji — cukup catat sekali agar tetap terlihat
+    if (!warnedTestRecipient) {
+      warnedTestRecipient = true;
+      console.log(`[notify][email] dilewati: alamat uji (${to}) — email tidak dikirim`);
+    }
+    return;
+  }
   try {
     await resend.emails.send({ to, subject, html });
   } catch (e: any) {
     console.error("[notify][email] gagal:", e?.message ?? e);
   }
 }
+
+let warnedTestRecipient = false;
 
 /**
  * Tulis notifikasi in-app untuk satu pengguna (+ email bila diminta).

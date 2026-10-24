@@ -7,6 +7,7 @@ import { closeDb, q } from "../../../helpers/db";
 import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-ref";
+const schoolIds: string[] = [];
 const orgIds: string[] = [];
 const emails: string[] = [];
 
@@ -48,6 +49,10 @@ async function daftar(page: any, tag: string, name: string, ref?: string) {
 
 test.afterAll(async () => {
   for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
+  if (schoolIds.length) {
+    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
+    await q("delete from tmb_schools where id = any($1)", [schoolIds]).catch(() => undefined);
+  }
   if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
   await closeDb();
 });
@@ -61,7 +66,9 @@ test.describe("B2B · referral antar sekolah (M4.3)", () => {
     // sekolah A → disetujui → punya kode rujukan
     const namaA = `SMA Rujukan ${suffix()}`;
     const orgA = await daftar(page, "a", namaA);
-    expect((await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: orgA })).ok).toBe(true);
+    const apprA = await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: orgA });
+    expect(apprA.ok).toBe(true);
+    if (apprA.schoolId) schoolIds.push(apprA.schoolId);
     const refA = await rpcAs<any>(page, "school/referral", {});
     expect(refA.ok, JSON.stringify(refA)).toBe(true);
     expect(refA.code).toMatch(/^SCH-[A-Z2-9]{6}$/);
