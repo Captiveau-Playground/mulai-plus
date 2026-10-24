@@ -174,6 +174,6 @@ test.describe("B2B · hasil peserta & export rekap (M2.5)", () => {
     await page.getByTestId("export-rekap").click();
     const file = await dl;
     expect(file, "file rekap harus terunduh").toBeTruthy();
-    expect(file!.suggestedFilename()).toMatch(/\.xlsx$/);
+    expect(file?.suggestedFilename() ?? "").toMatch(/\.xlsx$/);
   });
 });

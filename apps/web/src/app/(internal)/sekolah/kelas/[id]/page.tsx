@@ -281,6 +281,13 @@ export default function SchoolCohortDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/sekolah/kelas/${batchId}/laporan`}
+            data-testid="report-link"
+            className="inline-flex items-center gap-1 rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-white text-xs hover:bg-brand-navy/90"
+          >
+            📊 Insight kelas
+          </Link>
           <Button
             data-testid="export-rekap"
             variant="outline"
@@ -436,10 +443,10 @@ export default function SchoolCohortDetailPage() {
           <span
             data-testid="schedule-state"
             className={`rounded-full px-2 py-0.5 font-manrope font-semibold text-[10px] ${
-              (WSTATE[batch?.windowState as string] ?? WSTATE.tanpa_jadwal!).cls
+              (WSTATE[batch?.windowState as string] ?? WSTATE.tanpa_jadwal).cls
             }`}
           >
-            {(WSTATE[batch?.windowState as string] ?? WSTATE.tanpa_jadwal!).label}
+            {(WSTATE[batch?.windowState as string] ?? WSTATE.tanpa_jadwal).label}
           </span>
         </div>
         <p className="mt-1 font-manrope text-[11px] text-gray-500">
