@@ -2,7 +2,7 @@
 
 // Sidebar area SEKOLAH (B2B) — sengaja minimal: admin sekolah hanya mengelola
 // peserta/jadwal dan melihat hasil. Tidak ada menu bank soal/versi/aturan tes.
-import { GraduationCap, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
+import { GraduationCap, LayoutDashboard, Loader2, LogOut, Users, UsersRound } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,6 +31,7 @@ import { notify } from "@/lib/toast";
 const navItems = [
   { title: "Dashboard Sekolah", url: "/sekolah", icon: LayoutDashboard },
   { title: "Kelas & Peserta", url: "/sekolah/kelas", icon: Users },
+  { title: "Tim sekolah", url: "/sekolah/tim", icon: UsersRound },
 ] as const;
 
 export function SchoolSidebar({

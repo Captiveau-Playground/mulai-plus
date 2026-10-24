@@ -225,6 +225,13 @@
       "when": 1730000000000,
       "tag": "0036_student_claim_code",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0037_org_invites",
+      "breakpoints": true
     }
   ]
 }

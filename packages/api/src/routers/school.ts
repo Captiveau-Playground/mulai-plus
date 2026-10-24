@@ -12,7 +12,12 @@
 
 import { randomUUID } from "node:crypto";
 import { and, asc, db, desc, eq, inArray } from "@mulai-plus/db/db";
-import { assessmentCohortReports, assessmentOrgMembers, assessmentOrgs } from "@mulai-plus/db/schema/assessment";
+import {
+  assessmentCohortReports,
+  assessmentOrgInvites,
+  assessmentOrgMembers,
+  assessmentOrgs,
+} from "@mulai-plus/db/schema/assessment";
 import { user } from "@mulai-plus/db/schema/auth";
 import {
   tmbAssessmentResults,
@@ -48,6 +53,47 @@ async function findLegacySchoolByName(name: string) {
  * Guard data sekolah: user harus anggota organisasi yang AKTIF dan organisasinya aktif.
  * Dipakai semua endpoint baca (dashboard, kelas, peserta) supaya aturannya konsisten.
  */
+/** (M4.1) Hanya `school_admin` yang boleh mengubah peserta/jadwal/tim. */
+function isManager(member: { role?: string | null } | null | undefined) {
+  return member?.role === "school_admin";
+}
+
+/**
+ * (M4.1) Klaim undangan rekan yang masih pending untuk email user ini.
+ * Dipanggil saat user membuka portal sekolah → member row dibuat, role akun naik.
+ */
+async function consumeInvites(userId: string) {
+  const [u] = await db.select({ email: user.email, role: user.role }).from(user).where(eq(user.id, userId));
+  const email = (u?.email ?? "").trim().toLowerCase();
+  if (!email) return;
+  const invites = await db.query.assessmentOrgInvites.findMany({
+    where: and(eq(assessmentOrgInvites.email, email), eq(assessmentOrgInvites.status, "pending")),
+    limit: 5,
+  });
+  if (!invites.length) return;
+  const existing = await orgOfUser(userId);
+  if (existing.member) return; // satu akun = satu sekolah
+  for (const inv of invites) {
+    const org = await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.id, inv.orgId) });
+    if (!org) continue;
+    const role = inv.role === "school_admin" ? "school_admin" : "school_viewer";
+    await db.insert(assessmentOrgMembers).values({
+      id: randomUUID(),
+      orgId: inv.orgId,
+      userId,
+      role,
+      status: org.status === "aktif" ? "aktif" : "pending",
+      invitedBy: inv.invitedBy,
+    });
+    await db
+      .update(assessmentOrgInvites)
+      .set({ status: "accepted", acceptedAt: new Date() })
+      .where(eq(assessmentOrgInvites.id, inv.id));
+    if (u?.role !== role) await db.update(user).set({ role }).where(eq(user.id, userId));
+    return;
+  }
+}
+
 async function activeSchool(userId: string) {
   const { member, org } = await orgOfUser(userId);
   if (!member || !org) return { error: "belum_terdaftar" as const };
@@ -325,6 +371,7 @@ export const schoolRouter = {
 
   /** Status keanggotaan user (dipakai halaman "menunggu persetujuan" / sekolah aktif). */
   me: protectedProcedure.handler(async ({ context }) => {
+    await consumeInvites(context.session.user.id);
     const { member, org } = await orgOfUser(context.session.user.id);
     if (!member || !org) return { ok: true as const, member: null, org: null };
     return {
@@ -467,6 +514,7 @@ export const schoolRouter = {
     .handler(async ({ input, context }) => {
       const g = await activeSchool(context.session.user.id);
       if ("error" in g) return { ok: false as const, ...g };
+      if (!isManager(g.member)) return { ok: false as const, error: "hanya_admin" as const };
       if (!g.schoolId) return { ok: false as const, error: "sekolah_belum_terhubung" as const };
 
       // kode undangan harus unik global — coba beberapa kali
@@ -502,6 +550,7 @@ export const schoolRouter = {
     .handler(async ({ input, context }) => {
       const g = await activeSchool(context.session.user.id);
       if ("error" in g) return { ok: false as const, ...g };
+      if (!isManager(g.member)) return { ok: false as const, error: "hanya_admin" as const };
       const owned = await ownedBatch(input.batchId, g.schoolId);
       if (!owned) return { ok: false as const, error: "not_found" as const };
       const email = input.email ? input.email.toLowerCase() : null;
@@ -533,6 +582,7 @@ export const schoolRouter = {
     .handler(async ({ input, context }) => {
       const g = await activeSchool(context.session.user.id);
       if ("error" in g) return { ok: false as const, ...g };
+      if (!isManager(g.member)) return { ok: false as const, error: "hanya_admin" as const };
       const owned = await ownedBatch(input.batchId, g.schoolId);
       if (!owned) return { ok: false as const, error: "not_found" as const };
 
@@ -608,6 +658,7 @@ export const schoolRouter = {
     .handler(async ({ input, context }) => {
       const g = await activeSchool(context.session.user.id);
       if ("error" in g) return { ok: false as const, ...g };
+      if (!isManager(g.member)) return { ok: false as const, error: "hanya_admin" as const };
       const owned = await ownedBatch(input.batchId, g.schoolId);
       if (!owned) return { ok: false as const, error: "not_found" as const };
 
@@ -849,7 +900,106 @@ export const schoolRouter = {
       return { ok: true as const, code: owned.inviteCode ?? null, link, waText, studentName, claimCode: personalCode };
     }),
 
+  /** (M4.1) Daftar tim sekolah + undangan yang masih pending. */
+  team: protectedProcedure.handler(async ({ context }) => {
+    await consumeInvites(context.session.user.id);
+    const g = await activeSchool(context.session.user.id);
+    if ("error" in g) return { ok: false as const, ...g };
+    const members = await db
+      .select({
+        userId: assessmentOrgMembers.userId,
+        role: assessmentOrgMembers.role,
+        status: assessmentOrgMembers.status,
+        createdAt: assessmentOrgMembers.createdAt,
+        name: user.name,
+        email: user.email,
+      })
+      .from(assessmentOrgMembers)
+      .leftJoin(user, eq(user.id, assessmentOrgMembers.userId))
+      .where(eq(assessmentOrgMembers.orgId, g.org.id))
+      .orderBy(asc(assessmentOrgMembers.createdAt));
+    const invites = await db.query.assessmentOrgInvites.findMany({
+      where: and(eq(assessmentOrgInvites.orgId, g.org.id), eq(assessmentOrgInvites.status, "pending")),
+      orderBy: desc(assessmentOrgInvites.createdAt),
+    });
+    return {
+      ok: true as const,
+      me: { userId: context.session.user.id, role: g.member.role, canManage: isManager(g.member) },
+      members: members.map((m) => ({
+        userId: m.userId,
+        name: m.name ?? "—",
+        email: m.email ?? null,
+        role: m.role,
+        status: m.status,
+        createdAt: m.createdAt,
+      })),
+      invites: invites.map((i) => ({ id: i.id, email: i.email, role: i.role, createdAt: i.createdAt })),
+    };
+  }),
+
+  /** (M4.1) Undang rekan (guru BK) lewat email — hanya admin sekolah. */
+  invitePeer: protectedProcedure
+    .input(
+      z.object({
+        email: z.string().trim().toLowerCase().email(),
+        role: z.enum(["school_admin", "school_viewer"]).default("school_viewer"),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      if (!isManager(g.member)) return { ok: false as const, error: "hanya_admin" as const };
+
+      const members = await db
+        .select({ email: user.email })
+        .from(assessmentOrgMembers)
+        .leftJoin(user, eq(user.id, assessmentOrgMembers.userId))
+        .where(eq(assessmentOrgMembers.orgId, g.org.id));
+      if (members.some((m) => (m.email ?? "").trim().toLowerCase() === input.email)) {
+        return { ok: false as const, error: "sudah_anggota" as const };
+      }
+
+      const pending = await db.query.assessmentOrgInvites.findFirst({
+        where: and(
+          eq(assessmentOrgInvites.orgId, g.org.id),
+          eq(assessmentOrgInvites.email, input.email),
+          eq(assessmentOrgInvites.status, "pending"),
+        ),
+      });
+      if (pending) return { ok: false as const, error: "sudah_diundang" as const };
+
+      const id = randomUUID();
+      await db.insert(assessmentOrgInvites).values({
+        id,
+        orgId: g.org.id,
+        email: input.email,
+        role: input.role,
+        invitedBy: context.session.user.id,
+      });
+      const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+      return {
+        ok: true as const,
+        id,
+        link: `${base}/sekolah`,
+        note: "Rekan perlu punya akun MULAI+ dengan email tersebut, lalu membuka portal sekolah untuk mengaktifkan akses.",
+      };
+    }),
+
+  /** (M4.1) Batalkan undangan yang belum diklaim — hanya admin sekolah. */
+  revokeInvite: protectedProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input, context }) => {
+    const g = await activeSchool(context.session.user.id);
+    if ("error" in g) return { ok: false as const, ...g };
+    if (!isManager(g.member)) return { ok: false as const, error: "hanya_admin" as const };
+    const inv = await db.query.assessmentOrgInvites.findFirst({
+      where: and(eq(assessmentOrgInvites.id, input.id), eq(assessmentOrgInvites.orgId, g.org.id)),
+    });
+    if (!inv) return { ok: false as const, error: "not_found" as const };
+    await db.update(assessmentOrgInvites).set({ status: "revoked" }).where(eq(assessmentOrgInvites.id, input.id));
+    return { ok: true as const };
+  }),
+
   overview: protectedProcedure.handler(async ({ context }) => {
+    await consumeInvites(context.session.user.id);
     const { member, org } = await orgOfUser(context.session.user.id);
     if (!member || !org) return { ok: false as const, error: "belum_terdaftar" as const };
     if (member.status !== "aktif" || org.status !== "aktif") {

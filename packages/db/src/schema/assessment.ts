@@ -342,6 +342,27 @@ export const assessmentOrgs = pgTable(
  * "Simpan laporan" agar angka yang dilaporkan ke yayasan tidak berubah
  * walaupun data peserta berubah setelahnya.
  */
+/**
+ * (M4.1) Undangan rekan sekolah (guru BK / wakil kepala). Diklaim otomatis saat
+ * akun dengan email tersebut membuka portal sekolah.
+ */
+export const assessmentOrgInvites = pgTable(
+  "assessment_org_invites",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => assessmentOrgs.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role").default("school_viewer").notNull(),
+    invitedBy: text("invited_by"),
+    status: text("status").default("pending").notNull(), // pending | accepted | revoked
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    acceptedAt: timestamp("accepted_at"),
+  },
+  (t) => [index("idx_assessment_org_invites_org").on(t.orgId)],
+);
+
 export const assessmentCohortReports = pgTable(
   "assessment_cohort_reports",
   {
