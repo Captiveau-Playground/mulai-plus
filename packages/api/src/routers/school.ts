@@ -525,21 +525,39 @@ export const schoolRouter = {
       return { ok: true as const, rows, batch };
     }),
 
-  /** (M2.2) Link & teks undangan siap-bagikan (WA/email). */
-  invite: protectedProcedure.input(z.object({ batchId: z.string().min(1) })).handler(async ({ input, context }) => {
-    const g = await activeSchool(context.session.user.id);
-    if ("error" in g) return { ok: false as const, ...g };
-    const owned = await ownedBatch(input.batchId, g.schoolId);
-    if (!owned) return { ok: false as const, error: "not_found" as const };
-    const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
-    const link = `${base}/assessment/invite/${owned.inviteCode ?? ""}`;
-    const school = g.org?.name ?? "sekolah";
-    const waText =
-      `Halo! Kamu diundang mengerjakan Tes Minat & Bakat di MULAI+ untuk kelas *${owned.name}* (${school}).\n\n` +
-      `Buka link ini lalu masuk/daftar dengan email yang terdaftar di sekolah:\n${link}\n\n` +
-      "Tes ±30–45 menit, hasilnya langsung muncul dan dipakai untuk bimbingan jurusan. Terima kasih!";
-    return { ok: true as const, code: owned.inviteCode ?? null, link, waText };
-  }),
+  /**
+   * (M2.2) Link & teks undangan siap-bagikan (WA/email).
+   * (M2.4) `participantId` opsional → teks dipersonalisasi dengan nama siswa
+   * (dipakai tombol "Ingatkan" per peserta).
+   */
+  invite: protectedProcedure
+    .input(z.object({ batchId: z.string().min(1), participantId: z.string().optional() }))
+    .handler(async ({ input, context }) => {
+      const g = await activeSchool(context.session.user.id);
+      if ("error" in g) return { ok: false as const, ...g };
+      const owned = await ownedBatch(input.batchId, g.schoolId);
+      if (!owned) return { ok: false as const, error: "not_found" as const };
+
+      let studentName: string | null = null;
+      if (input.participantId) {
+        const row = await db.query.tmbBatchStudents.findFirst({
+          where: and(eq(tmbBatchStudents.id, input.participantId), eq(tmbBatchStudents.batchId, input.batchId)),
+          columns: { name: true },
+        });
+        if (!row) return { ok: false as const, error: "not_found" as const };
+        studentName = row.name;
+      }
+
+      const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+      const link = `${base}/assessment/invite/${owned.inviteCode ?? ""}`;
+      const school = g.org?.name ?? "sekolah";
+      const sapaan = studentName ? `Halo ${studentName}!` : "Halo!";
+      const waText =
+        `${sapaan} Kamu diundang mengerjakan Tes Minat & Bakat di MULAI+ untuk kelas *${owned.name}* (${school}).\n\n` +
+        `Buka link ini lalu masuk/daftar dengan email yang terdaftar di sekolah:\n${link}\n\n` +
+        "Tes ±30–45 menit, hasilnya langsung muncul dan dipakai untuk bimbingan jurusan. Terima kasih!";
+      return { ok: true as const, code: owned.inviteCode ?? null, link, waText, studentName };
+    }),
 
   overview: protectedProcedure.handler(async ({ context }) => {
     const { member, org } = await orgOfUser(context.session.user.id);

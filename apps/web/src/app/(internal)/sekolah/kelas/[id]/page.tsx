@@ -46,6 +46,9 @@ export default function SchoolCohortDetailPage() {
   // (M2.5) dialog hasil per peserta + export rekap
   const [detail, setDetail] = useState<any | null>(null);
   const [exporting, setExporting] = useState(false);
+  // (M2.4) monitoring: filter status + "ingatkan" per peserta
+  const [statusFilter, setStatusFilter] = useState<"all" | "invited" | "in_progress" | "completed">("all");
+  const [nudging, setNudging] = useState<string | null>(null);
 
   const data = useQuery({
     ...orpc.school.participants.queryOptions({ input: { batchId } }),
@@ -115,6 +118,24 @@ export default function SchoolCohortDetailPage() {
       await qc.invalidateQueries({ queryKey: orpc.school.cohorts.key() });
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** (M2.4) Salin teks undangan yang sudah dipersonalisasi untuk satu siswa. */
+  const ingatkan = async (p: any) => {
+    setNudging(p.id);
+    try {
+      const r: any = await (client as any).school.invite({ batchId, participantId: p.id });
+      if (!r?.ok) {
+        notify.error("Gagal menyiapkan teks undangan");
+        return;
+      }
+      await navigator.clipboard.writeText(r.waText);
+      notify.success(`Teks undangan untuk ${r.studentName ?? p.name} tersalin — tempel ke WhatsApp`);
+    } catch {
+      notify.error("Gagal menyalin");
+    } finally {
+      setNudging(null);
     }
   };
 
@@ -211,11 +232,12 @@ export default function SchoolCohortDetailPage() {
   const totals = (data.data as any)?.totals;
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter((p) =>
-      [p.name, p.email, p.nis].filter(Boolean).some((v: string) => String(v).toLowerCase().includes(needle)),
-    );
-  }, [items, q]);
+    return items.filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (!needle) return true;
+      return [p.name, p.email, p.nis].filter(Boolean).some((v: string) => String(v).toLowerCase().includes(needle));
+    });
+  }, [items, q, statusFilter]);
 
   if (data.isLoading) {
     return (
@@ -311,6 +333,30 @@ export default function SchoolCohortDetailPage() {
         </span>
       </div>
 
+      {/* (M2.4) Filter status peserta */}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid="participant-filter">
+        {(
+          [
+            ["all", "Semua", totals?.total ?? items.length],
+            ["invited", "Belum mulai", totals?.belum ?? 0],
+            ["in_progress", "Mengerjakan", totals?.mulai ?? 0],
+            ["completed", "Selesai", totals?.selesai ?? 0],
+          ] as const
+        ).map(([key, label, n]) => (
+          <button
+            key={key}
+            type="button"
+            data-testid={`filter-${key}`}
+            onClick={() => setStatusFilter(key)}
+            className={`rounded-full px-2.5 py-1 font-manrope font-semibold text-[10px] transition-colors ${
+              statusFilter === key ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {label} · {n}
+          </button>
+        ))}
+      </div>
+
       <div className="mt-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-gray-50 font-manrope text-[10px] text-gray-500 uppercase tracking-wide">
@@ -320,12 +366,13 @@ export default function SchoolCohortDetailPage() {
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Holland</th>
               <th className="px-3 py-2">Selesai</th>
+              <th className="px-3 py-2 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center font-manrope text-gray-400 text-xs">
+                <td colSpan={6} className="px-3 py-8 text-center font-manrope text-gray-400 text-xs">
                   {items.length === 0
                     ? "Belum ada peserta di kelas ini."
                     : "Tidak ada peserta yang cocok dengan pencarian."}
@@ -358,6 +405,22 @@ export default function SchoolCohortDetailPage() {
                       {p.hollandCode ?? "—"}
                     </td>
                     <td className="px-3 py-2 font-manrope text-[11px] text-gray-500">{fmt(p.selesaiPada)}</td>
+                    <td className="px-3 py-2 text-right">
+                      {p.status !== "completed" && (
+                        <button
+                          type="button"
+                          data-testid="nudge-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void ingatkan(p);
+                          }}
+                          disabled={nudging === p.id}
+                          className="rounded-lg border border-teal-200 px-2 py-1 font-manrope font-semibold text-[10px] text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+                        >
+                          {nudging === p.id ? "…" : "Ingatkan"}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })
