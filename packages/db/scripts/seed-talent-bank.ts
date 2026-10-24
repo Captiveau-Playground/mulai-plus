@@ -91,7 +91,7 @@ async function main() {
         isActive: true,
         // (#7) timer per dimensi: tiap bagian punya durasi sendiri (default 120 detik).
         // Admin bisa mengubah scope-nya per dimensi dari editor.
-        durationSeconds: 120,
+        durationSeconds: 600, // 10 menit per bagian (24 soal ≈ 25 detik/soal)
         timerScope: "dimension",
       });
     }

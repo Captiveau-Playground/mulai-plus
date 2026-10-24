@@ -108,9 +108,9 @@ export const TALENT_CONFIG: ConfigRow[] = [
   { key: "randomize_a", value: false, catatan: "false dianjurkan (ada soal skala & opsi berurutan)" },
   { key: "allow_pause", value: true, catatan: "siswa boleh berhenti & melanjutkan" },
   { key: "section_mode", value: "by_dimension", catatan: "none | by_dimension | chunk:10 | chunk:20" },
-  { key: "timer_enabled", value: false, catatan: "true bila ingin membatasi waktu" },
-  { key: "timer_scope", value: "none", catatan: "none | dimension | question" },
-  { key: "time_per_question", value: 60, catatan: "dipakai hanya bila timer_scope = question" },
+  { key: "timer_enabled", value: true, catatan: "bakat: timer AKTIF (10 menit per bagian)" },
+  { key: "timer_scope", value: "dimension", catatan: "scope default; tiap dimensi bisa override" },
+  { key: "time_per_question", value: 25, catatan: "fallback bila dimensi memakai scope per soal" },
   { key: "lang", value: "id", catatan: "id | en" },
 ];
 
