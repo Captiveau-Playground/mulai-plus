@@ -86,6 +86,17 @@ export default function AssessmentDetailPage() {
   // setting/soal, sehingga preview lama tetap tampil. Nonce di-bump tiap kali preview
   // dibuka / tombol "Muat ulang" ditekan, dan dipakai di `key` + query `t`.
   const [previewNonce, setPreviewNonce] = useState(0);
+  // (Temuan analis #2) Preview mengirim pesan saat siswa menekan "Keluar" di dalam iframe
+  // → tutup dialog, jangan biarkan iframe terlempar ke area siswa.
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e?.data && typeof e.data === "object" && (e.data as any).type === "assessment-preview-exit") {
+        setPreviewV(null);
+      }
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
   const openPreview = (v: { id: string; versionNumber: number; status: string }) => {
     setPreviewNonce(Date.now());
     setPreviewV(v);
@@ -713,7 +724,7 @@ export default function AssessmentDetailPage() {
               title="Preview tes sebagai siswa"
               data-testid="preview-frame"
               src={`/dashboard/student/assessment/take/${code}?preview=1&v=${previewV.id}&t=${previewNonce}`}
-              className="h-[75vh] w-full rounded-xl border border-gray-200 bg-white"
+              className="h-[85vh] w-full rounded-xl border border-gray-200 bg-white"
             />
           )}
           <div className="flex items-center justify-between gap-2">
