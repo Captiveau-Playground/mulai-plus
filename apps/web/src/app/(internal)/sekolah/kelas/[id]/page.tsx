@@ -399,6 +399,18 @@ export default function SchoolCohortDetailPage() {
                     <td className="px-3 py-2 font-manrope font-semibold text-gray-800 text-xs">
                       {p.name}
                       <span className="ml-1 text-[10px] text-teal-600">›</span>
+                      {/* (M2.6) kode akses sekali pakai untuk peserta tanpa email */}
+                      {!p.email && p.claimCode ? (
+                        <span
+                          data-testid="claim-code"
+                          title="Kode akses sekali pakai (peserta tanpa email)"
+                          className={`ml-1 rounded px-1 py-0.5 font-bold font-mono text-[9px] ${
+                            p.claimCodeUsed ? "bg-gray-100 text-gray-400 line-through" : "bg-teal-50 text-teal-700"
+                          }`}
+                        >
+                          {p.claimCode}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 font-manrope text-[11px] text-gray-500">
                       {[p.email, p.nis].filter(Boolean).join(" · ") || "—"}

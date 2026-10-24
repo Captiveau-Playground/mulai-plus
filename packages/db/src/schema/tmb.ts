@@ -212,6 +212,9 @@ export const tmbBatchStudents = pgTable(
     status: tmbBatchStudentStatusEnum("status").notNull().default("invited"),
     userId: text("user_id"), // akun student yang meng-klaim undangan (wajib login)
     resultId: text("result_id").references(() => tmbAssessmentResults.id),
+    // (M2.6) kode akses sekali pakai untuk peserta tanpa email
+    claimCode: text("claim_code"),
+    claimCodeUsedAt: timestamp("claim_code_used_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("idx_tmb_batch_students_batch").on(table.batchId)],

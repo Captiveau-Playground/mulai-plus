@@ -75,6 +75,32 @@ async function ownedBatch(batchId: string, schoolId: string | null) {
   return b && b.schoolId === schoolId ? b : null;
 }
 
+/** (M2.6) Kode akses personal untuk peserta tanpa email — unik & tanpa huruf ambigu. */
+async function ensureClaimCode(studentId: string): Promise<string> {
+  const row = await db.query.tmbBatchStudents.findFirst({
+    where: eq(tmbBatchStudents.id, studentId),
+    columns: { claimCode: true },
+  });
+  if (row?.claimCode) return row.claimCode;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const code = generateClaimCode(6);
+    const clash = await db.query.tmbBatchStudents.findFirst({
+      where: eq(tmbBatchStudents.claimCode, code),
+      columns: { id: true },
+    });
+    if (clash) continue;
+    await db.update(tmbBatchStudents).set({ claimCode: code }).where(eq(tmbBatchStudents.id, studentId));
+    return code;
+  }
+  throw new Error("gagal membuat kode akses");
+}
+
+/** (M2.6) Pastikan semua peserta tanpa email punya kode akses (idempoten). */
+async function ensureClaimCodes(students: Array<{ id: string; email: string | null; claimCode?: string | null }>) {
+  const need = students.filter((s) => !s.email && !s.claimCode);
+  for (const s of need) await ensureClaimCode(s.id);
+}
+
 /** (M3) Hitung insight kelas — dipakai endpoint insight & snapshot laporan. */
 async function computeCohortInsight(
   batchId: string,
@@ -374,10 +400,18 @@ export const schoolRouter = {
       if (!batch || !g.schoolId || batch.schoolId !== g.schoolId) {
         return { ok: false as const, error: "not_found" as const };
       }
-      const students = await db.query.tmbBatchStudents.findMany({
+      let students = await db.query.tmbBatchStudents.findMany({
         where: eq(tmbBatchStudents.batchId, batch.id),
         orderBy: asc(tmbBatchStudents.name),
       });
+      // (M2.6) peserta tanpa email otomatis dapat kode akses sekali pakai
+      if (students.some((s) => !s.email && !s.claimCode)) {
+        await ensureClaimCodes(students);
+        students = await db.query.tmbBatchStudents.findMany({
+          where: eq(tmbBatchStudents.batchId, batch.id),
+          orderBy: asc(tmbBatchStudents.name),
+        });
+      }
       const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
       const results = resultIds.length
         ? await db.query.tmbAssessmentResults.findMany({
@@ -410,6 +444,8 @@ export const schoolRouter = {
             email: s.email,
             nis: s.nis,
             status: s.status,
+            claimCode: s.claimCode ?? null,
+            claimCodeUsed: !!s.claimCodeUsedAt,
             hollandCode: r?.hollandCode ?? null,
             confidence: r?.confidenceScore ?? null,
             selesaiPada: r?.createdAt ?? null,
@@ -787,24 +823,30 @@ export const schoolRouter = {
       if (!owned) return { ok: false as const, error: "not_found" as const };
 
       let studentName: string | null = null;
+      let personalCode: string | null = null;
       if (input.participantId) {
         const row = await db.query.tmbBatchStudents.findFirst({
           where: and(eq(tmbBatchStudents.id, input.participantId), eq(tmbBatchStudents.batchId, input.batchId)),
-          columns: { name: true },
+          columns: { name: true, email: true, claimCode: true },
         });
         if (!row) return { ok: false as const, error: "not_found" as const };
         studentName = row.name;
+        // (M2.6) peserta tanpa email → sediakan kode akses personal sekali pakai
+        if (!row.email) personalCode = row.claimCode ?? (await ensureClaimCode(input.participantId));
       }
 
       const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
-      const link = `${base}/assessment/invite/${owned.inviteCode ?? ""}`;
+      const link = `${base}/assessment/invite/${personalCode ?? owned.inviteCode ?? ""}`;
       const school = g.org?.name ?? "sekolah";
       const sapaan = studentName ? `Halo ${studentName}!` : "Halo!";
+      const akses = personalCode
+        ? `Kode aksesmu: *${personalCode}* (pakai sekali). Buka link di bawah, daftar/masuk dengan email apa pun, lalu kode ini otomatis mengaitkan akunmu ke kelas.\n\n`
+        : "Buka link ini lalu masuk/daftar dengan email yang terdaftar di sekolah:\n";
       const waText =
         `${sapaan} Kamu diundang mengerjakan Tes Minat & Bakat di MULAI+ untuk kelas *${owned.name}* (${school}).\n\n` +
-        `Buka link ini lalu masuk/daftar dengan email yang terdaftar di sekolah:\n${link}\n\n` +
+        `${akses}${link}\n\n` +
         "Tes ±30–45 menit, hasilnya langsung muncul dan dipakai untuk bimbingan jurusan. Terima kasih!";
-      return { ok: true as const, code: owned.inviteCode ?? null, link, waText, studentName };
+      return { ok: true as const, code: owned.inviteCode ?? null, link, waText, studentName, claimCode: personalCode };
     }),
 
   overview: protectedProcedure.handler(async ({ context }) => {
