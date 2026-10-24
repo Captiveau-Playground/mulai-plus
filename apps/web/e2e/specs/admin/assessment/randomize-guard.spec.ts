@@ -75,7 +75,7 @@ test.describe("Admin · Acak opsi × soal skala", () => {
   });
 
   test("SERVER: opsi soal skala tidak diacak, opsi pilihan ganda tetap diacak", async () => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildMixed("RZ Mixed");
     const cfg = await configOf(fx.code, fx.versionId);
     const likertIds = cfg.questions.filter((q) => q.questionType === "likert").map((q) => q.id as string);
@@ -97,7 +97,7 @@ test.describe("Admin · Acak opsi × soal skala", () => {
   });
 
   test("SERVER: urutan opsi soal skala di engine tetap sesuai (1..5)", async () => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildMixed("RZ Order");
     const cfg = await configOf(fx.code, fx.versionId);
     const likert = cfg.questions.find((q) => q.questionType === "likert")!;
@@ -109,7 +109,7 @@ test.describe("Admin · Acak opsi × soal skala", () => {
   });
 
   test("GATE: memberi peringatan 'acak opsi' saat ada soal skala (tidak memblok rilis)", async () => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildMixed("RZ Gate");
     const gate = await validate(admin, fx.versionId);
     expect(gate.ok, "peringatan tidak memblok rilis").toBe(true);
@@ -117,7 +117,7 @@ test.describe("Admin · Acak opsi × soal skala", () => {
   });
 
   test("UI: switch 'Acak urutan pilihan' nonaktif + ada catatan saat versi punya soal skala", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildMixed("RZ UI Off");
     // pastikan setting off → switch harus disabled
     await configUpdate(admin, fx.versionId, { randomize_a: false });
@@ -132,7 +132,7 @@ test.describe("Admin · Acak opsi × soal skala", () => {
   test("UI: saat setting menyala, muncul peringatan + tombol 'Matikan acak opsi' & checklist merah", async ({
     page,
   }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildMixed("RZ UI On");
     await configUpdate(admin, fx.versionId, { randomize_a: true });
     await openEditor(page, fx.code);
@@ -161,7 +161,7 @@ test.describe("Admin · Acak opsi × soal skala", () => {
   });
 
   test("GATE: 'acak soal' + pembagian bagian juga diberi peringatan", async () => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(admin, { code, name: `RZ Section ${code}` });

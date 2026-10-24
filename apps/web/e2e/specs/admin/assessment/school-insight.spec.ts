@@ -4,34 +4,16 @@ import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
+import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-ins";
-const orgIds: string[] = [];
-const schoolIds: string[] = [];
-const resultIds: string[] = [];
-const emails: string[] = [];
+const track = newTrack();
+const orgIds = track.orgIds;
+const schoolIds = track.schoolIds;
+const resultIds = track.resultIds;
+const emails = track.emails;
 let admin: Page;
-
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
-async function rpcAs<T = any>(page: Page, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
 
 type SeedStudent = {
   name: string;
@@ -44,8 +26,8 @@ type SeedStudent = {
 
 /** Kelas dengan 3 peserta selesai (variasi Holland, confidence, kemampuan). */
 async function seedInsightClass(name: string) {
-  const schoolId = rid();
-  const batchId = rid();
+  const schoolId = uniqueId();
+  const batchId = uniqueId();
   schoolIds.push(schoolId);
   await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
   await q(
@@ -81,9 +63,9 @@ async function seedInsightClass(name: string) {
   ];
 
   for (const p of plan) {
-    const resultId = rid();
+    const resultId = uniqueId();
     resultIds.push(resultId);
-    const rosterId = rid();
+    const rosterId = uniqueId();
     await q(
       `insert into tmb_assessment_results (id, user_id, holland_code, holland_scores, ability_scores, confidence_score, differentiation)
        values ($1,$2,$3,$4::jsonb,$5::jsonb,$6,'clear')`,
@@ -99,14 +81,14 @@ async function seedInsightClass(name: string) {
     let rank = 1;
     for (const m of p.majors) {
       await q("insert into tmb_recommendations (id, result_id, type, rank, item_name) values ($1,$2,'major',$3,$4)", [
-        rid(),
+        uniqueId(),
         resultId,
         rank++,
         m,
       ]);
     }
     await q("insert into tmb_recommendations (id, result_id, type, rank, item_name) values ($1,$2,'career',1,$3)", [
-      rid(),
+      uniqueId(),
       resultId,
       "Data Analyst",
     ]);
@@ -118,7 +100,7 @@ async function seedInsightClass(name: string) {
   // 1 peserta belum mulai → masuk daftar "perlu perhatian"
   await q(
     "insert into tmb_batch_students (id, batch_id, name, email, status) values ($1,$2,'Siswa Belum Mulai','belum@test.local','invited')",
-    [rid(), batchId],
+    [uniqueId(), batchId],
   );
   return { schoolId, batchId };
 }
@@ -147,26 +129,14 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (orgIds.length) {
-    await q("delete from assessment_cohort_reports where org_id = any($1)", [orgIds]).catch(() => undefined);
-  }
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
-  if (resultIds.length) {
-    await q("delete from tmb_recommendations where result_id = any($1)", [resultIds]).catch(() => undefined);
-    await q("delete from tmb_assessment_results where id = any($1)", [resultIds]).catch(() => undefined);
-  }
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
-  await closeDb();
+  await cleanupTrack(track);
   await admin.context().close();
+  await closeDb();
 });
 
 test.describe("B2B · insight kelas (M3)", () => {
   test("API: agregat Holland, jurusan teratas, kemampuan & perlu perhatian", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     const nama = `SMA Insight ${suffix()}`;
     const fx = await seedInsightClass(nama);
@@ -205,7 +175,7 @@ test.describe("B2B · insight kelas (M3)", () => {
   });
 
   test("API+UI: snapshot laporan tersimpan & bisa dicetak ulang", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     const nama = `SMA Snapshot ${suffix()}`;
     const fx = await seedInsightClass(nama);
@@ -246,10 +216,20 @@ test.describe("B2B · insight kelas (M3)", () => {
     const file = await dl;
     expect(file, "PDF snapshot harus terunduh").toBeTruthy();
     expect(file?.suggestedFilename() ?? "").toMatch(/\.pdf$/);
+
+    // PDF harus benar-benar terbentuk (magic bytes + ada halaman + ukuran wajar)
+    const { readFile } = await import("node:fs/promises");
+    const pdfPath = await file?.path();
+    expect(pdfPath, "file PDF harus tersedia di disk").toBeTruthy();
+    const buf = await readFile(pdfPath as string);
+    expect(buf.subarray(0, 5).toString(), "harus berawalan %PDF").toBe("%PDF-");
+    expect(buf.length, "PDF terlalu kecil — kemungkinan kosong").toBeGreaterThan(3000);
+    const pages = (buf.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+    expect(pages, "PDF harus punya minimal 1 halaman").toBeGreaterThanOrEqual(1);
   });
 
   test("UI: halaman insight tampil & PDF berhasil diunduh", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     const nama = `SMA Insight UI ${suffix()}`;
     const fx = await seedInsightClass(nama);

@@ -31,7 +31,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("seluruh field di panel tersimpan ke config versi", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Wire ${code}` });
@@ -69,7 +69,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("timer per soal sampai ke siswa (countdown + penolakan setelah deadline)", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildSimpleAssessment(page, {
       name: "Wire TimerQ",
       questionCount: 4,
@@ -86,7 +86,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("timer per bagian memakai durasi tiap dimensi", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Wire Dim ${code}` });
@@ -118,7 +118,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("bahasa antarmuka (lang) mengubah teks tombol siswa", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildUiFixture(page, { withSections: false });
     codes.push(fx.code);
     await page.goto(`/assessment/talent?preview=1&code=${fx.code}&v=${fx.versionId}`, {
@@ -133,7 +133,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("section_mode by_dimension memecah alur jadi beberapa bagian", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildUiFixture(page, { withSections: false });
     codes.push(fx.code);
     const cfg = await rpc<{ runSections: any[] }>("discover/config", { code: fx.code, versionId: fx.versionId });
@@ -141,7 +141,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("scoring_method weighted mengalikan skor dengan bobot soal", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Wire Weighted ${code}` });
@@ -178,7 +178,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   /* ── 4 setting yang sebelumnya no-op ── */
 
   test("randomize_q benar-benar mengacak urutan soal per siswa", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildSimpleAssessment(page, {
       name: "Wire RandQ",
       questionCount: 6,
@@ -205,7 +205,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("randomize_a benar-benar mengacak urutan opsi per siswa", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildSimpleAssessment(page, {
       name: "Wire RandA",
       questionCount: 2,
@@ -225,7 +225,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("allow_pause=false menyembunyikan tombol pause & menolak jeda di server", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildSimpleAssessment(page, {
       name: "Wire Pause",
       questionCount: 2,
@@ -251,7 +251,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("allow_pause=true menampilkan tombol pause & jeda diterima", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildSimpleAssessment(page, {
       name: "Wire Pause On",
       questionCount: 2,
@@ -274,7 +274,7 @@ test.describe("Admin · Setting → perilaku siswa", () => {
   });
 
   test("scoring_mode likert memakai poin linier, bukan skor manual per opsi", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Wire Likert ${code}` });

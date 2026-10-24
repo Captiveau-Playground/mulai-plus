@@ -40,7 +40,7 @@ test.describe("Admin · Editor — aturan", () => {
   });
 
   test("grup accordion bisa dibuka & ringkasannya terbaca", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code } = await newAssessment(page, "Grup");
     await openEditor(page, code);
 
@@ -56,7 +56,7 @@ test.describe("Admin · Editor — aturan", () => {
   });
 
   test("aturan penilaian tersimpan (cara nilai, top-N, min soal, mode likert)", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code, versionId } = await newAssessment(page, "Nilai");
     await openEditor(page, code);
 
@@ -81,7 +81,7 @@ test.describe("Admin · Editor — aturan", () => {
   });
 
   test("aturan timer per bagian (+ peringatan durasi) & per soal", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code, versionId } = await newAssessment(page, "Timer");
     await openEditor(page, code);
 
@@ -109,7 +109,7 @@ test.describe("Admin · Editor — aturan", () => {
   });
 
   test("aturan pengalaman siswa tersimpan (acak soal/opsi, pause, bagian, bahasa)", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code, versionId } = await newAssessment(page, "Pengalaman");
     await openEditor(page, code);
 
@@ -135,7 +135,7 @@ test.describe("Admin · Editor — aturan", () => {
   });
 
   test("nilai yang tersimpan terbaca kembali saat editor dibuka ulang", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code } = await newAssessment(page, "Persist");
     await openEditor(page, code);
     await openGroup(page, "penilaian");

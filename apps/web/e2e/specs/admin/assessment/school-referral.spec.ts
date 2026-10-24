@@ -3,31 +3,14 @@ import { expect, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
+import { cleanupTrack, newTrack, rpcAs, suffix } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-ref";
-const schoolIds: string[] = [];
-const orgIds: string[] = [];
-const emails: string[] = [];
-
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
-async function rpcAs<T = any>(page: any, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
+const track = newTrack();
+const schoolIds = track.schoolIds;
+const orgIds = track.orgIds;
+const emails = track.emails;
 
 async function daftar(page: any, tag: string, name: string, ref?: string) {
   const email = `${PREFIX}-${tag}-${Date.now()}-${suffix().toLowerCase()}@test.local`;
@@ -48,18 +31,13 @@ async function daftar(page: any, tag: string, name: string, ref?: string) {
 }
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-    await q("delete from tmb_schools where id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
+  await cleanupTrack(track);
   await closeDb();
 });
 
 test.describe("B2B · referral antar sekolah (M4.3)", () => {
   test("API + UI: kode rujukan, sekolah baru tercatat, kartu referral tampil", async ({ page, browser }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     const admin = await createAdminPage(browser);
     await preAcceptCookies(page);
 

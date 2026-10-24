@@ -7,17 +7,16 @@ import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
+import { cleanupTrack, newTrack, suffix, uniqueId } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
 
 const PREFIX = "e2e-portal";
-const orgIds: string[] = [];
-const schoolIds: string[] = [];
-const emails: string[] = [];
-const resultIds: string[] = [];
+const track = newTrack();
+const orgIds = track.orgIds;
+const schoolIds = track.schoolIds;
+const emails = track.emails;
+const resultIds = track.resultIds;
 let admin: Page;
-
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
 
 async function applicant(page: Page, tag: string) {
   const email = `${PREFIX}-${tag}-${Date.now()}-${suffix().toLowerCase()}@test.local`;
@@ -30,9 +29,9 @@ async function applicant(page: Page, tag: string) {
 
 /** Sekolah legacy + batch + 1 peserta yang sudah selesai (punya hasil Holland). */
 async function seedSchoolWithResult(name: string) {
-  const schoolId = rid();
-  const batchId = rid();
-  const resId = rid();
+  const schoolId = uniqueId();
+  const batchId = uniqueId();
+  const resId = uniqueId();
   schoolIds.push(schoolId);
   resultIds.push(resId);
   await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
@@ -47,7 +46,7 @@ async function seedSchoolWithResult(name: string) {
   );
   await q(
     "insert into tmb_batch_students (id, batch_id, name, status, result_id) values ($1,$2,'Siswa Portal','completed',$3)",
-    [rid(), batchId, resId],
+    [uniqueId(), batchId, resId],
   );
   return { schoolId, batchId };
 }
@@ -78,21 +77,14 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
-  if (resultIds.length)
-    await q("delete from tmb_assessment_results where id = any($1)", [resultIds]).catch(() => undefined);
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
-  await closeDb();
+  await cleanupTrack(track);
   await admin.context().close();
+  await closeDb();
 });
 
 test.describe("B2B · portal sekolah (UI)", () => {
   test("daftar dari form → menunggu → admin setujui → dashboard aktif + routing role", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const nama = `SMA Portal ${suffix()}`;
     await seedSchoolWithResult(nama);
     await applicant(page, "approve");
@@ -128,7 +120,7 @@ test.describe("B2B · portal sekolah (UI)", () => {
   });
 
   test("tolak pendaftaran dari admin menampilkan catatan di dashboard sekolah", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const nama = `SMK Ditolak ${suffix()}`;
     await applicant(page, "reject");
     await isiForm(page, nama);
@@ -150,7 +142,7 @@ test.describe("B2B · portal sekolah (UI)", () => {
   });
 
   test("tab login 'Sekolah' tampil & akun sekolah diarahkan ke area sekolah", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     // dialog cookie menutupi tombol login → setujui lebih dulu
     await preAcceptCookies(page);
     // Siapkan akun school_admin yang sudah aktif (langsung di DB, tanpa antrean approval)
@@ -158,12 +150,12 @@ test.describe("B2B · portal sekolah (UI)", () => {
     const created = await signUpViaApi("Admin Sekolah Login", email, E2E_PASSWORD);
     expect(created.ok, `signup gagal: ${created.raw}`).toBe(true);
     emails.push(email);
-    const orgId = rid();
+    const orgId = uniqueId();
     orgIds.push(orgId);
     await q("insert into assessment_orgs (id, name, status) values ($1,$2,'aktif')", [orgId, `SMA Login ${suffix()}`]);
     await q(
       "insert into assessment_org_members (id, org_id, user_id, role, status) values ($1,$2,$3,'school_admin','aktif')",
-      [rid(), orgId, created.userId],
+      [uniqueId(), orgId, created.userId],
     );
     await q('update "user" set role = $2 where id = $1', [created.userId, "school_admin"]);
 

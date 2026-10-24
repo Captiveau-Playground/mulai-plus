@@ -11,35 +11,17 @@ import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI } from "../../../helpers/auth";
+import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-school";
-const orgIds: string[] = [];
-const schoolIds: string[] = [];
-const emails: string[] = []; // HANYA akun yang dibuat spec ini (jangan pola LIKE: test paralel!)
+const track = newTrack();
+const orgIds = track.orgIds;
+const schoolIds = track.schoolIds;
+const emails = track.emails; // dilacak untuk teardown tertarget
 let admin: Page;
 
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
 /** Panggil RPC memakai sesi browser (cookie dibagi karena sama-sama `localhost`). */
-async function rpcAs<T = any>(page: Page, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
-
 /** Buat akun + login sebagai calon admin sekolah. */
 async function applicant(page: Page, tag: string) {
   const email = `${PREFIX}-${tag}-${Date.now()}-${suffix().toLowerCase()}@test.local`;
@@ -52,8 +34,8 @@ async function applicant(page: Page, tag: string) {
 
 /** Sekolah legacy + batch + peserta (data yang sudah ada sebelum B2B punya portal). */
 async function seedLegacySchool(name: string, studentNames: string[]) {
-  const schoolId = rid();
-  const batchId = rid();
+  const schoolId = uniqueId();
+  const batchId = uniqueId();
   schoolIds.push(schoolId);
   await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
   await q(
@@ -62,7 +44,7 @@ async function seedLegacySchool(name: string, studentNames: string[]) {
   );
   for (const nm of studentNames) {
     await q("insert into tmb_batch_students (id, batch_id, name, status) values ($1,$2,$3,'invited')", [
-      rid(),
+      uniqueId(),
       batchId,
       nm,
     ]);
@@ -85,19 +67,14 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
-  await closeDb();
+  await cleanupTrack(track);
   await admin.context().close();
+  await closeDb();
 });
 
 test.describe("B2B · pendaftaran & approval sekolah", () => {
   test("daftar → pending → approve → aktif, role naik, sekolah legacy tersambung", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const nama = `SMA E2E ${suffix()}`;
     const { userId } = await applicant(page, "approve");
 
@@ -147,7 +124,7 @@ test.describe("B2B · pendaftaran & approval sekolah", () => {
   });
 
   test("pendaftaran ganda ditolak (satu akun = satu sekolah)", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { userId } = await applicant(page, "ganda");
     const first = await daftar(page, `SMK E2E ${suffix()}`);
     expect(first.ok).toBe(true);
@@ -163,7 +140,7 @@ test.describe("B2B · pendaftaran & approval sekolah", () => {
   });
 
   test("reject → status ditolak & role akun tidak berubah", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { userId } = await applicant(page, "reject");
     const reg = await daftar(page, `SMA Tolak ${suffix()}`);
     expect(reg.ok).toBe(true);
@@ -185,7 +162,7 @@ test.describe("B2B · pendaftaran & approval sekolah", () => {
   });
 
   test("isolasi: sekolah hanya melihat peserta & batch miliknya", async ({ page, browser }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const namaA = `SMA Isolasi A ${suffix()}`;
     const namaB = `SMA Isolasi B ${suffix()}`;
     const schoolA = await seedLegacySchool(namaA, ["Siswa A1"]);

@@ -3,37 +3,28 @@ import { expect, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
+import {
+  approveSchool,
+  cleanupTrack,
+  newTrack,
+  registerSchool,
+  rpcAs,
+  signUpAndLogin,
+  suffix,
+  uniqueId,
+} from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-years";
-const orgIds: string[] = [];
-const schoolIds: string[] = [];
-const resultIds: string[] = [];
-const emails: string[] = [];
-
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
-async function rpcAs<T = any>(page: any, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
+const track = newTrack();
+const orgIds = track.orgIds;
+const schoolIds = track.schoolIds;
+const resultIds = track.resultIds;
+const emails = track.emails;
 
 /** Sekolah dengan 2 angkatan: 2025 (1 kelas, 2 selesai) & 2026 (1 kelas, 1 selesai). */
 async function seedYears(name: string) {
-  const schoolId = rid();
+  const schoolId = uniqueId();
   schoolIds.push(schoolId);
   await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
   const plan = [
@@ -41,15 +32,15 @@ async function seedYears(name: string) {
     { year: 2026, className: "XII B", count: 1, holland: "SEA", conf: "60" },
   ];
   for (const p of plan) {
-    const batchId = rid();
+    const batchId = uniqueId();
     await q(
       "insert into tmb_batches (id, school_id, name, class_name, major, invite_code, graduation_year) values ($1,$2,$3,$4,'IPA',$5,$6)",
       [batchId, schoolId, p.className, p.className, `E2E${suffix()}`, p.year],
     );
     for (let i = 0; i < p.count; i++) {
-      const resultId = rid();
+      const resultId = uniqueId();
       resultIds.push(resultId);
-      const rosterId = rid();
+      const rosterId = uniqueId();
       await q(
         `insert into tmb_assessment_results (id, user_id, holland_code, holland_scores, confidence_score)
          values ($1,$2,$3,'{}'::jsonb,$4)`,
@@ -65,21 +56,13 @@ async function seedYears(name: string) {
 }
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
-  if (resultIds.length) {
-    await q("delete from tmb_assessment_results where id = any($1)", [resultIds]).catch(() => undefined);
-  }
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
+  await cleanupTrack(track);
   await closeDb();
 });
 
 test.describe("B2B · multi-angkatan (M4.2)", () => {
   test("API + UI: rekap per angkatan & filter tahun", async ({ page, browser }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     const admin = await createAdminPage(browser);
     await preAcceptCookies(page);
     const nama = `SMA Angkatan ${suffix()}`;
@@ -122,6 +105,20 @@ test.describe("B2B · multi-angkatan (M4.2)", () => {
     await expect(page.getByTestId("cohort-row")).toHaveCount(1);
     await page.getByTestId("year-all").click();
     await expect(page.getByTestId("cohort-row")).toHaveCount(2);
+
+    // isolasi: sekolah lain tidak melihat angkatan ini
+    const ctx2 = await (page.context().browser() as any).newContext();
+    const pageB = await ctx2.newPage();
+    await preAcceptCookies(pageB);
+    const otherName = `SMA Lain Angkatan ${suffix()}`;
+    await signUpAndLogin(pageB, track, { name: "PIC Lain", prefix: `${PREFIX}-b`, tag: "iso" });
+    const regB = await registerSchool(pageB, track, { name: otherName });
+    expect(regB.ok, JSON.stringify(regB)).toBe(true);
+    expect((await approveSchool(admin, track, regB.orgId as string)).ok).toBe(true);
+    const yearsB = await rpcAs<any>(pageB, "school/cohortYears", {});
+    expect(yearsB.ok, "sekolah lain harus dapat daftar kosong").toBe(true);
+    expect(yearsB.items, "angkatan sekolah lain tidak boleh bocor").toHaveLength(0);
+    await ctx2.close();
 
     await admin.context().close();
   });

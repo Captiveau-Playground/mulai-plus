@@ -11,13 +11,15 @@ import { expect, type Page, test } from "@playwright/test";
 import { addDimension, configUpdate, createAssessment, saveQuestion } from "../../../fixtures/assessment";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, rpc } from "../../../helpers/api";
-import { closeDb, deleteAssessmentByCode, q } from "../../../helpers/db";
+import { cleanupTrack, newTrack, uniqueId } from "../../../helpers/b2b";
+import { closeDb, q } from "../../../helpers/db";
 import { runTag } from "../../../helpers/env";
 
 const PREFIX = "E2EB2B";
-const codes: string[] = [];
-const schoolIds: string[] = [];
-const studentIds: string[] = []; // siswa sintetis yang dibuat spec ini (untuk cleanup tertarget)
+const track = newTrack();
+const codes = track.codes;
+const schoolIds = track.schoolIds;
+const studentIds = track.studentIds; // siswa sintetis (dilacak di track untuk teardown)
 let admin: Page;
 let fxMinat: { code: string; versionId: string };
 let fxBakat: { code: string; versionId: string };
@@ -27,7 +29,6 @@ const sid = (tag: string) => {
   studentIds.push(id);
   return id;
 };
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 /** Assessment 1 dimensi + 1 soal PG. **Tidak** dirilis: gate hanya mengizinkan satu tes
  * minat/bakat LIVE untuk B2C, sedangkan alur B2B yang diuji cukup lewat versi draft
@@ -71,9 +72,9 @@ async function runTest(fx: { code: string; versionId: string }, studentId: strin
 
 /** Buat sekolah + batch + roster lewat DB (cepat, tidak tergantung UI admin). */
 async function seedRoster(opts: { name: string; userId?: string | null; status?: string; resultId?: string | null }) {
-  const schoolId = rid();
-  const batchId = rid();
-  const rosterId = rid();
+  const schoolId = uniqueId();
+  const batchId = uniqueId();
+  const rosterId = uniqueId();
   schoolIds.push(schoolId);
   await q("insert into tmb_schools (id, name, status) values ($1, $2, 'aktif')", [schoolId, "Sekolah E2E B2B"]);
   await q(
@@ -125,29 +126,14 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
-  for (const c of codes) await deleteAssessmentByCode(c).catch(() => false);
-  // bersihkan hasil percobaan — HANYA siswa yang dibuat spec ini (test paralel!)
-  if (studentIds.length) {
-    await q(
-      "delete from tmb_recommendations where result_id in (select id from tmb_assessment_results where user_id = any($1))",
-      [studentIds],
-    ).catch(() => undefined);
-    await q("delete from tmb_assessment_results where user_id = any($1)", [studentIds]).catch(() => undefined);
-  }
-  await closeDb();
+  await cleanupTrack(track);
   await admin.context().close();
+  await closeDb();
 });
 
 test.describe("B2B · hasil tes kembali ke roster sekolah", () => {
   test("mulai tes → roster 'in_progress'; selesai → 'completed' + tertaut hasil terbaru", async () => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const student = sid("auto");
     const { batchId, rosterId } = await seedRoster({ name: "Siswa Auto", userId: student });
     expect((await rosterOf(rosterId)).status).toBe("invited");
@@ -183,7 +169,7 @@ test.describe("B2B · hasil tes kembali ke roster sekolah", () => {
   });
 
   test("siswa yang tes SEBELUM klaim undangan ditautkan lewat backfill", async () => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const student = sid("telat");
     // tes dulu (belum ada roster)
     await runTest(fxMinat, student);
@@ -203,7 +189,7 @@ test.describe("B2B · hasil tes kembali ke roster sekolah", () => {
   });
 
   test("status 'completed' tanpa hasil sama sekali → direset ke 'invited'", async () => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { batchId, rosterId } = await seedRoster({
       name: "Siswa Konsisten",
       userId: sid("kosong"),
@@ -215,7 +201,7 @@ test.describe("B2B · hasil tes kembali ke roster sekolah", () => {
   });
 
   test("rekap memuat skor per dimensi, tanggal selesai & durasi", async () => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const studentBakat = sid("bakat");
     const seeded = await seedRoster({ name: "Siswa Bakat", userId: studentBakat });
     await runTest(fxBakat, studentBakat);

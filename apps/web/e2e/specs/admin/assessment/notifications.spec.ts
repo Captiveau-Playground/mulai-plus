@@ -8,38 +8,20 @@ import { expect, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
+import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-notif";
-const orgIds: string[] = [];
-const schoolIds: string[] = [];
-const emails: string[] = [];
+const track = newTrack();
+const orgIds = track.orgIds;
+const schoolIds = track.schoolIds;
+const emails = track.emails;
 const userIds: string[] = [];
-
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
-async function rpcAs<T = any>(page: any, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
 
 /** Sekolah (menunggu approval) + kelas dengan jadwal berakhir 2 hari lagi. */
 async function seedSchoolWithSchedule(name: string) {
-  const schoolId = rid();
-  const batchId = rid();
+  const schoolId = uniqueId();
+  const batchId = uniqueId();
   schoolIds.push(schoolId);
   await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
   const start = new Date(Date.now() - 86400000).toISOString();
@@ -51,19 +33,14 @@ async function seedSchoolWithSchedule(name: string) {
   );
   await q(
     "insert into tmb_batch_students (id, batch_id, name, email, status) values ($1,$2,'Belum Mulai','a@test.local','invited')",
-    [rid(), batchId],
+    [uniqueId(), batchId],
   );
   return { schoolId, batchId };
 }
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
   if (userIds.length) await q("delete from notification where user_id = any($1)", [userIds]).catch(() => undefined);
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
+  await cleanupTrack(track);
   await closeDb();
 });
 
@@ -88,7 +65,7 @@ test.describe("M5.1 · notifikasi otomatis", () => {
   });
 
   test("persetujuan sekolah & pengingat kelas masuk ke notifikasi PIC (tanpa dobel)", async ({ page, browser }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     const admin = await createAdminPage(browser);
     await preAcceptCookies(page);
 

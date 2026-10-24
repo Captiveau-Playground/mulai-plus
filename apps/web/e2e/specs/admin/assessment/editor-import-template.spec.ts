@@ -46,7 +46,7 @@ test.describe("Admin · Template soal (CSV & Excel)", () => {
   });
 
   test("talent-items.csv: 120 soal, 5 dimensi otomatis, semua tipe & mode jawaban masuk", async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     const { versionId } = await importTemplate(page, "talent-items.csv", 120, "Tpl CSV");
     await expect.poll(() => questionCount(page), { timeout: 30000 }).toBe(120);
 
@@ -81,7 +81,7 @@ test.describe("Admin · Template soal (CSV & Excel)", () => {
   });
 
   test("discover-items.csv: 120 soal skala dengan caption emoji", async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     const { versionId } = await importTemplate(page, "discover-items.csv", 120, "Tpl DISC");
     await expect.poll(() => questionCount(page), { timeout: 30000 }).toBe(120);
 
@@ -94,7 +94,7 @@ test.describe("Admin · Template soal (CSV & Excel)", () => {
   });
 
   test("talent-items.xlsx: sheet 'Soal' terbaca dari Excel", async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     const { versionId } = await importTemplate(page, "talent-items.xlsx", 120, "Tpl XLSX");
     const c = await contentOf(page, versionId);
     expect(c.questions).toHaveLength(120);

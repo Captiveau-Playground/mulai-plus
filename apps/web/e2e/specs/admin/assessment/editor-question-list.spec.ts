@@ -64,7 +64,7 @@ test.describe("Admin · Editor — daftar soal", () => {
   });
 
   test("dikelompokkan per dimensi saat urutan soal ber-blok", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildWithOrder(page, "Blok", BLOCK_PLAN);
 
     await expect(page.locator('[data-testid="q-group-D1"]')).toBeVisible({ timeout: 20000 });
@@ -85,7 +85,7 @@ test.describe("Admin · Editor — daftar soal", () => {
   });
 
   test("buka/tutup semua grup", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     await buildWithOrder(page, "Toggle", BLOCK_PLAN);
     await expect(page.locator('[data-testid="q-group-D1"]')).toBeVisible({ timeout: 20000 });
 
@@ -99,7 +99,7 @@ test.describe("Admin · Editor — daftar soal", () => {
   });
 
   test("pencarian menyaring soal dan membuka grup yang cocok", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     await buildWithOrder(page, "Cari", BLOCK_PLAN);
     await expect(page.locator('[data-testid="q-group-D1"]')).toBeVisible({ timeout: 20000 });
 
@@ -119,7 +119,7 @@ test.describe("Admin · Editor — daftar soal", () => {
   });
 
   test("tetap datar + diberi penjelasan saat urutan soal berselang", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     await buildWithOrder(page, "Selang", INTERLEAVED_PLAN);
 
     await expect(page.locator('[data-testid="question-row"]').first()).toBeVisible({ timeout: 20000 });

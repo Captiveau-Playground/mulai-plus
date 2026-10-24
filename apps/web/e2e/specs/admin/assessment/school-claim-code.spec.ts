@@ -5,39 +5,21 @@ import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
+import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-claim";
-const orgIds: string[] = [];
-const schoolIds: string[] = [];
-const emails: string[] = [];
+const track = newTrack();
+const orgIds = track.orgIds;
+const schoolIds = track.schoolIds;
+const emails = track.emails;
 let admin: Page;
-
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
-async function rpcAs<T = any>(page: Page, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
 
 /** Kelas dengan 2 peserta: satu tanpa email, satu dengan email. */
 async function seedClass(name: string) {
-  const schoolId = rid();
-  const batchId = rid();
-  const tanpaEmail = rid();
+  const schoolId = uniqueId();
+  const batchId = uniqueId();
+  const tanpaEmail = uniqueId();
   schoolIds.push(schoolId);
   await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
   await q(
@@ -50,7 +32,7 @@ async function seedClass(name: string) {
   );
   await q(
     "insert into tmb_batch_students (id, batch_id, name, email, status) values ($1,$2,'Siswa Beremail','ada@test.local','invited')",
-    [rid(), batchId],
+    [uniqueId(), batchId],
   );
   return { schoolId, batchId, tanpaEmail };
 }
@@ -79,19 +61,14 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
-  await closeDb();
+  await cleanupTrack(track);
   await admin.context().close();
+  await closeDb();
 });
 
 test.describe("B2B · kode akses peserta tanpa email (M2.6)", () => {
   test("API: kode dibuat otomatis, teks undangan memuat kode & link personal", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     const nama = `SMA Klaim ${suffix()}`;
     const fx = await seedClass(nama);
@@ -117,7 +94,7 @@ test.describe("B2B · kode akses peserta tanpa email (M2.6)", () => {
   });
 
   test("UI+API: siswa tanpa email memakai kode → akun tertaut, kode tidak bisa dipakai ulang", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     const nama = `SMA Klaim UI ${suffix()}`;
     const fx = await seedClass(nama);
@@ -148,6 +125,12 @@ test.describe("B2B · kode akses peserta tanpa email (M2.6)", () => {
     const bound = await q("select user_id, claim_code_used_at from tmb_batch_students where id = $1", [fx.tanpaEmail]);
     expect(bound[0]?.user_id, "userId tertaut").toBeTruthy();
     expect(bound[0]?.claim_code_used_at, "waktu pakai tercatat").toBeTruthy();
+
+    // klaim ULANG oleh akun yang sama → tetap sukses & tidak mengganti pemilik
+    const claimAgain = await rpcAs<any>(page1, "tmb/invite/claim", { code });
+    expect(claimAgain?.studentName, "klaim ulang akun sendiri harus idempoten").toBe("Siswa Tanpa Email");
+    const boundAgain = await q("select user_id from tmb_batch_students where id = $1", [fx.tanpaEmail]);
+    expect(boundAgain[0]?.user_id).toBe(bound[0]?.user_id);
 
     // kode yang sama dipakai akun lain → ditolak (pakai konteks terpisah karena
     // halaman login me-redirect akun yang sudah masuk)

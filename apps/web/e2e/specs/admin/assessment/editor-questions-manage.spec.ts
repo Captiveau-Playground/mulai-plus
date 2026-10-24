@@ -36,7 +36,7 @@ test.describe("Admin · Editor — kelola soal", () => {
   });
 
   test("urut naik/turun, salin, dan hapus soal", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "Kelola");
     await addQuestionUI(page, { text: "Soal satu", options: ["A", "B"] });
     await addQuestionUI(page, { text: "Soal dua", options: ["A", "B"] });
@@ -59,7 +59,7 @@ test.describe("Admin · Editor — kelola soal", () => {
   });
 
   test("urutan daftar soal mengikuti displayOrder", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "Urut");
     await addQuestionUI(page, { text: "Pertama", options: ["A", "B"] });
     await addQuestionUI(page, { text: "Kedua", options: ["A", "B"] });
@@ -74,7 +74,7 @@ test.describe("Admin · Editor — kelola soal", () => {
   });
 
   test("beberapa soal di dimensi yang sama dapat nomor urut unik (lolos gate)", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "DisplayOrder");
     await addQuestionUI(page, { text: "Satu", options: ["A", "B"] });
     await addQuestionUI(page, { text: "Dua", options: ["A", "B"] });
@@ -89,7 +89,7 @@ test.describe("Admin · Editor — kelola soal", () => {
   });
 
   test("edit soal isian memuat kunci jawaban yang sudah ada & tidak menghapusnya", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "EditIsian");
     const c0 = await contentOf(page, versionId);
     await saveQuestion(page, versionId, {
@@ -116,7 +116,7 @@ test.describe("Admin · Editor — kelola soal", () => {
   });
 
   test("mengubah dimensi soal isian tetap menyimpan konfigurasi evaluasinya", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "PindahDim", 2);
     const c0 = await contentOf(page, versionId);
     await saveQuestion(page, versionId, {

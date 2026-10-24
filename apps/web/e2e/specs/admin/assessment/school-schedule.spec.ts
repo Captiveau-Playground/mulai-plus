@@ -7,38 +7,20 @@ import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, rpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
+import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-jdw";
-const orgIds: string[] = [];
-const schoolIds: string[] = [];
-const studentIds: string[] = [];
-const emails: string[] = [];
+const track = newTrack();
+const orgIds = track.orgIds;
+const schoolIds = track.schoolIds;
+const studentIds = track.studentIds;
+const emails = track.emails;
 let admin: Page;
-
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
-async function rpcAs<T = any>(page: Page, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
 
 async function setupSchool(page: Page, tag: string) {
   const name = `SMA Jadwal ${suffix()}`;
-  const schoolId = rid();
+  const schoolId = uniqueId();
   schoolIds.push(schoolId);
   await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
   const email = `${PREFIX}-${tag}-${Date.now()}-${suffix().toLowerCase()}@test.local`;
@@ -62,7 +44,7 @@ async function setupSchool(page: Page, tag: string) {
 
 /** Peserta roster yang "sudah punya akun" (userId) → dipakai menguji enforcement. */
 async function addRosterStudent(batchId: string, userId: string, name = "Siswa Uji") {
-  const id = rid();
+  const id = uniqueId();
   await q(
     "insert into tmb_batch_students (id, batch_id, name, email, status, user_id) values ($1,$2,$3,$4,'invited',$5)",
     [id, batchId, name, `${id}@test.local`, userId],
@@ -77,22 +59,14 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (studentIds.length) {
-    await q("delete from assessment_sessions where student_id = any($1)", [studentIds]).catch(() => undefined);
-  }
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
-  await closeDb();
+  await cleanupTrack(track);
   await admin.context().close();
+  await closeDb();
 });
 
 test.describe("B2B · jadwal & window kelas (M2.3)", () => {
   test("validasi jadwal + status window di daftar kelas", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     await setupSchool(page, "api");
     const c = await rpcAs<any>(page, "school/cohortCreate", { name: "XII IPS 1" });
@@ -130,7 +104,7 @@ test.describe("B2B · jadwal & window kelas (M2.3)", () => {
   });
 
   test("server menolak MULAI di luar window & mengizinkan di dalamnya", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     await setupSchool(page, "enforce");
     const c = await rpcAs<any>(page, "school/cohortCreate", { name: "XII IPA 3" });
@@ -182,7 +156,7 @@ test.describe("B2B · jadwal & window kelas (M2.3)", () => {
   });
 
   test("UI: kartu jadwal menyimpan rentang & menampilkan status", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     await setupSchool(page, "ui");
     const c = await rpcAs<any>(page, "school/cohortCreate", { name: "XI IPA 4" });

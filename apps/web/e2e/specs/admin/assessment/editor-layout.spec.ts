@@ -26,7 +26,7 @@ test.describe("Admin · Editor — kerangka", () => {
   });
 
   test("editor terbuka & menampilkan struktur (versi, aturan, daftar soal)", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     await createAssessment(page, { code, name: `Editor ${code}` });
@@ -41,7 +41,7 @@ test.describe("Admin · Editor — kerangka", () => {
   });
 
   test("checklist kelayakan menampilkan item yang belum terpenuhi", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     await createAssessment(page, { code, name: `Checklist ${code}` });
@@ -54,7 +54,7 @@ test.describe("Admin · Editor — kerangka", () => {
   });
 
   test("tambah dimensi via UI + isi durasi tersimpan", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Dim ${code}` });
@@ -69,7 +69,7 @@ test.describe("Admin · Editor — kerangka", () => {
   });
 
   test("hapus dimensi lewat tombol di tabel", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `DimDel ${code}` });
@@ -83,7 +83,7 @@ test.describe("Admin · Editor — kerangka", () => {
   });
 
   test("versi live bersifat read-only (tombol Ubah aturan, bukan Tambah soal)", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `RO ${code}` });

@@ -5,33 +5,17 @@ import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
-import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
+import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
+import { closeDb } from "../../../helpers/db";
 
 const PREFIX = "e2e-team";
-const schoolIds: string[] = [];
-const orgIds: string[] = [];
-const emails: string[] = [];
+const track = newTrack();
+const schoolIds = track.schoolIds;
+const orgIds = track.orgIds;
+const emails = track.emails;
 let admin: Page;
 
 const _rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
-async function rpcAs<T = any>(page: Page, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
 
 /** Sekolah aktif + 1 kelas, atas nama admin sekolah. */
 async function seedSchool(page: Page, tag: string, schoolName: string) {
@@ -61,19 +45,14 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-    await q("delete from tmb_schools where id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
-  await closeDb();
+  await cleanupTrack(track);
   await admin.context().close();
+  await closeDb();
 });
 
 test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
   test("API: undang rekan → klaim otomatis → peran viewer hanya bisa melihat", async ({ page, browser }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     const nama = `SMA Tim ${suffix()}`;
     const fx = await seedSchool(page, "api", nama);
@@ -112,6 +91,17 @@ test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
     const denied = await rpcAs<any>(gp, "school/cohortCreate", { name: "Kelas Baru", className: "XI 1" });
     expect(denied.ok).toBe(false);
     expect(denied.error).toBe("hanya_admin");
+    const deniedImport = await rpcAs<any>(gp, "school/participantsImport", {
+      batchId: fx.batchId,
+      csv: "nama,email\nSiswa Baru,baru@sekolah.sch.id",
+    });
+    expect(deniedImport.ok, "guru BK tidak boleh import peserta").toBe(false);
+    expect(deniedImport.error).toBe("hanya_admin");
+
+    const deniedInvite = await rpcAs<any>(gp, "school/invitePeer", { email: `rekan-${uniqueId()}@test.local` });
+    expect(deniedInvite.ok, "guru BK tidak boleh mengundang rekan").toBe(false);
+    expect(deniedInvite.error).toBe("hanya_admin");
+
     const deniedJadwal = await rpcAs<any>(gp, "school/cohortSchedule", {
       batchId: fx.batchId,
       mode: "scheduled",
@@ -128,7 +118,7 @@ test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
   });
 
   test("UI: halaman Tim sekolah menampilkan anggota & undangan", async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     const nama = `SMA Tim UI ${suffix()}`;
     await seedSchool(page, "ui", nama);

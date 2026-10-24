@@ -29,7 +29,7 @@ test.describe("Admin · Editor — konten & import", () => {
   });
 
   test("tambah pengantar, ubah judul & isi, lalu terhapus", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code, versionId } = await setup(page, "Pengantar");
     await openGroup(page, "konten");
 
@@ -62,7 +62,7 @@ test.describe("Admin · Editor — konten & import", () => {
   });
 
   test("instruksi per dimensi tersimpan", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code, versionId } = await setup(page, "Instruksi", 2);
     await openGroup(page, "konten");
 
@@ -79,7 +79,7 @@ test.describe("Admin · Editor — konten & import", () => {
   });
 
   test("import CSV: baris terbaca, dimensi baru dibuat otomatis, soal ditambahkan", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "Import");
     const csv = [
       "Teks,Dimensi,Tipe,Opsi A,Opsi B,Opsi C,Kunci,Bobot,Kunci Isian,Cara nilai,Toleransi",
@@ -106,7 +106,7 @@ test.describe("Admin · Editor — konten & import", () => {
   });
 
   test("import CSV dengan dimensi yang sudah ada tidak menduplikasi dimensi", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "ImportDup");
     const csv = [
       "Teks,Dimensi,Tipe,Opsi A,Opsi B,Kunci,Bobot,Kunci Isian,Cara nilai,Toleransi",

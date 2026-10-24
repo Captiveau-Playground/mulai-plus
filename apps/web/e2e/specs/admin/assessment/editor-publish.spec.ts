@@ -41,7 +41,7 @@ test.describe("Admin · Editor — kelayakan & rilis", () => {
   });
 
   test("checklist berubah hijau setelah isi dimensi & soal yang cukup", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     await createAssessment(page, { code, name: `Rilis ${code}` });
@@ -62,7 +62,7 @@ test.describe("Admin · Editor — kelayakan & rilis", () => {
   });
 
   test("gate menolak rilis saat belum lengkap, berhasil setelah lengkap", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const created = await createAssessment(page, { code, name: `Gate ${code}` });
@@ -89,7 +89,7 @@ test.describe("Admin · Editor — kelayakan & rilis", () => {
   });
 
   test("rilis versi baru mengarsipkan versi live sebelumnya", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Versi ${code}` });
@@ -132,7 +132,7 @@ test.describe("Admin · Editor — kelayakan & rilis", () => {
   });
 
   test("klik 'Ubah' pada versi live tidak langsung membuat draf — dibuat saat perubahan pertama", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Lazy ${code}` });
@@ -173,7 +173,7 @@ test.describe("Admin · Editor — kelayakan & rilis", () => {
   });
 
   test("versi lama dilipat supaya panel tidak makin panjang", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Fold ${code}` });
@@ -220,7 +220,7 @@ test.describe("Admin · Editor — kelayakan & rilis", () => {
   });
 
   test("versi live read-only: tombol Ubah aturan menggantikan Tambah soal", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `RO ${code}` });
@@ -252,7 +252,7 @@ test.describe("Admin · Ganti versi tidak merusak sesi lama", () => {
   });
 
   test("sesi dari versi lama tetap utuh & bisa dilanjutkan setelah versi baru rilis", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Versioning ${code}` });

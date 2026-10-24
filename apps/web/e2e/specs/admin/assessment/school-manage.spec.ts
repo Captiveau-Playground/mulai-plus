@@ -3,38 +3,20 @@ import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
+import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
-import { API_URL } from "../../../helpers/env";
 
 const PREFIX = "e2e-mng";
-const orgIds: string[] = [];
-const schoolIds: string[] = [];
-const emails: string[] = [];
+const track = newTrack();
+const orgIds = track.orgIds;
+const schoolIds = track.schoolIds;
+const emails = track.emails;
 let admin: Page;
-
-const rid = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const suffix = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-
-async function rpcAs<T = any>(page: Page, path: string, json: unknown = {}): Promise<T> {
-  return page.evaluate(
-    async (arg: { base: string; path: string; json: unknown }) => {
-      const res = await fetch(`${arg.base}/rpc/${arg.path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ json: arg.json }),
-      });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
-    },
-    { base: API_URL, path, json },
-  ) as Promise<T>;
-}
 
 /** Sekolah aktif + org disetujui (tanpa kelas — kelas dibuat lewat API/UI di test). */
 async function setupSchool(page: Page, tag: string) {
   const name = `SMA Kelola ${suffix()}`;
-  const schoolId = rid();
+  const schoolId = uniqueId();
   schoolIds.push(schoolId);
   await q("insert into tmb_schools (id, name, status) values ($1,$2,'aktif')", [schoolId, name]);
   const email = `${PREFIX}-${tag}-${Date.now()}-${suffix().toLowerCase()}@test.local`;
@@ -61,19 +43,14 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  for (const id of orgIds) await q("delete from assessment_orgs where id = $1", [id]).catch(() => undefined);
-  if (schoolIds.length) {
-    await q("delete from tmb_batches where school_id = any($1)", [schoolIds]).catch(() => undefined);
-  }
-  for (const id of schoolIds) await q("delete from tmb_schools where id = $1", [id]).catch(() => undefined);
-  if (emails.length) await q('delete from "user" where email = any($1)', [emails]).catch(() => undefined);
-  await closeDb();
+  await cleanupTrack(track);
   await admin.context().close();
+  await closeDb();
 });
 
 test.describe("B2B · kelola kelas & peserta (M2.2)", () => {
   test("buat kelas → import CSV (duplikat dilewati) → undangan siap bagikan", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     await setupSchool(page, "api");
 
@@ -138,8 +115,69 @@ test.describe("B2B · kelola kelas & peserta (M2.2)", () => {
     expect(inv.waText).toContain("XII IPA 2");
   });
 
+  test("edge: email tidak valid, batas 500 baris, dan peserta ganda ditolak", async ({ page }) => {
+    test.setTimeout(90000);
+    await preAcceptCookies(page);
+    await setupSchool(page, "edge");
+
+    const created = await rpcAs<any>(page, "school/cohortCreate", { name: "XII EDGE", className: "XII", major: "IPA" });
+    expect(created.ok, `cohortCreate: ${JSON.stringify(created)}`).toBe(true);
+    const batchId = created.id as string;
+
+    // (a) email tidak valid → tercatat di `failed`, bukan menggagalkan seluruh import
+    const csvInvalid = ["nama,email,nis", "Siswa Valid,valid@sekolah.sch.id,2001", "Siswa Rusak,bukan-email,2002"].join(
+      "\n",
+    );
+    const imp1 = await rpcAs<any>(page, "school/participantsImport", { batchId, csv: csvInvalid });
+    expect(imp1.ok, JSON.stringify(imp1)).toBe(true);
+    expect(imp1.imported).toBe(1);
+    expect((imp1.failed ?? []).length, "baris email invalid harus dilaporkan").toBe(1);
+    expect(String(imp1.failed[0].reason)).toMatch(/email/i);
+
+    // (b) import ulang email yang sudah ada di kelas → dilewati (bukan dobel)
+    const csvDup = ["nama,email,nis", "Siswa Valid Lagi,valid@sekolah.sch.id,2003"].join("\n");
+    const imp2 = await rpcAs<any>(page, "school/participantsImport", { batchId, csv: csvDup });
+    expect(imp2.ok).toBe(true);
+    expect(imp2.imported).toBe(0);
+    expect(imp2.skipped).toBe(1);
+
+    // (c) batas 500 baris per import
+    const rows = ["nama,email,nis"];
+    for (let i = 0; i < 501; i++) rows.push(`Siswa ${i},siswa${i}@sekolah.sch.id,${3000 + i}`);
+    const imp3 = await rpcAs<any>(page, "school/participantsImport", { batchId, csv: rows.join("\n") });
+    expect(imp3.ok, "lebih dari 500 baris harus ditolak").toBe(false);
+    expect(imp3.error).toBe("terlalu_banyak_baris");
+
+    // (d) tambah manual: sukses sekali, ditolak saat email sama
+    const add1 = await rpcAs<any>(page, "school/participantAdd", {
+      batchId,
+      name: "Siswa Manual",
+      email: "manual@sekolah.sch.id",
+    });
+    expect(add1.ok, JSON.stringify(add1)).toBe(true);
+    const add2 = await rpcAs<any>(page, "school/participantAdd", {
+      batchId,
+      name: "Siswa Manual Dobel",
+      email: "manual@sekolah.sch.id",
+    });
+    expect(add2.ok).toBe(false);
+    expect(add2.error).toBe("peserta_sudah_ada");
+
+    // jumlah akhir: 1 dari CSV + 1 manual
+    const list = await rpcAs<any>(page, "school/participants", { batchId });
+    expect(list.ok).toBe(true);
+    expect(list.items.length).toBe(2);
+
+    // (e) peserta tanpa email otomatis dapat kode akses
+    const add3 = await rpcAs<any>(page, "school/participantAdd", { batchId, name: "Siswa Tanpa Email" });
+    expect(add3.ok).toBe(true);
+    const list2 = await rpcAs<any>(page, "school/participants", { batchId });
+    const noEmail = (list2.items ?? []).find((x: any) => x.name === "Siswa Tanpa Email");
+    expect(noEmail?.claimCode, "kode akses dibuat otomatis untuk peserta tanpa email").toMatch(/^[A-Z2-9]{6}$/);
+  });
+
   test("UI: buat kelas dari dashboard → import dari dialog → kartu undangan tampil", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     await preAcceptCookies(page);
     await setupSchool(page, "ui");
 
