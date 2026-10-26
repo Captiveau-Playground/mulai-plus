@@ -161,6 +161,39 @@ test.describe("B2B · pendaftaran & approval sekolah", () => {
     expect((await q<any>('select role from "user" where id = $1', [userId]))[0]?.role).toBe("student");
   });
 
+  test("A7: dua akun tidak bisa mendaftarkan sekolah yang sama", async ({ page, browser }) => {
+    test.setTimeout(90000);
+    await preAcceptCookies(page);
+    const nama = `SMA Dobel ${suffix()}`;
+
+    // akun 1 mendaftar
+    await applicant(page, "dobel1");
+    const reg1 = await daftar(page, nama, { city: "Lamongan" });
+    expect(reg1.ok, JSON.stringify(reg1)).toBe(true);
+    orgIds.push(reg1.orgId as string);
+
+    // akun 2 (konteks berbeda) mendaftar nama+kota sama → ditolak
+    const ctx = await (browser as any).newContext();
+    const page2 = await ctx.newPage();
+    await preAcceptCookies(page2);
+    const email2 = `${PREFIX}-dobel2-${uniqueId()}@test.local`;
+    const created2 = await signUpViaApi("Calon Admin 2", email2, E2E_PASSWORD);
+    expect(created2.ok, created2.raw).toBe(true);
+    emails.push(email2);
+    await loginUI(page2, email2, E2E_PASSWORD);
+    const reg2 = await rpcAs<any>(page2, "school/register", {
+      name: nama,
+      picName: "PIC 2",
+      picPhone: "08123456789",
+      picEmail: "bk2@test.local",
+      city: "Lamongan",
+    });
+    expect(reg2.ok, "sekolah ganda harus ditolak").toBe(false);
+    expect(reg2.error).toBe("sekolah_sudah_terdaftar");
+    expect(String(reg2.message)).toMatch(/sudah terdaftar|menunggu persetujuan/i);
+    await ctx.close();
+  });
+
   test("T13: sekolah dinonaktifkan → portal & data ditolak", async ({ page }) => {
     test.setTimeout(90000);
     await preAcceptCookies(page);

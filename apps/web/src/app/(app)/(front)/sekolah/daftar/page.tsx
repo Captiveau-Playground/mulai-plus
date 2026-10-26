@@ -46,6 +46,11 @@ function DaftarSekolahPageInner() {
     onSuccess: async (r: any) => {
       if (r?.ok === false && r?.error === "sudah_terdaftar") {
         notify.warn(`Akun ini sudah terdaftar untuk ${r.orgName ?? "sebuah sekolah"}`);
+      } else if (r?.ok === false && r?.error === "sekolah_sudah_terdaftar") {
+        // (auth) sekolah yang sama tidak boleh didaftarkan dua akun berbeda
+        notify.error(r.message ?? "Sekolah ini sudah terdaftar — hubungi admin sekolah lama");
+        setSelesai(false);
+        return;
       } else {
         notify.success("Pendaftaran terkirim — menunggu persetujuan admin MULAI+");
       }

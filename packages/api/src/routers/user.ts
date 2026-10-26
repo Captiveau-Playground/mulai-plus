@@ -77,11 +77,16 @@ export const userRouter = {
       return { success: true };
     }),
 
+  /**
+   * Permission efektif user + ROLE-nya. Role ikut dikirim supaya klien bisa
+   * mendeteksi cache basi saat role berubah (mis. siswa dipromosikan jadi admin
+   * sekolah/admin) tanpa menunggu `staleTime` habis.
+   */
   myPermissions: protectedProcedure.handler(async ({ context }) => {
-    if (!context.session?.user) return [];
+    if (!context.session?.user) return { role: null, permissions: [] as string[] };
     const userRole = (context.session.user as any).role || "student";
     const [roleData] = await db.select().from(role).where(eq(role.id, userRole));
-    return roleData?.permissions || [];
+    return { role: userRole as string, permissions: (roleData?.permissions ?? []) as string[] };
   }),
 
   listStudents: protectedProcedure

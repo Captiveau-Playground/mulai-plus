@@ -194,6 +194,38 @@ test.describe("AUTH · role internal & B2B", () => {
     await ownerCtx.close();
   });
 
+  test("A6: promosi role langsung berlaku (cache izin tidak menahan 5 menit)", async ({ page }) => {
+    test.setTimeout(120000);
+    await preAcceptCookies(page);
+    const { userId } = await newUser(page, "promosi");
+
+    // buka /admin sebagai siswa → ditolak
+    await page.goto("/admin", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1500);
+    const before = await page
+      .locator('a[href="/admin/users"]')
+      .first()
+      .isVisible()
+      .catch(() => false);
+    expect(before, "siswa tidak boleh melihat menu admin").toBe(false);
+
+    // admin MULAI+ mempromosikan akun ini (role berubah saat sesi masih hidup)
+    expect((await adminRpc<any>(admin, "role/list", {})).length ?? 1).toBeGreaterThan(0);
+    await q('update "user" set role = $1 where id = $2', ["admin", userId]);
+
+    // reload → panel admin harus terbuka tanpa menunggu cache 5 menit
+    await page.goto("/admin", { waitUntil: "domcontentloaded" });
+    await expect(page.locator('a[href="/admin/users"]').first()).toBeVisible({ timeout: 20000 });
+
+    // permission dari server juga sudah mencerminkan role baru
+    const perms = await rpcAs<any>(page, "user/myPermissions", {});
+    expect(perms.role).toBe("admin");
+    expect(perms.permissions).toContain("access:admin_dashboard");
+
+    // kembalikan role agar tidak mengganggu test lain
+    await q('update "user" set role = $1 where id = $2', ["student", userId]);
+  });
+
   test("A4: role B2B terdaftar lengkap di DB dengan permission yang benar", async () => {
     test.setTimeout(90000);
     const rows = await q<{ id: string; name: string; permissions: string[] }>("select id, name, permissions from role");

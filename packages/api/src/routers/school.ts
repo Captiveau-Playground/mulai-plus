@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { randomUUID } from "node:crypto";
-import { and, asc, db, desc, eq, inArray } from "@mulai-plus/db/db";
+import { and, asc, db, desc, eq, inArray, sql } from "@mulai-plus/db/db";
 import {
   assessmentCohortReports,
   assessmentOrgInvites,
@@ -343,6 +343,29 @@ export const schoolRouter = {
           error: "sudah_terdaftar" as const,
           status: existing.member.status,
           orgName: existing.org?.name ?? null,
+        };
+      }
+
+      // (auth) Cegah dua akun mengklaim sekolah yang SAMA: selain mengotori antrean
+      // admin, ini melindungi jembatan `tmb_schools` yang mencocokkan nama sekolah.
+      const normalizedName = input.name.trim().toLowerCase();
+      const sameName = await db
+        .select({ id: assessmentOrgs.id, status: assessmentOrgs.status, city: assessmentOrgs.city })
+        .from(assessmentOrgs)
+        .where(sql`lower(btrim(${assessmentOrgs.name})) = ${normalizedName}`);
+      const city = (input.city ?? "").trim().toLowerCase();
+      const clash = sameName.find(
+        (o) => !city || !(o.city ?? "").trim() || (o.city ?? "").trim().toLowerCase() === city,
+      );
+      if (clash && (clash.status === "pending" || clash.status === "aktif")) {
+        return {
+          ok: false as const,
+          error: "sekolah_sudah_terdaftar" as const,
+          status: clash.status,
+          message:
+            clash.status === "aktif"
+              ? `Sekolah "${input.name}" sudah terdaftar dan aktif. Minta admin sekolah lama menambahkan Anda lewat menu "Tim sekolah".`
+              : `Pendaftaran untuk "${input.name}" sedang menunggu persetujuan admin MULAI+.`,
         };
       }
 
