@@ -53,7 +53,7 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "bun run scripts/seed-roles.ts",
+    "db:seed": "bun --env-file=../../apps/server/.env scripts/seed-roles.ts",
     "db:seed:tmb": "bun run scripts/seed-tmb.ts",
     "optimize:io": "bun run src/optimize-io.ts",
     "prune:io": "bun run src/prune-io.ts"

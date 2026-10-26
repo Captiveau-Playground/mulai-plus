@@ -55,7 +55,9 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
         name,
         email,
         password,
-        role: role as "student" | "mentor" | "admin" | "program_manager",
+        // tipe better-auth hanya mengenal 4 role bawaan; role B2B (school_*) valid
+        // karena terdaftar di tabel `role` (dipakai server & UI admin).
+        role: role as any,
       });
 
       if (error) throw new Error(error.message || error.statusText);
@@ -146,6 +148,8 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
                   <option value="student">Student</option>
                   <option value="mentor">Mentor</option>
                   <option value="program_manager">Program Manager</option>
+                  <option value="school_admin">Admin Sekolah (B2B)</option>
+                  <option value="school_viewer">Guru BK (B2B, lihat saja)</option>
                   <option value="admin">Admin</option>
                 </>
               )}
@@ -187,12 +191,7 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSuccess }: Edit
     try {
       const { error } = await authClient.admin.setRole({
         userId: user.id,
-        role: selectedRole as
-          | "admin"
-          | "student"
-          | "mentor"
-          | "program_manager"
-          | ("admin" | "student" | "mentor" | "program_manager")[],
+        role: selectedRole as any,
       });
 
       if (error) {

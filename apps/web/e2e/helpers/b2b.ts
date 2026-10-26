@@ -23,8 +23,16 @@ export async function rpcAs<T = any>(page: Page, path: string, json: unknown = {
         credentials: "include",
         body: JSON.stringify({ json: arg.json }),
       });
-      const body = (await res.json()) as { json?: unknown };
-      return body?.json ?? null;
+      const text = await res.text();
+      if (!text) return { status: res.status, defined: false } as any;
+      try {
+        const body = JSON.parse(text) as { json?: unknown };
+        // oRPC mengirim payload di `json`; error middleware mengirim objek error
+        return (body?.json ?? (body as any)) as any;
+      } catch {
+        // respons bukan JSON (HTML/teks) → tetap beri status agar bisa di-assert
+        return { status: res.status, raw: text.slice(0, 200) } as any;
+      }
     },
     { base: API_URL, path, json },
   ) as Promise<T>;

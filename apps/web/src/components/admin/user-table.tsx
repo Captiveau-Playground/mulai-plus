@@ -139,12 +139,9 @@ export function UserTable() {
     toast.promise(
       authClient.admin.setRole({
         userId,
-        role: newRole as
-          | "admin"
-          | "student"
-          | "mentor"
-          | "program_manager"
-          | ("admin" | "student" | "mentor" | "program_manager")[], // Adjust types based on your schema
+        // tipe SDK better-auth hanya mengenal 4 role bawaan; role B2B valid di
+        // runtime karena terdaftar di tabel `role` (dan divalidasi server).
+        role: newRole as any,
       }),
       {
         loading: "Updating role...",
@@ -253,6 +250,8 @@ export function UserTable() {
               <SelectItem value="mentor">Mentor</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
               <SelectItem value="program_manager">Program Manager</SelectItem>
+              <SelectItem value="school_admin">Admin Sekolah (B2B)</SelectItem>
+              <SelectItem value="school_viewer">Guru BK (B2B, lihat saja)</SelectItem>
             </SelectContent>
           </Select>
         );

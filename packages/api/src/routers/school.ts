@@ -74,7 +74,15 @@ async function consumeInvites(userId: string) {
   });
   if (!invites.length) return;
   const existing = await orgOfUser(userId);
-  if (existing.member) return; // satu akun = satu sekolah
+  if (existing.member) {
+    // (auth) satu akun = satu sekolah → undangan yang tidak bisa dipakai ditutup
+    // supaya tidak menggantung selamanya di daftar tim sekolah pengundang.
+    await db
+      .update(assessmentOrgInvites)
+      .set({ status: "revoked" })
+      .where(and(eq(assessmentOrgInvites.email, email), eq(assessmentOrgInvites.status, "pending")));
+    return;
+  }
   for (const inv of invites) {
     const org = await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.id, inv.orgId) });
     if (!org) continue;
@@ -91,7 +99,13 @@ async function consumeInvites(userId: string) {
       .update(assessmentOrgInvites)
       .set({ status: "accepted", acceptedAt: new Date() })
       .where(eq(assessmentOrgInvites.id, inv.id));
-    if (u?.role !== role) await db.update(user).set({ role }).where(eq(user.id, userId));
+    // (auth) JANGAN turunkan role platform: admin/program_manager/mentor hanya
+    // mendapat keanggotaan sekolah, role-nya tetap. Hanya akun `student`
+    // (atau sesama role sekolah) yang dinaikkan.
+    const PLATFORM_ROLES = new Set(["admin", "program_manager", "mentor"]);
+    if (u?.role !== role && !PLATFORM_ROLES.has(u?.role ?? "")) {
+      await db.update(user).set({ role }).where(eq(user.id, userId));
+    }
     return;
   }
 }

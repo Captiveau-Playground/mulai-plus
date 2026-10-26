@@ -226,13 +226,13 @@ export const appRouter = {
     return out;
   }),
   role: {
-    list: protectedProcedure.handler(async () => {
+    list: adminProcedure.handler(async () => {
       return await db.select().from(role);
     }),
-    listPermissions: protectedProcedure.handler(async () => {
+    listPermissions: adminProcedure.handler(async () => {
       return await db.select().from(permission);
     }),
-    create: protectedProcedure
+    create: adminProcedure
       .input(
         z.object({
           id: z.string().min(1),
@@ -245,7 +245,7 @@ export const appRouter = {
         await db.insert(role).values(input);
         return { success: true };
       }),
-    update: protectedProcedure
+    update: adminProcedure
       .input(
         z.object({
           id: z.string().min(1),
@@ -266,16 +266,16 @@ export const appRouter = {
           .where(eq(role.id, input.id));
         return { success: true };
       }),
-    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(role).where(eq(role.id, input.id));
       return { success: true };
     }),
   },
   permission: {
-    list: protectedProcedure.handler(async () => {
+    list: adminProcedure.handler(async () => {
       return await db.select().from(permission);
     }),
-    create: protectedProcedure
+    create: adminProcedure
       .input(
         z.object({
           id: z.string().min(1),
