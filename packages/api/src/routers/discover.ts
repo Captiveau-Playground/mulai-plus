@@ -85,6 +85,47 @@ async function questionsOf(versionId: string): Promise<QuestionRow[]> {
 
 // ─── Publik ─────────────────────────────────────────────
 
+/**
+ * (security) Identitas pengerja tes.
+ *
+ * Endpoint discovery tetap `publicProcedure` (dipakai mode preview & e2e tanpa
+ * cookie), tetapi identitas TIDAK boleh ditentukan bebas oleh klien:
+ *  • user login  → `studentId` dipaksa dari sesi (kecuali id `preview-*`),
+ *  • tanpa login → hanya bila `ASSESSMENT_ALLOW_ANON=1` (staging/e2e) atau preview.
+ */
+function actorOf(context: any): { id: string | null; role: string | null } {
+  const u = context?.session?.user;
+  return { id: u?.id ?? null, role: (u as any)?.role ?? null };
+}
+
+function allowAnonAssessment(): boolean {
+  return process.env.ASSESSMENT_ALLOW_ANON === "1";
+}
+
+/** Tentukan studentId efektif; `error` diisi bila identitas tidak sah. */
+function resolveStudentId(
+  context: any,
+  requested: string,
+): { studentId?: string; error?: "identity_mismatch" | "login_required" } {
+  const actor = actorOf(context);
+  const isPreview = requested.startsWith("preview-");
+  if (isPreview) return { studentId: requested };
+  if (actor.id) {
+    if (requested !== actor.id) return { error: "identity_mismatch" };
+    return { studentId: actor.id };
+  }
+  if (allowAnonAssessment()) return { studentId: requested };
+  return { error: "login_required" };
+}
+
+/** Boleh membaca/mengubah sesi ini? (pemilik, sesi preview, atau mode anon e2e) */
+function canAccessSession(sess: { studentId: string }, context: any): boolean {
+  if (sess.studentId.startsWith("preview-")) return true;
+  const actor = actorOf(context);
+  if (actor.id) return sess.studentId === actor.id;
+  return allowAnonAssessment();
+}
+
 export const discoverRouter = {
   /** Konten asesmen versi LIVE (config + dims + soals). */
   /** Tes B2C yang sedang LIVE (famil, minat|bakat) utk halaman 'Pilih Test' v2. */
@@ -215,7 +256,11 @@ export const discoverRouter = {
         versionId: z.string().optional(),
       }),
     )
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
+      const studentId = who.studentId as string;
+
       const v = input.versionId
         ? ((await db.query.assessmentVersions.findFirst({
             where: eq(schema.assessmentVersions.id, input.versionId),
@@ -230,7 +275,7 @@ export const discoverRouter = {
       // menyelesaikan (grace) karena pemeriksaan hanya di titik mulai.
       try {
         const roster = await db.query.tmbBatchStudents.findMany({
-          where: eq(tmbBatchStudents.userId, input.studentId),
+          where: eq(tmbBatchStudents.userId, studentId),
           columns: { batchId: true },
         });
         if (roster.length) {
@@ -271,7 +316,7 @@ export const discoverRouter = {
 
       // B2B: siswa undangan yang mulai mengerjakan → status roster jadi "in_progress" (guru bisa pantau)
       try {
-        await markRosterStarted(input.studentId);
+        await markRosterStarted(studentId);
       } catch (e: any) {
         console.error("[engine][b2b] gagal menandai roster mulai:", e?.message ?? e);
       }
@@ -399,7 +444,7 @@ export const discoverRouter = {
       // "Berhenti & lanjutkan nanti" harus bisa dilanjutkan, bukan bikin sesi baru.
       const existingSess = await db.query.assessmentSessions.findFirst({
         where: and(
-          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.studentId, studentId),
           eq(schema.assessmentSessions.versionId, v.id),
           inArray(schema.assessmentSessions.status, ["in_progress", "paused"] as any),
         ),
@@ -463,7 +508,7 @@ export const discoverRouter = {
       }
       const session = {
         id: uid(),
-        studentId: input.studentId,
+        studentId: studentId,
         versionId: v.id,
         status: "in_progress",
         configJson: { ...v.configJson, timer: serverTimer, questionOrderIds: orderIds, optionOrder },
@@ -481,11 +526,12 @@ export const discoverRouter = {
         optionId: z.string().min(1),
       }),
     )
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
       // ANTI-TAMPER: tolak submit bila deadline (per SOAL atau per DIMENSI) sudah lewat.
       // Timer bisa beda scope per dimensi (#7), jadi tidak lagi bergantung `timer.scope` global.
@@ -541,11 +587,12 @@ export const discoverRouter = {
   /** Jawaban isian (TEXT_INPUT) — Tennessee evaluasi via lib/evaluate-input. */
   submitText: publicProcedure
     .input(z.object({ sessionId: z.string().min(1), questionId: z.string().min(1), textAnswer: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
       });
       if (!sess || sess.status !== "in_progress") return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       const q = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId) });
       if (!q) return { ok: false, error: "question_not_found" } as const;
       const cfg = await db.query.textInputConfigs.findFirst({
@@ -581,11 +628,12 @@ export const discoverRouter = {
   /** Selesaikan → skor per method (SUM/AVG/WEIGHTED) → top-N → profile (tie: waktu→abjad). */
   finish: publicProcedure
     .input(z.object({ sessionId: z.string().min(1), durations: z.record(z.string(), z.number()).optional() }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       if (sess.status === "completed") {
         const r = await db.query.assessmentResults.findFirst({
           where: eq(schema.assessmentResults.sessionId, input.sessionId),
@@ -955,11 +1003,12 @@ export const discoverRouter = {
   /** Jeda (pause) → lanjutkan nanti. */
   pause: publicProcedure
     .input(z.object({ sessionId: z.string().min(1), currentDimensionId: z.string().optional() }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
       // Hormati setting "Izinkan lanjut kemudian" dari panel Aturan tes.
       if ((sess.configJson as any)?.allow_pause === false) return { ok: false, error: "pause_not_allowed" } as const;
@@ -973,7 +1022,9 @@ export const discoverRouter = {
   /** Sesi aktif milik siswa (resume). */
   mySessions: publicProcedure
     .input(z.object({ studentId: z.string().min(1), code: z.string().default("DISCOVER") }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       const vs = a
         ? await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) })
@@ -983,7 +1034,7 @@ export const discoverRouter = {
         ? await db.query.assessmentSessions.findMany({
             where: and(
               inArray(schema.assessmentSessions.versionId, ids),
-              eq(schema.assessmentSessions.studentId, input.studentId),
+              eq(schema.assessmentSessions.studentId, who.studentId as string),
               inArray(schema.assessmentSessions.status, ["in_progress", "paused"] as any),
             ),
             orderBy: (t) => [desc(t.startedAt)],
@@ -995,7 +1046,9 @@ export const discoverRouter = {
   /** Hasil terakhir engine utk satu tes (report). */
   resultsFor: publicProcedure
     .input(z.object({ code: z.string().min(1), studentId: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: false, error: "assessment_not_found" } as const;
       // Model ATTEMPT: 1 baris tmb_assessment_results = 1 duet minat+bakat.
@@ -1004,7 +1057,7 @@ export const discoverRouter = {
       // CTA selalu 'lanjut' sampai attempt lengkap.
       const isMinat = String(input.code).toUpperCase() === "DISCOVER";
       const row = await db.query.tmbAssessmentResults.findFirst({
-        where: eq(tmbAssessmentResults.userId, input.studentId),
+        where: eq(tmbAssessmentResults.userId, who.studentId as string),
         orderBy: (t: any) => [desc(t.createdAt)],
       });
       const present =
@@ -1022,9 +1075,11 @@ export const discoverRouter = {
     }),
 
   /** Daftar ATTEMPT (duet minat+bakat) per user, kronologis — utk history & nomor percobaan. */
-  attempts: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input }) => {
+  attempts: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input, context }) => {
+    const who = resolveStudentId(context, input.studentId);
+    if (who.error) return { ok: false, error: who.error } as const;
     const rows = await db.query.tmbAssessmentResults.findMany({
-      where: eq(tmbAssessmentResults.userId, input.studentId),
+      where: eq(tmbAssessmentResults.userId, who.studentId as string),
       orderBy: (t: any) => [asc(t.createdAt)],
     });
     // Junk (kedua sisi kosong) dari era sesi rusak tidak boleh muncul — cuma attempt nyata yg tampil
@@ -1049,7 +1104,9 @@ export const discoverRouter = {
   /** Buang partial sesi in_progress TERBARU user utk tes (abas 'Mulai ulang' di kartu). */
   abandon: publicProcedure
     .input(z.object({ studentId: z.string().min(1), code: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: true, dropped: 0 } as const;
       const vs = await db.query.assessmentVersions.findMany({
@@ -1061,7 +1118,7 @@ export const discoverRouter = {
             schema.assessmentSessions.versionId,
             vs.map((v) => v.id),
           ),
-          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.studentId, who.studentId as string),
           eq(schema.assessmentSessions.status, "in_progress"),
         ),
         orderBy: (t: any) => [desc(t.startedAt)],
@@ -1075,11 +1132,12 @@ export const discoverRouter = {
     }),
 
   /** Heartbeat timer — otoritas SERVER: current_time + deadline aktif + status timeout/lock. */
-  timerState: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input }) => {
+  timerState: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input, context }) => {
     const sess = await db.query.assessmentSessions.findFirst({
       where: eq(schema.assessmentSessions.id, input.sessionId),
     });
     if (!sess) return { ok: false, error: "session_not_found" } as const;
+    if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
     const timer = ((sess.configJson as any)?.timer ?? null) as any;
     if (!timer) return { ok: true, scope: "none", serverNow: Date.now() } as const;
     const now = Date.now();
@@ -1117,7 +1175,9 @@ export const discoverRouter = {
   /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */
   pending: publicProcedure
     .input(z.object({ studentId: z.string().min(1), code: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: true, present: false } as const;
       const vs = await db.query.assessmentVersions.findMany({
@@ -1131,7 +1191,7 @@ export const discoverRouter = {
             schema.assessmentSessions.versionId,
             vs.map((v) => v.id),
           ),
-          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.studentId, who.studentId as string),
         ),
         orderBy: (t: any) => [desc(t.startedAt)],
       });
@@ -1156,49 +1216,54 @@ export const discoverRouter = {
     }),
 
   /** Bersihkan row attempt yang TIDAK lengkap (junk/abandon) utk user — dipanggil saat 'Tes Baru'. */
-  purgeIncomplete: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input }) => {
-    const rows = await db.query.tmbAssessmentResults.findMany({
-      where: eq(tmbAssessmentResults.userId, input.studentId),
-    });
-    let purged = 0;
-    for (const r of rows) {
-      const hReal = (r.hollandCode ?? "").length > 0;
-      const aReal = Object.keys((r as any).abilityScores ?? {}).length > 0;
-      if (hReal && aReal) continue; // attempt lengkap disimpan
-      await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, r.id));
-      await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.id, r.id));
-      purged++;
-    }
-    // sesi engine yang terkatung-katung (in_progress / selesai tanpa 0 jawaban) dibuang juga
-    const stray = await db.query.assessmentSessions.findMany({
-      where: eq(schema.assessmentSessions.studentId, input.studentId),
-    });
-    const ghost = [] as string[];
-    for (const ss of stray) {
-      const an = await db.query.assessmentAnswers.findMany({
-        where: eq(schema.assessmentAnswers.sessionId, ss.id),
-        columns: { id: true },
+  purgeIncomplete: publicProcedure
+    .input(z.object({ studentId: z.string().min(1) }))
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
+      const rows = await db.query.tmbAssessmentResults.findMany({
+        where: eq(tmbAssessmentResults.userId, who.studentId as string),
       });
-      // 'Tes Baru' = mulai bersih: partial in_progress (sensi sengaja/pause) JUG S dibuang
-      if (ss.status === "in_progress") ghost.push(ss.id);
-      else if (an.length === 0) ghost.push(ss.id);
-    }
-    for (const gid of ghost) {
-      await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, gid));
-      await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, gid));
-      await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, gid));
-      await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, gid));
-      purged++;
-    }
-    return { ok: true, purged } as const;
-  }),
+      let purged = 0;
+      for (const r of rows) {
+        const hReal = (r.hollandCode ?? "").length > 0;
+        const aReal = Object.keys((r as any).abilityScores ?? {}).length > 0;
+        if (hReal && aReal) continue; // attempt lengkap disimpan
+        await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, r.id));
+        await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.id, r.id));
+        purged++;
+      }
+      // sesi engine yang terkatung-katung (in_progress / selesai tanpa 0 jawaban) dibuang juga
+      const stray = await db.query.assessmentSessions.findMany({
+        where: eq(schema.assessmentSessions.studentId, who.studentId as string),
+      });
+      const ghost = [] as string[];
+      for (const ss of stray) {
+        const an = await db.query.assessmentAnswers.findMany({
+          where: eq(schema.assessmentAnswers.sessionId, ss.id),
+          columns: { id: true },
+        });
+        // 'Tes Baru' = mulai bersih: partial in_progress (sensi sengaja/pause) JUG S dibuang
+        if (ss.status === "in_progress") ghost.push(ss.id);
+        else if (an.length === 0) ghost.push(ss.id);
+      }
+      for (const gid of ghost) {
+        await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, gid));
+        await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, gid));
+        await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, gid));
+        await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, gid));
+        purged++;
+      }
+      return { ok: true, purged } as const;
+    }),
 
   /** Detail sesi + jawaban (utk resume/restore posisi). */
-  session: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input }) => {
+  session: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input, context }) => {
     const sess = await db.query.assessmentSessions.findFirst({
       where: eq(schema.assessmentSessions.id, input.sessionId),
     });
     if (!sess) return { ok: false, error: "session_not_found" } as const;
+    if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
     const answered = await db.query.assessmentAnswers.findMany({
       where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
     });
