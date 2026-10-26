@@ -168,7 +168,24 @@ test.describe("B2B · kelola kelas & peserta (M2.2)", () => {
     expect(list.ok).toBe(true);
     expect(list.items.length).toBe(2);
 
-    // (e) peserta tanpa email otomatis dapat kode akses
+    // (e) normalisasi email: campuran huruf besar → tersimpan huruf kecil
+    const addMixed = await rpcAs<any>(page, "school/participantAdd", {
+      batchId,
+      name: "Siswa Kapital",
+      email: "Siswa.Kapital@Sekolah.SCH.ID",
+    });
+    expect(addMixed.ok, JSON.stringify(addMixed)).toBe(true);
+    const csvMixed = ["nama,email", "Siswa Import,Import.Kapital@Sekolah.SCH.ID"].join("\n");
+    await rpcAs<any>(page, "school/participantsImport", { batchId, csv: csvMixed });
+    const norm = await q<{ email: string }>(
+      "select email from tmb_batch_students where batch_id = $1 and email is not null order by email",
+      [batchId],
+    );
+    for (const row of norm) {
+      expect(row.email, "email roster harus huruf kecil").toBe(row.email.toLowerCase());
+    }
+
+    // (f) peserta tanpa email otomatis dapat kode akses
     const add3 = await rpcAs<any>(page, "school/participantAdd", { batchId, name: "Siswa Tanpa Email" });
     expect(add3.ok).toBe(true);
     const list2 = await rpcAs<any>(page, "school/participants", { batchId });

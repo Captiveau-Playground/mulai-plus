@@ -228,6 +228,23 @@ test.describe("B2B · insight kelas (M3)", () => {
     expect(pages, "PDF harus punya minimal 1 halaman").toBeGreaterThanOrEqual(1);
   });
 
+  test("T15: snapshot ditolak saat kelas belum punya hasil", async ({ page }) => {
+    test.setTimeout(90000);
+    await preAcceptCookies(page);
+    const nama = `SMA Kosong ${suffix()}`;
+    const fx = await seedInsightClass(nama);
+    // kosongkan status: belum ada yang selesai
+    await q("update tmb_batch_students set status = 'invited', result_id = null where batch_id = $1", [fx.batchId]);
+    await approveSchool(page, "kosong", nama);
+
+    const r = await rpcAs<any>(page, "school/saveReport", { batchId: fx.batchId });
+    expect(r.ok, "tidak boleh menyimpan laporan tanpa hasil").toBe(false);
+    expect(r.error).toBe("belum_ada_hasil");
+
+    const list = await rpcAs<any>(page, "school/reports", { batchId: fx.batchId });
+    expect(list.items ?? []).toHaveLength(0);
+  });
+
   test("UI: halaman insight tampil & PDF berhasil diunduh", async ({ page }) => {
     test.setTimeout(90000);
     await preAcceptCookies(page);

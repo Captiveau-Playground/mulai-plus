@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne, sql } from "@mulai-plus/db/db";
+import { assessmentOrgs } from "@mulai-plus/db/schema/assessment";
 import { user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
@@ -836,20 +837,26 @@ export const tmbRouter = {
   },
 
   invite: {
-    claim: protectedProcedure.input(z.object({ code: z.string().min(4) })).handler(async ({ input, context }) => {
-      const userId = context.session.user.id;
-      const code = input.code.trim().toUpperCase();
+    /**
+     * Klaim undangan. Mengembalikan objek terstruktur (bukan throw) supaya UI bisa
+     * menampilkan tindakan yang tepat: `{ ok:false, error, message }` dengan kode:
+     * kode_tidak_valid | kode_sudah_dipakai | email_kosong | email_tidak_terdaftar |
+     * sudah_diklaim | sekolah_nonaktif | window_ended.
+     */
+    claim: protectedProcedure
+      .input(z.object({ code: z.string().min(4).trim() }))
+      .handler(async ({ input, context }) => {
+        const userId = context.session.user.id;
+        const code = input.code.toUpperCase();
+        const fail = (error: string, message: string) => ({ ok: false as const, error, message });
 
-      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, code) });
-      if (!batch) {
-        // (M2.6) bukan kode batch → coba kode akses personal (peserta tanpa email).
-        // Kode dipakai sekali: setelah terikat ke akun, tidak bisa dipakai akun lain.
+        // 1) kode akses personal (peserta tanpa email ATAU email tidak dipakai)
         const personal = await db.query.tmbBatchStudents.findFirst({
           where: eq(tmbBatchStudents.claimCode, code),
         });
         if (personal) {
           if (personal.userId && personal.userId !== userId) {
-            preconditionFailed("Kode akses ini sudah dipakai akun lain — minta kode baru ke sekolahmu");
+            return fail("kode_sudah_dipakai", "Kode akses ini sudah dipakai akun lain — minta kode baru ke sekolahmu.");
           }
           if (!personal.userId) {
             await db
@@ -861,35 +868,82 @@ export const tmbRouter = {
           const pSchool = pBatch
             ? await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, pBatch.schoolId) })
             : null;
-          return { studentName: personal.name, schoolName: pSchool?.name ?? pBatch?.name ?? null };
+          return {
+            ok: true as const,
+            via: "personal" as const,
+            studentName: personal.name,
+            schoolName: pSchool?.name ?? pBatch?.name ?? null,
+            batchId: personal.batchId,
+          };
         }
-        notFound("Kode undangan tidak valid — pastikan kode sesuai dari sekolahmu");
-      }
 
-      // cari siswa di batch ini yang emailnya cocok dengan akun login
-      const [currentUser] = await db
-        .select({ email: userSchema.email })
-        .from(userSchema)
-        .where(eq(userSchema.id, userId));
-      const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
-      if (!userEmail) preconditionFailed("Akunmu tidak punya email — hubungi admin");
+        // 2) kode undangan kelas + pencocokan email akun
+        const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, code) });
+        if (!batch) {
+          return fail(
+            "kode_tidak_valid",
+            "Kode undangan tidak valid — periksa kembali atau minta kode baru ke sekolahmu.",
+          );
+        }
 
-      const student = await db.query.tmbBatchStudents.findFirst({
-        where: and(eq(tmbBatchStudents.batchId, batch.id), eq(tmbBatchStudents.email, userEmail)),
-      });
-      if (!student) {
-        preconditionFailed(
-          `Email akunmu (${currentUser?.email}) tidak terdaftar di batch "${batch.name}" — hubungi sekolahmu`,
-        );
-      }
+        // guard: sekolah harus aktif
+        const org = batch.schoolId
+          ? await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.schoolId, batch.schoolId) })
+          : null;
+        if (org && org.status !== "aktif") {
+          return fail("sekolah_nonaktif", "Akun sekolahmu belum aktif — hubungi admin MULAI+.");
+        }
 
-      // tautkan akun ke batch_student (claim sekali)
-      if (!student.userId) {
-        await db.update(tmbBatchStudents).set({ userId }).where(eq(tmbBatchStudents.id, student.id));
-      }
-      const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
-      return { studentName: student.name, schoolName: school?.name ?? batch.name ?? null };
-    }),
+        const [currentUser] = await db
+          .select({ email: userSchema.email })
+          .from(userSchema)
+          .where(eq(userSchema.id, userId));
+        const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
+        if (!userEmail) return fail("email_kosong", "Akunmu tidak punya email — hubungi admin MULAI+.");
+
+        // case-insensitive: data lama bisa berisi huruf besar (lihat migrasi 0041)
+        const student = await db.query.tmbBatchStudents.findFirst({
+          where: and(
+            eq(tmbBatchStudents.batchId, batch.id),
+            sql`lower(btrim(${tmbBatchStudents.email})) = ${userEmail}`,
+          ),
+        });
+        if (!student) {
+          return fail(
+            "email_tidak_terdaftar",
+            `Email akunmu (${currentUser?.email ?? ""}) belum terdaftar di kelas "${batch.name}". ` +
+              "Minta kode akses ke sekolahmu, lalu masukkan kodenya di halaman undangan.",
+          );
+        }
+        if (student.userId && student.userId !== userId) {
+          return fail("sudah_diklaim", "Peserta ini sudah diklaim akun lain — hubungi sekolahmu.");
+        }
+
+        // guard: jadwal kelas sudah berakhir → tetap boleh klaim (untuk melihat hasil),
+        // tapi beri tahu; penolakan mengerjakan tes tetap di `discover.start`.
+        const end = batch.windowEnd ? new Date(batch.windowEnd).getTime() : null;
+        if (end !== null && Date.now() > end) {
+          return fail(
+            "window_ended",
+            `Jadwal pengerjaan kelas "${batch.name}" sudah berakhir. Hubungi sekolahmu untuk memperpanjang jadwal.`,
+          );
+        }
+
+        if (!student.userId) {
+          await db
+            .update(tmbBatchStudents)
+            .set({ userId, email: student.email ? student.email.trim().toLowerCase() : null })
+            .where(eq(tmbBatchStudents.id, student.id));
+        }
+        const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
+        return {
+          ok: true as const,
+          via: "batch" as const,
+          studentName: student.name,
+          schoolName: school?.name ?? batch.name ?? null,
+          batchId: batch.id,
+        };
+      }),
   },
 
   // ─── Karir Impian: teks bebas → jalur kuliah (prodi & univ) ───
@@ -1540,9 +1594,9 @@ export const tmbAdminRouter = {
         await db.insert(tmbBatchStudents).values({
           id,
           batchId: input.batchId,
-          name: input.name,
-          email: input.email || null,
-          nis: input.nis || null,
+          name: input.name.trim(),
+          email: input.email ? input.email.trim().toLowerCase() : null,
+          nis: input.nis?.trim() || null,
         });
         return { id };
       }),
@@ -1610,7 +1664,7 @@ export const tmbAdminRouter = {
           id: randomUUID(),
           batchId: input.batchId,
           name: (r[idxName] ?? "").trim(),
-          email: idxEmail >= 0 ? (r[idxEmail] ?? "").trim() || null : null,
+          email: idxEmail >= 0 ? (r[idxEmail] ?? "").trim().toLowerCase() || null : null,
           nis: idxNis >= 0 ? (r[idxNis] ?? "").trim() || null : null,
         }));
         const valid = values.filter((v) => v.name);

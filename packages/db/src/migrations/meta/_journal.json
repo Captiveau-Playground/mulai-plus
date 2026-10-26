@@ -253,6 +253,13 @@
       "when": 1730000000000,
       "tag": "0040_cohort_report_school_id",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0041_normalize_roster_email",
+      "breakpoints": true
     }
   ]
 }

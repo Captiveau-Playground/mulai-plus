@@ -81,9 +81,14 @@ test.describe("B2B · kode akses peserta tanpa email (M2.6)", () => {
     expect(tanpa.claimCode, "kode akses dibuat otomatis").toMatch(/^[A-Z2-9]{6}$/);
     expect(tanpa.claimCodeUsed).toBe(false);
 
-    // peserta beremail tidak perlu kode
+    // (K4) peserta beremail JUGA punya kode akses sebagai cadangan bila emailnya beda
     const beremail = (list.items ?? []).find((x: any) => x.name === "Siswa Beremail");
-    expect(beremail.claimCode).toBeNull();
+    expect(beremail.claimCode, "peserta beremail tetap dapat kode cadangan").toMatch(/^[A-Z2-9]{6}$/);
+
+    // link personal tetap tersedia untuk peserta beremail (dipakai bila emailnya salah)
+    const invEmail = await rpcAs<any>(page, "school/invite", { batchId: fx.batchId, participantId: beremail.id });
+    expect(invEmail.ok).toBe(true);
+    expect(invEmail.claimCode).toBe(beremail.claimCode);
 
     // teks undangan personal memuat kode + link memakai kode
     const inv = await rpcAs<any>(page, "school/invite", { batchId: fx.batchId, participantId: fx.tanpaEmail });

@@ -10,7 +10,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
-import { E2E_PASSWORD, loginUI } from "../../../helpers/auth";
+import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
 import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
 import { closeDb, q } from "../../../helpers/db";
 
@@ -159,6 +159,29 @@ test.describe("B2B · pendaftaran & approval sekolah", () => {
     const ov = await rpcAs<any>(page, "school/overview");
     expect(ov.ok).toBe(false);
     expect((await q<any>('select role from "user" where id = $1', [userId]))[0]?.role).toBe("student");
+  });
+
+  test("T13: sekolah dinonaktifkan → portal & data ditolak", async ({ page }) => {
+    test.setTimeout(90000);
+    await preAcceptCookies(page);
+    const nama = `SMA Nonaktif ${suffix()}`;
+    await seedLegacySchool(nama, ["Siswa A"]);
+    const { email } = await applicant(page, "nonaktif");
+    expect(email).toBeTruthy();
+    const reg = await daftar(page, nama);
+    expect(reg.ok).toBe(true);
+    orgIds.push(reg.orgId as string);
+    expect((await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: reg.orgId })).ok).toBe(true);
+
+    // nonaktifkan lewat admin MULAI+
+    const off = await adminRpc<any>(admin, "schoolAdmin/setStatus", { orgId: reg.orgId, status: "nonaktif" });
+    expect(off.ok, JSON.stringify(off)).toBe(true);
+
+    const ov = await rpcAs<any>(page, "school/overview", {});
+    expect(ov.ok, "portal harus menolak setelah nonaktif").toBe(false);
+    expect(ov.error).toBe("belum_aktif");
+    const cohorts = await rpcAs<any>(page, "school/cohorts", {});
+    expect(cohorts.ok).toBe(false);
   });
 
   test("isolasi: sekolah hanya melihat peserta & batch miliknya", async ({ page, browser }) => {

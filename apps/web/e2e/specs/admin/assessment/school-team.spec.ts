@@ -5,8 +5,17 @@ import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
 import { E2E_PASSWORD, loginUI, preAcceptCookies } from "../../../helpers/auth";
-import { cleanupTrack, newTrack, rpcAs, suffix, uniqueId } from "../../../helpers/b2b";
-import { closeDb } from "../../../helpers/db";
+import {
+  approveSchool,
+  cleanupTrack,
+  newTrack,
+  registerSchool,
+  rpcAs,
+  signUpAndLogin,
+  suffix,
+  uniqueId,
+} from "../../../helpers/b2b";
+import { closeDb, q } from "../../../helpers/db";
 
 const PREFIX = "e2e-team";
 const track = newTrack();
@@ -98,6 +107,14 @@ test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
     expect(deniedImport.ok, "guru BK tidak boleh import peserta").toBe(false);
     expect(deniedImport.error).toBe("hanya_admin");
 
+    const deniedAdd = await rpcAs<any>(gp, "school/participantAdd", {
+      batchId: fx.batchId,
+      name: "Siswa Dari BK",
+      email: "bk-siswa@sekolah.sch.id",
+    });
+    expect(deniedAdd.ok, "guru BK tidak boleh menambah peserta").toBe(false);
+    expect(deniedAdd.error).toBe("hanya_admin");
+
     const deniedInvite = await rpcAs<any>(gp, "school/invitePeer", { email: `rekan-${uniqueId()}@test.local` });
     expect(deniedInvite.ok, "guru BK tidak boleh mengundang rekan").toBe(false);
     expect(deniedInvite.error).toBe("hanya_admin");
@@ -115,6 +132,54 @@ test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
     const roles = (team2.members ?? []).map((m: any) => m.role).sort();
     expect(roles).toEqual(["school_admin", "school_viewer"]);
     await ctx.close();
+  });
+
+  test("T16/T17: undangan duplikat & akun yang sudah punya sekolah ditolak", async ({ page }) => {
+    test.setTimeout(90000);
+    await preAcceptCookies(page);
+    const nama = `SMA Tim Dup ${suffix()}`;
+    const fx = await seedSchool(page, "dup", nama);
+
+    // undang sekali → sukses; undang lagi → sudah_diundang
+    const calon = `${PREFIX}-dup-${uniqueId()}@test.local`;
+    const inv1 = await rpcAs<any>(page, "school/invitePeer", { email: calon, role: "school_viewer" });
+    expect(inv1.ok, JSON.stringify(inv1)).toBe(true);
+    const inv2 = await rpcAs<any>(page, "school/invitePeer", { email: calon, role: "school_viewer" });
+    expect(inv2.ok).toBe(false);
+    expect(inv2.error).toBe("sudah_diundang");
+
+    // email yang sudah jadi anggota → sudah_anggota
+    const anggota = await q<{ email: string }>(
+      `select u.email from assessment_org_members m join "user" u on u.id = m.user_id where m.org_id = $1 limit 1`,
+      [fx.orgId],
+    );
+    const inv3 = await rpcAs<any>(page, "school/invitePeer", { email: anggota[0].email, role: "school_viewer" });
+    expect(inv3.ok).toBe(false);
+    expect(inv3.error).toBe("sudah_anggota");
+
+    // T17: akun rekan yang SUDAH punya sekolah sendiri tidak ikut jadi anggota
+    const lainEmail = `${PREFIX}-lain-${uniqueId()}@test.local`;
+    const ctx = await (page.context().browser() as any).newContext();
+    const otherPage = await ctx.newPage();
+    await preAcceptCookies(otherPage);
+    await signUpAndLogin(otherPage, track, { name: "PIC Lain", email: lainEmail, prefix: PREFIX, tag: "lain" });
+    const regOther = await registerSchool(otherPage, track, { name: `SMA Lain ${suffix()}` });
+    expect(regOther.ok, JSON.stringify(regOther)).toBe(true);
+    await approveSchool(admin, track, regOther.orgId as string);
+    await ctx.close();
+
+    // diundang ke sekolah kami → saat membuka portal, tetap di sekolahnya sendiri
+    await rpcAs<any>(page, "school/invitePeer", { email: lainEmail, role: "school_viewer" });
+    const ctx2 = await (page.context().browser() as any).newContext();
+    const p2 = await ctx2.newPage();
+    await preAcceptCookies(p2);
+    await loginUI(p2, lainEmail, E2E_PASSWORD);
+    const me = await rpcAs<any>(p2, "school/me", {});
+    expect(me.ok).toBe(true);
+    expect(me.org.name, "tidak boleh pindah sekolah otomatis").not.toBe(nama);
+    const team = await rpcAs<any>(p2, "school/team", {});
+    expect((team.members ?? []).some((m: any) => m.email === lainEmail)).toBe(true);
+    await ctx2.close();
   });
 
   test("UI: halaman Tim sekolah menampilkan anggota & undangan", async ({ page }) => {
