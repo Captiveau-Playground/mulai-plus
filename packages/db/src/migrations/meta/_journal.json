@@ -267,6 +267,13 @@
       "when": 1730000000000,
       "tag": "0042_single_school_role",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0043_fix_emoji_icons_and_talent_mix",
+      "breakpoints": true
     }
   ]
 }

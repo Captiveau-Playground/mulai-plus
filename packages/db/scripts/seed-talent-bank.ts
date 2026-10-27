@@ -112,7 +112,9 @@ async function main() {
   let inserted = 0;
   let order = 0;
   for (const code of TALENT_DIMS) {
-    const rows = (TALENT_ITEMS as TemplateRow[]).filter((r) => r.dimensi === code);
+    // TALENT = tes BAKAT/kemampuan → item "skala"/likert (minat) TIDAK dipakai di sini;
+    // item minat hanya ada di DISCOVER. Menjaga dimensi tidak tercampur.
+    const rows = (TALENT_ITEMS as TemplateRow[]).filter((r) => r.dimensi === code && r.tipe !== "skala");
     for (const r of rows) {
       const qid = id();
       const type = r.tipe === "pilihan" ? "multiple_choice" : r.tipe === "isian" ? "text_input" : "likert";

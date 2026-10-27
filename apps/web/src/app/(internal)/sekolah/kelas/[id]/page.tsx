@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Copy, FileUp, Loader2, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +46,44 @@ export default function SchoolCohortDetailPage() {
   // (M2.5) dialog hasil per peserta + export rekap
   const [detail, setDetail] = useState<any | null>(null);
   const [exporting, setExporting] = useState(false);
+  // (impor Excel) file .xlsx/.xls dibaca di browser lalu dikirim sebagai CSV
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+
+  const bacaFile = async (file?: File | null) => {
+    if (!file) return;
+    setFileName(file.name);
+    try {
+      if (/\.(xlsx|xls)$/i.test(file.name)) {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, blankrows: false });
+        // baris pertama dianggap header; ambil 3 kolom pertama (nama, email, nis)
+        const lines = rows
+          .map((r) => (Array.isArray(r) ? r.slice(0, 3) : []))
+          .filter((r) => r.some((c) => String(c ?? "").trim().length > 0))
+          .map((r) =>
+            r
+              .map((c) =>
+                String(c ?? "")
+                  .replace(/[,;]/g, " ")
+                  .trim(),
+              )
+              .join(","),
+          );
+        const hasHeader = /nama|name/i.test(lines[0] ?? "");
+        const csvText = [hasHeader ? "nama,email,nis" : "nama,email,nis", ...lines.slice(hasHeader ? 1 : 0)].join("\n");
+        setCsv(csvText);
+        notify.success(`${Math.max(0, lines.length - (hasHeader ? 1 : 0))} baris terbaca dari ${file.name}`);
+      } else {
+        setCsv(await file.text());
+        notify.success(`File ${file.name} dimuat`);
+      }
+    } catch {
+      notify.error("Gagal membaca file — pastikan format Excel/CSV benar");
+    }
+  };
   // (M2.4) monitoring: filter status + "ingatkan" per peserta
   const [statusFilter, setStatusFilter] = useState<"all" | "invited" | "in_progress" | "completed">("all");
   const [nudging, setNudging] = useState<string | null>(null);
@@ -331,6 +369,86 @@ export default function SchoolCohortDetailPage() {
           </span>
         </div>
       </div>
+
+      {/* Wizard 3 langkah — memandu staf sekolah, bukan menu yang harus ditebak */}
+      {canManage && (
+        <section
+          className="mt-4 rounded-2xl border border-teal-100 bg-teal-50/50 p-3 sm:p-4"
+          data-testid="kelas-wizard"
+        >
+          <p className="font-manrope font-semibold text-sm text-teal-900">Langkah pengerjaan</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {[
+              {
+                n: 1,
+                title: "Kelas dibuat",
+                desc: (data.data as any)?.batch?.name ?? "Kelas ini",
+                done: true,
+                action: null as null | { label: string; onClick: () => void },
+              },
+              {
+                n: 2,
+                title: "Masukkan siswa",
+                desc:
+                  (totals?.total ?? 0) > 0
+                    ? `${totals?.total} siswa sudah masuk`
+                    : "Unggah file Excel atau ketik manual",
+                done: (totals?.total ?? 0) > 0,
+                action: {
+                  label: (totals?.total ?? 0) > 0 ? "Tambah lagi" : "Masukkan siswa",
+                  onClick: () => setDlg("import"),
+                },
+              },
+              {
+                n: 3,
+                title: "Bagikan undangan",
+                desc:
+                  (totals?.total ?? 0) > 0
+                    ? "Kirim kode kelas / pesan WhatsApp ke siswa"
+                    : "Tersedia setelah ada siswa",
+                done: (totals?.total ?? 0) > 0 && (totals?.selesai ?? 0) > 0,
+                action:
+                  (totals?.total ?? 0) > 0
+                    ? {
+                        label: "Salin pesan WA",
+                        onClick: () => {
+                          const wa = (invite.data as any)?.waText;
+                          if (wa) void copy(wa, "Teks WhatsApp");
+                          else notify.warn("Menyiapkan pesan… coba lagi sebentar");
+                        },
+                      }
+                    : null,
+              },
+            ].map((st) => (
+              <div
+                key={st.n}
+                className={`rounded-xl border bg-white p-3 ${st.done ? "border-teal-200" : "border-gray-200"}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-bold text-xs ${
+                      st.done ? "bg-teal-600 text-white" : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {st.done ? "✓" : st.n}
+                  </span>
+                  <p className="font-bold font-manrope text-gray-900 text-sm">{st.title}</p>
+                </div>
+                <p className="mt-1 font-manrope text-gray-600 text-sm leading-snug">{st.desc}</p>
+                {st.action && (
+                  <button
+                    type="button"
+                    onClick={st.action.onClick}
+                    className="mt-2 min-h-10 w-full rounded-lg bg-brand-navy px-3 py-2 font-bold font-manrope text-sm text-white"
+                  >
+                    {st.action.label}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mt-4 flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2">
         <Search className="h-4 w-4 text-gray-400" />
@@ -764,11 +882,39 @@ export default function SchoolCohortDetailPage() {
       >
         <DialogContent className="sm:max-w-lg" data-testid="import-dialog">
           <DialogHeader>
-            <DialogTitle className="font-bricolage">Import peserta (CSV)</DialogTitle>
-            <DialogDescription className="font-manrope text-sm">
-              Format kolom: <code>nama,email,nis</code>. Duplikat (email/NIS yang sudah ada) dilewati otomatis.
+            <DialogTitle className="font-bricolage">Masukkan siswa</DialogTitle>
+            <DialogDescription className="font-manrope text-gray-600 text-sm">
+              Paling mudah: unggah file <b>Excel</b> (.xlsx/.xls) atau CSV dengan kolom{" "}
+              <code className="rounded bg-gray-100 px-1">nama, email, nis</code>. Duplikat otomatis dilewati.
             </DialogDescription>
           </DialogHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              data-testid="import-file"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+              className="min-h-11 rounded-xl font-bold font-manrope text-sm"
+            >
+              <FileUp className="mr-1.5 h-4 w-4" /> Pilih file Excel / CSV
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".xlsx,.xls,.csv,text/csv"
+              className="hidden"
+              data-testid="import-file-input"
+              onChange={(e) => void bacaFile(e.target.files?.[0])}
+            />
+            {fileName && (
+              <span className="font-manrope text-gray-600 text-sm" data-testid="import-file-name">
+                {fileName}
+              </span>
+            )}
+          </div>
+          <p className="font-manrope text-gray-500 text-xs">
+            Atau tempel daftar dari Excel di kolom bawah ini (satu baris = satu siswa):
+          </p>
           <Textarea
             data-testid="import-csv"
             value={csv}

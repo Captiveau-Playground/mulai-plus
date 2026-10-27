@@ -8,6 +8,7 @@ import { CheckCircle2, GraduationCap, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { SchoolSuggestions, useSchoolSearch } from "@/components/student/school-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,8 @@ function DaftarSekolahPageInner() {
     picEmail: "",
   });
   const [selesai, setSelesai] = useState(false);
+  // (konsisten dgn profil siswa) nama sekolah dicari dari API → NPSN & kota terisi otomatis
+  const sch = useSchoolSearch();
 
   const daftar = useMutation({
     ...orpc.school.register.mutationOptions(),
@@ -140,22 +143,44 @@ function DaftarSekolahPageInner() {
       <div className="mt-6 space-y-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Nama sekolah *</Label>
-            <Input
-              data-testid="school-name"
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="cth: SMA Negeri 1 Bandung"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
-            />
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">Nama sekolah *</Label>
+            <div className="relative">
+              <Input
+                data-testid="school-name"
+                value={form.name}
+                onChange={(e) => {
+                  set("name", e.target.value);
+                  sch.setQ(e.target.value);
+                  sch.setOpen(true);
+                }}
+                onFocus={() => sch.setOpen(true)}
+                onBlur={() => setTimeout(() => sch.setOpen(false), 200)}
+                placeholder="Ketik nama sekolah (min. 3 huruf)…"
+                className="mt-1 min-h-11 rounded-xl border-gray-200 bg-gray-50 text-base"
+              />
+              <SchoolSuggestions
+                search={sch}
+                onPick={(item) => {
+                  // satu klik: nama + NPSN + kota terisi (kurangi salah ketik)
+                  set("name", item.nama);
+                  if (item.npsn) set("npsn", item.npsn);
+                  if (item.kab) set("city", item.kab);
+                  sch.setQ(item.nama);
+                  sch.setOpen(false);
+                }}
+              />
+            </div>
+            <p className="mt-1 font-manrope text-gray-500 text-xs">
+              Pilih dari daftar agar nama, NPSN, dan kota otomatis benar.
+            </p>
           </div>
           <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Jenis institusi</Label>
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">Jenis institusi</Label>
             <select
               data-testid="school-type"
               value={form.type}
               onChange={(e) => set("type", e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 font-manrope text-sm outline-none focus:border-mentor-teal"
+              className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 font-manrope text-base outline-none focus:border-mentor-teal"
             >
               {TIPE.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -165,33 +190,33 @@ function DaftarSekolahPageInner() {
             </select>
           </div>
           <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">NPSN (opsional)</Label>
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">NPSN (opsional)</Label>
             <Input
               data-testid="school-npsn"
               value={form.npsn}
               onChange={(e) => set("npsn", e.target.value)}
               placeholder="8 digit"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              className="mt-1 min-h-11 rounded-xl border-gray-200 bg-gray-50 text-base"
             />
           </div>
           <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Kota / Kabupaten</Label>
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">Kota / Kabupaten</Label>
             <Input
               data-testid="school-city"
               value={form.city}
               onChange={(e) => set("city", e.target.value)}
               placeholder="cth: Bandung"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              className="mt-1 min-h-11 rounded-xl border-gray-200 bg-gray-50 text-base"
             />
           </div>
           <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Alamat (opsional)</Label>
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">Alamat (opsional)</Label>
             <Input
               data-testid="school-address"
               value={form.address}
               onChange={(e) => set("address", e.target.value)}
               placeholder="Jl. …"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              className="mt-1 min-h-11 rounded-xl border-gray-200 bg-gray-50 text-base"
             />
           </div>
         </div>
@@ -201,43 +226,43 @@ function DaftarSekolahPageInner() {
         <p className="font-manrope font-semibold text-gray-700 text-xs">Penanggung jawab (PIC)</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Nama PIC *</Label>
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">Nama PIC *</Label>
             <Input
               data-testid="school-pic-name"
               value={form.picName}
               onChange={(e) => set("picName", e.target.value)}
               placeholder="cth: Budi Santoso"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              className="mt-1 min-h-11 rounded-xl border-gray-200 bg-gray-50 text-base"
             />
           </div>
           <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Jabatan</Label>
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">Jabatan</Label>
             <Input
               data-testid="school-pic-position"
               value={form.picPosition}
               onChange={(e) => set("picPosition", e.target.value)}
               placeholder="cth: Guru BK"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              className="mt-1 min-h-11 rounded-xl border-gray-200 bg-gray-50 text-base"
             />
           </div>
           <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">No. WhatsApp *</Label>
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">No. WhatsApp *</Label>
             <Input
               data-testid="school-pic-phone"
               value={form.picPhone}
               onChange={(e) => set("picPhone", e.target.value)}
               placeholder="08xxxxxxxxxx"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              className="mt-1 min-h-11 rounded-xl border-gray-200 bg-gray-50 text-base"
             />
           </div>
           <div>
-            <Label className="font-manrope font-semibold text-gray-600 text-xs">Email sekolah (opsional)</Label>
+            <Label className="font-manrope font-semibold text-gray-600 text-sm">Email sekolah (opsional)</Label>
             <Input
               data-testid="school-pic-email"
               value={form.picEmail}
               onChange={(e) => set("picEmail", e.target.value)}
               placeholder="bk@sekolah.sch.id"
-              className="mt-1 rounded-xl border-gray-200 bg-gray-50"
+              className="mt-1 min-h-11 rounded-xl border-gray-200 bg-gray-50 text-base"
             />
           </div>
         </div>

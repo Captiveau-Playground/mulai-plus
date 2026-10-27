@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne, sql } from "@mulai-plus/db/db";
 import { assessmentOrgs } from "@mulai-plus/db/schema/assessment";
-import { user as userSchema } from "@mulai-plus/db/schema/auth";
+import { studentDetail, user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
   tmbAiSummaries,
@@ -24,6 +24,7 @@ import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
 import { mail } from "../lib/mail";
+import { levelFromSchoolName } from "../lib/school-level";
 import { webBaseUrl } from "../lib/web-url";
 
 // ─── Konstanta ───────────────────────────────────────────
@@ -447,6 +448,33 @@ async function syncCatalogTotal(testCode: "interest" | "ability") {
 let lbCache: any = null;
 let lbCacheTs = 0;
 
+/** (B2C) Isi otomatis profil siswa dari sekolah undangan — hanya bila masih kosong. */
+async function prefillStudentProfileFromBatch(userId: string, batchId: string) {
+  try {
+    const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, batchId) });
+    if (!batch) return;
+    const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
+    if (!school?.name) return;
+
+    const existing = await db.query.studentDetail.findFirst({ where: eq(studentDetail.userId, userId) });
+    const schoolFilled = !!existing?.school?.trim();
+    const levelFilled = !!existing?.educationLevel?.trim();
+    if (schoolFilled && levelFilled) return;
+
+    const patch = {
+      ...(schoolFilled ? {} : { school: school.name }),
+      ...(levelFilled ? {} : { educationLevel: levelFromSchoolName(school.name) }),
+    };
+    if (existing) {
+      await db.update(studentDetail).set(patch).where(eq(studentDetail.id, existing.id));
+    } else {
+      await db.insert(studentDetail).values({ id: randomUUID(), userId, ...patch });
+    }
+  } catch (e: any) {
+    console.error("[prefill profil] gagal:", e?.message ?? e);
+  }
+}
+
 export const tmbRouter = {
   profile: {
     get: protectedProcedure.handler(async ({ context }) => {
@@ -869,6 +897,7 @@ export const tmbRouter = {
           const pSchool = pBatch
             ? await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, pBatch.schoolId) })
             : null;
+          await prefillStudentProfileFromBatch(userId, personal.batchId);
           return {
             ok: true as const,
             via: "personal" as const,

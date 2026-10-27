@@ -19,6 +19,8 @@ export function buildChecks(input: {
     id: string;
     dimensionId: string;
     questionType: string;
+    /** mode tampilan opsi (emoji_option / standard_option_card / visual_comparison) */
+    presentationMode?: string | null;
     scaleId?: string | null;
     displayOrder?: number | null;
   }[];
@@ -66,6 +68,21 @@ export function buildChecks(input: {
     {
       label: "Acak opsi aman (tidak bentrok dengan soal skala)",
       ok: !(input.randomizeA === true && questions.some((q) => q.questionType === "likert")),
+    },
+    {
+      // (audit soal) mode emoji tanpa ikon → siswa hanya melihat label teks
+      label: "Skala emoji punya ikon di setiap opsi",
+      ok: questions
+        .filter((q) => q.presentationMode === "emoji_option" || q.questionType === "likert")
+        .every((q) => {
+          const os = optsOf(q.id);
+          return os.length === 0 || os.every((o) => !!(o.icon && String(o.icon).trim()));
+        }),
+    },
+    {
+      // (audit soal) item minat (likert) tidak boleh berada di tes bakat
+      label: "Tes bakat tidak memuat soal skala/minat",
+      ok: input.code?.toUpperCase() !== "TALENT" || !questions.some((q) => q.questionType === "likert"),
     },
   ];
 }

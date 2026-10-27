@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, db, eq, sql } from "@mulai-plus/db/db";
 import { role, studentDetail, user } from "@mulai-plus/db/schema/auth";
+import { tmbBatches, tmbBatchStudents, tmbSchools } from "@mulai-plus/db/schema/tmb";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { levelFromSchoolName } from "../lib/school-level";
 
 export const userRouter = {
   getProfile: protectedProcedure.handler(async ({ context }) => {
@@ -18,6 +20,33 @@ export const userRouter = {
     return {
       ...userData,
       ...userData.studentDetail,
+    };
+  }),
+
+  /**
+   * Saran isian profil dari undangan sekolah: kalau akun ini tertaut ke roster
+   * sebuah kelas (B2B), sekolah & jenjangnya sudah diketahui → dipakai untuk
+   * mengisi otomatis form profil siswa.
+   */
+  profilePrefill: protectedProcedure.handler(async ({ context }) => {
+    const userId = context.session.user.id;
+    const roster = await db.query.tmbBatchStudents.findFirst({
+      where: eq(tmbBatchStudents.userId, userId),
+      columns: { batchId: true, name: true },
+    });
+    if (!roster) return { ok: true as const, found: false as const };
+
+    const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, roster.batchId) });
+    const school = batch ? await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) }) : null;
+    const level = levelFromSchoolName(school?.name ?? "");
+    return {
+      ok: true as const,
+      found: true as const,
+      school: school?.name ?? null,
+      level,
+      className: batch?.className ?? null,
+      major: batch?.major ?? null,
+      city: school?.city ?? null,
     };
   }),
 

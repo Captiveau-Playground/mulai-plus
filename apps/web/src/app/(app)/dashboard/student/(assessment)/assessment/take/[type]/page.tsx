@@ -451,8 +451,23 @@ function LegacyWizard({
       _textMode: (q as any).textEval?.inputMode ?? null,
       // Skala/emoji: ikon jadi label UTAMA, caption jadi teks kecil di bawah.
       // (sebelumnya label = caption sehingga emoji tidak pernah tampil di halaman siswa)
-      _optLabels: (q.opts ?? []).map((x: any) => x.icon ?? x.label ?? ""),
-      _optCaps: (q.opts ?? []).map((x: any) => x.imageCaption ?? (x.icon ? (x.label ?? "") : "")),
+      // Skala emoji: kalau data opsi belum punya ikon, pakai skala emoji default
+      // supaya siswa tetap melihat emoji (bukan label teks saja).
+      _optLabels: (() => {
+        const opts = (q.opts ?? []) as any[];
+        const isScale = (q as any).questionType === "likert" || (q as any).presentationMode === "emoji_option";
+        const hasIcon = opts.some((x) => x.icon && String(x.icon).trim());
+        if (isScale && !hasIcon) {
+          const def = ["😖", "🙁", "😐", "🙂", "😄"];
+          return opts.map((_, i) => def[Math.min(i, def.length - 1)]);
+        }
+        return opts.map((x) => x.icon ?? x.label ?? "");
+      })(),
+      _optCaps: (() => {
+        const opts = (q.opts ?? []) as any[];
+        const hasIcon = opts.some((x) => x.icon && String(x.icon).trim());
+        return opts.map((x) => x.imageCaption ?? (hasIcon ? (x.label ?? "") : (x.label ?? "")));
+      })(),
     } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
