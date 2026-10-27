@@ -24,6 +24,7 @@ import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
 import { mail } from "../lib/mail";
+import { webBaseUrl } from "../lib/web-url";
 
 // ─── Konstanta ───────────────────────────────────────────
 
@@ -1679,7 +1680,7 @@ export const tmbAdminRouter = {
       if (!batch) notFound("Batch tidak ditemukan");
       if (!batch.inviteCode) preconditionFailed("Batch belum punya kode undangan");
 
-      const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+      const base = webBaseUrl();
       const link = `${base}/assessment/invite/${batch.inviteCode}`;
       const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
       const schoolName = school?.name ?? batch.name;

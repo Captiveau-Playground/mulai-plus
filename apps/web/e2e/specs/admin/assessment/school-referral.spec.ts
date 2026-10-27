@@ -51,6 +51,8 @@ test.describe("B2B · referral antar sekolah (M4.3)", () => {
     expect(refA.ok, JSON.stringify(refA)).toBe(true);
     expect(refA.code).toMatch(/^SCH-[A-Z2-9]{6}$/);
     expect(refA.link).toContain(`ref=${refA.code}`);
+    // (regresi) link rujukan harus ke web, bukan API
+    expect(refA.link).not.toContain(":3000");
     expect(refA.total).toBe(0);
 
     // sekolah B mendaftar dengan kode rujukan A (akun baru, konteks baru)

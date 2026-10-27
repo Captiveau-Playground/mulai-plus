@@ -32,6 +32,7 @@ import { adminProcedure, protectedProcedure } from "../index";
 import { notifyBatchComplete, runBatchReminders } from "../lib/assessment-notify";
 import { notFound, preconditionFailed } from "../lib/errors";
 import { notifyUser } from "../lib/notify-user";
+import { webBaseUrl } from "../lib/web-url";
 import { buildBatchRekap, generateClaimCode, parseCsv } from "./tmb";
 
 /** Keanggotaan + organisasi milik user (fase ini: satu akun = satu organisasi). */
@@ -1029,7 +1030,7 @@ export const schoolRouter = {
         personalCode = row.claimCode ?? (await ensureClaimCode(input.participantId));
       }
 
-      const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+      const base = webBaseUrl();
       const link = `${base}/assessment/invite/${personalCode ?? owned.inviteCode ?? ""}`;
       const school = g.org?.name ?? "sekolah";
       const sapaan = studentName ? `Halo ${studentName}!` : "Halo!";
@@ -1078,7 +1079,7 @@ export const schoolRouter = {
       .where(eq(assessmentOrgs.referredByOrgId, g.org.id))
       .orderBy(desc(assessmentOrgs.createdAt));
 
-    const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+    const base = webBaseUrl();
     return {
       ok: true as const,
       code: code ?? null,
@@ -1164,7 +1165,7 @@ export const schoolRouter = {
         role: input.role,
         invitedBy: context.session.user.id,
       });
-      const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+      const base = webBaseUrl();
       return {
         ok: true as const,
         id,
@@ -1367,7 +1368,7 @@ export const schoolAdminRouter = {
               <h2>Sekolah kamu sudah aktif</h2>
               <p>${org.name} sudah disetujui sebagai mitra MULAI+. Langkah berikutnya:</p>
               <ol><li>Buat kelas &amp; impor peserta</li><li>Bagikan undangan (link/kode akses)</li><li>Lihat hasil &amp; insight kelas</li></ol>
-              <p><a href="${(process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "")}/sekolah" style="background:#0f766e;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none">Buka portal sekolah</a></p>
+              <p><a href="${webBaseUrl()}/sekolah" style="background:#0f766e;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none">Buka portal sekolah</a></p>
             </div>`,
           },
         }).catch((e: any) => console.error("[notify] approve gagal:", e?.message ?? e));

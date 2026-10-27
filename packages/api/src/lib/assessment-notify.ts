@@ -6,8 +6,9 @@ import { and, db, eq, inArray, ne } from "@mulai-plus/db/db";
 import { assessmentOrgMembers, assessmentOrgs } from "@mulai-plus/db/schema/assessment";
 import { tmbBatches, tmbBatchStudents } from "@mulai-plus/db/schema/tmb";
 import { notifyUser, notifyUsers, todayKey } from "./notify-user";
+import { webBaseUrl } from "./web-url";
 
-const BASE = () => (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+const BASE = () => webBaseUrl();
 
 /** Anggota aktif (admin & guru BK) sebuah sekolah — penerima notifikasi operasional. */
 async function schoolMemberIds(schoolId: string | null): Promise<string[]> {

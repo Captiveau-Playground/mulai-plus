@@ -109,6 +109,10 @@ test.describe("B2B · kelola kelas & peserta (M2.2)", () => {
 
     // 5) undangan: kode + link + teks WA
     const inv = await rpcAs<any>(page, "school/invite", { batchId: created.id });
+    // (regresi) link undangan WAJIB mengarah ke WEB (3001), bukan ke API (3000)
+    expect(inv.link, "link undangan harus ke web, bukan backend").toContain("/assessment/invite/");
+    expect(inv.link).not.toContain(":3000");
+    expect(inv.link).toMatch(/:3001\//);
     expect(inv.ok).toBe(true);
     expect(inv.code).toBe(created.inviteCode);
     expect(inv.link).toContain(`/assessment/invite/${created.inviteCode}`);

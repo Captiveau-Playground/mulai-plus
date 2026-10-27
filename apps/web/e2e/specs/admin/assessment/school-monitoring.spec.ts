@@ -89,6 +89,8 @@ test.describe("B2B · monitoring & ingatkan (M2.4)", () => {
     expect(inv.studentName).toBe("Siswa Belum");
     expect(inv.waText).toContain("Halo Siswa Belum!");
     expect(inv.link).toContain("/assessment/invite/");
+    // (regresi) personal link juga harus ke web, bukan backend
+    expect(inv.link).not.toContain(":3000");
 
     // peserta dari kelas lain tidak bisa diundang lewat batch ini
     const bad = await rpcAs<any>(page, "school/invite", {
