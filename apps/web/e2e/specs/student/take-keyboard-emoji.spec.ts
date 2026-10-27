@@ -107,6 +107,51 @@ test.describe("Siswa · keyboard opsi 5/6 & emoji animasi", () => {
     await expect(page.locator("body")).toContainText(/Selesai/i, { timeout: 20000 });
   });
 
+  test("Ctrl/Cmd + huruf TIDAK memilih opsi (shortcut copy tetap jalan)", async ({ page }) => {
+    test.setTimeout(240000);
+    const fx = await buildOne(page, "KBMod", [
+      {
+        questionText: "Soal untuk uji shortcut (jangan terjawab oleh Ctrl+C)",
+        questionType: "multiple_choice",
+        options: ["Alfa", "Bravo", "Charlie", "Delta"].map((label, i) => ({
+          optionValue: "ABCD"[i] ?? "A",
+          label,
+          score: 0,
+        })),
+      },
+    ]);
+
+    await startTest(page, fx.code, fx.versionId);
+    await expect(page.getByText(/Soal untuk uji shortcut/)).toBeVisible({ timeout: 20000 });
+
+    // Ctrl+C / Cmd+C (copy) → huruf "c" TIDAK boleh memilih opsi C
+    await page.keyboard.press("Control+c");
+    await page.keyboard.press("Meta+c");
+    await page.waitForTimeout(600);
+    await expect(page.getByText(/Soal untuk uji shortcut/), "soal tidak boleh terjawab").toBeVisible();
+
+    // huruf biasa tetap berfungsi
+    await page.keyboard.press("b");
+    await expect(page.getByText(/Soal untuk uji shortcut/)).toBeHidden({ timeout: 20000 });
+  });
+
+  test('label di atas soal memakai nama tes, bukan teks generik "Tes"', async ({ page }) => {
+    test.setTimeout(240000);
+    const fx = await buildOne(page, "KBLbl", [
+      {
+        questionText: "Soal untuk uji label tes",
+        questionType: "multiple_choice",
+        options: ["Satu", "Dua"].map((label, i) => ({ optionValue: "AB"[i] ?? "A", label, score: 0 })),
+      },
+    ]);
+    await startTest(page, fx.code, fx.versionId);
+    await expect(page.getByText(/Soal untuk uji label tes/)).toBeVisible({ timeout: 20000 });
+
+    // label bagian muncul (bukan kosong / bukan hanya "Tes")
+    const body = await page.locator("body").innerText();
+    expect(body).toMatch(/Tes (Minat|Bakat)/);
+  });
+
   test("skala likert: emoji animasi Noto tampil (dan punya fallback)", async ({ page }) => {
     test.setTimeout(240000);
     const fx = await buildOne(page, "KBEmoji", [

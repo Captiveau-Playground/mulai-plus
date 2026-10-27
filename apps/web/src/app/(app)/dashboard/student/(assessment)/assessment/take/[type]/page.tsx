@@ -506,7 +506,9 @@ function LegacyWizard({
     // Tanpa pembagian bagian → satu segmen saja (top-bar tidak menampilkan "bagian")
     if (!sectionsOn) {
       const ids = (effQs as any[]).map((q) => q?.id).filter(Boolean);
-      return [{ name: "Tes", ids, count: ids.length }];
+      // Tanpa pembagian bagian: tampilkan NAMA TES, bukan label generik "Tes"
+      const single = isInterest ? "Tes Minat" : "Tes Bakat";
+      return [{ name: single, ids, count: ids.length }];
     }
     const out: { name: string; ids: string[]; count: number }[] = [];
     for (const q of effQs as any[]) {
@@ -519,7 +521,7 @@ function LegacyWizard({
     }
     return out;
     // biome-ignore lint/correctness/useExhaustiveDependencies: deps sengaja dibatasi (hindari re-render tiap soal)
-  }, [effQs, sectionsOn, dimNameOf]);
+  }, [effQs, sectionsOn, dimNameOf, isInterest]);
   const curSec = Math.min(dimIdxOf(eq), Math.max(0, secs.length - 1));
   const curSecName = secs[curSec]?.name ?? "";
   // Suara mikro (tanpa berkas) — WebAudio
@@ -998,6 +1000,12 @@ function LegacyWizard({
   // Keyboard: A-D / 1-4 pilih opsi, Enter konfirmasi (interest)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Jangan bajak shortcut browser: Ctrl/Cmd/Alt + huruf (mis. Ctrl+C copy,
+      // Cmd+V paste) TIDAK boleh memilih opsi.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // Jangan bereaksi saat siswa mengetik di kolom isian (jawaban teks / search).
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       const liveQ = isDemo ? (DEMO_QUESTIONS[demoIdx] as unknown as Question) : question;
       if (done || !liveQ || (isDemo ? false : answerMutation.isPending)) return;
       const letter = e.key.toLowerCase();
@@ -1021,7 +1029,10 @@ function LegacyWizard({
       if (!revealed) handleSelect(optKey);
     };
     const onEnter = (e: KeyboardEvent) => {
-      if (e.key !== "Enter" || done || !question || !isInterest) return;
+      if (e.key !== "Enter" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const te = e.target as HTMLElement | null;
+      if (te && (te.tagName === "TEXTAREA" || te.isContentEditable)) return;
+      if (done || !question || !isInterest) return;
       if (selected && !revealed && !answerMutation.isPending) handleConfirmInterest();
     };
     window.addEventListener("keydown", onKey);
