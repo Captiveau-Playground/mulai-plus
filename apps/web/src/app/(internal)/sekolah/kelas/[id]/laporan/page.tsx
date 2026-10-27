@@ -134,10 +134,13 @@ export default function SchoolCohortReportPage() {
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-bricolage font-extrabold text-2xl text-brand-navy" data-testid="report-title">
-            Insight {insight.batch?.className ?? insight.batch?.name ?? "Kelas"}
+            Laporan {insight.batch?.className ?? insight.batch?.name ?? "Kelas"}
           </h1>
           <p className="mt-1 font-manrope text-gray-500 text-xs">
-            {insight.school ?? "Sekolah"} · periode {fmt(insight.range?.first)} – {fmt(insight.range?.last)}
+            {insight.school ?? "Sekolah"} ·{" "}
+            {fmt(insight.range?.first) === fmt(insight.range?.last)
+              ? fmt(insight.range?.first)
+              : `${fmt(insight.range?.first)} – ${fmt(insight.range?.last)}`}
           </p>
         </div>
         <Button
@@ -185,7 +188,9 @@ export default function SchoolCohortReportPage() {
           {/* Kualitas hasil */}
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-              <p className="font-manrope text-[10px] text-gray-500 uppercase tracking-wide">Rata-rata keyakinan</p>
+              <p className="font-manrope text-[10px] text-gray-500 uppercase tracking-wide">
+                Rata-rata keyakinan jawaban
+              </p>
               <p className="font-bricolage font-extrabold text-brand-navy text-xl">{insight.confidenceAvg ?? "—"}%</p>
             </div>
             <div className="rounded-2xl border border-teal-100 bg-teal-50/50 p-3">
@@ -213,7 +218,7 @@ export default function SchoolCohortReportPage() {
             className="mt-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
             data-testid="holland-dist"
           >
-            <h2 className="font-bold font-bricolage text-brand-navy text-sm">Distribusi Minat (Holland)</h2>
+            <h2 className="font-bold font-bricolage text-brand-navy text-sm">Sebaran minat siswa</h2>
             <div className="mt-2 space-y-1.5">
               {insight.hollandDist.map((h: any) => {
                 const meta = holland(h.code);

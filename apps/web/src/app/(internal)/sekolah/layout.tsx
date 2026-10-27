@@ -45,7 +45,10 @@ export default function SchoolLayout({ children }: { children: React.ReactNode }
   }
 
   return (
+    // data-area="sekolah" → warna sidebar khusus sekolah (lihat globals-internal.css).
+    // Ditempel di provider (bukan div pembungkus) supaya lebar layout tidak berubah.
     <SidebarProvider
+      data-area="sekolah"
       style={
         {
           "--sidebar-width": "272px",

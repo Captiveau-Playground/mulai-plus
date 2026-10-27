@@ -89,7 +89,7 @@ export default function SchoolDashboardPage() {
           </p>
           <div className="mt-4 rounded-2xl bg-gray-50 p-3 text-left">
             <p className="font-manrope font-semibold text-gray-700 text-xs">{org.name}</p>
-            <p className="font-manrope text-[11px] text-gray-500">{[org.city, org.type].filter(Boolean).join(" · ")}</p>
+            <p className="font-manrope text-gray-500 text-sm">{[org.city, org.type].filter(Boolean).join(" · ")}</p>
             {org.note && (
               <p className="mt-1 font-manrope text-[11px] text-amber-700" data-testid="school-note">
                 Catatan: {org.note}
@@ -132,7 +132,7 @@ export default function SchoolDashboardPage() {
         </div>
       ) : (
         <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label="Total peserta" value={t?.peserta ?? 0} sub="di semua kelas" testId="stat-peserta" />
             <Stat label="Sudah selesai" value={t?.selesai ?? 0} sub="tes lengkap" testId="stat-selesai" />
             <Stat label="Sedang mengerjakan" value={t?.mulai ?? 0} sub="perlu ditunggu" testId="stat-mulai" />
@@ -141,7 +141,7 @@ export default function SchoolDashboardPage() {
 
           {batches.length > 0 && (
             <div className="mt-5 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
-              <h2 className="font-bold font-bricolage text-gray-900 text-sm">Kelas / Batch</h2>
+              <h2 className="font-bold font-bricolage text-gray-900 text-sm">Kelas</h2>
               <div className="mt-3 space-y-2">
                 {batches.map((b: any) => {
                   const pct = b.total ? Math.round((b.selesai / b.total) * 100) : 0;
@@ -153,7 +153,7 @@ export default function SchoolDashboardPage() {
                     >
                       <div className="min-w-[160px] flex-1">
                         <p className="font-manrope font-semibold text-gray-800 text-sm">{b.name}</p>
-                        <p className="font-manrope text-[11px] text-gray-500">
+                        <p className="font-manrope text-gray-500 text-sm">
                           {[b.className, b.major].filter(Boolean).join(" · ") || "—"}
                         </p>
                       </div>
@@ -174,8 +174,8 @@ export default function SchoolDashboardPage() {
 
           {(t?.selesai ?? 0) > 0 && (
             <div className="mt-5 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
-              <h2 className="font-bold font-bricolage text-gray-900 text-sm">Sebaran minat (Holland) kelas</h2>
-              <p className="mt-1 font-manrope text-[11px] text-gray-500">
+              <h2 className="font-bold font-bricolage text-gray-900 text-sm">Sebaran minat siswa</h2>
+              <p className="mt-1 font-manrope text-gray-500 text-sm">
                 Dari kode minat teratas setiap siswa yang sudah selesai — untuk perencanaan jurusan.
               </p>
               <div className="mt-3 space-y-2">
@@ -183,7 +183,7 @@ export default function SchoolDashboardPage() {
                   const val = Number(holland[h.code] ?? 0);
                   return (
                     <div key={h.code} className="flex items-center gap-3" data-testid={`holland-${h.code}`}>
-                      <span className="w-[150px] shrink-0 font-manrope text-gray-700 text-xs">
+                      <span className="w-[150px] shrink-0 font-manrope text-gray-800 text-sm">
                         {h.emoji} {h.code} · {h.name}
                       </span>
                       <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
@@ -192,7 +192,7 @@ export default function SchoolDashboardPage() {
                           style={{ width: `${Math.round((val / maxHolland) * 100)}%` }}
                         />
                       </div>
-                      <span className="w-6 text-right font-manrope font-semibold text-gray-600 text-xs">{val}</span>
+                      <span className="w-8 text-right font-manrope font-semibold text-gray-700 text-sm">{val}</span>
                     </div>
                   );
                 })}

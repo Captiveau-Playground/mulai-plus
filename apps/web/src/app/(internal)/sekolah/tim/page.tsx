@@ -80,8 +80,8 @@ export default function SchoolTeamPage() {
 
   return (
     <div className="mx-auto max-w-3xl p-4 pb-16 sm:p-6">
-      <h1 className="font-bricolage font-extrabold text-2xl text-brand-navy">Tim sekolah</h1>
-      <p className="mt-1 font-manrope text-gray-500 text-xs">
+      <h1 className="font-bricolage font-extrabold text-2xl text-brand-navy">Tim Sekolah</h1>
+      <p className="mt-1 font-manrope text-gray-600 text-sm">
         Semua anggota tim sekolah bisa mengelola kelas, peserta, jadwal, dan melihat hasil/laporan.
       </p>
 
@@ -100,7 +100,7 @@ export default function SchoolTeamPage() {
               const r = ROLE_LABEL[m.role] ?? { label: m.role, cls: "bg-gray-100 text-gray-600" };
               return (
                 <tr key={m.userId} data-testid="team-row" className="border-gray-50 border-t">
-                  <td className="px-3 py-2 font-manrope text-xs">
+                  <td className="px-3 py-3 font-manrope text-sm">
                     <p className="font-semibold text-gray-800">{m.name}</p>
                     <p className="text-[10px] text-gray-500">{m.email ?? "—"}</p>
                   </td>
@@ -160,7 +160,7 @@ export default function SchoolTeamPage() {
           </h2>
           <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
-              <Label htmlFor="peer-email" className="font-manrope text-[11px] text-gray-600">
+              <Label htmlFor="peer-email" className="font-manrope text-gray-700 text-sm">
                 Email rekan
               </Label>
               <Input
@@ -170,14 +170,14 @@ export default function SchoolTeamPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="guru.bk@sekolah.sch.id"
-                className="mt-1"
+                className="mt-1 min-h-11"
               />
             </div>
             <Button
               data-testid="invite-peer"
               onClick={() => undang.mutate({ email })}
               disabled={undang.isPending || !email.includes("@")}
-              className="h-9 rounded-xl font-bold font-manrope text-xs"
+              className="min-h-11 rounded-xl px-4 font-bold font-manrope text-sm"
             >
               {undang.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null} Undang
             </Button>

@@ -288,23 +288,23 @@ export default function SchoolCohortDetailPage() {
             data-testid="report-link"
             className="inline-flex items-center gap-1 rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-white text-xs hover:bg-brand-navy/90"
           >
-            📊 Insight kelas
+            📊 Laporan kelas
           </Link>
           <Button
             data-testid="export-rekap"
             variant="outline"
             onClick={() => void exportRekap()}
             disabled={exporting}
-            className="rounded-xl px-3 py-2 font-bold font-manrope text-xs"
+            className="min-h-11 rounded-xl px-4 py-2.5 font-bold font-manrope text-sm"
           >
-            {exporting ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null} ⬇ Export rekap
+            {exporting ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null} ⬇ Unduh Excel
           </Button>
           {canManage && (
             <>
               <Button
                 data-testid="participant-import-open"
                 onClick={() => setDlg("import")}
-                className="rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-white text-xs hover:brightness-110"
+                className="min-h-11 rounded-xl bg-brand-navy px-4 py-2.5 font-bold font-manrope text-sm text-white hover:brightness-110"
               >
                 <FileUp className="mr-1 h-3.5 w-3.5" /> Import peserta
               </Button>
@@ -312,7 +312,7 @@ export default function SchoolCohortDetailPage() {
                 data-testid="participant-add-open"
                 onClick={() => setDlg("manual")}
                 variant="outline"
-                className="rounded-xl px-3 py-2 font-bold font-manrope text-xs"
+                className="min-h-11 rounded-xl px-4 py-2.5 font-bold font-manrope text-sm"
               >
                 <Plus className="mr-1 h-3.5 w-3.5" /> Tambah satu
               </Button>
@@ -361,7 +361,7 @@ export default function SchoolCohortDetailPage() {
             type="button"
             data-testid={`filter-${key}`}
             onClick={() => setStatusFilter(key)}
-            className={`rounded-full px-2.5 py-1 font-manrope font-semibold text-[10px] transition-colors ${
+            className={`min-h-10 rounded-full px-3.5 py-2 font-manrope font-semibold text-sm transition-colors ${
               statusFilter === key ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -370,22 +370,88 @@ export default function SchoolCohortDetailPage() {
         ))}
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+      {/* Mobile: kartu (tabel 6 kolom tidak terbaca di layar kecil) */}
+      <div className="mt-3 space-y-2 md:hidden" data-testid="participant-cards">
+        {filtered.map((p) => {
+          const st = STATUS[p.status] ?? STATUS.invited;
+          return (
+            <div
+              key={p.id}
+              data-testid="participant-card"
+              className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <button type="button" onClick={() => setDetail(p)} className="min-w-0 flex-1 text-left">
+                  <p className="truncate font-bold font-manrope text-base text-gray-900">{p.name}</p>
+                  <p className="truncate font-manrope text-gray-600 text-sm">
+                    {[p.nis, p.email].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </button>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 font-manrope font-semibold text-xs ${st.cls}`}>
+                  {st.label}
+                </span>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2 font-manrope text-gray-700 text-sm">
+                <span className="rounded-lg bg-gray-50 px-2 py-1">Minat: {p.hollandCode ?? "—"}</span>
+                <span className="rounded-lg bg-gray-50 px-2 py-1">Selesai: {fmt(p.selesaiPada)}</span>
+                {!p.email && p.claimCode ? (
+                  <span
+                    className={`rounded-lg px-2 py-1 font-bold font-mono ${
+                      p.claimCodeUsed ? "bg-gray-100 text-gray-400 line-through" : "bg-teal-50 text-teal-700"
+                    }`}
+                  >
+                    Kode siswa: {p.claimCode}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDetail(p)}
+                  className="min-h-10 flex-1 rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-sm text-white"
+                >
+                  Lihat hasil
+                </button>
+                {p.status !== "completed" && (
+                  <button
+                    type="button"
+                    data-testid="nudge-button-mobile"
+                    onClick={() => void ingatkan(p)}
+                    disabled={nudging === p.id}
+                    className="min-h-10 rounded-xl border border-teal-200 px-3 py-2 font-manrope font-semibold text-sm text-teal-700 disabled:opacity-50"
+                  >
+                    {nudging === p.id ? "…" : "Salin pesan WA"}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="rounded-2xl border border-gray-100 bg-white p-6 text-center font-manrope text-gray-500 text-sm">
+            Belum ada peserta yang cocok.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-3 hidden overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm md:block">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 font-manrope text-[10px] text-gray-500 uppercase tracking-wide">
+          <thead className="bg-gray-50 font-manrope text-gray-500 text-xs uppercase tracking-wide">
             <tr>
-              <th className="px-3 py-2">Nama</th>
-              <th className="px-3 py-2">Email / NIS</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Holland</th>
-              <th className="px-3 py-2">Selesai</th>
+              <th className="px-3 py-3">Nama</th>
+              <th className="px-3 py-3">Email / NIS</th>
+              <th className="px-3 py-3">Status</th>
+              <th className="px-3 py-3">Holland</th>
+              <th className="px-3 py-3">Selesai</th>
               <th className="px-3 py-2 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-3 py-8 text-center font-manrope text-gray-400 text-xs">
+                <td colSpan={6} className="px-3 py-8 text-center font-manrope text-gray-500 text-sm">
                   {items.length === 0
                     ? "Belum ada peserta di kelas ini."
                     : "Tidak ada peserta yang cocok dengan pencarian."}
@@ -402,15 +468,15 @@ export default function SchoolCohortDetailPage() {
                     className="cursor-pointer border-gray-50 border-t transition-colors hover:bg-teal-50/40"
                     title="Lihat hasil peserta"
                   >
-                    <td className="px-3 py-2 font-manrope font-semibold text-gray-800 text-xs">
+                    <td className="px-3 py-3 font-manrope font-semibold text-gray-900 text-sm">
                       {p.name}
-                      <span className="ml-1 text-[10px] text-teal-600">›</span>
+                      <span className="ml-1 text-teal-600 text-xs">›</span>
                       {/* (M2.6) kode akses sekali pakai untuk peserta tanpa email */}
                       {!p.email && p.claimCode ? (
                         <span
                           data-testid="claim-code"
                           title="Kode akses sekali pakai (peserta tanpa email)"
-                          className={`ml-1 rounded px-1 py-0.5 font-bold font-mono text-[9px] ${
+                          className={`ml-1 rounded px-1.5 py-0.5 font-bold font-mono text-xs ${
                             p.claimCodeUsed ? "bg-gray-100 text-gray-400 line-through" : "bg-teal-50 text-teal-700"
                           }`}
                         >
@@ -418,19 +484,19 @@ export default function SchoolCohortDetailPage() {
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2 font-manrope text-[11px] text-gray-500">
+                    <td className="px-3 py-3 font-manrope text-gray-600 text-sm">
                       {[p.email, p.nis].filter(Boolean).join(" · ") || "—"}
                     </td>
                     <td className="px-3 py-2">
-                      <span className={`rounded-full px-2 py-0.5 font-manrope font-semibold text-[10px] ${st.cls}`}>
+                      <span className={`rounded-full px-2.5 py-1 font-manrope font-semibold text-xs ${st.cls}`}>
                         {st.label}
                       </span>
                     </td>
-                    <td className="px-3 py-2 font-manrope font-semibold text-gray-700 text-xs">
+                    <td className="px-3 py-3 font-manrope font-semibold text-gray-800 text-sm">
                       {p.hollandCode ?? "—"}
                     </td>
-                    <td className="px-3 py-2 font-manrope text-[11px] text-gray-500">{fmt(p.selesaiPada)}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-3 font-manrope text-gray-600 text-sm">{fmt(p.selesaiPada)}</td>
+                    <td className="px-3 py-3 text-right">
                       {p.status !== "completed" && (
                         <button
                           type="button"
@@ -440,9 +506,9 @@ export default function SchoolCohortDetailPage() {
                             void ingatkan(p);
                           }}
                           disabled={nudging === p.id}
-                          className="rounded-lg border border-teal-200 px-2 py-1 font-manrope font-semibold text-[10px] text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+                          className="min-h-9 rounded-lg border border-teal-200 px-3 py-1.5 font-manrope font-semibold text-teal-700 text-xs hover:bg-teal-50 disabled:opacity-50"
                         >
-                          {nudging === p.id ? "…" : "Ingatkan"}
+                          {nudging === p.id ? "…" : "Salin pesan WA"}
                         </button>
                       )}
                     </td>
@@ -511,7 +577,7 @@ export default function SchoolCohortDetailPage() {
             data-testid="schedule-save-scheduled"
             onClick={() => void simpanJadwal("scheduled")}
             disabled={busy}
-            className="rounded-lg bg-brand-navy px-3 py-1.5 font-bold font-manrope text-[11px] text-white hover:brightness-110"
+            className="min-h-10 rounded-lg bg-brand-navy px-3 py-2 font-bold font-manrope text-sm text-white hover:brightness-110"
           >
             Simpan jadwal (serentak)
           </Button>
@@ -520,7 +586,7 @@ export default function SchoolCohortDetailPage() {
             variant="outline"
             onClick={() => void simpanJadwal("anytime")}
             disabled={busy}
-            className="rounded-lg px-3 py-1.5 font-manrope text-[11px]"
+            className="min-h-10 rounded-lg px-3 py-2 font-manrope text-sm"
           >
             Simpan sebagai rentang bebas
           </Button>
@@ -529,7 +595,7 @@ export default function SchoolCohortDetailPage() {
             variant="ghost"
             onClick={() => void simpanJadwal("off")}
             disabled={busy}
-            className="rounded-lg px-3 py-1.5 font-manrope text-[11px] text-gray-500"
+            className="min-h-10 rounded-lg px-3 py-2 font-manrope text-gray-600 text-sm"
           >
             Hapus jadwal
           </Button>
@@ -539,7 +605,7 @@ export default function SchoolCohortDetailPage() {
       {/* Kartu undangan (M2.2) */}
       {invite.data && (invite.data as any).ok && (
         <div className="mt-4 rounded-2xl border border-teal-100 bg-teal-50/50 p-4" data-testid="invite-card">
-          <p className="font-manrope font-semibold text-teal-800 text-xs">Undangan peserta</p>
+          <p className="font-manrope font-semibold text-base text-teal-900">Undangan peserta</p>
           <p className="mt-1 font-manrope text-[11px] text-gray-600">
             Bagikan kode ini ke siswa. Mereka masuk/daftar dengan email yang terdaftar di sekolah.
           </p>
@@ -554,14 +620,14 @@ export default function SchoolCohortDetailPage() {
               data-testid="invite-copy-link"
               variant="outline"
               onClick={() => void copy((invite.data as any).link, "Link undangan")}
-              className="rounded-lg text-xs"
+              className="min-h-10 rounded-lg text-sm"
             >
-              <Copy className="mr-1 h-3.5 w-3.5" /> Salin link
+              <Copy className="mr-1 h-4 w-4" /> Salin link
             </Button>
             <Button
               data-testid="invite-copy-wa"
               onClick={() => void copy((invite.data as any).waText, "Teks WhatsApp")}
-              className="rounded-lg bg-teal-600 font-bold font-manrope text-white text-xs hover:bg-teal-700"
+              className="min-h-10 rounded-lg bg-teal-600 font-bold font-manrope text-sm text-white hover:bg-teal-700"
             >
               Salin teks WA
             </Button>

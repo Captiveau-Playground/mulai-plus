@@ -116,7 +116,7 @@ export default function SchoolCohortsPage() {
               type="button"
               data-testid="year-all"
               onClick={() => setYearFilter("all")}
-              className={`rounded-full px-2.5 py-1 font-manrope font-semibold text-[10px] ${
+              className={`min-h-10 rounded-full px-3.5 py-2 font-manrope font-semibold text-sm ${
                 yearFilter === "all" ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -128,7 +128,7 @@ export default function SchoolCohortsPage() {
                 type="button"
                 data-testid={`year-${y.year ?? "tanpa"}`}
                 onClick={() => setYearFilter(y.year ?? "all")}
-                className={`rounded-full px-2.5 py-1 font-manrope font-semibold text-[10px] ${
+                className={`min-h-10 rounded-full px-3.5 py-2 font-manrope font-semibold text-sm ${
                   yearFilter === y.year ? "bg-brand-navy text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
@@ -143,7 +143,7 @@ export default function SchoolCohortsPage() {
                 <div key={String(y.year)} className="rounded-xl bg-gray-50 px-3 py-2" data-testid="year-card">
                   <p className="font-bold font-bricolage text-brand-navy text-sm">Angkatan {y.year}</p>
                   <p className="font-manrope text-[10px] text-gray-500">
-                    {y.batches} kelas · {y.completed}/{y.total} selesai · Holland dominan {y.topHolland?.code ?? "—"}
+                    {y.batches} kelas · {y.completed}/{y.total} selesai · Minat dominan {y.topHolland?.code ?? "—"}
                     {y.confidenceAvg ? ` · keyakinan ${y.confidenceAvg}%` : ""}
                   </p>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
@@ -189,7 +189,7 @@ export default function SchoolCohortsPage() {
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   {c.inviteCode && (
                     <span className="font-manrope text-[10px] text-gray-400">
-                      Kode undangan: <code className="rounded bg-gray-100 px-1">{c.inviteCode}</code>
+                      Kode kelas: <code className="rounded bg-gray-100 px-1">{c.inviteCode}</code>
                     </span>
                   )}
                   <span
