@@ -466,6 +466,7 @@ export const schoolRouter = {
 
     return {
       ok: true as const,
+      canManage: isManager(g.member),
       items: batches.map((b) => {
         const rows = students.filter((s) => s.batchId === b.id);
         const selesai = rows.filter((s) => s.status === "completed").length;
@@ -607,6 +608,7 @@ export const schoolRouter = {
       const mulai = students.filter((s) => s.status === "in_progress").length;
       return {
         ok: true as const,
+        canManage: isManager(g.member),
         batch: {
           id: batch.id,
           name: batch.name,

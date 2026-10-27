@@ -73,6 +73,8 @@ export default function SchoolCohortsPage() {
     confidenceAvg: number | null;
   }> = (yearsQ.data as any)?.ok ? (yearsQ.data as any).items : [];
   const notActive = q.data && (q.data as any).ok === false;
+  // (auth) guru BK (school_viewer) hanya melihat — jangan tampilkan aksi tulis
+  const canManage = (q.data as any)?.canManage !== false;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6" data-testid="school-cohorts">
@@ -96,7 +98,8 @@ export default function SchoolCohortsPage() {
           <Button
             data-testid="cohort-create-open"
             onClick={() => setOpen(true)}
-            disabled={notActive}
+            disabled={notActive || !canManage}
+            title={!canManage ? "Hanya admin sekolah yang bisa membuat kelas" : undefined}
             className="rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-white text-xs hover:brightness-110 disabled:opacity-50"
           >
             <Plus className="mr-1 h-3.5 w-3.5" /> Buat kelas

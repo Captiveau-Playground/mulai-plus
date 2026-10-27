@@ -230,6 +230,8 @@ export default function SchoolCohortDetailPage() {
   const items: any[] = (data.data as any)?.items ?? [];
   const batch = (data.data as any)?.batch;
   const totals = (data.data as any)?.totals;
+  // (auth) guru BK (school_viewer) hanya melihat — aksi tulis disembunyikan
+  const canManage = (data.data as any)?.canManage !== false;
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return items.filter((p) => {
@@ -297,21 +299,25 @@ export default function SchoolCohortDetailPage() {
           >
             {exporting ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null} ⬇ Export rekap
           </Button>
-          <Button
-            data-testid="participant-import-open"
-            onClick={() => setDlg("import")}
-            className="rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-white text-xs hover:brightness-110"
-          >
-            <FileUp className="mr-1 h-3.5 w-3.5" /> Import peserta
-          </Button>
-          <Button
-            data-testid="participant-add-open"
-            onClick={() => setDlg("manual")}
-            variant="outline"
-            className="rounded-xl px-3 py-2 font-bold font-manrope text-xs"
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" /> Tambah satu
-          </Button>
+          {canManage && (
+            <>
+              <Button
+                data-testid="participant-import-open"
+                onClick={() => setDlg("import")}
+                className="rounded-xl bg-brand-navy px-3 py-2 font-bold font-manrope text-white text-xs hover:brightness-110"
+              >
+                <FileUp className="mr-1 h-3.5 w-3.5" /> Import peserta
+              </Button>
+              <Button
+                data-testid="participant-add-open"
+                onClick={() => setDlg("manual")}
+                variant="outline"
+                className="rounded-xl px-3 py-2 font-bold font-manrope text-xs"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" /> Tambah satu
+              </Button>
+            </>
+          )}
         </div>
         <div className="flex gap-2 font-manrope text-[11px]">
           <span className="rounded-full bg-teal-50 px-2 py-1 font-semibold text-teal-700">
