@@ -148,8 +148,7 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
                   <option value="student">Student</option>
                   <option value="mentor">Mentor</option>
                   <option value="program_manager">Program Manager</option>
-                  <option value="school_admin">Admin Sekolah (B2B)</option>
-                  <option value="school_viewer">Guru BK (B2B, lihat saja)</option>
+                  <option value="school_admin">Sekolah (B2B)</option>
                   <option value="admin">Admin</option>
                 </>
               )}

@@ -48,7 +48,7 @@ const statement = {
   program_manager_dashboard: ["access"],
   school_dashboard: ["access"], // B2B: admin sekolah / guru BK
 
-  // B2B sekolah (dipakai role school_admin & school_viewer)
+  // B2B sekolah (satu role: school_admin — label "Sekolah")
   schedule: ["create", "read", "update", "delete"],
   report: ["read"],
 
@@ -92,17 +92,11 @@ const DEFAULT_ROLES: Record<string, Record<string, string[]>> = {
   student: {
     student_dashboard: ["access"],
   },
-  // B2B: admin sekolah (kelola peserta & jadwal, lihat hasil/laporan sekolahnya)
+  // B2B: satu role sekolah (kelola peserta/jadwal/tim + lihat hasil/laporan)
   school_admin: {
     school_dashboard: ["access"],
     participant: ["read", "update"],
     schedule: ["create", "read", "update", "delete"],
-    report: ["read"],
-    user: ["read"],
-  },
-  // B2B: guru BK / wakil kepala (hanya melihat)
-  school_viewer: {
-    school_dashboard: ["access"],
     report: ["read"],
     user: ["read"],
   },

@@ -23,18 +23,16 @@ dotenv.config({ path: "../../apps/server/.env" });
 const API = process.env.APP_API_URL || "http://localhost:3000";
 const ORG_NAME = process.env.DEMO_SCHOOL_NAME || "SMA Demo MULAI+";
 const PASSWORD = process.env.DEMO_SCHOOL_PASSWORD || "DemoSekolah!2026";
+// Satu role sekolah: cukup satu akun demo.
 const ACCOUNTS = [
   {
     email: process.env.DEMO_SCHOOL_ADMIN_EMAIL || "sekolah@demo.mulaiplus.id",
-    name: "Admin Sekolah Demo",
+    name: "Akun Sekolah Demo",
     role: "school_admin" as const,
   },
-  {
-    email: process.env.DEMO_SCHOOL_BK_EMAIL || "bk@demo.mulaiplus.id",
-    name: "Guru BK Demo",
-    role: "school_viewer" as const,
-  },
 ];
+/** Akun demo lama (saat masih ada role guru BK terpisah) yang perlu dibersihkan. */
+const LEGACY_ACCOUNTS = [process.env.DEMO_SCHOOL_BK_EMAIL || "bk@demo.mulaiplus.id"];
 
 const HOLLAND = ["R", "I", "A", "S", "E", "C"] as const;
 const MAJORS = ["Teknik Informatika", "Psikologi", "Akuntansi", "Kedokteran", "Hukum", "Manajemen"];
@@ -227,11 +225,20 @@ async function main() {
     console.log(`  + roster ${batchName}: ${NAMES.length} siswa (${p.done} selesai)`);
   }
 
+  // bersihkan akun demo lama (saat masih ada role guru BK terpisah)
+  for (const legacy of LEGACY_ACCOUNTS) {
+    const [old] = await db.select({ id: user.id }).from(user).where(eq(user.email, legacy));
+    if (old) {
+      await db.delete(assessmentOrgMembers).where(eq(assessmentOrgMembers.userId, old.id));
+      await db.delete(user).where(eq(user.id, old.id));
+      console.log(`  - akun demo lama dihapus: ${legacy}`);
+    }
+  }
+
   console.log(`
 ✓ Selesai. Login di http://localhost:3001/login (tab "Sekolah"):
 
-  Admin sekolah : ${ACCOUNTS[0].email}  /  ${PASSWORD}
-  Guru BK       : ${ACCOUNTS[1].email}  /  ${PASSWORD}
+  Akun sekolah : ${ACCOUNTS[0].email}  /  ${PASSWORD}
 
   Portal: /sekolah  ·  Kelas: /sekolah/kelas  ·  Tim: /sekolah/tim
   Sekolah: ${ORG_NAME} (aktif, 2 kelas, 2 angkatan)

@@ -250,8 +250,7 @@ export function UserTable() {
               <SelectItem value="mentor">Mentor</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
               <SelectItem value="program_manager">Program Manager</SelectItem>
-              <SelectItem value="school_admin">Admin Sekolah (B2B)</SelectItem>
-              <SelectItem value="school_viewer">Guru BK (B2B, lihat saja)</SelectItem>
+              <SelectItem value="school_admin">Sekolah (B2B)</SelectItem>
             </SelectContent>
           </Select>
         );

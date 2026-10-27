@@ -2,9 +2,9 @@
 //
 // Kenapa ada: `package.json` sudah lama menunjuk `bun run scripts/seed-roles.ts`
 // tetapi filenya tidak pernah ada, sehingga environment baru (staging/produksi)
-// tidak punya daftar role sama sekali — termasuk role B2B `school_admin` dan
-// `school_viewer`. Tanpa baris di tabel `role`, better-auth tidak mengenal role
-// tersebut dan UI admin tidak bisa menampilkannya.
+// tidak punya daftar role sama sekali — termasuk role B2B `school_admin`.
+// Tanpa baris di tabel `role`, better-auth tidak mengenal role tersebut dan UI
+// admin tidak bisa menampilkannya.
 //
 // Sifat: TIDAK menimpa role yang sudah ada (aman dijalankan berulang di DB yang
 // sudah dipakai). Untuk menyinkronkan permission gunakan `--force-permissions`.
@@ -94,8 +94,8 @@ export const ROLE_SEED: RoleSeed[] = [
   },
   {
     id: "school_admin",
-    name: "Admin Sekolah",
-    description: "PIC sekolah mitra B2B — kelola kelas, peserta, jadwal, lalu lihat hasil/laporan",
+    name: "Sekolah",
+    description: "Akun sekolah mitra B2B — kelola kelas, peserta, jadwal, tim, dan lihat hasil/laporan",
     permissions: [
       "access:school_dashboard",
       "participant.read",
@@ -107,12 +107,6 @@ export const ROLE_SEED: RoleSeed[] = [
       "report.read",
       "user.read",
     ],
-  },
-  {
-    id: "school_viewer",
-    name: "Guru BK",
-    description: "Guru BK / wakil kepala — hanya melihat hasil & laporan sekolah",
-    permissions: ["access:school_dashboard", "report.read", "user.read"],
   },
 ];
 

@@ -1,6 +1,6 @@
-// E2E B2B — M4.1: kolaborasi tim sekolah (guru BK `school_viewer`).
-// Admin sekolah mengundang rekan lewat email; saat rekan membuka portal, undangan
-// diklaim otomatis, perannya jadi `school_viewer`, dan hanya bisa MELIHAT.
+// E2E B2B — M4.1: kolaborasi tim sekolah (SATU role "Sekolah").
+// Anggota mengundang rekan lewat email; saat rekan membuka portal, undangan
+// diklaim otomatis dan ia punya hak yang sama (kelola kelas/peserta/jadwal).
 import { expect, type Page, test } from "@playwright/test";
 import { createAdminPage } from "../../../helpers/admin-ui";
 import { adminRpc, signUpViaApi } from "../../../helpers/api";
@@ -59,78 +59,58 @@ test.afterAll(async () => {
   await closeDb();
 });
 
-test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
-  test("API: undang rekan → klaim otomatis → peran viewer hanya bisa melihat", async ({ page, browser }) => {
+test.describe("B2B · tim sekolah satu role (M4.1)", () => {
+  test("API: undang rekan → klaim otomatis → anggota punya hak yang sama", async ({ page, browser }) => {
     test.setTimeout(90000);
     await preAcceptCookies(page);
     const nama = `SMA Tim ${suffix()}`;
     const fx = await seedSchool(page, "api", nama);
 
-    const guruEmail = `${PREFIX}-guru-${Date.now()}-${suffix().toLowerCase()}@test.local`;
+    const rekanEmail = `${PREFIX}-rekan-${Date.now()}-${suffix().toLowerCase()}@test.local`;
     // rekan harus punya akun lebih dulu
-    const created = await signUpViaApi("Guru BK", guruEmail, E2E_PASSWORD);
+    const created = await signUpViaApi("Rekan Sekolah", rekanEmail, E2E_PASSWORD);
     expect(created.ok, created.raw).toBe(true);
-    emails.push(guruEmail);
+    emails.push(rekanEmail);
 
-    // admin mengundang sebagai viewer
-    const inv = await rpcAs<any>(page, "school/invitePeer", { email: guruEmail, role: "school_viewer" });
+    // undang rekan (tanpa pilihan peran lagi — satu role sekolah)
+    const inv = await rpcAs<any>(page, "school/invitePeer", { email: rekanEmail });
     expect(inv.ok, JSON.stringify(inv)).toBe(true);
 
     const team1 = await rpcAs<any>(page, "school/team", {});
     expect(team1.ok).toBe(true);
     expect(team1.me.canManage).toBe(true);
-    expect((team1.invites ?? []).some((i: any) => i.email === guruEmail)).toBe(true);
+    expect((team1.invites ?? []).some((i: any) => i.email === rekanEmail)).toBe(true);
 
-    // guru membuka portal → undangan diklaim otomatis
+    // rekan membuka portal → undangan diklaim otomatis
     const ctx = await (browser as any).newContext();
     const gp = await ctx.newPage();
     await preAcceptCookies(gp);
-    await loginUI(gp, guruEmail, E2E_PASSWORD);
+    await loginUI(gp, rekanEmail, E2E_PASSWORD);
     const me = await rpcAs<any>(gp, "school/me", {});
     expect(me.ok).toBe(true);
-    expect(me.member?.role, JSON.stringify(me)).toBe("school_viewer");
+    expect(me.member?.role, JSON.stringify(me)).toBe("school_admin");
 
-    // viewer boleh melihat data
+    // boleh melihat data
     const list = await rpcAs<any>(gp, "school/participants", { batchId: fx.batchId });
     expect(list.ok).toBe(true);
     const insight = await rpcAs<any>(gp, "school/cohortInsight", { batchId: fx.batchId });
     expect(insight.ok).toBe(true);
 
-    // viewer TIDAK boleh mengubah (buat kelas / import / jadwal)
-    const denied = await rpcAs<any>(gp, "school/cohortCreate", { name: "Kelas Baru", className: "XI 1" });
-    expect(denied.ok).toBe(false);
-    expect(denied.error).toBe("hanya_admin");
-    const deniedImport = await rpcAs<any>(gp, "school/participantsImport", {
+    // ...dan boleh mengelola (hak sama dengan pengundang)
+    const created2 = await rpcAs<any>(gp, "school/cohortCreate", { name: "Kelas Rekan", className: "XI 1" });
+    expect(created2.ok, `rekan boleh membuat kelas: ${JSON.stringify(created2)}`).toBe(true);
+    const added = await rpcAs<any>(gp, "school/participantAdd", {
       batchId: fx.batchId,
-      csv: "nama,email\nSiswa Baru,baru@sekolah.sch.id",
+      name: "Siswa Dari Rekan",
+      email: "rekan-siswa@sekolah.sch.id",
     });
-    expect(deniedImport.ok, "guru BK tidak boleh import peserta").toBe(false);
-    expect(deniedImport.error).toBe("hanya_admin");
+    expect(added.ok, `rekan boleh menambah peserta: ${JSON.stringify(added)}`).toBe(true);
 
-    const deniedAdd = await rpcAs<any>(gp, "school/participantAdd", {
-      batchId: fx.batchId,
-      name: "Siswa Dari BK",
-      email: "bk-siswa@sekolah.sch.id",
-    });
-    expect(deniedAdd.ok, "guru BK tidak boleh menambah peserta").toBe(false);
-    expect(deniedAdd.error).toBe("hanya_admin");
-
-    const deniedInvite = await rpcAs<any>(gp, "school/invitePeer", { email: `rekan-${uniqueId()}@test.local` });
-    expect(deniedInvite.ok, "guru BK tidak boleh mengundang rekan").toBe(false);
-    expect(deniedInvite.error).toBe("hanya_admin");
-
-    const deniedJadwal = await rpcAs<any>(gp, "school/cohortSchedule", {
-      batchId: fx.batchId,
-      mode: "scheduled",
-      windowStart: new Date(Date.now() + 86400000).toISOString(),
-      windowEnd: new Date(Date.now() + 172800000).toISOString(),
-    });
-    expect(deniedJadwal.ok).toBe(false);
-
-    // tim sekolah menampilkan 2 anggota dengan peran berbeda
+    // tim sekolah menampilkan 2 anggota dengan role yang sama
     const team2 = await rpcAs<any>(gp, "school/team", {});
-    const roles = (team2.members ?? []).map((m: any) => m.role).sort();
-    expect(roles).toEqual(["school_admin", "school_viewer"]);
+    const roles = (team2.members ?? []).map((m: any) => m.role);
+    expect(roles).toEqual(["school_admin", "school_admin"]);
+    expect(team2.me.canManage).toBe(true);
     await ctx.close();
   });
 
@@ -142,9 +122,9 @@ test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
 
     // undang sekali → sukses; undang lagi → sudah_diundang
     const calon = `${PREFIX}-dup-${uniqueId()}@test.local`;
-    const inv1 = await rpcAs<any>(page, "school/invitePeer", { email: calon, role: "school_viewer" });
+    const inv1 = await rpcAs<any>(page, "school/invitePeer", { email: calon });
     expect(inv1.ok, JSON.stringify(inv1)).toBe(true);
-    const inv2 = await rpcAs<any>(page, "school/invitePeer", { email: calon, role: "school_viewer" });
+    const inv2 = await rpcAs<any>(page, "school/invitePeer", { email: calon });
     expect(inv2.ok).toBe(false);
     expect(inv2.error).toBe("sudah_diundang");
 
@@ -153,7 +133,7 @@ test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
       `select u.email from assessment_org_members m join "user" u on u.id = m.user_id where m.org_id = $1 limit 1`,
       [fx.orgId],
     );
-    const inv3 = await rpcAs<any>(page, "school/invitePeer", { email: anggota[0].email, role: "school_viewer" });
+    const inv3 = await rpcAs<any>(page, "school/invitePeer", { email: anggota[0].email });
     expect(inv3.ok).toBe(false);
     expect(inv3.error).toBe("sudah_anggota");
 
@@ -169,7 +149,7 @@ test.describe("B2B · tim sekolah & guru BK (M4.1)", () => {
     await ctx.close();
 
     // diundang ke sekolah kami → saat membuka portal, tetap di sekolahnya sendiri
-    await rpcAs<any>(page, "school/invitePeer", { email: lainEmail, role: "school_viewer" });
+    await rpcAs<any>(page, "school/invitePeer", { email: lainEmail });
     const ctx2 = await (page.context().browser() as any).newContext();
     const p2 = await ctx2.newPage();
     await preAcceptCookies(p2);

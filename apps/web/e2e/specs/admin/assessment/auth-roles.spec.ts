@@ -174,7 +174,7 @@ test.describe("AUTH · role internal & B2B", () => {
     orgIds.push(reg.orgId);
     const apprOwner = await adminRpc<any>(admin, "schoolAdmin/approve", { orgId: reg.orgId });
     if (apprOwner?.schoolId) schoolIds.push(apprOwner.schoolId);
-    const inv = await rpcAs<any>(owner, "school/invitePeer", { email, role: "school_viewer" });
+    const inv = await rpcAs<any>(owner, "school/invitePeer", { email });
     expect(inv.ok, JSON.stringify(inv)).toBe(true);
 
     // program_manager membuka portal → undangan diklaim, tapi role TIDAK turun
@@ -182,7 +182,7 @@ test.describe("AUTH · role internal & B2B", () => {
     const me = await rpcAs<any>(page, "school/me", {});
     expect(me.ok).toBe(true);
     expect(me.member, "keanggotaan sekolah tetap dibuat").toBeTruthy();
-    expect(me.member.role).toBe("school_viewer");
+    expect(me.member.role).toBe("school_admin");
 
     const [row] = await q<{ role: string }>('select role from "user" where email = $2 or email = $1', [email, email]);
     expect(row.role, "role platform TIDAK boleh turun").toBe("program_manager");
@@ -231,12 +231,12 @@ test.describe("AUTH · role internal & B2B", () => {
     const rows = await q<{ id: string; name: string; permissions: string[] }>("select id, name, permissions from role");
     const byId = new Map(rows.map((r) => [r.id, r]));
 
-    for (const id of ["admin", "program_manager", "mentor", "student", "school_admin", "school_viewer"]) {
+    for (const id of ["admin", "program_manager", "mentor", "student", "school_admin"]) {
       expect(byId.has(id), `role ${id} wajib ada`).toBe(true);
     }
-    // label manusiawi untuk UI admin
-    expect(byId.get("school_admin")?.name).toBe("Admin Sekolah");
-    expect(byId.get("school_viewer")?.name).toBe("Guru BK");
+    // hanya SATU role sekolah (keputusan produk: tidak ada dua role mirip)
+    expect(byId.has("school_viewer"), "role school_viewer sudah dihapus").toBe(false);
+    expect(byId.get("school_admin")?.name).toBe("Sekolah");
 
     // admin sekolah TIDAK boleh punya akses panel admin / ubah data platform
     const sa = byId.get("school_admin")?.permissions ?? [];
@@ -244,12 +244,9 @@ test.describe("AUTH · role internal & B2B", () => {
     expect(sa).not.toContain("access:admin_dashboard");
     expect(sa).not.toContain("*");
 
-    // guru BK hanya melihat (tanpa participant.update)
-    const sv = byId.get("school_viewer")?.permissions ?? [];
-    expect(sv).toContain("access:school_dashboard");
-    expect(sv).toContain("report.read");
-    expect(sv).not.toContain("participant.update");
-    expect(sv).not.toContain("access:admin_dashboard");
+    // role sekolah punya hak kelola, tapi tetap tanpa akses panel admin
+    expect(sa).toContain("participant.update");
+    expect(sa).toContain("schedule.update");
   });
 
   test("A5: UI admin mendaftarkan role B2B di form pengguna", async () => {
@@ -264,8 +261,8 @@ test.describe("AUTH · role internal & B2B", () => {
       await openBtn.click();
       const select = page.locator("select#role").first();
       const options = await select.locator("option").allTextContents();
-      expect(options.join(" | "), "role B2B harus muncul di form admin").toMatch(/Admin Sekolah/i);
-      expect(options.join(" | ")).toMatch(/Guru BK/i);
+      expect(options.join(" | "), "role sekolah harus muncul di form admin").toMatch(/Sekolah/i);
+      expect(options.join(" | "), "tidak boleh ada dua opsi role sekolah").not.toMatch(/Guru BK/i);
     }
     await page.close();
   });

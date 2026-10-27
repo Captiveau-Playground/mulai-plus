@@ -1,7 +1,7 @@
 "use client";
 
-// (M4.1) Tim sekolah: daftar admin & guru BK, plus undang rekan lewat email.
-// Guru BK (`school_viewer`) hanya bisa melihat hasil/laporan, tidak mengubah data.
+// (M4.1 → disederhanakan) Tim sekolah: SATU role "Sekolah" untuk semua anggota.
+// Semua anggota bisa mengelola kelas/peserta/jadwal dan melihat hasil/laporan.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, MailPlus, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useState } from "react";
@@ -12,8 +12,7 @@ import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
 const ROLE_LABEL: Record<string, { label: string; cls: string }> = {
-  school_admin: { label: "Admin sekolah", cls: "bg-brand-navy/10 text-brand-navy" },
-  school_viewer: { label: "Guru BK (lihat saja)", cls: "bg-teal-50 text-teal-700" },
+  school_admin: { label: "Sekolah", cls: "bg-brand-navy/10 text-brand-navy" },
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -27,7 +26,6 @@ export default function SchoolTeamPage() {
   const { data, isLoading } = useQuery({ ...orpc.school.team.queryOptions({ input: {} }) });
   const d: any = data;
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"school_viewer" | "school_admin">("school_viewer");
 
   const undang = useMutation({
     ...orpc.school.invitePeer.mutationOptions(),
@@ -84,7 +82,7 @@ export default function SchoolTeamPage() {
     <div className="mx-auto max-w-3xl p-4 pb-16 sm:p-6">
       <h1 className="font-bricolage font-extrabold text-2xl text-brand-navy">Tim sekolah</h1>
       <p className="mt-1 font-manrope text-gray-500 text-xs">
-        Admin sekolah mengelola peserta & jadwal. Guru BK bisa melihat hasil dan laporan kelas.
+        Semua anggota tim sekolah bisa mengelola kelas, peserta, jadwal, dan melihat hasil/laporan.
       </p>
 
       {/* Anggota */}
@@ -160,7 +158,7 @@ export default function SchoolTeamPage() {
           <h2 className="flex items-center gap-1 font-bold font-bricolage text-brand-navy text-sm">
             <MailPlus className="h-4 w-4" /> Undang rekan
           </h2>
-          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
               <Label htmlFor="peer-email" className="font-manrope text-[11px] text-gray-600">
                 Email rekan
@@ -175,24 +173,9 @@ export default function SchoolTeamPage() {
                 className="mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="peer-role" className="font-manrope text-[11px] text-gray-600">
-                Peran
-              </Label>
-              <select
-                id="peer-role"
-                data-testid="peer-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as "school_viewer" | "school_admin")}
-                className="mt-1 h-9 rounded-md border border-input bg-transparent px-2 font-manrope text-xs"
-              >
-                <option value="school_viewer">Guru BK (lihat saja)</option>
-                <option value="school_admin">Admin sekolah (kelola)</option>
-              </select>
-            </div>
             <Button
               data-testid="invite-peer"
-              onClick={() => undang.mutate({ email, role })}
+              onClick={() => undang.mutate({ email })}
               disabled={undang.isPending || !email.includes("@")}
               className="h-9 rounded-xl font-bold font-manrope text-xs"
             >
@@ -203,11 +186,7 @@ export default function SchoolTeamPage() {
             Rekan harus punya akun MULAI+ dengan email tersebut, lalu membuka portal sekolah untuk mengaktifkan akses.
           </p>
         </section>
-      ) : (
-        <p className="mt-3 rounded-xl bg-gray-50 p-3 font-manrope text-gray-600 text-xs" data-testid="team-readonly">
-          Anda masuk sebagai guru BK — hanya bisa melihat hasil & laporan. Hubungi admin sekolah untuk perubahan data.
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }

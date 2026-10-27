@@ -55,7 +55,11 @@ async function findLegacySchoolByName(name: string) {
  * Guard data sekolah: user harus anggota organisasi yang AKTIF dan organisasinya aktif.
  * Dipakai semua endpoint baca (dashboard, kelas, peserta) supaya aturannya konsisten.
  */
-/** (M4.1) Hanya `school_admin` yang boleh mengubah peserta/jadwal/tim. */
+/**
+ * (M4.1 → disederhanakan) Sekarang hanya ada SATU role sekolah, jadi setiap
+ * anggota aktif boleh mengelola. Guard dipertahankan sebagai titik tunggal
+ * bila kelak ada role sekolah lain (mis. read-only) yang ditambahkan lagi.
+ */
 function isManager(member: { role?: string | null } | null | undefined) {
   return member?.role === "school_admin";
 }
@@ -86,7 +90,7 @@ async function consumeInvites(userId: string) {
   for (const inv of invites) {
     const org = await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.id, inv.orgId) });
     if (!org) continue;
-    const role = inv.role === "school_admin" ? "school_admin" : "school_viewer";
+    const role = "school_admin" as const;
     await db.insert(assessmentOrgMembers).values({
       id: randomUUID(),
       orgId: inv.orgId,
@@ -1126,7 +1130,7 @@ export const schoolRouter = {
     .input(
       z.object({
         email: z.string().trim().toLowerCase().email(),
-        role: z.enum(["school_admin", "school_viewer"]).default("school_viewer"),
+        role: z.enum(["school_admin"]).default("school_admin"),
       }),
     )
     .handler(async ({ input, context }) => {

@@ -16,14 +16,13 @@ export function homeForRole(role?: string | null): string {
     case "program_manager":
       return "/program-manager/programs";
     case "school_admin":
-    case "school_viewer":
       return "/sekolah";
     default:
       return "/dashboard/student";
   }
 }
 
-/** Benarkah role ini termasuk pengguna area sekolah (B2B)? */
+/** Benarkah role ini pengguna area sekolah (B2B)? */
 export function isSchoolRole(role?: string | null): boolean {
-  return role === "school_admin" || role === "school_viewer";
+  return role === "school_admin";
 }
