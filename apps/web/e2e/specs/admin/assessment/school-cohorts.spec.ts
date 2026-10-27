@@ -132,4 +132,46 @@ test.describe("B2B · Kelas & Peserta (M2.1)", () => {
     await page.getByTestId("participant-search").fill("Siswa Jalan");
     await expect(page.getByTestId("participant-row")).toHaveCount(1);
   });
+
+  test("menu sidebar: Kelas & Laporan tidak aktif bersamaan, konten lebar penuh", async ({ page }) => {
+    test.setTimeout(90000);
+    await preAcceptCookies(page);
+    const nama = `SMA Menu ${suffix()}`;
+    await seedSchool(nama, [
+      { name: "Siswa Menu 1", status: "completed", holland: "RIA" },
+      { name: "Siswa Menu 2", status: "invited" },
+    ]);
+    // akun harus terdaftar & disetujui agar portal aktif
+    await registerAndApprove(page, "menu", nama);
+
+    const aktif = async () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-slot="sidebar-menu-button"]')]
+          .filter((el) => el.hasAttribute("data-active"))
+          .map((el) => (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 24)),
+      );
+
+    await page.goto("/sekolah/kelas", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("school-cohorts")).toBeVisible({ timeout: 30000 });
+    const a1 = await aktif();
+    expect(a1.length, `hanya satu menu aktif di /sekolah/kelas (dapat: ${JSON.stringify(a1)})`).toBe(1);
+    expect(a1[0]).toContain("Kelas");
+
+    await page.goto("/sekolah/laporan", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("school-reports")).toBeVisible({ timeout: 30000 });
+    const a2 = await aktif();
+    expect(a2.length, `hanya satu menu aktif di /sekolah/laporan (dapat: ${JSON.stringify(a2)})`).toBe(1);
+    expect(a2[0]).toContain("Laporan");
+
+    // konten memakai lebar penuh (tanpa max-width)
+    const w = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="school-reports"]') as HTMLElement | null;
+      const parent = el?.parentElement as HTMLElement | null;
+      return {
+        content: el ? Math.round(el.getBoundingClientRect().width) : 0,
+        parent: parent ? Math.round(parent.getBoundingClientRect().width) : 0,
+      };
+    });
+    expect(Math.abs(w.content - w.parent), `konten harus selebar area (${JSON.stringify(w)})`).toBeLessThanOrEqual(2);
+  });
 });

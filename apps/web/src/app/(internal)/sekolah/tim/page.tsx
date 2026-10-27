@@ -79,7 +79,7 @@ export default function SchoolTeamPage() {
   const canManage = !!d.me?.canManage;
 
   return (
-    <div className="mx-auto max-w-3xl p-4 pb-16 sm:p-6">
+    <div className="w-full p-4 pb-16 sm:p-6">
       <h1 className="font-bricolage font-extrabold text-2xl text-brand-navy">Tim Sekolah</h1>
       <p className="mt-1 font-manrope text-gray-600 text-sm">
         Semua anggota tim sekolah bisa mengelola kelas, peserta, jadwal, dan melihat hasil/laporan.

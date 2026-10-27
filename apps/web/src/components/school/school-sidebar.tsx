@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 // dan menunya yang minimal: sekolah tidak mengelola bank soal/versi/aturan tes.
 import { FileBarChart, GraduationCap, LayoutDashboard, Users, UsersRound } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -33,7 +33,10 @@ export function SchoolSidebar({
 }: React.ComponentProps<typeof Sidebar> & { onNavigate?: () => void }) {
   const { data: session } = authClient.useSession();
   const { setOpenMobile, isMobile } = useSidebar();
-  const _router = useRouter();
+  const pathname = usePathname();
+  // Menu Laporan punya halaman sendiri; laporan per kelas hidup di
+  // /sekolah/kelas/<id>/laporan → keduanya tidak boleh aktif bersamaan.
+  const onReport = pathname.startsWith("/sekolah/laporan") || pathname.includes("/laporan");
 
   // Nama sekolah ditampilkan di header sidebar (bukan cuma "Sekolah").
   const me = useQuery({
@@ -55,21 +58,25 @@ export function SchoolSidebar({
       title: "Dashboard Sekolah",
       url: "/sekolah",
       icon: LayoutDashboard,
+      isActive: pathname === "/sekolah",
     },
     {
       title: "Kelas & Peserta",
       url: "/sekolah/kelas",
       icon: Users,
+      isActive: !onReport && (pathname === "/sekolah/kelas" || pathname.startsWith("/sekolah/kelas/")),
     },
     {
       title: "Laporan Kelas",
-      url: "/sekolah/kelas",
+      url: "/sekolah/laporan",
       icon: FileBarChart,
+      isActive: onReport,
     },
     {
       title: "Tim Sekolah",
       url: "/sekolah/tim",
       icon: UsersRound,
+      isActive: pathname === "/sekolah/tim",
     },
   ];
 

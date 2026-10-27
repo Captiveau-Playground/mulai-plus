@@ -305,7 +305,7 @@ export default function SchoolCohortDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6" data-testid="cohort-detail">
+    <div className="w-full px-4 py-6 sm:px-6" data-testid="cohort-detail">
       <Link
         href={"/sekolah/kelas" as any}
         className="inline-flex items-center gap-1 font-manrope font-semibold text-mentor-teal text-xs hover:underline"

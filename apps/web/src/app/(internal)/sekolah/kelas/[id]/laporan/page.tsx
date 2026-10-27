@@ -123,7 +123,7 @@ export default function SchoolCohortReportPage() {
   const c = insight.counts;
 
   return (
-    <div className="mx-auto max-w-4xl p-4 pb-16 sm:p-6">
+    <div className="w-full p-4 pb-16 sm:p-6">
       <Link
         href={`/sekolah/kelas/${batchId}`}
         className="inline-flex items-center gap-1 font-manrope text-gray-500 text-xs hover:text-gray-700"

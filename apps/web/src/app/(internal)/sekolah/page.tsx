@@ -111,7 +111,7 @@ export default function SchoolDashboardPage() {
   const maxHolland = Math.max(1, ...HOLLAND.map((h) => Number(holland[h.code] ?? 0)));
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6" data-testid="school-dashboard">
+    <div className="w-full px-4 py-6 sm:px-6" data-testid="school-dashboard">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-manrope font-semibold text-[11px] text-teal-600 uppercase tracking-wide">

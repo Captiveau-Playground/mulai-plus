@@ -77,7 +77,7 @@ export default function SchoolCohortsPage() {
   const canManage = (q.data as any)?.canManage !== false;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6" data-testid="school-cohorts">
+    <div className="w-full px-4 py-6 sm:px-6" data-testid="school-cohorts">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-manrope font-semibold text-[11px] text-teal-600 uppercase tracking-wide">
