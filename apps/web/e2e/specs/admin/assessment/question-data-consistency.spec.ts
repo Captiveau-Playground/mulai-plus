@@ -8,8 +8,7 @@
 // Test ini mengunci kondisi data + perilaku render.
 import { expect, test } from "@playwright/test";
 import { rpc } from "../../../helpers/api";
-import { preAcceptCookies } from "../../../helpers/auth";
-import { closeDb, q } from "../../../helpers/db";
+import { q } from "../../../helpers/db";
 
 type Row = { code: string; tipe: string; n: number };
 
@@ -82,6 +81,23 @@ test.describe("Soal · konsistensi admin ↔ siswa", () => {
         expect(icons.length, `soal ${code} ${s.id} harus punya ikon opsi`).toBeGreaterThan(0);
       }
     }
+  });
+
+  test("D5: semua ikon opsi adalah emoji tunggal (bisa dianimasikan)", async () => {
+    const rows = await q<{ code: string; icon: string }>(
+      `select distinct a.code, o.icon
+         from question_options o
+         join questions q on q.id = o.question_id
+         join assessment_versions v on v.id = q.version_id
+         join assessments a on a.id = v.assessment_id
+        where a.code in ('TALENT','DISCOVER') and v.status::text = 'live' and q.is_active
+          and o.icon is not null and btrim(o.icon) <> ''`,
+    );
+    const bad = rows.filter((r) => {
+      const chars = [...String(r.icon).trim()];
+      return chars.length === 0 || chars.length > 2 || !/\p{Extended_Pictographic}/u.test(String(r.icon));
+    });
+    expect(bad, `ikon bukan emoji tunggal: ${JSON.stringify(bad.slice(0, 5))}`).toHaveLength(0);
   });
 
   test("D4: soal tiap dimensi konsisten dengan tipenya (tidak tercampur antar tes)", async () => {

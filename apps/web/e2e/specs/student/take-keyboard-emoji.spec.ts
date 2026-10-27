@@ -13,7 +13,7 @@ const codes: string[] = [];
 let admin: Page;
 
 /** Tes 1 dimensi; soal sesuai yang diminta, langsung dirilis. */
-async function buildOne(page: Page, label: string, questions: Parameters<typeof saveQuestion>[2][]) {
+async function buildOne(_page: Page, label: string, questions: Parameters<typeof saveQuestion>[2][]) {
   const { code } = runTag(PREFIX);
   codes.push(code);
   const { versionId } = await createAssessment(admin, { code, name: `${label} ${code}` });
@@ -141,6 +141,42 @@ test.describe("Siswa · keyboard opsi 5/6 & emoji animasi", () => {
   });
 });
 
+/* ── Fallback: data skala TANPA ikon tetap tampil emoji animasi (bukan label saja) ── */
+test.describe("Siswa · skala tanpa ikon tetap emoji animasi", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAdmin(page);
+  });
+
+  test("opsi likert tanpa ikon → emoji default beranimasi + caption dari label", async ({ page }) => {
+    test.setTimeout(90000);
+    const fx = await buildOne(page, "Skala tanpa ikon", [
+      {
+        questionText: "Seberapa nyaman kamu bekerja dalam kelompok?",
+        questionType: "likert",
+        presentationMode: "emoji_option",
+        // SENGAJA tanpa icon: dulu siswa hanya melihat label teks
+        options: [
+          { optionValue: "A", label: "Sangat tidak nyaman", imageCaption: "Sangat tidak nyaman", score: 1 },
+          { optionValue: "B", label: "Tidak nyaman", imageCaption: "Tidak nyaman", score: 2 },
+          { optionValue: "C", label: "Biasa saja", imageCaption: "Biasa saja", score: 3 },
+          { optionValue: "D", label: "Nyaman", imageCaption: "Nyaman", score: 4 },
+          { optionValue: "E", label: "Sangat nyaman", imageCaption: "Sangat nyaman", score: 5 },
+        ],
+      },
+    ]);
+
+    await startTest(page, fx.code, fx.versionId);
+    await expect(page.getByText(/Seberapa nyaman kamu bekerja/)).toBeVisible({ timeout: 20000 });
+
+    const emojis = page.locator('[data-testid="likert-emoji"]');
+    await expect(emojis, "skala harus tetap menampilkan emoji (fallback)").toHaveCount(5);
+    // caption asli tetap terbaca
+    await expect(page.locator("body")).toContainText(/Sangat tidak nyaman/);
+    // fallback pun memakai komponen animasi (canvas Lottie) atau glyph
+    await expect(emojis.first()).toHaveAttribute("data-state", /ok|failed/, { timeout: 30000 });
+  });
+});
+
 /* ── Layout mobile: maskot DI ATAS soal (bukan 2 kolom) + tipografi lebih terbaca ── */
 test.describe("Siswa · layout soal di mobile", () => {
   test.beforeEach(async ({ page }) => {
@@ -195,12 +231,14 @@ test.describe("Siswa · layout soal di mobile", () => {
     // (perubahan 20 Okt) maskot & soal kini SATU BARIS: maskot kiri, soal kanan
     expect(maskot, "maskot tampil").toBeTruthy();
     expect(soal, "teks soal tampil").toBeTruthy();
-    const overlap = Math.min(maskot!.y + maskot!.h, soal!.y + soal!.h) - Math.max(maskot!.y, soal!.y);
-    expect(overlap, `maskot & soal harus sebaris (maskot y=${maskot!.y} h=${maskot!.h}, soal y=${soal!.y} h=${soal!.h})`)
-      .toBeGreaterThan(10);
-    expect(maskot!.y + maskot!.h, "maskot tidak menumpuk teks soal").toBeLessThan(soal!.y + soal!.h + 1);
+    const overlap = Math.min(maskot?.y + maskot?.h, soal?.y + soal?.h) - Math.max(maskot?.y, soal?.y);
+    expect(
+      overlap,
+      `maskot & soal harus sebaris (maskot y=${maskot?.y} h=${maskot?.h}, soal y=${soal?.y} h=${soal?.h})`,
+    ).toBeGreaterThan(10);
+    expect(maskot?.y + maskot?.h, "maskot tidak menumpuk teks soal").toBeLessThan(soal?.y + soal?.h + 1);
     // soal tetap memakai sebagian besar lebar layar (dikurangi maskot + gap)
-    expect(soal!.w).toBeGreaterThan(250);
+    expect(soal?.w).toBeGreaterThan(250);
     // tipografi soal memakai Manrope (lebih terbaca untuk kalimat panjang)
     expect(font.toLowerCase()).toContain("manrope");
     // semua 5 opsi dirender (opsi ke-5 tidak lagi hilang)
@@ -245,12 +283,12 @@ test.describe("Siswa · layout soal di mobile", () => {
     expect(layout).toHaveLength(5);
     // tiap opsi punya barisnya sendiri: posisi Y naik berurutan (bukan sebaris)
     for (let i = 1; i < layout.length; i++) {
-      expect(layout[i]!.y, `opsi ${i + 1} harus di bawah opsi ${i}`).toBeGreaterThan(layout[i - 1]!.y + 10);
+      expect(layout[i]?.y, `opsi ${i + 1} harus di bawah opsi ${i}`).toBeGreaterThan(layout[i - 1]?.y + 10);
     }
     // baris memakai lebar hampir penuh (mudah disentuh)
     for (const row of layout) expect(row.rowW).toBeGreaterThan(300);
     // caption tetap terbaca di baris
-    expect(layout[0]!.text).toContain("Sangat tidak suka");
-    expect(layout[4]!.text).toContain("Sangat suka");
+    expect(layout[0]?.text).toContain("Sangat tidak suka");
+    expect(layout[4]?.text).toContain("Sangat suka");
   });
 });
