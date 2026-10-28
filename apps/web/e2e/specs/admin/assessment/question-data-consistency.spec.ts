@@ -50,7 +50,7 @@ test.describe("Soal · konsistensi admin ↔ siswa", () => {
     expect(talentAbility, "TALENT harus punya soal pilihan ganda/isian").toBeGreaterThan(0);
   });
 
-  test("D2: setiap opsi bermode emoji punya ikon (tidak render label saja)", async () => {
+  test("D2: setiap opsi bermode emoji punya ikon (likert angka/teks tidak diwajibkan)", async () => {
     const bad = await q<{ code: string; dim: string; n: number }>(
       `select a.code, d.code as dim, count(*)::int as n
          from question_options o
@@ -59,7 +59,7 @@ test.describe("Soal · konsistensi admin ↔ siswa", () => {
          join assessment_versions v on v.id = q.version_id
          join assessments a on a.id = v.assessment_id
         where a.code in ('TALENT','DISCOVER') and v.status::text = 'live' and q.is_active
-          and (q.presentation_mode = 'emoji_option' or q.question_type = 'likert')
+          and q.presentation_mode = 'emoji_option'
           and (o.icon is null or btrim(o.icon) = '')
         group by 1,2`,
     );

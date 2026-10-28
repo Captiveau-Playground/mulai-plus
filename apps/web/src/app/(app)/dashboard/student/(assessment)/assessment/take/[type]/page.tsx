@@ -454,9 +454,11 @@ function LegacyWizard({
       // supaya siswa tetap melihat emoji (bukan label teks saja).
       _optLabels: (() => {
         const opts = (q.opts ?? []) as any[];
-        const isScale = (q as any).questionType === "likert" || (q as any).presentationMode === "emoji_option";
+        // Fallback emoji HANYA untuk mode "Emoji / ikon" yang datanya belum punya ikon.
+        // Skala likert angka (1..5) atau teks TIDAK boleh diganti emoji.
+        const emojiMode = (q as any).presentationMode === "emoji_option";
         const hasIcon = opts.some((x) => x.icon && String(x.icon).trim());
-        if (isScale && !hasIcon) {
+        if (emojiMode && !hasIcon) {
           const def = ["😖", "🙁", "😐", "🙂", "😄"];
           return opts.map((_, i) => def[Math.min(i, def.length - 1)]);
         }

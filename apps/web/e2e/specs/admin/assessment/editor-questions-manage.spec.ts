@@ -52,7 +52,8 @@ test.describe("Admin · Editor — kelola soal", () => {
     await page.locator('[data-testid="q-dup-0"]').click();
     await expect.poll(() => questionCount(page), { timeout: 20000 }).toBe(3);
 
-    // hapus satu → 2 soal
+    // hapus satu → 2 soal (aksi hapus ada di menu ⋮ agar tidak salah klik)
+    await page.locator('[data-testid="q-more-0"]').click();
     await page.locator('[data-testid="q-del-0"]').click();
     await expect.poll(() => questionCount(page), { timeout: 20000 }).toBe(2);
     expect((await contentOf(page, versionId)).questions).toHaveLength(2);

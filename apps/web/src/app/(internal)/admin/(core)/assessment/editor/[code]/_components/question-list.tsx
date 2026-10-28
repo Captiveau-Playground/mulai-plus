@@ -4,8 +4,24 @@
 // Kalau urutan soal ber-blok per dimensi (mis. hasil seeder), daftar tampil sebagai
 // collapsible per dimensi — 120 soal jadi rapi. Kalau urutannya berselang (mis. soal
 // diacak / hasil drag antar dimensi), daftar kembali datar supaya tidak menyesatkan.
-import { ArrowDown, ArrowUp, ChevronRight, Copy, GripVertical, Pencil, Search, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  Copy,
+  GripVertical,
+  MoreVertical,
+  Pencil,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +50,8 @@ interface Props {
   optionCountOf: (questionId: string) => number;
   textEvalOf: (questionId: string) => string | undefined;
   onEdit: (id: string) => void;
+  /** id soal yang baru disimpan → disorot sebentar */
+  flashId?: string | null;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onMove: (index: number, dir: -1 | 1) => void;
@@ -62,6 +80,7 @@ export function QuestionList({
   optionCountOf,
   textEvalOf,
   onEdit,
+  flashId = null,
   onDelete,
   onDuplicate,
   onMove,
@@ -94,8 +113,10 @@ export function QuestionList({
     const dim = dimOf(q.dimensionId);
     const isText = q.questionType === "text_input";
     const detail = isText ? `Isian (${textEvalOf(q.id) ?? "?"})` : `${optionCountOf(q.id)} pilihan`;
+    // "belum lengkap": pilihan ganda/skala wajib punya ≥2 opsi
+    const needsFix = (q.questionType === "multiple_choice" || q.questionType === "likert") && optionCountOf(q.id) < 2;
     return (
-      // biome-ignore lint/a11y/noStaticElementInteractions: drag & drop urutan soal (tombol naik/turun tetap tersedia)
+      // biome-ignore lint/a11y/noStaticElementInteractions: baris bisa diklik untuk mengedit + drag & drop urutan
       <div
         draggable={canEdit}
         onDragStart={() => setDragIdx(i)}
@@ -104,9 +125,19 @@ export function QuestionList({
         onDragEnd={() => setDragIdx(null)}
         id={`q-${q.id}`}
         data-testid="question-row"
+        role={canEdit ? "button" : undefined}
+        tabIndex={canEdit ? 0 : undefined}
+        onClick={() => canEdit && onEdit(q.id)}
+        onKeyDown={(e) => {
+          if (canEdit && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            onEdit(q.id);
+          }
+        }}
         className={cn(
-          "group flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 transition-all hover:bg-gray-50",
+          "group flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 transition-all hover:bg-gray-50",
           dragIdx === i && "opacity-40",
+          flashId === q.id && "bg-green-50 ring-2 ring-green-300",
         )}
       >
         <div className="flex min-w-0 items-center gap-2">
@@ -127,16 +158,28 @@ export function QuestionList({
               {" · bobot "}
               {q.weight ?? 1}
               {q.hasMathNotation ? " · LaTeX" : ""}
+              {needsFix && (
+                <span
+                  className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-[10px] text-amber-800"
+                  title="Belum lengkap: butuh minimal 2 opsi jawaban"
+                  data-testid="q-needs-fix"
+                >
+                  belum lengkap
+                </span>
+              )}
             </p>
           </div>
         </div>
         {canEdit && (
-          <div className="flex shrink-0 gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
+          <div className="flex shrink-0 items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
             <button
               type="button"
               title="Naik"
               data-testid={`q-up-${i}`}
-              onClick={() => onMove(i, -1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMove(i, -1);
+              }}
               disabled={i === 0}
               className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"
             >
@@ -146,7 +189,10 @@ export function QuestionList({
               type="button"
               title="Turun"
               data-testid={`q-down-${i}`}
-              onClick={() => onMove(i, 1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMove(i, 1);
+              }}
               disabled={i === questions.length - 1}
               className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30"
             >
@@ -156,7 +202,10 @@ export function QuestionList({
               type="button"
               title="Salin soal"
               data-testid={`q-dup-${i}`}
-              onClick={() => onDuplicate(q.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicate(q.id);
+              }}
               className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
             >
               <Copy className="h-3.5 w-3.5" />
@@ -165,20 +214,39 @@ export function QuestionList({
               type="button"
               title="Ubah soal"
               data-testid={`q-edit-${i}`}
-              onClick={() => onEdit(q.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(q.id);
+              }}
               className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button
-              type="button"
-              title="Hapus soal"
-              data-testid={`q-del-${i}`}
-              onClick={() => onDelete(q.id)}
-              className="rounded-md p-1.5 text-red-400 hover:bg-red-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {/* Aksi berisiko dipisah ke menu ⋮ agar tidak salah klik */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    title="Aksi lain"
+                    data-testid={`q-more-${i}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100"
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                }
+              />
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem
+                  data-testid={`q-del-${i}`}
+                  onClick={() => onDelete(q.id)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" /> Hapus soal
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
