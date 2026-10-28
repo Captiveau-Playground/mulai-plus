@@ -454,8 +454,11 @@ function LegacyWizard({
       // supaya siswa tetap melihat emoji (bukan label teks saja).
       _optLabels: (() => {
         const opts = (q.opts ?? []) as any[];
-        // Fallback emoji HANYA untuk mode "Emoji / ikon" yang datanya belum punya ikon.
-        // Skala likert angka (1..5) atau teks TIDAK boleh diganti emoji.
+        // Skala ANGKA (label "1".."5") selalu menang atas ikon — kalau admin memilih
+        // angka, siswa harus melihat angka, bukan emoji sisa data lama.
+        const numeric = opts.length > 0 && opts.every((x) => /^\d+$/.test(String(x.label ?? "").trim()));
+        if (numeric) return opts.map((x) => String(x.label).trim());
+        // Fallback emoji HANYA untuk mode "Emoji / ikon" yang belum punya ikon.
         const emojiMode = (q as any).presentationMode === "emoji_option";
         const hasIcon = opts.some((x) => x.icon && String(x.icon).trim());
         if (emojiMode && !hasIcon) {

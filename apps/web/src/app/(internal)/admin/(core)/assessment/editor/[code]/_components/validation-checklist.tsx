@@ -80,6 +80,9 @@ export function buildChecks(input: {
         if (os.length === 0) return false;
         const isScale = q.presentationMode === "emoji_option" || q.questionType === "likert";
         if (!isScale) return false;
+        // Skala angka (label 1..5) tidak butuh ikon walau mode tampilan "Emoji"
+        const numeric = os.every((o) => /^\d+$/.test(String(o.label ?? "").trim()));
+        if (numeric) return false;
         if (q.presentationMode === "emoji_option") {
           return os.some((o) => !(o.icon && String(o.icon).trim()));
         }

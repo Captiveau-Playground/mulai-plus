@@ -186,6 +186,48 @@ test.describe("Siswa · keyboard opsi 5/6 & emoji animasi", () => {
   });
 });
 
+/* ── Skala ANGKA: admin memilih angka 1..5 → siswa melihat angka, bukan emoji ── */
+test.describe("Siswa · skala angka (bukan emoji)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAdmin(page);
+  });
+
+  test("likert mode Emoji tapi label angka → render angka 1..5, tanpa emoji", async ({ page }) => {
+    test.setTimeout(90000);
+    const fx = await buildOne(page, "Skala angka", [
+      {
+        questionText: "Seberapa sering kamu memakai alat ukur presisi?",
+        questionType: "likert",
+        // sengaja tetap mode emoji + ikon lama, tapi admin mengganti label jadi angka
+        presentationMode: "emoji_option",
+        options: [1, 2, 3, 4, 5].map((n, i) => ({
+          optionValue: "ABCDE"[i] ?? "A",
+          label: String(n),
+          icon: ["😡", "🙁", "😐", "🙂", "😍"][i],
+          imageCaption: String(n),
+          score: n,
+        })),
+      },
+    ]);
+
+    await startTest(page, fx.code, fx.versionId);
+    await expect(page.getByText(/Seberapa sering kamu memakai alat ukur/)).toBeVisible({ timeout: 20000 });
+
+    // angka tampil (span angka di dalam tombol opsi), emoji tidak
+    const labels = await page.evaluate(() =>
+      [...document.querySelectorAll("button span")]
+        .map((el) => (el.textContent ?? "").trim())
+        .filter((t) => /^[1-5]$/.test(t)),
+    );
+    expect(new Set(labels).size, `harus ada 5 angka berbeda (dapat: ${JSON.stringify(labels)})`).toBe(5);
+    await expect(page.locator('[data-testid="likert-emoji"]')).toHaveCount(0);
+
+    // tetap bisa dijawab lewat keyboard angka
+    await page.keyboard.press("3");
+    await expect(page.getByText(/Seberapa sering kamu memakai alat ukur/)).toBeHidden({ timeout: 20000 });
+  });
+});
+
 /* ── Fallback: data skala TANPA ikon tetap tampil emoji animasi (bukan label saja) ── */
 test.describe("Siswa · skala tanpa ikon tetap emoji animasi", () => {
   test.beforeEach(async ({ page }) => {

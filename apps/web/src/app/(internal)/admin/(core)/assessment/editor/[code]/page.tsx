@@ -1983,7 +1983,9 @@ function QuestionPanel({
             // keduanya berisi caption yang sama, jadi tampil dobel dan emojinya hilang.)
             <div className="mt-2 space-y-1.5">
               {form.options.slice(0, 6).map((o: any, i: number) => {
-                const glyph = String(o.icon || o.label || i + 1);
+                // Kalau opsi berupa angka (1..5), tampilkan angka (bukan emoji lama)
+                const allNumeric = form.options.every((x: any) => /^\d+$/.test(String(x.label ?? "").trim()));
+                const glyph = String((allNumeric ? o.label : o.icon || o.label) || i + 1);
                 const caption = String(o.imageCaption || (o.icon ? (o.label ?? "") : ""));
                 return (
                   <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
