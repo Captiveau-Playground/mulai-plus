@@ -25,6 +25,7 @@ export interface SettingsPanelProps {
     id: string;
     dimensionId: string;
     questionType: string;
+    isActive?: boolean;
     scaleId?: string | null;
     displayOrder?: number | null;
   }[];
@@ -124,7 +125,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
     name: assess.name,
     code: assess.code,
     dimensions: dims,
-    questions,
+    // Hanya soal AKTIF — soal yang sudah dinonaktifkan tidak ikut dirilis,
+    // jadi tidak boleh membuat checklist merah.
+    questions: questions.filter((q) => q.isActive !== false),
     options,
     totalDim,
     resultDimCount: resultN,

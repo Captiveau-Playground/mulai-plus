@@ -33,6 +33,8 @@ interface Qn {
   dimensionId: string;
   questionText: string;
   questionType: string;
+  /** soal nonaktif tetap tampil di daftar, tapi TIDAK dihitung pada checklist rilis */
+  isActive?: boolean;
   weight?: number;
   hasMathNotation?: boolean;
   displayOrder: number;

@@ -274,6 +274,13 @@
       "when": 1730000000000,
       "tag": "0043_fix_emoji_icons_and_talent_mix",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0044_talent_deactivate_likert_draft",
+      "breakpoints": true
     }
   ]
 }
