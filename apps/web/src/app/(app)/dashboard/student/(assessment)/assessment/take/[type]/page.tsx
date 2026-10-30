@@ -3,14 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
-import { ArrowRight, Check, Flame, Home, Sparkles, Timer, X } from "lucide-react";
+import { ArrowRight, Check, Home, Sparkles, Timer, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatedEmoji } from "@/components/assessment/animated-emoji";
-import { EngineRun } from "@/components/assessment/engine-run";
 import { Latex } from "@/components/assessment/latex";
 import { StreakFlame } from "@/components/assessment/streak-flame";
 import { trackEvent } from "@/lib/analytics";
@@ -103,6 +102,29 @@ function EngineWrapper({
           studentId: sid,
           versionId: versionId ?? undefined,
         } as any)) as any;
+        // (M2.3) Kelas punya jadwal & sedang di luar window → tampilkan pesan jadwal,
+        // bukan error generik. (Server tetap sumber kebenaran penolakannya.)
+        if (st?.ok === false) {
+          const fmt = (iso?: string | null) =>
+            iso
+              ? new Date(iso).toLocaleString("id-ID", {
+                  weekday: "short",
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "-";
+          const kelas = (st as any).className ? `kelas ${(st as any).className}` : "kelasmu";
+          setErrg(
+            (st as any).error === "window_not_started"
+              ? `Tes untuk ${kelas} dibuka mulai ${fmt((st as any).windowStart)}.`
+              : (st as any).error === "window_ended"
+                ? `Jadwal tes untuk ${kelas} sudah berakhir (${fmt((st as any).windowStart)} – ${fmt((st as any).windowEnd)}).`
+                : "Gagal memuat tes",
+          );
+          return;
+        }
         setReady({
           sessionId: st.sessionId,
           questions: (cfg.questions ?? []).filter((q: any) => q.isActive),
@@ -196,6 +218,18 @@ function LegacyWizard({
     }
     router.push("/dashboard/student/assessment");
   };
+  /** Tombol keleluar (X) yang bisa dipakai di layar mana pun: intro, bagian, overlay. */
+  const exitBtn = (
+    <button
+      type="button"
+      onClick={() => setExitOpen(true)}
+      aria-label="Keluar test"
+      data-testid="exit-button"
+      className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm transition-colors hover:bg-gray-200"
+    >
+      <X className="h-4 w-4" />
+    </button>
+  );
   /** Cegat klik Link saat preview (halaman selesai/CTA) agar tidak pindah rute. */
   const guardLink = (e: React.MouseEvent) => {
     if (!isPreviewMode) return;
@@ -219,7 +253,7 @@ function LegacyWizard({
     resumedRef.current = true;
     (async () => {
       try {
-        const rs = (await (client as any).discover.session({ sessionId: engine!.sessionId })) as any;
+        const rs = (await (client as any).discover.session({ sessionId: engine?.sessionId })) as any;
         const answeredSetNow: Set<string> = new Set((rs?.answers ?? []).map((a: any) => String(a.questionId)));
         setAnsweredSet(answeredSetNow);
         answeredRef.current = answeredSetNow;
@@ -248,17 +282,17 @@ function LegacyWizard({
         setIntro(true);
       }
     })();
-  }, [isEngine, engine?.sessionId]);
+  }, [isEngine, engine?.sessionId, engineQs.map, engineQs]);
   const otherDoneQ = useQuery({
     queryKey: ["engine-other-done", engine?.code, engine?.studentId],
     enabled: isEngine && !!engine?.studentId,
-    queryFn: () => (client as any).discover.resultsFor({ code: engine!.otherCode, studentId: engine!.studentId }),
+    queryFn: () => (client as any).discover.resultsFor({ code: engine?.otherCode, studentId: engine?.studentId }),
   });
   const otherDone = isEngine ? (otherDoneQ.data as any)?.present === true : false;
   const attQ = useQuery({
     queryKey: ["engine-attempts", engine?.studentId],
     enabled: isEngine && !!engine?.studentId,
-    queryFn: () => (client as any).discover.attempts({ studentId: engine!.studentId }),
+    queryFn: () => (client as any).discover.attempts({ studentId: engine?.studentId }),
   });
   const attempts: any[] = (attQ.data as any)?.attempts ?? [];
   const attemptNo =
@@ -266,7 +300,7 @@ function LegacyWizard({
   const params = useParams();
   const router = useRouter();
   const testCode = isEngine
-    ? engine!.code === "DISCOVER"
+    ? engine?.code === "DISCOVER"
       ? "interest"
       : "ability"
     : (params.type as string) === "ability"
@@ -335,10 +369,10 @@ function LegacyWizard({
   const [resultId, setResultId] = useState<string | null>(null);
   const [_correctCount, setCorrectCount] = useState(0);
   const [xpEarned, setXpEarned] = useState(0);
-  const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
+  const [_lastCorrect, setLastCorrect] = useState<boolean | null>(null);
   const [streak, setStreak] = useState(0);
   const [combo, setCombo] = useState(0);
-  const [xpFlash, setXpFlash] = useState(0);
+  const [_xpFlash, setXpFlash] = useState(0);
   const [comboPop, setComboPop] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [banner, setBanner] = useState<string | null>(null);
@@ -416,8 +450,28 @@ function LegacyWizard({
       _textMode: (q as any).textEval?.inputMode ?? null,
       // Skala/emoji: ikon jadi label UTAMA, caption jadi teks kecil di bawah.
       // (sebelumnya label = caption sehingga emoji tidak pernah tampil di halaman siswa)
-      _optLabels: (q.opts ?? []).map((x: any) => x.icon ?? x.label ?? ""),
-      _optCaps: (q.opts ?? []).map((x: any) => x.imageCaption ?? (x.icon ? (x.label ?? "") : "")),
+      // Skala emoji: kalau data opsi belum punya ikon, pakai skala emoji default
+      // supaya siswa tetap melihat emoji (bukan label teks saja).
+      _optLabels: (() => {
+        const opts = (q.opts ?? []) as any[];
+        // Skala ANGKA (label "1".."5") selalu menang atas ikon — kalau admin memilih
+        // angka, siswa harus melihat angka, bukan emoji sisa data lama.
+        const numeric = opts.length > 0 && opts.every((x) => /^\d+$/.test(String(x.label ?? "").trim()));
+        if (numeric) return opts.map((x) => String(x.label).trim());
+        // Fallback emoji HANYA untuk mode "Emoji / ikon" yang belum punya ikon.
+        const emojiMode = (q as any).presentationMode === "emoji_option";
+        const hasIcon = opts.some((x) => x.icon && String(x.icon).trim());
+        if (emojiMode && !hasIcon) {
+          const def = ["😖", "🙁", "😐", "🙂", "😄"];
+          return opts.map((_, i) => def[Math.min(i, def.length - 1)]);
+        }
+        return opts.map((x) => x.icon ?? x.label ?? "");
+      })(),
+      _optCaps: (() => {
+        const opts = (q.opts ?? []) as any[];
+        const hasIcon = opts.some((x) => x.icon && String(x.icon).trim());
+        return opts.map((x) => x.imageCaption ?? (hasIcon ? (x.label ?? "") : (x.label ?? "")));
+      })(),
     } as unknown as Question);
     setProgress(i + 1);
     setTotal(effQs.length);
@@ -425,7 +479,7 @@ function LegacyWizard({
   };
   const engineFinish = async () => {
     try {
-      const r = (await client.discover.finish({ sessionId: engine!.sessionId } as any)) as any;
+      const r = (await client.discover.finish({ sessionId: engine?.sessionId } as any)) as any;
       setXpEarned(r?.xpEarned ?? 0);
     } catch {
       /* ok */
@@ -436,7 +490,7 @@ function LegacyWizard({
     setTimeout(() => setAchPop(true), 500);
     /* completion dicatat di SERVER (resultsFor) — no localStorage */
   };
-  const [secDone, setSecDone] = useState(0);
+  const [_secDone, setSecDone] = useState(0);
   const [secStreak, setSecStreak] = useState(0);
   const [secOverlay, setSecOverlay] = useState<{ nextEq: number; doneName: string; nextName: string } | null>(null);
   const [secStart, setSecStart] = useState<{ eqIndex: number; name: string } | null>(null);
@@ -457,7 +511,9 @@ function LegacyWizard({
     // Tanpa pembagian bagian → satu segmen saja (top-bar tidak menampilkan "bagian")
     if (!sectionsOn) {
       const ids = (effQs as any[]).map((q) => q?.id).filter(Boolean);
-      return [{ name: "Tes", ids, count: ids.length }];
+      // Tanpa pembagian bagian: tampilkan NAMA TES, bukan label generik "Tes"
+      const single = isInterest ? "Tes Minat" : "Tes Bakat";
+      return [{ name: single, ids, count: ids.length }];
     }
     const out: { name: string; ids: string[]; count: number }[] = [];
     for (const q of effQs as any[]) {
@@ -469,7 +525,8 @@ function LegacyWizard({
       } else out.push({ name: nm, ids: [q.id], count: 1 });
     }
     return out;
-  }, [effQs, sectionsOn]); // eslint-disable-line react-hooks/exhaustive-deps
+    // biome-ignore lint/correctness/useExhaustiveDependencies: deps sengaja dibatasi (hindari re-render tiap soal)
+  }, [effQs, sectionsOn, dimNameOf, isInterest]);
   const curSec = Math.min(dimIdxOf(eq), Math.max(0, secs.length - 1));
   const curSecName = secs[curSec]?.name ?? "";
   // Suara mikro (tanpa berkas) — WebAudio
@@ -561,7 +618,7 @@ function LegacyWizard({
       return;
     }
     void client.discover
-      .submit({ sessionId: engine!.sessionId, questionId: question.id, optionId: optId } as any)
+      .submit({ sessionId: engine?.sessionId, questionId: question.id, optionId: optId } as any)
       .then((r: any) => {
         if (r && r.ok === false) console.warn("[engine] submit ditolak", r);
       })
@@ -578,12 +635,53 @@ function LegacyWizard({
   const [etv, setEtv] = useState("");
   const [savedByQ, setSavedByQ] = useState<Record<string, { letter?: string; text?: string }>>({}); // jawaban tersimpan per soal (resume)
   const [exitOpen, setExitOpen] = useState(false); // konfirmasi keluar ala Duolingo
+  /**
+   * Dialog konfirmasi keluar — dirender sebagai overlay yang SAMA di semua layar
+   * (intro, layar bagian, soal). Dulu hanya ada di layar soal sehingga X di intro
+   * tidak memunculkan apa pun.
+   */
+  const exitOverlay = exitOpen ? (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center">
+      <button
+        type="button"
+        aria-label="Tutup dialog"
+        className="absolute inset-0 bg-bg-light/60 backdrop-blur-sm"
+        onClick={() => setExitOpen(false)}
+      />
+      <div className="relative w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10 text-2xl">
+          💾
+        </span>
+        <h3 className="mt-3 font-bold font-bricolage text-gray-900 text-lg">Progresmu aman</h3>
+        <p className="mt-1 font-manrope text-gray-500 text-sm">
+          Jawaban tersimpan otomatis — lanjutkan kapan saja dari posisi terakhir.
+        </p>
+        <div className="mt-5 space-y-2">
+          <button
+            type="button"
+            onClick={() => setExitOpen(false)}
+            className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110"
+          >
+            Lanjut Test
+          </button>
+          <button
+            type="button"
+            onClick={keluar}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
+          >
+            Keluar & Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   const [mapOpen, setMapOpen] = useState(false); // panel Peta Soal (bottom sheet)
   const [savedFlash, setSavedFlash] = useState(false); // chip "tersimpan" singkat
   const [achPop, setAchPop] = useState(false); // modal perayaan brand saat tes selesai
   const [timerSt, setTimerSt] = useState<any | null>(null); // heartbeat timer (otoritas server)
   const [timerNotice, setTimerNotice] = useState<string | null>(null); // banner "waktu habis"
-  const [tick, setTick] = useState(0); // re-render tiap detik utk countdown & cek deadline
+  const [_tick, setTick] = useState(0); // re-render tiap detik utk countdown & cek deadline
   const jumpRef = useRef<string>(""); // cegah lompat dobel
 
   // ⏱ Deadline EFEKTIF untuk satu soal — timer bisa beda scope per dimensi (#7):
@@ -653,9 +751,10 @@ function LegacyWizard({
     );
     timerJump(target);
     setTimeout(() => setTimerNotice(null), 3000);
-  }, [timerSt, eq, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+    // biome-ignore lint/correctness/useExhaustiveDependencies: timer tick sengaja hanya bergantung nilai ini
+  }, [timerSt, eq, effQs.length, engineFinish, timerJump, isEngine, serverNowEst, deadlineOf]);
 
-  const [lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
+  const [_lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
     if (dimExpiredNow() || questionExpiredNow()) {
@@ -666,7 +765,7 @@ function LegacyWizard({
     setRevealed(true);
     markAnswered(question.id);
     void client.discover
-      .submitText({ sessionId: engine!.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
+      .submitText({ sessionId: engine?.sessionId, questionId: question.id, textAnswer: etv.trim() } as any)
       .then((r: any) => {
         if (r && r.ok === false) console.warn("[engine] submitText ditolak", r);
         else if (r) {
@@ -684,7 +783,7 @@ function LegacyWizard({
     let alive = true;
     const sync = async () => {
       try {
-        const r = (await (client as any).discover.timerState({ sessionId: engine!.sessionId })) as any;
+        const r = (await (client as any).discover.timerState({ sessionId: engine?.sessionId })) as any;
         if (alive && r?.ok) setTimerSt({ ...r, _localAt: Date.now() });
       } catch {
         /* offline: biarkan state terakhir */
@@ -736,25 +835,25 @@ function LegacyWizard({
         }
         setTimeout(() => {
           if (data.done) {
-            finishMutation.mutate({ attemptId: attemptId! });
+            finishMutation.mutate({ attemptId: attemptId ?? "" });
           } else {
             setProgress(data.progress);
             setSelected(null);
             setRevealed(false);
             setLastCorrect(null);
-            loadQuestion(attemptId!);
+            loadQuestion(attemptId ?? "");
           }
         }, 800);
         return;
       }
 
       if (data.done) {
-        finishMutation.mutate({ attemptId: attemptId! });
+        finishMutation.mutate({ attemptId: attemptId ?? "" });
       } else {
         setProgress(data.progress);
         setSelected(null);
         setRevealed(false);
-        loadQuestion(attemptId!);
+        loadQuestion(attemptId ?? "");
       }
     },
   });
@@ -824,7 +923,7 @@ function LegacyWizard({
       startMutation.mutate({ testCode });
     }
     // biome-ignore lint/correctness/useExhaustiveDependencies: deps dibatasi sengaja
-  }, [done, testCode, startMutation.mutate, startMutation.isPending, attemptId, isDemo, intro, isEngine]);
+  }, [done, testCode, startMutation.mutate, startMutation.isPending, attemptId, isDemo, intro, isEngine, engineBegin]);
 
   // pakai data dari query jika state kosong
   useEffect(() => {
@@ -874,7 +973,7 @@ function LegacyWizard({
 
     if (!isInterest && question.optionC) {
       setRevealed(true);
-      answerMutation.mutate({ attemptId: attemptId!, questionId: question.id, selectedOption: option });
+      answerMutation.mutate({ attemptId: attemptId ?? "", questionId: question.id, selectedOption: option });
     }
   };
 
@@ -901,11 +1000,17 @@ function LegacyWizard({
       return;
     }
     if (!question || !selected) return;
-    answerMutation.mutate({ attemptId: attemptId!, questionId: question.id, selectedOption: selected });
+    answerMutation.mutate({ attemptId: attemptId ?? "", questionId: question.id, selectedOption: selected });
   };
   // Keyboard: A-D / 1-4 pilih opsi, Enter konfirmasi (interest)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Jangan bajak shortcut browser: Ctrl/Cmd/Alt + huruf (mis. Ctrl+C copy,
+      // Cmd+V paste) TIDAK boleh memilih opsi.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // Jangan bereaksi saat siswa mengetik di kolom isian (jawaban teks / search).
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       const liveQ = isDemo ? (DEMO_QUESTIONS[demoIdx] as unknown as Question) : question;
       if (done || !liveQ || (isDemo ? false : answerMutation.isPending)) return;
       const letter = e.key.toLowerCase();
@@ -924,11 +1029,15 @@ function LegacyWizard({
           ? 2
           : [liveQ.optionA, liveQ.optionB, liveQ.optionC, liveQ.optionD].filter(Boolean).length;
       if (idx >= optCount) return;
-      const optKey = "ABCDEF"[idx]!;
+      const optKey = "ABCDEF"[idx] ?? "";
+      if (!optKey) return;
       if (!revealed) handleSelect(optKey);
     };
     const onEnter = (e: KeyboardEvent) => {
-      if (e.key !== "Enter" || done || !question || !isInterest) return;
+      if (e.key !== "Enter" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const te = e.target as HTMLElement | null;
+      if (te && (te.tagName === "TEXTAREA" || te.isContentEditable)) return;
+      if (done || !question || !isInterest) return;
       if (selected && !revealed && !answerMutation.isPending) handleConfirmInterest();
     };
     window.addEventListener("keydown", onKey);
@@ -937,7 +1046,6 @@ function LegacyWizard({
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keydown", onEnter);
     };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: deps dibatasi sengaja
   }, [
     done,
     question,
@@ -947,9 +1055,13 @@ function LegacyWizard({
     answerMutation.isPending,
     demoIdx,
     isDemo,
+    // biome-ignore lint/correctness/useExhaustiveDependencies: handler demo dibuat ulang tiap render (disengaja)
     handleSelect,
+    // biome-ignore lint/correctness/useExhaustiveDependencies: handler demo dibuat ulang tiap render (disengaja)
     handleConfirmInterest,
+    // biome-ignore lint/correctness/useExhaustiveDependencies: konstanta demo statis
     DEMO_QUESTIONS,
+    isEngine,
   ]);
 
   if (done) {
@@ -1002,11 +1114,11 @@ function LegacyWizard({
                   </Link>
                 ) : (
                   <Link
-                    href={`/dashboard/student/assessment/take/${engine!.otherCode}`}
+                    href={`/dashboard/student/assessment/take/${engine?.otherCode}`}
                     onClick={guardLink}
                     className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
                   >
-                    Lanjut ke {engine!.otherLabel} <ArrowRight className="h-5 w-5" />
+                    Lanjut ke {engine?.otherLabel} <ArrowRight className="h-5 w-5" />
                   </Link>
                 );
               })()
@@ -1039,10 +1151,13 @@ function LegacyWizard({
 
         {/* MODAL PERAYAAN brand (hand-built) */}
         {achPop && (
-          <div
-            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-            onClick={() => setAchPop(false)}
-          >
+          <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
+            <button
+              type="button"
+              aria-label="Tutup perayaan"
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setAchPop(false)}
+            />
             <motion.div
               initial={{ scale: 0.9, y: 10 }}
               animate={{ scale: 1, y: 0 }}
@@ -1071,6 +1186,7 @@ function LegacyWizard({
                   +{xpEarned} <b className="text-amber-400">XP</b> · streak 🔥 {streak} hari — pertahankan!
                 </p>
                 <button
+                  type="button"
                   onClick={() => setAchPop(false)}
                   className="mt-5 w-full rounded-2xl bg-brand-orange px-5 py-3 font-bold font-bricolage text-sm text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
                 >
@@ -1087,6 +1203,8 @@ function LegacyWizard({
     const nSec = engine?.sections ?? Math.max(1, new Set(effQs.map((q) => q.dimensionId)).size);
     return (
       <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-start overflow-y-auto bg-bg-light px-6 py-10 text-center sm:justify-center">
+        {exitBtn}
+        {exitOverlay}
         <div className="h-24 w-24 overflow-hidden">
           <Image
             src="/maskot/masko-book.webp"
@@ -1097,7 +1215,7 @@ function LegacyWizard({
           />
         </div>
         <h1 className="mt-5 font-bold font-bricolage text-3xl text-gray-900">
-          {engine!.code === "DISCOVER" ? "Tes Minat" : "Tes Bakat"}
+          {engine?.code === "DISCOVER" ? "Tes Minat" : "Tes Bakat"}
         </h1>
         <p className="mt-2 font-manrope text-gray-500 text-sm">Sebelum mulai, ini info testnya:</p>
         <div className="mt-5 flex w-full max-w-sm flex-wrap items-center justify-center gap-2">
@@ -1155,6 +1273,7 @@ function LegacyWizard({
           </div>
         )}
         <button
+          type="button"
           onClick={() => {
             setIntro(false);
           }}
@@ -1175,6 +1294,8 @@ function LegacyWizard({
         animate={{ opacity: 1, scale: 1 }}
         className="fixed inset-0 z-[90] flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-bg-light px-6 py-10 text-center"
       >
+        {exitBtn}
+        {exitOverlay}
         <div className="h-24 w-24 overflow-hidden">
           <Image
             src="/maskot/masko-book.webp"
@@ -1211,6 +1332,7 @@ function LegacyWizard({
           );
         })()}
         <button
+          type="button"
           onClick={() => {
             setSecStart(null);
             setSelected(null);
@@ -1223,6 +1345,7 @@ function LegacyWizard({
         </button>
         {allowPause && dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
           <button
+            type="button"
             onClick={keluar}
             className="mt-3 font-manrope font-semibold text-gray-400 text-sm underline-offset-2 hover:text-gray-600 hover:underline"
           >
@@ -1241,6 +1364,8 @@ function LegacyWizard({
         animate={{ opacity: 1, scale: 1 }}
         className="fixed inset-0 z-[90] flex items-center justify-center bg-bg-light p-4"
       >
+        {exitBtn}
+        {exitOverlay}
         <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-16 w-16 overflow-hidden rounded-2xl bg-teal-50">
             <Image
@@ -1258,6 +1383,7 @@ function LegacyWizard({
           </p>
           <div className="mt-5 space-y-2">
             <button
+              type="button"
               onClick={() => {
                 setSecOverlay(null);
                 setSelected(null);
@@ -1270,6 +1396,7 @@ function LegacyWizard({
             </button>
             {allowPause && dimIdxOf(secOverlay.nextEq) < totalDims && (
               <button
+                type="button"
                 onClick={keluar}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
               >
@@ -1479,15 +1606,28 @@ function LegacyWizard({
                 <span className="flex shrink-0 items-center gap-1.5">
                   <span className="font-bold text-amber-600">+{xpEarned} XP</span>
                   <button
+                    type="button"
                     onClick={() => setMapOpen(true)}
                     className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-bold text-gray-600 transition-colors hover:bg-gray-100"
                   >
                     🗺 {answeredSet?.size ?? 0}/{effQs.length}
                   </button>
-                  {_mmss ? (
+                  {/* (B) Elapsed time SELALU tampil (termasuk mobile); countdown tampil
+                      bersamanya saat timer aktif — jadi siswa tahu berjalan & sisa waktu. */}
+                  <span
+                    data-testid="elapsed-chip"
+                    title="Waktu berjalan"
+                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 font-manrope font-semibold text-[10px] text-slate-600 tabular-nums sm:px-2 sm:text-[11px]"
+                  >
+                    <Timer className="h-3 w-3" />
+                    {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
+                  </span>
+                  {_mmss && (
                     <span
+                      data-testid="countdown-chip"
+                      title="Sisa waktu"
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold font-manrope text-[11px] tabular-nums",
+                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-bold font-manrope text-[10px] tabular-nums sm:px-2 sm:text-[11px]",
                         _tone === "crit"
                           ? "animate-pulse bg-red-100 text-red-600"
                           : _tone === "warn"
@@ -1497,11 +1637,6 @@ function LegacyWizard({
                     >
                       <Timer className="h-3 w-3" />
                       {_mmss}
-                    </span>
-                  ) : (
-                    <span className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-500 tabular-nums sm:inline-flex">
-                      <Timer className="h-3 w-3" />
-                      {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
                     </span>
                   )}
                   <span className="hidden sm:inline-flex">
@@ -1514,14 +1649,14 @@ function LegacyWizard({
 
           {/* PETA SOAL (bottom sheet) — grid lengkap, dibuka via tombol 🗺 */}
           {mapOpen && (
-            <div
-              className="fixed inset-0 z-[85] flex items-end justify-center bg-black/40 backdrop-blur-sm"
-              onClick={() => setMapOpen(false)}
-            >
-              <div
-                className="max-h-[72vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
+            <div className="fixed inset-0 z-[85] flex items-end justify-center">
+              <button
+                type="button"
+                aria-label="Tutup peta jurusan"
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={() => setMapOpen(false)}
+              />
+              <div className="relative max-h-[72vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-2xl">
                 <div className="flex items-center justify-between">
                   <p className="font-bold font-bricolage text-gray-900">🗺 Peta Soal</p>
                   <div className="flex items-center gap-2">
@@ -1529,6 +1664,7 @@ function LegacyWizard({
                       {answeredSet?.size ?? 0}/{effQs.length} terjawab
                     </span>
                     <button
+                      type="button"
                       onClick={() => setMapOpen(false)}
                       className="rounded-full p-1 text-gray-400 hover:bg-gray-100"
                     >
@@ -1549,13 +1685,14 @@ function LegacyWizard({
                         {sc.name}
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {sc.ids.map((id, ii) => {
+                        {sc.ids.map((id, _ii) => {
                           const gi = effQs.findIndex((q: any) => q.id === id);
                           const done = answeredSet?.has(id) ?? false;
                           const active = eq === gi;
                           const locked = _expiredDims.has(effQs[gi]?.dimensionId);
                           return (
                             <button
+                              type="button"
                               key={id}
                               disabled={locked}
                               title={locked ? "Waktu bagian ini habis" : `Soal ${gi + 1}`}
@@ -1581,39 +1718,8 @@ function LegacyWizard({
           )}
 
           {/* KONFIRMASI KELUAR (Duolingo-style): progres aman */}
-          {exitOpen && (
-            <div
-              className="fixed inset-0 z-[95] flex items-center justify-center bg-bg-light/60 backdrop-blur-sm"
-              onClick={() => setExitOpen(false)}
-            >
-              <div
-                className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-orange/10 text-2xl">
-                  💾
-                </span>
-                <h3 className="mt-3 font-bold font-bricolage text-gray-900 text-lg">Progresmu aman</h3>
-                <p className="mt-1 font-manrope text-gray-500 text-sm">
-                  Jawaban tersimpan otomatis — lanjutkan kapan saja dari posisi terakhir.
-                </p>
-                <div className="mt-5 space-y-2">
-                  <button
-                    onClick={() => setExitOpen(false)}
-                    className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110"
-                  >
-                    Lanjut Test
-                  </button>
-                  <button
-                    onClick={keluar}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
-                  >
-                    Keluar & Simpan
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+
+          {exitOverlay}
 
           {/* Combo bubble */}
           {comboPop >= 3 && (
@@ -1673,6 +1779,7 @@ function LegacyWizard({
               </h2>
               {isEngine && (liveQuestion as any)._media && (
                 <figure className="mt-3">
+                  {/* biome-ignore lint/performance/noImgElement: media dinamis dari R2 */}
                   <img
                     src={(liveQuestion as any)._media}
                     alt={(liveQuestion as any)._mediaCap ?? "Gambar soal"}
@@ -1709,7 +1816,6 @@ function LegacyWizard({
                     type="text"
                     inputMode={_textNumeric ? "decimal" : "text"}
                     autoComplete="off"
-                    autoFocus
                     value={etv}
                     onChange={(e) => setEtv(_textNumeric ? e.target.value.replace(/[^\d.,/-]/g, "") : e.target.value)}
                     onKeyDown={(e) => {
@@ -1719,6 +1825,7 @@ function LegacyWizard({
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-3 font-manrope text-base outline-none transition-colors focus:border-mentor-teal"
                   />
                   <button
+                    type="button"
                     onClick={engineSubmitText}
                     disabled={!etv.trim() || revealed}
                     className="shrink-0 rounded-xl bg-brand-navy px-5 py-3 font-bold font-manrope text-sm text-white transition-all hover:brightness-110 disabled:opacity-50"
@@ -1737,13 +1844,13 @@ function LegacyWizard({
               // mudah dibaca & disentuh di layar sempit.
               <div className="space-y-2.5">
                 {((liveQuestion as any)._optLabels ?? []).slice(0, 6).map((lab: string, i: number) => {
-                  const key = "ABCDEF"[i]!;
+                  const key = "ABCDEF"[i] ?? "A";
                   const isSel = selected === key;
                   const cap = (liveQuestion as any)._optCaps?.[i] ?? "";
                   return (
                     <button
-                      key={key}
                       type="button"
+                      key={key}
                       onClick={() => engineSelect(key)}
                       className={cn(
                         "flex w-full items-center gap-3 rounded-2xl border-2 bg-white px-4 py-3 text-left shadow-sm transition-all active:scale-[0.99]",
@@ -1815,6 +1922,7 @@ function LegacyWizard({
                         </span>
                       )}
                       {oi && (
+                        // biome-ignore lint/performance/noImgElement: media dinamis dari R2
                         <img
                           src={oi}
                           alt=""
@@ -1904,6 +2012,7 @@ function LegacyWizard({
                         </span>
                       )}
                       {oi && (
+                        // biome-ignore lint/performance/noImgElement: media dinamis dari R2
                         <img
                           src={oi}
                           alt=""
@@ -1938,7 +2047,7 @@ function LegacyWizard({
   );
 }
 
-function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+function _InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
     <div className={`flex items-center justify-between rounded-xl px-3 py-2 ${last ? "" : "border-gray-50 border-b"}`}>
       <span className="font-manrope text-gray-500 text-xs">{label}</span>

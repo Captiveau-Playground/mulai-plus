@@ -1,5 +1,5 @@
 import { and, asc, db, desc, eq, inArray, schema } from "@mulai-plus/db/db";
-import { tmbAssessmentResults, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
+import { tmbAssessmentResults, tmbBatches, tmbBatchStudents, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
 import {
   deleteFromR2,
   extractKeyFromUrl,
@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
+import { notifyBatchComplete, notifyResultReady } from "../lib/assessment-notify";
 import { evaluateTextInput } from "../lib/evaluate-input";
 import { recommendForResult } from "../lib/recommend";
 import { computeRecommendations, getProdiList } from "./tmb";
@@ -83,6 +84,47 @@ async function questionsOf(versionId: string): Promise<QuestionRow[]> {
 }
 
 // ─── Publik ─────────────────────────────────────────────
+
+/**
+ * (security) Identitas pengerja tes.
+ *
+ * Endpoint discovery tetap `publicProcedure` (dipakai mode preview & e2e tanpa
+ * cookie), tetapi identitas TIDAK boleh ditentukan bebas oleh klien:
+ *  • user login  → `studentId` dipaksa dari sesi (kecuali id `preview-*`),
+ *  • tanpa login → hanya bila `ASSESSMENT_ALLOW_ANON=1` (staging/e2e) atau preview.
+ */
+function actorOf(context: any): { id: string | null; role: string | null } {
+  const u = context?.session?.user;
+  return { id: u?.id ?? null, role: (u as any)?.role ?? null };
+}
+
+function allowAnonAssessment(): boolean {
+  return process.env.ASSESSMENT_ALLOW_ANON === "1";
+}
+
+/** Tentukan studentId efektif; `error` diisi bila identitas tidak sah. */
+function resolveStudentId(
+  context: any,
+  requested: string,
+): { studentId?: string; error?: "identity_mismatch" | "login_required" } {
+  const actor = actorOf(context);
+  const isPreview = requested.startsWith("preview-");
+  if (isPreview) return { studentId: requested };
+  if (actor.id) {
+    if (requested !== actor.id) return { error: "identity_mismatch" };
+    return { studentId: actor.id };
+  }
+  if (allowAnonAssessment()) return { studentId: requested };
+  return { error: "login_required" };
+}
+
+/** Boleh membaca/mengubah sesi ini? (pemilik, sesi preview, atau mode anon e2e) */
+function canAccessSession(sess: { studentId: string }, context: any): boolean {
+  if (sess.studentId.startsWith("preview-")) return true;
+  const actor = actorOf(context);
+  if (actor.id) return sess.studentId === actor.id;
+  return allowAnonAssessment();
+}
 
 export const discoverRouter = {
   /** Konten asesmen versi LIVE (config + dims + soals). */
@@ -214,7 +256,11 @@ export const discoverRouter = {
         versionId: z.string().optional(),
       }),
     )
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
+      const studentId = who.studentId as string;
+
       const v = input.versionId
         ? ((await db.query.assessmentVersions.findFirst({
             where: eq(schema.assessmentVersions.id, input.versionId),
@@ -222,6 +268,58 @@ export const discoverRouter = {
         : await getLiveVersion(input.code);
       if (!v) return { ok: false, error: "assessment_not_found" } as const;
       const c = (v.configJson ?? {}) as any;
+
+      // (M2.3) WINDOW JADWAL KELAS (B2B): siswa hanya boleh MEMULAI di dalam rentang
+      // jadwal kelasnya. Jika kelas punya jadwal dan semuanya sedang tutup → tolak dengan
+      // kode yang jelas (UI menampilkan waktu bukanya). Yang sudah mulai tetap boleh
+      // menyelesaikan (grace) karena pemeriksaan hanya di titik mulai.
+      try {
+        const roster = await db.query.tmbBatchStudents.findMany({
+          where: eq(tmbBatchStudents.userId, studentId),
+          columns: { batchId: true },
+        });
+        if (roster.length) {
+          const batches = await db.query.tmbBatches.findMany({
+            where: inArray(
+              tmbBatches.id,
+              roster.map((r) => r.batchId),
+            ),
+            columns: { id: true, name: true, scheduleMode: true, windowStart: true, windowEnd: true },
+          });
+          const nowMs = Date.now();
+          const winStart = (b: any) => (b.windowStart ? new Date(b.windowStart).getTime() : null);
+          const winEnd = (b: any) => (b.windowEnd ? new Date(b.windowEnd).getTime() : null);
+          const withWindow = batches.filter((b) => winStart(b) !== null || winEnd(b) !== null);
+          if (withWindow.length) {
+            const open = withWindow.find((b) => {
+              const ws = winStart(b);
+              const we = winEnd(b);
+              return (ws === null || nowMs >= ws) && (we === null || nowMs <= we);
+            });
+            if (!open) {
+              const b = withWindow[0];
+              if (!b) return null;
+              const startMs = winStart(b);
+              return {
+                ok: false,
+                error: startMs !== null && nowMs < startMs ? "window_not_started" : "window_ended",
+                className: b.name,
+                windowStart: b.windowStart,
+                windowEnd: b.windowEnd,
+              } as const;
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error("[engine][b2b] gagal cek window kelas:", e?.message ?? e);
+      }
+
+      // B2B: siswa undangan yang mulai mengerjakan → status roster jadi "in_progress" (guru bisa pantau)
+      try {
+        await markRosterStarted(studentId);
+      } catch (e: any) {
+        console.error("[engine][b2b] gagal menandai roster mulai:", e?.message ?? e);
+      }
 
       // ── Urutan soal sesi ini ────────────────────────────────────────────────
       // randomize_q = true → urutan diacak SEKALI lalu disimpan di sesi (resume tetap sama).
@@ -346,7 +444,7 @@ export const discoverRouter = {
       // "Berhenti & lanjutkan nanti" harus bisa dilanjutkan, bukan bikin sesi baru.
       const existingSess = await db.query.assessmentSessions.findFirst({
         where: and(
-          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.studentId, studentId),
           eq(schema.assessmentSessions.versionId, v.id),
           inArray(schema.assessmentSessions.status, ["in_progress", "paused"] as any),
         ),
@@ -410,7 +508,7 @@ export const discoverRouter = {
       }
       const session = {
         id: uid(),
-        studentId: input.studentId,
+        studentId: studentId,
         versionId: v.id,
         status: "in_progress",
         configJson: { ...v.configJson, timer: serverTimer, questionOrderIds: orderIds, optionOrder },
@@ -428,11 +526,12 @@ export const discoverRouter = {
         optionId: z.string().min(1),
       }),
     )
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
       // ANTI-TAMPER: tolak submit bila deadline (per SOAL atau per DIMENSI) sudah lewat.
       // Timer bisa beda scope per dimensi (#7), jadi tidak lagi bergantung `timer.scope` global.
@@ -488,11 +587,12 @@ export const discoverRouter = {
   /** Jawaban isian (TEXT_INPUT) — Tennessee evaluasi via lib/evaluate-input. */
   submitText: publicProcedure
     .input(z.object({ sessionId: z.string().min(1), questionId: z.string().min(1), textAnswer: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
       });
       if (!sess || sess.status !== "in_progress") return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       const q = await db.query.questions.findFirst({ where: eq(schema.questions.id, input.questionId) });
       if (!q) return { ok: false, error: "question_not_found" } as const;
       const cfg = await db.query.textInputConfigs.findFirst({
@@ -528,11 +628,12 @@ export const discoverRouter = {
   /** Selesaikan → skor per method (SUM/AVG/WEIGHTED) → top-N → profile (tie: waktu→abjad). */
   finish: publicProcedure
     .input(z.object({ sessionId: z.string().min(1), durations: z.record(z.string(), z.number()).optional() }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       if (sess.status === "completed") {
         const r = await db.query.assessmentResults.findFirst({
           where: eq(schema.assessmentResults.sessionId, input.sessionId),
@@ -617,7 +718,8 @@ export const discoverRouter = {
         counts.set(dimId, (counts.get(dimId) ?? 0) + 1);
       }
       if (method === "average") {
-        for (const [k, v] of scores) scores.set(k, counts.get(k) ? Math.round((v / counts.get(k)!) * 1000) / 1000 : 0);
+        for (const [k, v] of scores)
+          scores.set(k, counts.get(k) ? Math.round((v / (counts.get(k) ?? 1)) * 1000) / 1000 : 0);
       }
       const dims = await db.query.assessmentDimensions.findMany({
         where: eq(schema.assessmentDimensions.versionId, sess.versionId),
@@ -667,7 +769,8 @@ export const discoverRouter = {
         .delete(schema.assessmentDimensionScores)
         .where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
       for (let i = 0; i < rows.length; i++) {
-        const row = rows[i]!;
+        const row = rows[i];
+        if (!row) continue;
         await db.insert(schema.assessmentDimensionScores).values({
           id: uid(),
           sessionId: input.sessionId,
@@ -689,6 +792,8 @@ export const discoverRouter = {
         recommendationsJson: recos,
       };
       await db.insert(schema.assessmentResults).values(result);
+      // B2B: id hasil pada pipeline lama — dipakai untuk menautkan hasil ke roster sekolah
+      let b2bResultId: string | null = null;
       // ⚙ Backwrite: hasil engine → pipeline hasil LAMA (kontrak tmb) agar page/template hasil yg ada tetap menampilkan
       try {
         const ver0 = await db.query.assessmentVersions.findFirst({
@@ -727,7 +832,10 @@ export const discoverRouter = {
                 .filter(Boolean)
                 .map((t) => new Date(t as any).getTime())
                 .sort((a, b) => a - b);
-              const seconds = times.length >= 2 ? Math.round((times[times.length - 1]! - times[0]!) / 1000) : 0;
+              const first = times[0];
+              const last = times[times.length - 1];
+              const seconds =
+                times.length >= 2 && first !== undefined && last !== undefined ? Math.round((last - first) / 1000) : 0;
               const answered = qs.filter((q) => ansByQ.has(q.id)).length;
               const dEnd = (timerCfg?.dims ?? []).find((x: any) => x.id === d.id)?.endISO;
               const timedOut = !!dEnd && Date.now() >= new Date(dEnd).getTime() && answered < qs.length;
@@ -788,6 +896,7 @@ export const discoverRouter = {
               dimStats: dimStats as any,
             });
           }
+          b2bResultId = rid;
           // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
           // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)
           if (existingForAttempt) {
@@ -821,7 +930,8 @@ export const discoverRouter = {
               careersList as any,
             );
             for (let i = 0; i < recoCalc.majors.length; i++) {
-              const m = recoCalc.majors[i]!;
+              const m = recoCalc.majors[i];
+              if (!m) continue;
               await db.insert(tmbRecommendations).values({
                 id: uid(),
                 resultId: rid,
@@ -834,7 +944,8 @@ export const discoverRouter = {
               });
             }
             for (let i = 0; i < recoCalc.careers.length; i++) {
-              const c = recoCalc.careers[i]!;
+              const c = recoCalc.careers[i];
+              if (!c) continue;
               await db.insert(tmbRecommendations).values({
                 id: uid(),
                 resultId: rid,
@@ -852,6 +963,25 @@ export const discoverRouter = {
         // backwrite legacy gagal → jangan jatuhkan hasil engine, TAPI tampilkan biar bisa dilacak
         console.error("[engine][backwrite] gagal:", e?.message ?? e);
       }
+      // ── B2B: tautkan hasil ke roster sekolah (kalau siswa ini peserta undangan) ──
+      if (b2bResultId) {
+        try {
+          const n = await linkRosterResult(sess.studentId, b2bResultId);
+          if (n > 0) console.log(`[engine][b2b] hasil ${b2bResultId} ditautkan ke ${n} baris roster sekolah`);
+          // (M5.1) kelas penuh selesai → beri tahu admin sekolah & guru BK
+          const roster = await db.query.tmbBatchStudents.findMany({
+            where: eq(tmbBatchStudents.userId, sess.studentId),
+            columns: { batchId: true },
+          });
+          for (const r of roster) await notifyBatchComplete(r.batchId);
+        } catch (e: any) {
+          console.error("[engine][b2b] gagal menautkan hasil ke roster:", e?.message ?? e);
+        }
+      }
+      // (M5.1) beri tahu siswa bahwa hasilnya siap
+      await notifyResultReady(sess.studentId, profileCode).catch((e: any) =>
+        console.error("[notify] hasil siap gagal:", e?.message ?? e),
+      );
       await db
         .update(schema.assessmentSessions)
         .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
@@ -873,11 +1003,12 @@ export const discoverRouter = {
   /** Jeda (pause) → lanjutkan nanti. */
   pause: publicProcedure
     .input(z.object({ sessionId: z.string().min(1), currentDimensionId: z.string().optional() }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
       const sess = await db.query.assessmentSessions.findFirst({
         where: eq(schema.assessmentSessions.id, input.sessionId),
       });
       if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
       // Hormati setting "Izinkan lanjut kemudian" dari panel Aturan tes.
       if ((sess.configJson as any)?.allow_pause === false) return { ok: false, error: "pause_not_allowed" } as const;
@@ -891,7 +1022,9 @@ export const discoverRouter = {
   /** Sesi aktif milik siswa (resume). */
   mySessions: publicProcedure
     .input(z.object({ studentId: z.string().min(1), code: z.string().default("DISCOVER") }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       const vs = a
         ? await db.query.assessmentVersions.findMany({ where: eq(schema.assessmentVersions.assessmentId, a.id) })
@@ -901,7 +1034,7 @@ export const discoverRouter = {
         ? await db.query.assessmentSessions.findMany({
             where: and(
               inArray(schema.assessmentSessions.versionId, ids),
-              eq(schema.assessmentSessions.studentId, input.studentId),
+              eq(schema.assessmentSessions.studentId, who.studentId as string),
               inArray(schema.assessmentSessions.status, ["in_progress", "paused"] as any),
             ),
             orderBy: (t) => [desc(t.startedAt)],
@@ -913,7 +1046,9 @@ export const discoverRouter = {
   /** Hasil terakhir engine utk satu tes (report). */
   resultsFor: publicProcedure
     .input(z.object({ code: z.string().min(1), studentId: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: false, error: "assessment_not_found" } as const;
       // Model ATTEMPT: 1 baris tmb_assessment_results = 1 duet minat+bakat.
@@ -922,7 +1057,7 @@ export const discoverRouter = {
       // CTA selalu 'lanjut' sampai attempt lengkap.
       const isMinat = String(input.code).toUpperCase() === "DISCOVER";
       const row = await db.query.tmbAssessmentResults.findFirst({
-        where: eq(tmbAssessmentResults.userId, input.studentId),
+        where: eq(tmbAssessmentResults.userId, who.studentId as string),
         orderBy: (t: any) => [desc(t.createdAt)],
       });
       const present =
@@ -940,9 +1075,11 @@ export const discoverRouter = {
     }),
 
   /** Daftar ATTEMPT (duet minat+bakat) per user, kronologis — utk history & nomor percobaan. */
-  attempts: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input }) => {
+  attempts: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input, context }) => {
+    const who = resolveStudentId(context, input.studentId);
+    if (who.error) return { ok: false, error: who.error } as const;
     const rows = await db.query.tmbAssessmentResults.findMany({
-      where: eq(tmbAssessmentResults.userId, input.studentId),
+      where: eq(tmbAssessmentResults.userId, who.studentId as string),
       orderBy: (t: any) => [asc(t.createdAt)],
     });
     // Junk (kedua sisi kosong) dari era sesi rusak tidak boleh muncul — cuma attempt nyata yg tampil
@@ -967,7 +1104,9 @@ export const discoverRouter = {
   /** Buang partial sesi in_progress TERBARU user utk tes (abas 'Mulai ulang' di kartu). */
   abandon: publicProcedure
     .input(z.object({ studentId: z.string().min(1), code: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: true, dropped: 0 } as const;
       const vs = await db.query.assessmentVersions.findMany({
@@ -979,7 +1118,7 @@ export const discoverRouter = {
             schema.assessmentSessions.versionId,
             vs.map((v) => v.id),
           ),
-          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.studentId, who.studentId as string),
           eq(schema.assessmentSessions.status, "in_progress"),
         ),
         orderBy: (t: any) => [desc(t.startedAt)],
@@ -993,11 +1132,12 @@ export const discoverRouter = {
     }),
 
   /** Heartbeat timer — otoritas SERVER: current_time + deadline aktif + status timeout/lock. */
-  timerState: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input }) => {
+  timerState: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input, context }) => {
     const sess = await db.query.assessmentSessions.findFirst({
       where: eq(schema.assessmentSessions.id, input.sessionId),
     });
     if (!sess) return { ok: false, error: "session_not_found" } as const;
+    if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
     const timer = ((sess.configJson as any)?.timer ?? null) as any;
     if (!timer) return { ok: true, scope: "none", serverNow: Date.now() } as const;
     const now = Date.now();
@@ -1015,7 +1155,9 @@ export const discoverRouter = {
     const hasQ = qEnds.some((iso) => !!iso);
     const activeIndex = qEnds.findIndex((iso) => !!iso && now < new Date(iso).getTime());
     const anyActive =
-      dims.some((d) => !d.expired) || qEnds.some((iso) => !!iso && now < new Date(iso).getTime()) || (!dims.length && !hasQ);
+      dims.some((d) => !d.expired) ||
+      qEnds.some((iso) => !!iso && now < new Date(iso).getTime()) ||
+      (!dims.length && !hasQ);
     return {
       ok: true,
       scope: timer.mixed ? "mixed" : (timer.scope ?? "none"),
@@ -1033,7 +1175,9 @@ export const discoverRouter = {
   /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */
   pending: publicProcedure
     .input(z.object({ studentId: z.string().min(1), code: z.string().min(1) }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
       const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.code, input.code) });
       if (!a) return { ok: true, present: false } as const;
       const vs = await db.query.assessmentVersions.findMany({
@@ -1047,7 +1191,7 @@ export const discoverRouter = {
             schema.assessmentSessions.versionId,
             vs.map((v) => v.id),
           ),
-          eq(schema.assessmentSessions.studentId, input.studentId),
+          eq(schema.assessmentSessions.studentId, who.studentId as string),
         ),
         orderBy: (t: any) => [desc(t.startedAt)],
       });
@@ -1072,49 +1216,54 @@ export const discoverRouter = {
     }),
 
   /** Bersihkan row attempt yang TIDAK lengkap (junk/abandon) utk user — dipanggil saat 'Tes Baru'. */
-  purgeIncomplete: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input }) => {
-    const rows = await db.query.tmbAssessmentResults.findMany({
-      where: eq(tmbAssessmentResults.userId, input.studentId),
-    });
-    let purged = 0;
-    for (const r of rows) {
-      const hReal = (r.hollandCode ?? "").length > 0;
-      const aReal = Object.keys((r as any).abilityScores ?? {}).length > 0;
-      if (hReal && aReal) continue; // attempt lengkap disimpan
-      await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, r.id));
-      await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.id, r.id));
-      purged++;
-    }
-    // sesi engine yang terkatung-katung (in_progress / selesai tanpa 0 jawaban) dibuang juga
-    const stray = await db.query.assessmentSessions.findMany({
-      where: eq(schema.assessmentSessions.studentId, input.studentId),
-    });
-    const ghost = [] as string[];
-    for (const ss of stray) {
-      const an = await db.query.assessmentAnswers.findMany({
-        where: eq(schema.assessmentAnswers.sessionId, ss.id),
-        columns: { id: true },
+  purgeIncomplete: publicProcedure
+    .input(z.object({ studentId: z.string().min(1) }))
+    .handler(async ({ input, context }) => {
+      const who = resolveStudentId(context, input.studentId);
+      if (who.error) return { ok: false, error: who.error } as const;
+      const rows = await db.query.tmbAssessmentResults.findMany({
+        where: eq(tmbAssessmentResults.userId, who.studentId as string),
       });
-      // 'Tes Baru' = mulai bersih: partial in_progress (sensi sengaja/pause) JUG S dibuang
-      if (ss.status === "in_progress") ghost.push(ss.id);
-      else if (an.length === 0) ghost.push(ss.id);
-    }
-    for (const gid of ghost) {
-      await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, gid));
-      await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, gid));
-      await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, gid));
-      await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, gid));
-      purged++;
-    }
-    return { ok: true, purged } as const;
-  }),
+      let purged = 0;
+      for (const r of rows) {
+        const hReal = (r.hollandCode ?? "").length > 0;
+        const aReal = Object.keys((r as any).abilityScores ?? {}).length > 0;
+        if (hReal && aReal) continue; // attempt lengkap disimpan
+        await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, r.id));
+        await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.id, r.id));
+        purged++;
+      }
+      // sesi engine yang terkatung-katung (in_progress / selesai tanpa 0 jawaban) dibuang juga
+      const stray = await db.query.assessmentSessions.findMany({
+        where: eq(schema.assessmentSessions.studentId, who.studentId as string),
+      });
+      const ghost = [] as string[];
+      for (const ss of stray) {
+        const an = await db.query.assessmentAnswers.findMany({
+          where: eq(schema.assessmentAnswers.sessionId, ss.id),
+          columns: { id: true },
+        });
+        // 'Tes Baru' = mulai bersih: partial in_progress (sensi sengaja/pause) JUG S dibuang
+        if (ss.status === "in_progress") ghost.push(ss.id);
+        else if (an.length === 0) ghost.push(ss.id);
+      }
+      for (const gid of ghost) {
+        await db.delete(schema.assessmentAnswers).where(eq(schema.assessmentAnswers.sessionId, gid));
+        await db.delete(schema.assessmentDimensionScores).where(eq(schema.assessmentDimensionScores.sessionId, gid));
+        await db.delete(schema.assessmentResults).where(eq(schema.assessmentResults.sessionId, gid));
+        await db.delete(schema.assessmentSessions).where(eq(schema.assessmentSessions.id, gid));
+        purged++;
+      }
+      return { ok: true, purged } as const;
+    }),
 
   /** Detail sesi + jawaban (utk resume/restore posisi). */
-  session: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input }) => {
+  session: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input, context }) => {
     const sess = await db.query.assessmentSessions.findFirst({
       where: eq(schema.assessmentSessions.id, input.sessionId),
     });
     if (!sess) return { ok: false, error: "session_not_found" } as const;
+    if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
     const answered = await db.query.assessmentAnswers.findMany({
       where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
     });
@@ -1151,7 +1300,11 @@ function shuffle<T>(arr: T[]): T[] {
   const out = [...arr];
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
+    const a = out[i];
+    const b = out[j];
+    if (a === undefined || b === undefined) continue;
+    out[i] = b;
+    out[j] = a;
   }
   return out;
 }
@@ -1209,6 +1362,37 @@ function computeRunSections(
     return arr;
   }
   return qs.length ? [{ key: "all", title: "Satu Bagian", from: 0, to: qs.length - 1 }] : [];
+}
+
+/**
+ * B2B (sekolah): tandai peserta roster yang sudah mulai mengerjakan tes.
+ * Roster = `tmb_batch_students` (diisi admin sekolah / import CSV, lalu diklaim siswa).
+ * Aman dipanggil untuk id preview (`preview-…`) — query-nya tidak menemukan apa pun.
+ */
+async function markRosterStarted(userId: string) {
+  if (!userId || userId.startsWith("preview-")) return;
+  await db
+    .update(tmbBatchStudents)
+    .set({ status: "in_progress" })
+    .where(and(eq(tmbBatchStudents.userId, userId), eq(tmbBatchStudents.status, "invited")));
+}
+
+/**
+ * B2B (sekolah): tautkan hasil TERBARU ke roster sekolah milik siswa ini.
+ *
+ * Dulu tautan hanya ditulis engine lama (`tmb.assessment.finish`) yang tidak lagi dipakai
+ * Discover/Talent → rekap sekolah selalu kosong. Sekarang ditulis di engine baru, dan
+ * selalu menunjuk hasil terbaru (retake boleh berkali-kali).
+ */
+async function linkRosterResult(userId: string, resultId: string) {
+  if (!userId || userId.startsWith("preview-")) return 0;
+  const rows = await db.query.tmbBatchStudents.findMany({
+    where: eq(tmbBatchStudents.userId, userId),
+    columns: { id: true },
+  });
+  if (!rows.length) return 0;
+  await db.update(tmbBatchStudents).set({ resultId, status: "completed" }).where(eq(tmbBatchStudents.userId, userId));
+  return rows.length;
 }
 
 async function contentOfVersion(versionId: string) {
@@ -1552,7 +1736,8 @@ export const discoverAdminRouter = {
         }
         await db.delete(schema.questionOptions).where(eq(schema.questionOptions.questionId, qid));
         for (let oi = 0; oi < q.options.length; oi++) {
-          const o = q.options[oi]!;
+          const o = q.options[oi];
+          if (!o) continue;
           await db.insert(schema.questionOptions).values({
             id: o.id ?? uid(),
             questionId: qid,
@@ -1589,10 +1774,12 @@ export const discoverAdminRouter = {
       .input(z.object({ versionId: z.string().min(1), orderedIds: z.array(z.string()).min(1) }))
       .handler(async ({ input }) => {
         for (let i = 0; i < input.orderedIds.length; i++) {
+          const qid = input.orderedIds[i];
+          if (!qid) continue;
           await db
             .update(schema.questions)
             .set({ displayOrder: i })
-            .where(and(eq(schema.questions.id, input.orderedIds[i]!), eq(schema.questions.versionId, input.versionId)));
+            .where(and(eq(schema.questions.id, qid), eq(schema.questions.versionId, input.versionId)));
         }
         return { ok: true };
       }),
@@ -1705,7 +1892,8 @@ export const discoverAdminRouter = {
         ).reduce((m, q) => Math.max(m, q.displayOrder ?? 0), 0);
         let order = maxOrder + 1;
         for (let ri = 0; ri < input.rows.length; ri++) {
-          const r = input.rows[ri]!;
+          const r = input.rows[ri];
+          if (!r) continue;
           const dim = await ensureDim(r.dimension ?? "");
           if (!dim) {
             fail.push(`Baris ${ri + 2}: kolom Dimensi kosong atau tidak dikenal "${r.dimension}".`);
@@ -1758,7 +1946,7 @@ export const discoverAdminRouter = {
                 questionId: qid,
                 optionValue: String.fromCharCode(65 + oi),
                 targetDimension: dim.id,
-                label: opts[oi]!,
+                label: opts[oi] ?? "",
                 score: oi === keyIdx ? 1 : 0,
                 displayOrder: oi,
               });
@@ -2104,7 +2292,17 @@ export const discoverAdminRouter = {
     return {
       ok: true,
       filename: `${a.code}-backup-${stamp}.json`,
-      json: { exportedAt: new Date().toISOString(), assessment: a, versions, dimensions: dims, sections, instructions, questions, options, textConfigs },
+      json: {
+        exportedAt: new Date().toISOString(),
+        assessment: a,
+        versions,
+        dimensions: dims,
+        sections,
+        instructions,
+        questions,
+        options,
+        textConfigs,
+      },
     } as const;
   }),
 

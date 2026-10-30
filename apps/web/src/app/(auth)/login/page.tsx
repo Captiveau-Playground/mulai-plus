@@ -10,6 +10,7 @@ import Loader from "@/components/loader";
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 import { authClient } from "@/lib/auth-client";
+import { homeForRole } from "@/lib/role-home";
 import { notify } from "@/lib/toast";
 
 function LoginContent() {
@@ -19,6 +20,13 @@ function LoginContent() {
   const callbackUrl = searchParams.get("callbackUrl");
   const { data: session, isPending } = authClient.useSession();
   const [showSignIn, setShowSignIn] = useState(true);
+  // Tab konteks di halaman login: form & alurnya SAMA, hanya konteksnya berbeda
+  // supaya admin sekolah/guru BK tidak bingung harus login di mana.
+  const [as, setAs] = useState<"siswa" | "sekolah">(() => {
+    const q = (searchParams.get("as") ?? "").toLowerCase();
+    return q === "sekolah" || q === "school" ? "sekolah" : "siswa";
+  });
+  const sekolah = as === "sekolah";
 
   useEffect(() => {
     if (error) {
@@ -35,16 +43,7 @@ function LoginContent() {
         return;
       }
 
-      const role = session.user.role;
-      if (role === "admin") {
-        router.push("/admin");
-      } else if (role === "mentor") {
-        router.push("/mentor");
-      } else if (role === "program_manager") {
-        router.push("/program-manager/programs");
-      } else {
-        router.push("/dashboard/student");
-      }
+      router.push(homeForRole(session.user.role) as Parameters<typeof router.push>[0]);
     }
   }, [session, isPending, router, callbackUrl]);
 
@@ -96,11 +95,20 @@ function LoginContent() {
             <Sparkles className="size-3.5" /> Bimbingan Kuliah Indonesia
           </span>
           <h1 className="mt-5 font-bold font-bricolage text-4xl text-white leading-tight lg:text-[54px]">
-            Temukan jurusan yang <span className="text-brand-orange">sangat kamu</span> suka.
+            {sekolah ? (
+              <>
+                Kelola tes minat-bakat <span className="text-brand-orange">sekolahmu</span>.
+              </>
+            ) : (
+              <>
+                Temukan jurusan yang <span className="text-brand-orange">sangat kamu</span> suka.
+              </>
+            )}
           </h1>
           <p className="mt-5 font-manrope text-base text-white/75 lg:text-lg">
-            Muncul dari tes minat-bakat kamu hingga mentoring 1-on-1 — MULAI+ bantu memilih universitas & jurusan tanpa
-            tebak-tebakan.
+            {sekolah
+              ? "Pantau peserta, jalankan tes per kelas, dan dapatkan insight minat-bakat siswa dalam satu dashboard."
+              : "Muncul dari tes minat-bakat kamu hingga mentoring 1-on-1 — MULAI+ bantu memilih universitas & jurusan tanpa tebak-tebakan."}
           </p>
 
           {/* Maskot + bubble */}
@@ -124,7 +132,9 @@ function LoginContent() {
               transition={{ delay: 0.3 }}
               className="rounded-2xl rounded-bl-sm bg-white/10 px-4 py-3 font-manrope text-sm text-white/90 backdrop-blur-sm"
             >
-              Hai! 👋 Siap mulai perjalanan kuliahmu?
+              {sekolah
+                ? "Selamat datang! 👋 Masuk untuk mengelola tes sekolah."
+                : "Hai! 👋 Siap mulai perjalanan kuliahmu?"}
             </motion.p>
           </div>
         </div>
@@ -148,10 +158,48 @@ function LoginContent() {
       {/* Right Side - Form */}
       <div className="flex w-full flex-col justify-center bg-bg-light lg:w-1/2">
         <div className="mx-auto w-full max-w-md px-6 py-12 lg:px-8">
+          {/* Tab konteks — form & ending sama, hanya beda peran */}
+          <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1" role="tablist">
+            {(
+              [
+                { key: "siswa", label: "🎓 Siswa" },
+                { key: "sekolah", label: "🏫 Sekolah" },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                data-testid={`login-tab-${t.key}`}
+                aria-selected={as === t.key}
+                onClick={() => setAs(t.key)}
+                className={`rounded-xl px-3 py-2 font-manrope font-semibold text-sm transition-all ${
+                  as === t.key ? "bg-white text-brand-navy shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <p className="mb-4 text-center font-manrope text-gray-500 text-xs" data-testid="login-tab-hint">
+            {sekolah
+              ? "Untuk admin sekolah & guru BK — kelola peserta, jadwal, dan lihat hasil tes sekolah."
+              : "Untuk siswa — lanjutkan tes minat-bakat dan lihat hasilmu."}
+          </p>
+
           {showSignIn ? (
             <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} callbackUrl={callbackUrl ?? undefined} />
           ) : (
             <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} callbackUrl={callbackUrl ?? undefined} />
+          )}
+
+          {sekolah && (
+            <p className="mt-4 text-center font-manrope text-gray-500 text-xs">
+              Belum punya akun sekolah?{" "}
+              <Link href={"/sekolah/daftar" as any} className="font-semibold text-mentor-teal underline">
+                Daftarkan sekolahmu
+              </Link>
+            </p>
           )}
         </div>
       </div>

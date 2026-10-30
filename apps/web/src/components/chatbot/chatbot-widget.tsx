@@ -367,7 +367,7 @@ export function ChatbotWidget() {
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "group fixed right-4 bottom-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all hover:scale-110 hover:shadow-2xl sm:right-6 sm:bottom-6",
+          "group fixed right-4 bottom-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all hover:scale-110 hover:shadow-2xl max-sm:hidden sm:right-6 sm:bottom-6",
           open ? "hidden" : "flex",
           "bg-gradient-to-br from-brand-navy to-brand-navy/90",
         )}

@@ -52,7 +52,7 @@ test.describe("Admin · preview tidak terlempar ke area siswa", () => {
   });
 
   test("keluar dari tes di preview menutup dialog, URL admin tetap", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const fx = await build(page);
     await page.reload();
     await page.waitForTimeout(2500);

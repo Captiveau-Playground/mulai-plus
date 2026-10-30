@@ -109,17 +109,26 @@ async function main() {
       .onConflictDoNothing();
   }
 
+  /** Ambil id dimensi; gagal keras bila tidak ada (lebih jelas daripada `!`). */
+  const dimIdOf = (code: string): string => {
+    const v = dimId[code];
+    if (!v) throw new Error(`dimensi "${code}" tidak ditemukan di versi ${target.id}`);
+    return v;
+  };
+
   let inserted = 0;
   let order = 0;
   for (const code of TALENT_DIMS) {
-    const rows = (TALENT_ITEMS as TemplateRow[]).filter((r) => r.dimensi === code);
+    // TALENT = tes BAKAT/kemampuan → item "skala"/likert (minat) TIDAK dipakai di sini;
+    // item minat hanya ada di DISCOVER. Menjaga dimensi tidak tercampur.
+    const rows = (TALENT_ITEMS as TemplateRow[]).filter((r) => r.dimensi === code && r.tipe !== "skala");
     for (const r of rows) {
       const qid = id();
       const type = r.tipe === "pilihan" ? "multiple_choice" : r.tipe === "isian" ? "text_input" : "likert";
       await db.insert(schema.questions).values({
         id: qid,
         versionId: target.id,
-        dimensionId: dimId[code]!,
+        dimensionId: dimIdOf(code),
         scaleId: type === "multiple_choice" ? scaleId : null,
         questionCode: `${code.slice(0, 3).toUpperCase()}-${String(order + 1).padStart(3, "0")}`,
         questionText: r.teks,
@@ -138,8 +147,8 @@ async function main() {
             id: id(),
             questionId: qid,
             optionValue: String.fromCharCode(65 + oi),
-            targetDimension: dimId[code]!,
-            label: opts[oi]!,
+            targetDimension: dimIdOf(code),
+            label: opts[oi] ?? "",
             score: oi === keyIdx ? 1 : 0,
             displayOrder: oi,
           });
@@ -151,7 +160,7 @@ async function main() {
             id: id(),
             questionId: qid,
             optionValue: String.fromCharCode(65 + oi),
-            targetDimension: dimId[code]!,
+            targetDimension: dimIdOf(code),
             label: caption,
             icon: EMOJI[oi] ?? "•",
             imageCaption: caption,
@@ -222,13 +231,13 @@ async function main() {
     console.log("✅ 2 pengantar ditambahkan.");
   }
   const ins = await db.query.dimensionInstructions.findMany({
-    where: eq(schema.dimensionInstructions.dimensionId, dimId[TALENT_DIMS[0]!]!),
+    where: eq(schema.dimensionInstructions.dimensionId, dimIdOf(TALENT_DIMS[0] ?? "verbal")),
   });
   if (ins.length === 0) {
     for (const code of TALENT_DIMS) {
       await db.insert(schema.dimensionInstructions).values({
         id: id(),
-        dimensionId: dimId[code]!,
+        dimensionId: dimIdOf(code),
         header: `Bagian ${code.charAt(0).toUpperCase() + code.slice(1)}`,
         contentType: "bullet_list",
         contentJson: {

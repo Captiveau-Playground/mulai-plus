@@ -1,6 +1,6 @@
 // E2E ADMIN — #5 preview mengikuti perubahan & #4 error gate bisa diklik (deep-link).
 import { expect, type Page, test } from "@playwright/test";
-import { addDimension, configUpdate, contentOf, createAssessment, saveQuestion } from "../../../fixtures/assessment";
+import { addDimension, configUpdate, createAssessment, saveQuestion } from "../../../fixtures/assessment";
 import { loginAdmin, openEditor } from "../../../helpers/admin-ui";
 import { closeDb, deleteAssessmentByCode } from "../../../helpers/db";
 import { runTag } from "../../../helpers/env";
@@ -56,7 +56,7 @@ test.describe("Admin · preview & gate", () => {
   });
 
   test("#5 preview memuat ulang & menampilkan perubahan soal", async ({ page }) => {
-    test.setTimeout(300000);
+    test.setTimeout(90000);
     const fx = await build(page, [
       {
         questionText: "Teks LAMA untuk preview",
@@ -88,7 +88,7 @@ test.describe("Admin · preview & gate", () => {
   });
 
   test("#4 error gate bisa diklik untuk membuka soal yang bermasalah", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     // Likert dengan 1 titik skala → gate error (persis kasus draf DISCOVER v5)
     const fx = await build(page, [
       {

@@ -25,6 +25,7 @@ export interface SettingsPanelProps {
     id: string;
     dimensionId: string;
     questionType: string;
+    isActive?: boolean;
     scaleId?: string | null;
     displayOrder?: number | null;
   }[];
@@ -39,6 +40,8 @@ export interface SettingsPanelProps {
   /** `config` opsional = simpan nilai tertentu langsung (dipakai tombol perbaikan cepat). */
   onSaveRules: (config?: Record<string, unknown>) => void;
   onStartEdit: () => void;
+  /** Buka editor untuk satu soal (dipakai tombol "Perbaiki" di checklist kelayakan). */
+  onOpenQuestion?: (id: string) => void;
   onDimsAdd: (code: string, name: string) => void;
   onDimsDelete: (id: string) => void;
   onDimsUpdate: (id: string, durationSeconds: number) => void;
@@ -98,7 +101,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   useEffect(() => {
-    if (props.focusGroup) setOpenGroups((g) => (g.includes(props.focusGroup!) ? g : [...g, props.focusGroup!]));
+    const fg = props.focusGroup;
+    if (!fg) return;
+    setOpenGroups((g) => (g.includes(fg) ? g : [...g, fg]));
   }, [props.focusGroup]);
 
   const set = (k: string, v: unknown) => onRulesChange((r) => ({ ...r, [k]: v }));
@@ -120,7 +125,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
     name: assess.name,
     code: assess.code,
     dimensions: dims,
-    questions,
+    // Hanya soal AKTIF — soal yang sudah dinonaktifkan tidak ikut dirilis,
+    // jadi tidak boleh membuat checklist merah.
+    questions: questions.filter((q) => q.isActive !== false),
     options,
     totalDim,
     resultDimCount: resultN,
@@ -467,7 +474,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
       {/* ── Aksi + status kelayakan ── */}
       <div className="space-y-2.5 border-gray-100 border-t bg-gray-50/60 px-4 py-3">
-        <ValidationChecklist checks={checks} serverErrors={gate?.errors} warnings={gate?.warnings} />
+        <ValidationChecklist
+          checks={checks}
+          serverErrors={gate?.errors}
+          warnings={gate?.warnings}
+          onOpenQuestion={props.onOpenQuestion}
+        />
         {canEdit ? (
           <Button
             size="sm"

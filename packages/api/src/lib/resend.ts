@@ -1,4 +1,5 @@
 import { env } from "@mulai-plus/env/server";
+import { shouldSkipEmail } from "./email-guard";
 
 /**
  * Resend API Client
@@ -191,6 +192,10 @@ class ResendClient {
 
   public emails = {
     send: async (options: SendEmailOptions): Promise<{ success: boolean; data?: SendResult; error?: unknown }> => {
+      // jangan pernah kirim ke alamat uji / saat kill-switch aktif (lihat email-guard)
+      if (shouldSkipEmail(options.to)) {
+        return { success: false, error: "email_skipped_test_recipient_or_disabled" };
+      }
       const payload: Record<string, unknown> = {
         from: options.from || this.defaultFrom,
         to: Array.isArray(options.to) ? options.to : [options.to],

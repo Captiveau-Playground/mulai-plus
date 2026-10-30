@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne, sql } from "@mulai-plus/db/db";
-import { user as userSchema } from "@mulai-plus/db/schema/auth";
+import { assessmentOrgs } from "@mulai-plus/db/schema/assessment";
+import { studentDetail, user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
   tmbAiSummaries,
@@ -23,6 +24,8 @@ import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
 import { notFound, preconditionFailed } from "../lib/errors";
 import { mail } from "../lib/mail";
+import { levelFromSchoolName } from "../lib/school-level";
+import { webBaseUrl } from "../lib/web-url";
 
 // ─── Konstanta ───────────────────────────────────────────
 
@@ -345,7 +348,9 @@ export function computeRecommendations(
 
   const studentHolland = holland.scores;
   // Normalisasi skor minat ke 0..1 (engine bisa kirim raw count) — cegah persen kecocokan nggak-realistis (mis. 333%)
-  const rawVals = Object.values(studentHolland ?? {}).map(Number).filter((v) => Number.isFinite(v));
+  const rawVals = Object.values(studentHolland ?? {})
+    .map(Number)
+    .filter((v) => Number.isFinite(v));
   const sumV = rawVals.length ? rawVals.reduce((a, b) => a + b, 0) : 1;
   const nH = (key: string) => (sumV > 0 ? (Number(studentHolland?.[key]) || 0) / sumV : 0);
   const results: {
@@ -442,6 +447,33 @@ async function syncCatalogTotal(testCode: "interest" | "ability") {
 
 let lbCache: any = null;
 let lbCacheTs = 0;
+
+/** (B2C) Isi otomatis profil siswa dari sekolah undangan — hanya bila masih kosong. */
+async function prefillStudentProfileFromBatch(userId: string, batchId: string) {
+  try {
+    const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, batchId) });
+    if (!batch) return;
+    const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
+    if (!school?.name) return;
+
+    const existing = await db.query.studentDetail.findFirst({ where: eq(studentDetail.userId, userId) });
+    const schoolFilled = !!existing?.school?.trim();
+    const levelFilled = !!existing?.educationLevel?.trim();
+    if (schoolFilled && levelFilled) return;
+
+    const patch = {
+      ...(schoolFilled ? {} : { school: school.name }),
+      ...(levelFilled ? {} : { educationLevel: levelFromSchoolName(school.name) }),
+    };
+    if (existing) {
+      await db.update(studentDetail).set(patch).where(eq(studentDetail.id, existing.id));
+    } else {
+      await db.insert(studentDetail).values({ id: randomUUID(), userId, ...patch });
+    }
+  } catch (e: any) {
+    console.error("[prefill profil] gagal:", e?.message ?? e);
+  }
+}
 
 export const tmbRouter = {
   profile: {
@@ -834,37 +866,114 @@ export const tmbRouter = {
   },
 
   invite: {
-    claim: protectedProcedure.input(z.object({ code: z.string().min(4) })).handler(async ({ input, context }) => {
-      const userId = context.session.user.id;
-      const code = input.code.trim().toUpperCase();
+    /**
+     * Klaim undangan. Mengembalikan objek terstruktur (bukan throw) supaya UI bisa
+     * menampilkan tindakan yang tepat: `{ ok:false, error, message }` dengan kode:
+     * kode_tidak_valid | kode_sudah_dipakai | email_kosong | email_tidak_terdaftar |
+     * sudah_diklaim | sekolah_nonaktif | window_ended.
+     */
+    claim: protectedProcedure
+      .input(z.object({ code: z.string().min(4).trim() }))
+      .handler(async ({ input, context }) => {
+        const userId = context.session.user.id;
+        const code = input.code.toUpperCase();
+        const fail = (error: string, message: string) => ({ ok: false as const, error, message });
 
-      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, code) });
-      if (!batch) notFound("Kode undangan tidak valid — pastikan kode sesuai dari sekolahmu");
+        // 1) kode akses personal (peserta tanpa email ATAU email tidak dipakai)
+        const personal = await db.query.tmbBatchStudents.findFirst({
+          where: eq(tmbBatchStudents.claimCode, code),
+        });
+        if (personal) {
+          if (personal.userId && personal.userId !== userId) {
+            return fail("kode_sudah_dipakai", "Kode akses ini sudah dipakai akun lain — minta kode baru ke sekolahmu.");
+          }
+          if (!personal.userId) {
+            await db
+              .update(tmbBatchStudents)
+              .set({ userId, claimCodeUsedAt: new Date() })
+              .where(eq(tmbBatchStudents.id, personal.id));
+          }
+          const pBatch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, personal.batchId) });
+          const pSchool = pBatch
+            ? await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, pBatch.schoolId) })
+            : null;
+          await prefillStudentProfileFromBatch(userId, personal.batchId);
+          return {
+            ok: true as const,
+            via: "personal" as const,
+            studentName: personal.name,
+            schoolName: pSchool?.name ?? pBatch?.name ?? null,
+            batchId: personal.batchId,
+          };
+        }
 
-      // cari siswa di batch ini yang emailnya cocok dengan akun login
-      const [currentUser] = await db
-        .select({ email: userSchema.email })
-        .from(userSchema)
-        .where(eq(userSchema.id, userId));
-      const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
-      if (!userEmail) preconditionFailed("Akunmu tidak punya email — hubungi admin");
+        // 2) kode undangan kelas + pencocokan email akun
+        const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, code) });
+        if (!batch) {
+          return fail(
+            "kode_tidak_valid",
+            "Kode undangan tidak valid — periksa kembali atau minta kode baru ke sekolahmu.",
+          );
+        }
 
-      const student = await db.query.tmbBatchStudents.findFirst({
-        where: and(eq(tmbBatchStudents.batchId, batch.id), eq(tmbBatchStudents.email, userEmail)),
-      });
-      if (!student) {
-        preconditionFailed(
-          `Email akunmu (${currentUser?.email}) tidak terdaftar di batch "${batch.name}" — hubungi sekolahmu`,
-        );
-      }
+        // guard: sekolah harus aktif
+        const org = batch.schoolId
+          ? await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.schoolId, batch.schoolId) })
+          : null;
+        if (org && org.status !== "aktif") {
+          return fail("sekolah_nonaktif", "Akun sekolahmu belum aktif — hubungi admin MULAI+.");
+        }
 
-      // tautkan akun ke batch_student (claim sekali)
-      if (!student.userId) {
-        await db.update(tmbBatchStudents).set({ userId }).where(eq(tmbBatchStudents.id, student.id));
-      }
-      const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
-      return { studentName: student.name, schoolName: school?.name ?? batch.name ?? null };
-    }),
+        const [currentUser] = await db
+          .select({ email: userSchema.email })
+          .from(userSchema)
+          .where(eq(userSchema.id, userId));
+        const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
+        if (!userEmail) return fail("email_kosong", "Akunmu tidak punya email — hubungi admin MULAI+.");
+
+        // case-insensitive: data lama bisa berisi huruf besar (lihat migrasi 0041)
+        const student = await db.query.tmbBatchStudents.findFirst({
+          where: and(
+            eq(tmbBatchStudents.batchId, batch.id),
+            sql`lower(btrim(${tmbBatchStudents.email})) = ${userEmail}`,
+          ),
+        });
+        if (!student) {
+          return fail(
+            "email_tidak_terdaftar",
+            `Email akunmu (${currentUser?.email ?? ""}) belum terdaftar di kelas "${batch.name}". ` +
+              "Minta kode akses ke sekolahmu, lalu masukkan kodenya di halaman undangan.",
+          );
+        }
+        if (student.userId && student.userId !== userId) {
+          return fail("sudah_diklaim", "Peserta ini sudah diklaim akun lain — hubungi sekolahmu.");
+        }
+
+        // guard: jadwal kelas sudah berakhir → tetap boleh klaim (untuk melihat hasil),
+        // tapi beri tahu; penolakan mengerjakan tes tetap di `discover.start`.
+        const end = batch.windowEnd ? new Date(batch.windowEnd).getTime() : null;
+        if (end !== null && Date.now() > end) {
+          return fail(
+            "window_ended",
+            `Jadwal pengerjaan kelas "${batch.name}" sudah berakhir. Hubungi sekolahmu untuk memperpanjang jadwal.`,
+          );
+        }
+
+        if (!student.userId) {
+          await db
+            .update(tmbBatchStudents)
+            .set({ userId, email: student.email ? student.email.trim().toLowerCase() : null })
+            .where(eq(tmbBatchStudents.id, student.id));
+        }
+        const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
+        return {
+          ok: true as const,
+          via: "batch" as const,
+          studentName: student.name,
+          schoolName: school?.name ?? batch.name ?? null,
+          batchId: batch.id,
+        };
+      }),
   },
 
   // ─── Karir Impian: teks bebas → jalur kuliah (prodi & univ) ───
@@ -1041,13 +1150,29 @@ export const tmbRouter = {
       if (!summary) {
         // Fallback TANPA AI — grounded di data (bukan cheerleader generik)
         const code = result?.hollandCode ?? "—";
-        const RIASEC: Record<string, string> = { R: "Realistic (praktis)", I: "Investigative (analitis)", A: "Artistic (kreatif)", S: "Social (sosial)", E: "Enterprising (meyakinkan)", C: "Conventional (terstruktur)" };
+        const RIASEC: Record<string, string> = {
+          R: "Realistic (praktis)",
+          I: "Investigative (analitis)",
+          A: "Artistic (kreatif)",
+          S: "Social (sosial)",
+          E: "Enterprising (meyakinkan)",
+          C: "Conventional (terstruktur)",
+        };
         const letters = code.split("").filter((x) => RIASEC[x]);
         const dimsText = letters.length
-          ? [...new Set(letters)].map((x) => `${x} (${RIASEC[x]!})`).join(", ")
+          ? [...new Set(letters)].map((x) => `${x} (${RIASEC[x] ?? ""})`).join(", ")
           : "—";
-        const majors3 = recommendations.filter((r) => r.type === "major").slice(0, 3).map((r) => r.itemName).join(", ");
-        const diff = result?.differentiation === "strong" ? "selisih antar-minatmu cukup jelas" : result?.differentiation === "moderate" ? "selisih antar-minatmu sedang" : "selisih antar-minatmu masih kecil (profil belum terlalu menonjol)";
+        const majors3 = recommendations
+          .filter((r) => r.type === "major")
+          .slice(0, 3)
+          .map((r) => r.itemName)
+          .join(", ");
+        const diff =
+          result?.differentiation === "strong"
+            ? "selisih antar-minatmu cukup jelas"
+            : result?.differentiation === "moderate"
+              ? "selisih antar-minatmu sedang"
+              : "selisih antar-minatmu masih kecil (profil belum terlalu menonjol)";
         summary =
           `Kode minat utamamu **${code}** (${dimsText}). ${diff}. ` +
           (majors3 ? `Berdasarkan pilihan minatmu, jurusan yang paling cocok saat ini: ${majors3}. ` : "") +
@@ -1168,7 +1293,7 @@ async function computeResult(userId: string, interestAttemptId: string, abilityA
 
 // ─── B2B (School Admin) ─────────────────────────────────
 
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let cur = "";
   let row: string[] = [];
@@ -1196,6 +1321,85 @@ function parseCsv(text: string): string[][] {
   row.push(cur);
   if (row.some((c) => c.trim())) rows.push(row);
   return rows;
+}
+
+/**
+ * Baris rekap satu kelas (dipakai admin MULAI+ **dan** portal sekolah).
+ * Dipisah supaya kolom rekap konsisten & tidak ada duplikasi logika.
+ */
+export async function buildBatchRekap(batchId: string) {
+  const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, batchId) });
+  const students = await db.query.tmbBatchStudents.findMany({
+    where: eq(tmbBatchStudents.batchId, batchId),
+    orderBy: asc(tmbBatchStudents.name),
+  });
+  // Ambil hasil & rekomendasi sekali jalan (hindari N+1 saat satu kelas berisi puluhan siswa)
+  const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+  const [results, recos] = await Promise.all([
+    resultIds.length
+      ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+      : [],
+    resultIds.length
+      ? db.query.tmbRecommendations.findMany({
+          where: inArray(tmbRecommendations.resultId, resultIds),
+          orderBy: asc(tmbRecommendations.rank),
+        })
+      : [],
+  ]);
+  const rById = new Map(results.map((r) => [r.id, r]));
+  const recosBy = new Map<string, typeof recos>();
+  for (const rc of recos) {
+    const arr = recosBy.get(rc.resultId) ?? [];
+    arr.push(rc);
+    recosBy.set(rc.resultId, arr);
+  }
+
+  const rows = students.map((s) => {
+    const r = s.resultId ? rById.get(s.resultId) : undefined;
+    const ab: any = (r as any)?.abilityScores ?? null;
+    // kontrak baru: { levels, scores } · warisan: { verbal: {correct,total} }
+    const scores: Record<string, { correct?: number; total?: number }> = ab?.scores ?? ab ?? {};
+    const holland: Record<string, number> = ((r as any)?.hollandScores ?? {}) as any;
+    const dimStats: any[] = (((r as any)?.dimStats ?? []) as any[]) ?? [];
+    const dim = (k: string) => {
+      const v = scores[k];
+      return v && typeof v.total === "number" ? `${v.correct ?? 0}/${v.total}` : "";
+    };
+    const topMajors = (recosBy.get(r?.id ?? "") ?? [])
+      .filter((x) => x.type === "major")
+      .slice(0, 3)
+      .map((x) => x.itemName);
+    return {
+      nama: s.name,
+      email: s.email ?? "",
+      nis: s.nis ?? "",
+      kelas: batch?.className ?? "",
+      jurusan: batch?.major ?? "",
+      status: s.status,
+      hollandCode: r?.hollandCode ?? "",
+      R: holland.R ?? "",
+      I: holland.I ?? "",
+      A: holland.A ?? "",
+      S: holland.S ?? "",
+      E: holland.E ?? "",
+      C: holland.C ?? "",
+      verbal: dim("verbal"),
+      numerical: dim("numerical"),
+      logical: dim("logical"),
+      spatial: dim("spatial"),
+      clerical: dim("clerical"),
+      confidence: r?.confidenceScore ?? "",
+      differentiation: r?.differentiation ?? "",
+      topMajors: topMajors.join(", "),
+      selesai: r?.createdAt ? new Date(r.createdAt).toISOString().slice(0, 16).replace("T", " ") : "",
+      durasiDetik: dimStats.reduce((a, d) => a + (Number(d?.seconds) || 0), 0) || "",
+      jumlahTimeout: dimStats.filter((d) => d?.timedOut).length,
+    };
+  });
+  return {
+    rows,
+    batch: batch ? { name: batch.name, className: batch.className, major: batch.major } : null,
+  };
 }
 
 export const tmbAdminRouter = {
@@ -1420,9 +1624,9 @@ export const tmbAdminRouter = {
         await db.insert(tmbBatchStudents).values({
           id,
           batchId: input.batchId,
-          name: input.name,
-          email: input.email || null,
-          nis: input.nis || null,
+          name: input.name.trim(),
+          email: input.email ? input.email.trim().toLowerCase() : null,
+          nis: input.nis?.trim() || null,
         });
         return { id };
       }),
@@ -1490,7 +1694,7 @@ export const tmbAdminRouter = {
           id: randomUUID(),
           batchId: input.batchId,
           name: (r[idxName] ?? "").trim(),
-          email: idxEmail >= 0 ? (r[idxEmail] ?? "").trim() || null : null,
+          email: idxEmail >= 0 ? (r[idxEmail] ?? "").trim().toLowerCase() || null : null,
           nis: idxNis >= 0 ? (r[idxNis] ?? "").trim() || null : null,
         }));
         const valid = values.filter((v) => v.name);
@@ -1505,7 +1709,7 @@ export const tmbAdminRouter = {
       if (!batch) notFound("Batch tidak ditemukan");
       if (!batch.inviteCode) preconditionFailed("Batch belum punya kode undangan");
 
-      const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+      const base = webBaseUrl();
       const link = `${base}/assessment/invite/${batch.inviteCode}`;
       const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
       const schoolName = school?.name ?? batch.name;
@@ -1535,41 +1739,71 @@ export const tmbAdminRouter = {
       return { sent, failed, code: batch.inviteCode, link };
     }),
 
-    exportRekap: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
-      const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
-      const rows: any[] = [];
-      for (const s of students) {
-        let holland = "";
-        let confidence = "";
-        let topMajors: string[] = [];
-        if (s.resultId) {
-          const resultId = s.resultId;
-          const [r, recos] = await Promise.all([
-            db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
-            db.query.tmbRecommendations.findMany({
-              where: eq(tmbRecommendations.resultId, resultId),
-              orderBy: asc(tmbRecommendations.rank),
-            }),
-          ]);
-          holland = r?.hollandCode ?? "";
-          confidence = r?.confidenceScore ?? "";
-          topMajors = recos
-            .filter((x) => x.type === "major")
-            .slice(0, 3)
-            .map((x) => x.itemName);
-        }
-        rows.push({
-          nama: s.name,
-          email: s.email ?? "",
-          nis: s.nis ?? "",
-          status: s.status,
-          hollandCode: holland,
-          confidence: confidence,
-          topMajors: topMajors.join(", "),
+    exportRekap: adminProcedure
+      .input(z.object({ batchId: z.string() }))
+      .handler(async ({ input }) => buildBatchRekap(input.batchId)),
+
+    /**
+     * Perbaiki tautan hasil → roster (data lama) & status yang tidak konsisten.
+     *
+     * Dipakai untuk siswa yang sudah mengerjakan tes SEBELUM mengklaim undangan (sehingga
+     * tautan di `finish` tidak pernah terjadi), atau roster warisan berstatus "completed"
+     * padahal hasilnya belum tertaut. Hasil yang dipakai = hasil TERBARU siswa.
+     */
+    backfillRosterLinks: adminProcedure
+      .input(z.object({ batchId: z.string().optional() }).optional())
+      .handler(async ({ input }) => {
+        const rows = await db.query.tmbBatchStudents.findMany({
+          where: input?.batchId ? eq(tmbBatchStudents.batchId, input.batchId) : undefined,
+          orderBy: asc(tmbBatchStudents.createdAt),
         });
-      }
-      return { rows };
-    }),
+        const userIds = [...new Set(rows.map((r) => r.userId).filter(Boolean))] as string[];
+        const results = userIds.length
+          ? await db.query.tmbAssessmentResults.findMany({
+              where: inArray(tmbAssessmentResults.userId, userIds),
+              orderBy: desc(tmbAssessmentResults.createdAt),
+            })
+          : [];
+        const latest = new Map<string, string>();
+        for (const r of results) if (!latest.has(r.userId)) latest.set(r.userId, r.id);
+
+        let ditautkan = 0;
+        let direset = 0;
+        let sudahBenar = 0;
+        let tanpaAkun = 0;
+        for (const row of rows) {
+          if (!row.userId) {
+            tanpaAkun++;
+            continue;
+          }
+          const rid = latest.get(row.userId) ?? null;
+          if (rid) {
+            if (row.resultId === rid && row.status === "completed") {
+              sudahBenar++;
+              continue;
+            }
+            await db
+              .update(tmbBatchStudents)
+              .set({ resultId: rid, status: "completed" })
+              .where(eq(tmbBatchStudents.id, row.id));
+            ditautkan++;
+          } else if (row.status === "completed") {
+            // "completed" tanpa hasil sama sekali = data tidak konsisten → kembalikan ke undangan
+            await db.update(tmbBatchStudents).set({ status: "invited" }).where(eq(tmbBatchStudents.id, row.id));
+            direset++;
+          } else {
+            sudahBenar++;
+          }
+        }
+        return {
+          diperiksa: rows.length,
+          ditautkan,
+          direset,
+          sudahBenar,
+          tanpaAkun,
+          siswaDenganHasil: latest.size,
+        };
+      }),
   },
 
   // ─── Konten Test: soal, pola jurusan, mapping karier, catalog ───
@@ -2003,7 +2237,7 @@ async function resolveResultSource(resultId: string) {
 // ─── Short claim code (tanpa huruf ambigu O/0/I/1/L) ───
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-function generateClaimCode(len = 6): string {
+export function generateClaimCode(len = 6): string {
   let out = "";
   for (let i = 0; i < len; i++) {
     out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];

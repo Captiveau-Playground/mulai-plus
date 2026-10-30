@@ -65,6 +65,7 @@ const data = {
         { title: "Pola Jurusan", url: "/admin/assessment/patterns" },
         { title: "Mapping Karier", url: "/admin/assessment/careers" },
         { title: "Sekolah & Batch", url: "/admin/assessment/schools", section: "Operasional B2B" },
+        { title: "Verifikasi Sekolah", url: "/admin/assessment/schools/pendaftaran" },
         { title: "Statistik B2C", url: "/admin/assessment/b2c", section: "Analitik B2C" },
         { title: "Riwayat B2C", url: "/admin/assessment/b2c/history" },
       ],

@@ -104,7 +104,8 @@ export async function addDimension(
   const r = await adminRpc(page, "discoverAdmin/versions/dimsAdd", { versionId, code, name });
   if (!r.ok) throw new Error(`dimsAdd gagal: ${JSON.stringify(r)}`);
   const c = await contentOf(page, versionId);
-  const dim = c.dimensions.find((d) => d.code === code);
+  // kode dimensi dinormalkan server jadi HURUF BESAR (verbal → VERBAL) → bandingkan tanpa case
+  const dim = c.dimensions.find((d) => (d.code ?? "").toLowerCase() === code.toLowerCase());
   if (!dim) throw new Error(`dimensi ${code} tidak muncul setelah dimsAdd`);
   if (durationSeconds != null) {
     await adminRpc(page, "discoverAdmin/versions/dimsUpdate", { dimensionId: dim.id, durationSeconds });

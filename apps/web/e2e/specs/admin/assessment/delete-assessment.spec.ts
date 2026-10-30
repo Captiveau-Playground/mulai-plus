@@ -45,7 +45,7 @@ test.describe("Admin · hapus tes dengan tangga konfirmasi", () => {
   });
 
   test("backup wajib + kode tes harus tepat sebelum hapus permanen", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const { code } = await build(page);
     await page.goto("/admin/assessment/editor", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId(`test-row-${code}`)).toBeVisible({ timeout: 30000 });
@@ -74,7 +74,7 @@ test.describe("Admin · hapus tes dengan tangga konfirmasi", () => {
   });
 
   test("tes minat resmi (DISCOVER) tidak bisa dihapus dari UI", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     await page.goto("/admin/assessment/editor", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("test-row-DISCOVER")).toBeVisible({ timeout: 30000 });
     await page.getByTestId("del-open-DISCOVER").click();
@@ -84,7 +84,7 @@ test.describe("Admin · hapus tes dengan tangga konfirmasi", () => {
   });
 
   test("server menolak kode salah & melindungi tes minat/bakat", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { code } = await build(page);
     // kode salah
     const wrong = await adminRpc<any>(page, "discoverAdmin/remove", { id: "bukan-id", confirmCode: code });

@@ -27,7 +27,7 @@ test.describe("Admin · Halaman analitik & operasional", () => {
   });
 
   test("Statistik B2C: header, 4 kartu, dan sebaran 6 tipe Holland", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     await page.goto("/admin/assessment/b2c", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("heading", { name: "Statistik B2C" })).toBeVisible({ timeout: 30000 });
@@ -48,7 +48,7 @@ test.describe("Admin · Halaman analitik & operasional", () => {
   });
 
   test("Riwayat B2C: filter sumber + tabel atau kondisi kosong", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     await page.goto("/admin/assessment/b2c/history", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("heading", { name: "Riwayat B2C" })).toBeVisible({ timeout: 30000 });
@@ -82,7 +82,7 @@ test.describe("Admin · Halaman analitik & operasional", () => {
   });
 
   test("Sekolah & Batch: daftar sekolah lewat dialog lalu hapus", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     page.on("dialog", (d) => void d.accept());
 
     await page.goto("/admin/assessment/schools", { waitUntil: "domcontentloaded" });
@@ -116,7 +116,7 @@ test.describe("Admin · Halaman analitik & operasional", () => {
   });
 
   test("Sekolah & Batch: halaman detail menampilkan rekap", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const res = await adminRpc<any>(page, "tmbAdmin/schools/create", {
       name: `E2E Detail ${Date.now().toString(36)}`,
       city: "Surabaya",

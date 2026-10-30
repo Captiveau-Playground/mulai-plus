@@ -29,7 +29,7 @@ test.describe("Admin · Editor — tipe soal", () => {
   });
 
   test("soal pilihan ganda: opsi + bobot manual tersimpan", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "MC");
     await addQuestionUI(page, {
       text: "Kamu lebih suka bekerja dengan…",
@@ -52,7 +52,7 @@ test.describe("Admin · Editor — tipe soal", () => {
   });
 
   test("soal skala (likert): preset angka 1–5 mengisi 5 titik skala", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "Likert");
     await addQuestionUI(page, { text: "Seberapa nyaman bekerja dalam tim?", type: "likert", preset: "likert" });
 
@@ -66,7 +66,7 @@ test.describe("Admin · Editor — tipe soal", () => {
   });
 
   test("soal skala (likert): preset emoticon mengisi ikon + label skala", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "Emoji");
     await addQuestionUI(page, { text: "Bagaimana perasaanmu hari ini?", type: "likert", preset: "emoji" });
 
@@ -84,7 +84,7 @@ test.describe("Admin · Editor — tipe soal", () => {
   });
 
   test("soal isian (free text): kunci + toleransi numerik tersimpan", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "Text");
     await addQuestionUI(page, {
       text: "Hasil dari 3/4 adalah…",
@@ -104,7 +104,7 @@ test.describe("Admin · Editor — tipe soal", () => {
   });
 
   test("soal isian: semua mode evaluasi bisa dipilih dari UI", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const { versionId } = await setup(page, "Eval");
     const cases = [
       { evalType: "exact_match" as const, key: "jakarta" },
@@ -125,7 +125,7 @@ test.describe("Admin · Editor — tipe soal", () => {
   });
 
   test("mode tampilan opsi menambah kontrol ikon/gambar sesuai pilihan", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     await setup(page, "Presentasi");
     await page.locator('[data-testid="q-add"]').click();
     await expect(page.locator('[data-testid="q-text"]')).toBeVisible({ timeout: 15000 });
@@ -142,7 +142,7 @@ test.describe("Admin · Editor — tipe soal", () => {
   });
 
   test("soal berisi rumus menampilkan pratinjau LaTeX", async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     await setup(page, "Latex");
     await page.locator('[data-testid="q-add"]').click();
     await expect(page.locator('[data-testid="q-text"]')).toBeVisible({ timeout: 15000 });

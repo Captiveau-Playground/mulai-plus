@@ -20,7 +20,7 @@ test.describe("Admin · Preview sebagai siswa", () => {
   });
 
   test("dialog preview memuat rute tes siswa yang sebenarnya (dan bisa dimainkan)", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Preview ${code}` });
@@ -28,7 +28,7 @@ test.describe("Admin · Preview sebagai siswa", () => {
     await addDimensionUI(page, "D1", "Dimensi Satu");
     const c = await contentOf(page, versionId);
     await saveQuestion(page, versionId, {
-      dimensionId: c.dimensions[0]!.id,
+      dimensionId: c.dimensions[0]?.id,
       questionText: "Soal preview: 7 + 5 = ?",
       questionType: "multiple_choice",
       options: [

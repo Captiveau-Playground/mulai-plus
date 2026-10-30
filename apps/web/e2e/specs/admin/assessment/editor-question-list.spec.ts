@@ -64,7 +64,7 @@ test.describe("Admin · Editor — daftar soal", () => {
   });
 
   test("dikelompokkan per dimensi saat urutan soal ber-blok", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     const fx = await buildWithOrder(page, "Blok", BLOCK_PLAN);
 
     await expect(page.locator('[data-testid="q-group-D1"]')).toBeVisible({ timeout: 20000 });
@@ -85,7 +85,7 @@ test.describe("Admin · Editor — daftar soal", () => {
   });
 
   test("buka/tutup semua grup", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     await buildWithOrder(page, "Toggle", BLOCK_PLAN);
     await expect(page.locator('[data-testid="q-group-D1"]')).toBeVisible({ timeout: 20000 });
 
@@ -99,7 +99,7 @@ test.describe("Admin · Editor — daftar soal", () => {
   });
 
   test("pencarian menyaring soal dan membuka grup yang cocok", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     await buildWithOrder(page, "Cari", BLOCK_PLAN);
     await expect(page.locator('[data-testid="q-group-D1"]')).toBeVisible({ timeout: 20000 });
 
@@ -119,7 +119,7 @@ test.describe("Admin · Editor — daftar soal", () => {
   });
 
   test("tetap datar + diberi penjelasan saat urutan soal berselang", async ({ page }) => {
-    test.setTimeout(180000);
+    test.setTimeout(90000);
     await buildWithOrder(page, "Selang", INTERLEAVED_PLAN);
 
     await expect(page.locator('[data-testid="question-row"]').first()).toBeVisible({ timeout: 20000 });
@@ -128,5 +128,74 @@ test.describe("Admin · Editor — daftar soal", () => {
     // dimensi tetap ditampilkan di tiap baris karena tidak ada header grup
     await expect(page.locator('[data-testid="question-row"]').first()).toContainText("Dimensi Satu");
     await expect(page.getByText("Selang-24")).toBeVisible();
+  });
+
+  test("klik baris membuka sheet editor TANPA menggeser scroll + navigasi soal", async ({ page }) => {
+    test.setTimeout(120000);
+    const plan = Array.from({ length: 8 }, (_, i) => ({ dim: "D1" as const, text: `Soal urut ${i + 1}` }));
+    const { code } = await buildWithOrder(page, "Sheet", plan);
+
+    // scroll ke bawah supaya baris ke-7 terlihat, catat posisi scroll
+    await page.locator('[data-testid="question-row"]').nth(6).scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => window.scrollY);
+
+    // klik BARIS (bukan tombol pensil)
+    await page.locator('[data-testid="question-row"]').nth(6).click();
+    const panel = page.getByTestId("q-panel");
+    await expect(panel).toBeVisible({ timeout: 15000 });
+    await expect(panel).toContainText(/Soal 7 dari 8/i);
+
+    // tidak ada lompatan scroll
+    const after = await page.evaluate(() => window.scrollY);
+    expect(Math.abs(after - before), `scroll tidak boleh melompat (${before} → ${after})`).toBeLessThanOrEqual(2);
+
+    // navigasi antar soal di dalam sheet
+    await page.getByTestId("q-next").click();
+    await expect(panel).toContainText(/Soal 8 dari 8/i);
+    await page.getByTestId("q-prev").click();
+    await expect(panel).toContainText(/Soal 7 dari 8/i);
+
+    // tutup sheet dulu (overlay menutupi daftar)
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden({ timeout: 15000 });
+
+    // hapus dipindah ke menu ⋮ (tidak lagi tombol merah berjajar)
+    await page.getByTestId("q-more-6").click();
+    await expect(page.getByTestId("q-del-6")).toBeVisible();
+    await page.keyboard.press("Escape");
+    void code;
+  });
+
+  test("checklist kelayakan: tombol Perbaiki membuka soal yang bermasalah", async ({ page }) => {
+    test.setTimeout(120000);
+    // skala emoji TANPA ikon → checklist "Skala emoji punya ikon" gagal
+    const { code } = runTag(PREFIX);
+    codes.push(code);
+    const { versionId } = await createAssessment(page, { code, name: `Perbaiki ${code}` });
+    await openEditor(page, code);
+    await addDimensionUI(page, "D1", "Dimensi Satu");
+    const c = await contentOf(page, versionId);
+    const dimId = Object.fromEntries(c.dimensions.map((d) => [d.code, d.id])) as { D1: string };
+    await saveQuestion(page, versionId, {
+      dimensionId: dimId.D1,
+      questionText: "Skala tanpa ikon (harus bisa diperbaiki dari checklist)",
+      questionType: "likert",
+      presentationMode: "emoji_option",
+      options: [
+        { optionValue: "A", label: "Rendah", imageCaption: "Rendah", score: 1 },
+        { optionValue: "B", label: "Tinggi", imageCaption: "Tinggi", score: 5 },
+      ],
+    });
+    await page.reload();
+    await page.waitForTimeout(2500);
+
+    const fix = page.getByTestId("check-fix").first();
+    await expect(fix, "tombol Perbaiki harus muncul di checklist").toBeVisible({ timeout: 20000 });
+    await fix.click();
+
+    // sheet editor terbuka untuk soal tersebut
+    const panel = page.getByTestId("q-panel");
+    await expect(panel).toBeVisible({ timeout: 15000 });
+    await expect(panel).toContainText(/Skala tanpa ikon/i);
   });
 });

@@ -42,14 +42,14 @@ test.describe("Admin · Aset di panel Tampilan siswa", () => {
   });
 
   test("skala likert tampil sebagai emoji & caption tidak dobel", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Aset ${code}` });
     await setupEditor(page, code);
     const c = await contentOf(page, versionId);
     await saveQuestion(page, versionId, {
-      dimensionId: c.dimensions[0]!.id,
+      dimensionId: c.dimensions[0]?.id,
       questionText: "Memperbaiki peralatan atau perabotan yang rusak di rumah.",
       questionType: "likert",
       presentationMode: "emoji_option",
@@ -75,14 +75,14 @@ test.describe("Admin · Aset di panel Tampilan siswa", () => {
   });
 
   test("gambar soal tampil di panel preview + kunci ditandai dari skor", async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(90000);
     const { code } = runTag(PREFIX);
     codes.push(code);
     const { versionId } = await createAssessment(page, { code, name: `Aset ${code}` });
     await setupEditor(page, code);
     const c = await contentOf(page, versionId);
     await saveQuestion(page, versionId, {
-      dimensionId: c.dimensions[0]!.id,
+      dimensionId: c.dimensions[0]?.id,
       questionText: "Perhatikan gambar, manakah bangun datar?",
       questionType: "multiple_choice",
       mediaUrl: IMG,

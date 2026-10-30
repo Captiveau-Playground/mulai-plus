@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { authClient } from "@/lib/auth-client";
+import { homeForRole } from "@/lib/role-home";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -194,11 +195,7 @@ export function Navbar() {
 
   const getDashboardLink = () => {
     if (!session?.user) return "/dashboard/student";
-    const role = session.user.role;
-    if (role === "admin") return "/admin";
-    if (role === "mentor") return "/mentor";
-    if (role === "program_manager") return "/program-manager";
-    return "/dashboard/student";
+    return homeForRole(session.user.role);
   };
 
   const handleSignOut = async () => {
@@ -319,7 +316,7 @@ export function Navbar() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="hover:bg-brand-navy hover:text-white">
                     <Link
-                      href={getDashboardLink()}
+                      href={getDashboardLink() as any}
                       className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-3 font-manrope text-sm text-text-main"
                     >
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-navy/10">
@@ -488,7 +485,7 @@ export function Navbar() {
                       type="button"
                       onClick={() => {
                         setSheetOpen(false);
-                        setTimeout(() => router.push(getDashboardLink()), 150);
+                        setTimeout(() => router.push(getDashboardLink() as any), 150);
                       }}
                       className="h-11 w-full cursor-pointer rounded-full bg-brand-navy font-bold font-manrope text-sm text-white transition-all hover:bg-brand-navy/90 active:scale-[0.98]"
                     >

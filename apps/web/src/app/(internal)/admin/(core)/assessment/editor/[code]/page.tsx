@@ -9,6 +9,7 @@ import { AnimatedEmoji } from "@/components/assessment/animated-emoji";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { notify } from "@/lib/toast";
 import { client, orpc } from "@/utils/orpc";
 import "katex/dist/katex.min.css";
@@ -32,6 +33,8 @@ interface Qn {
   dimensionId: string;
   questionText: string;
   questionType: string;
+  /** soal nonaktif tetap tampil di daftar, tapi TIDAK dihitung pada checklist rilis */
+  isActive?: boolean;
   weight?: number;
   hasMathNotation?: boolean;
   displayOrder: number;
@@ -54,7 +57,7 @@ export default function AssessmentDetailPage() {
   const [selectedId, setSelectedId] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("assess-editor-ver") : null,
   );
-  const pickVer = (id: string | null) => {
+  const pickVer = useCallback((id: string | null) => {
     setSelectedId(id);
     try {
       if (id) localStorage.setItem("assess-editor-ver", id);
@@ -62,7 +65,7 @@ export default function AssessmentDetailPage() {
     } catch {
       /* abaikan */
     }
-  };
+  }, []);
   const [_branchOpen, _setBranchOpen] = useState(false);
   const [verify, setVerify] = useState<{ vid: string } | null>(null);
   const [modal, setModal] = useState<{ open: boolean; q?: any } | null>(null);
@@ -387,6 +390,7 @@ export default function AssessmentDetailPage() {
       setFocusQ(id);
       return;
     }
+    // Panel edit tampil sebagai Sheet (overlay) → TIDAK menggeser scroll daftar.
     setModal({
       open: true,
       q: {
@@ -395,7 +399,16 @@ export default function AssessmentDetailPage() {
         tc: (content?.textConfigs ?? []).find((t: any) => t.questionId === q.id),
       },
     });
-    setTimeout(() => document.getElementById("q-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
+
+  /** Baris yang baru disimpan → disorot sebentar supaya admin tahu posisinya. */
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const flashRow = (id: string) => {
+    setFlashId(id);
+    setTimeout(() => {
+      document.getElementById(`q-${id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 80);
+    setTimeout(() => setFlashId(null), 2200);
   };
   const delQ = (id: string) => void withDraft(() => mDelQ.mutateAsync({ questionId: id }));
   const dupQ = (id: string) => void withDraft(() => mDupQ.mutateAsync({ questionId: id }));
@@ -481,6 +494,7 @@ export default function AssessmentDetailPage() {
             onSetFamily={setFamily}
             onSaveRules={(cfg) => void withDraft((vid) => mRules.mutateAsync({ versionId: vid, config: cfg ?? rules }))}
             onStartEdit={startEdit}
+            onOpenQuestion={openEdit}
             onDimsAdd={(code, name) => void withDraft((vid) => mDimsAdd.mutateAsync({ versionId: vid, code, name }))}
             onDimsDelete={(id) => void mDimsDel.mutateAsync({ dimensionId: id })}
             onDimsUpdate={(id, durationSeconds) => void mDimsUpd.mutateAsync({ dimensionId: id, durationSeconds })}
@@ -569,25 +583,87 @@ export default function AssessmentDetailPage() {
             )}
           </div>
 
-          {modal?.open && selVer && content && (
-            <div id="q-panel" className="border-teal-100 border-b bg-teal-50/20 px-4 py-4">
-              <QuestionPanel
-                q={modal.q}
-                versionId={versionId}
-                content={content}
-                rules={rules}
-                openPicker={(cb, kind) => setGal({ open: true, cb, kind: kind ?? "question", code })}
-                onDone={async (qid) => {
-                  const id = modal.q?.id;
-                  await withDraft((vid) =>
-                    mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId: vid, questionData: qid as any }),
-                  );
-                  setModal(null);
-                }}
-                onClose={() => setModal(null)}
-              />
-            </div>
-          )}
+          {/* Editor soal sebagai Sheet (overlay kanan) → daftar tidak bergeser & posisi baca tetap */}
+          <Sheet
+            open={!!(modal?.open && selVer && content)}
+            onOpenChange={(o) => {
+              if (!o) setModal(null);
+            }}
+          >
+            <SheetContent
+              side="right"
+              id="q-panel"
+              data-testid="q-panel"
+              showCloseButton={false}
+              className="overflow-y-auto p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"
+            >
+              <SheetHeader className="sticky top-0 z-10 border-gray-100 border-b bg-white px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <SheetTitle className="font-bold font-bricolage text-brand-navy text-sm">
+                      {modal?.q?.id ? "Soal" : "Soal baru"}
+                    </SheetTitle>
+                    <SheetDescription className="font-manrope text-muted-foreground text-xs">
+                      {(() => {
+                        const idx = modal?.q?.id ? questions.findIndex((x: any) => x.id === modal.q?.id) : -1;
+                        return idx >= 0 ? `Soal ${idx + 1} dari ${questions.length}` : "Soal baru";
+                      })()}
+                    </SheetDescription>
+                  </div>
+                  {/* Navigasi cepat antar soal tanpa menutup sheet */}
+                  {(() => {
+                    const idx = modal?.q?.id ? questions.findIndex((x: any) => x.id === modal.q?.id) : -1;
+                    if (idx < 0) return null;
+                    return (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          data-testid="q-prev"
+                          disabled={idx <= 0}
+                          onClick={() => openEdit(questions[idx - 1]?.id)}
+                          title="Soal sebelumnya"
+                        >
+                          ‹
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          data-testid="q-next"
+                          disabled={idx >= questions.length - 1}
+                          onClick={() => openEdit(questions[idx + 1]?.id)}
+                          title="Soal berikutnya"
+                        >
+                          ›
+                        </Button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </SheetHeader>
+
+              <div className="px-4 py-4">
+                {modal?.open && selVer && content && (
+                  <QuestionPanel
+                    q={modal.q}
+                    versionId={versionId}
+                    content={content}
+                    rules={rules}
+                    openPicker={(cb, kind) => setGal({ open: true, cb, kind: kind ?? "question", code })}
+                    onDone={async (qid) => {
+                      const id = modal.q?.id;
+                      await withDraft((vid) =>
+                        mSaveQ.mutateAsync({ ...(id ? { id } : {}), versionId: vid, questionData: qid as any }),
+                      );
+                      setModal(null);
+                      if (id) flashRow(id);
+                    }}
+                    onClose={() => setModal(null)}
+                  />
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
 
           <QuestionList
             questions={questions as any}
@@ -596,6 +672,7 @@ export default function AssessmentDetailPage() {
             optionCountOf={(qid) => (content?.options ?? []).filter((o: any) => o.questionId === qid).length}
             textEvalOf={(qid) => (content?.textConfigs ?? []).find((t: any) => t.questionId === qid)?.evaluationType}
             onEdit={openEdit}
+            flashId={flashId}
             onDelete={delQ}
             onDuplicate={dupQ}
             onMove={moveQ}
@@ -1908,7 +1985,9 @@ function QuestionPanel({
             // keduanya berisi caption yang sama, jadi tampil dobel dan emojinya hilang.)
             <div className="mt-2 space-y-1.5">
               {form.options.slice(0, 6).map((o: any, i: number) => {
-                const glyph = String(o.icon || o.label || i + 1);
+                // Kalau opsi berupa angka (1..5), tampilkan angka (bukan emoji lama)
+                const allNumeric = form.options.every((x: any) => /^\d+$/.test(String(x.label ?? "").trim()));
+                const glyph = String((allNumeric ? o.label : o.icon || o.label) || i + 1);
                 const caption = String(o.imageCaption || (o.icon ? (o.label ?? "") : ""));
                 return (
                   <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">

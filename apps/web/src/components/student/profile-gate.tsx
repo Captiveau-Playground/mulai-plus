@@ -25,6 +25,8 @@ export function useProfileGate() {
   const [loading, setLoading] = useState(true);
   const [schoolLevel, setSchoolLevel] = useState<{ school?: string; level?: string } | null>(null);
   const userProfile = useQuery(orpc.user.getProfile.queryOptions());
+  // (B2B) kalau siswa masuk lewat undangan sekolah, sekolah & jenjang sudah diketahui
+  const prefill = useQuery({ ...orpc.user.profilePrefill.queryOptions(), retry: false });
   const [_tick, setTick] = useState(0);
 
   // Non-blocking: ambil langsung dari profil user (tanpa memanggil /ai/context)
@@ -47,12 +49,13 @@ export function useProfileGate() {
       socialMissing: !socialOk,
       schoolLevel,
       userProfile: userProfile.data ?? null,
+      prefill: (prefill.data as any)?.found ? (prefill.data as any) : null,
       refresh: () => {
         setTick((t) => t + 1);
         void userProfile.refetch();
       },
     };
-  }, [loading, schoolLevel, userProfile.data, userProfile.refetch]);
+  }, [loading, schoolLevel, userProfile.data, userProfile.refetch, prefill.data]);
 }
 
 export default function ProfileGate() {
@@ -63,6 +66,13 @@ export default function ProfileGate() {
   const [level, setLevel] = useState("");
   const [social, setSocial] = useState<Record<string, string>>({});
   useEffect(() => {
+    // undangan sekolah menang bila profil belum diisi (data paling akurat)
+    const pf = gate.prefill;
+    if (pf && !(gate.userProfile as any)?.school) {
+      setSchool(pf.school ?? "");
+      setLevel(pf.level ?? "");
+      return;
+    }
     if (gate.userProfile || gate.schoolLevel) {
       setSchool(gate.schoolLevel?.school || gate.userProfile?.school || "");
       setLevel(gate.schoolLevel?.level || gate.userProfile?.educationLevel || "");
@@ -74,7 +84,7 @@ export default function ProfileGate() {
         linkedin: sm.linkedin || "",
       });
     }
-  }, [gate.userProfile, gate.schoolLevel]);
+  }, [gate.userProfile, gate.schoolLevel, gate.prefill]);
 
   const updateProfile = useMutation(
     orpc.user.updateProfile.mutationOptions({
@@ -131,13 +141,28 @@ export default function ProfileGate() {
           <CircleAlert className="size-7 text-brand-orange" />
         </div>
         <h2 className="mt-4 font-bold font-bricolage text-2xl text-brand-navy">{heading.title}</h2>
-        <p className="mt-2 font-manrope text-muted-foreground text-sm leading-relaxed">{heading.desc}</p>
+        <p className="mt-2 font-manrope text-base text-muted-foreground leading-relaxed">{heading.desc}</p>
+
+        {phase === "a" && gate.prefill ? (
+          <div
+            className="mt-4 rounded-2xl border border-teal-200 bg-teal-50 p-3 text-left"
+            data-testid="prefill-banner"
+          >
+            <p className="font-bold font-manrope text-sm text-teal-900">Kami isi otomatis dari undangan sekolahmu 🎉</p>
+            <p className="mt-1 font-manrope text-sm text-teal-800">
+              {gate.prefill.school}
+              {gate.prefill.className ? ` · ${gate.prefill.className}` : ""}
+              {gate.prefill.level ? ` · jenjang ${gate.prefill.level}` : ""}
+            </p>
+            <p className="mt-1 font-manrope text-teal-700 text-xs">Periksa sebentar, lalu tekan Simpan.</p>
+          </div>
+        ) : null}
 
         {phase === "a" ? (
           <>
             <div className="mt-6 space-y-3 text-left">
               <div>
-                <label htmlFor="pg-school" className="mb-1 block font-manrope font-medium text-text-main text-xs">
+                <label htmlFor="pg-school" className="mb-1.5 block font-manrope font-semibold text-sm text-text-main">
                   Sekolah / Instansi <span className="text-brand-orange">*</span>
                 </label>
                 <div className="relative">
@@ -152,7 +177,7 @@ export default function ProfileGate() {
                     }}
                     onFocus={() => sch.setOpen(true)}
                     onBlur={() => setTimeout(() => sch.setOpen(false), 200)}
-                    className="bg-card font-manrope"
+                    className="min-h-11 bg-card font-manrope text-base"
                   />
                   <SchoolSuggestions
                     search={sch}
@@ -166,7 +191,7 @@ export default function ProfileGate() {
                 </div>
               </div>
               <div>
-                <label htmlFor="pg-level" className="mb-1 block font-manrope font-medium text-text-main text-xs">
+                <label htmlFor="pg-level" className="mb-1.5 block font-manrope font-semibold text-sm text-text-main">
                   Jenjang saat ini <span className="text-brand-orange">*</span>
                 </label>
                 <Select
@@ -175,7 +200,7 @@ export default function ProfileGate() {
                     if (v != null) setLevel(v);
                   }}
                 >
-                  <SelectTrigger id="pg-level" className="bg-card">
+                  <SelectTrigger id="pg-level" className="min-h-11 bg-card text-base">
                     <SelectValue placeholder="Pilih jenjang (otomatis dari sekolah bila dipilih)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -199,7 +224,7 @@ export default function ProfileGate() {
               <Button
                 onClick={() => void saveA()}
                 disabled={updateProfile.isPending}
-                className="bg-brand-navy px-5 text-white hover:bg-brand-navy-light"
+                className="min-h-11 bg-brand-navy px-5 text-base text-white hover:bg-brand-navy-light"
               >
                 {updateProfile.isPending ? <Loader2 className="size-4 animate-spin" /> : "Simpan & Lanjut →"}
               </Button>
@@ -212,7 +237,7 @@ export default function ProfileGate() {
                 <div key={s.key}>
                   <label
                     htmlFor={`pg-sm-${s.key}`}
-                    className="mb-1 block font-manrope font-medium text-text-main text-xs"
+                    className="mb-1.5 block font-manrope font-semibold text-sm text-text-main"
                   >
                     {s.label}
                   </label>
@@ -221,7 +246,7 @@ export default function ProfileGate() {
                     value={social[s.key] || ""}
                     placeholder={s.ph}
                     onChange={(e) => setSocial((prev) => ({ ...prev, [s.key]: e.target.value }))}
-                    className="bg-card font-manrope"
+                    className="min-h-11 bg-card font-manrope text-base"
                   />
                 </div>
               ))}
@@ -236,7 +261,7 @@ export default function ProfileGate() {
               <Button
                 onClick={() => void saveB()}
                 disabled={updateProfile.isPending}
-                className="bg-brand-navy px-5 text-white hover:bg-brand-navy-light"
+                className="min-h-11 bg-brand-navy px-5 text-base text-white hover:bg-brand-navy-light"
               >
                 {updateProfile.isPending ? <Loader2 className="size-4 animate-spin" /> : "Selesai 🎉"}
               </Button>

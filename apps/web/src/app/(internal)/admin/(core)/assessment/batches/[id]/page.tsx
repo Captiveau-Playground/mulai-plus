@@ -2,7 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, Check, Copy, FileSpreadsheet, Loader2, Mail, Pencil, QrCode, Trash2, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  FileSpreadsheet,
+  Loader2,
+  Mail,
+  Pencil,
+  QrCode,
+  RefreshCw,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import QRCode from "qrcode";
@@ -127,6 +139,26 @@ export default function BatchDetailPage() {
       notify.error("Gagal export");
     } finally {
       setExporting(false);
+    }
+  };
+
+  // Menautkan hasil siswa yang mengerjakan tes SEBELUM mengklaim undangan (data lama)
+  // dan merapikan status roster yang tidak konsisten.
+  const [fixing, setFixing] = useState(false);
+  const perbaikiTautan = async () => {
+    setFixing(true);
+    try {
+      const r = await client.tmbAdmin.students.backfillRosterLinks({ batchId });
+      if (r.ditautkan > 0 || r.direset > 0) {
+        notify.success(`${r.ditautkan} hasil ditautkan · ${r.direset} status diperbaiki (dari ${r.diperiksa} peserta)`);
+      } else {
+        notify.info(`Tautan sudah benar (${r.diperiksa} peserta diperiksa)`);
+      }
+      await queryClient.invalidateQueries({ queryKey: orpc.tmbAdmin.batches.get.key() });
+    } catch {
+      notify.error("Gagal memperbaiki tautan hasil");
+    } finally {
+      setFixing(false);
     }
   };
 
@@ -300,17 +332,32 @@ export default function BatchDetailPage() {
           <div>
             <h3 className="font-bold font-bricolage text-gray-900 text-sm">📥 Export Rekap</h3>
             <p className="mt-1 font-manrope text-gray-500 text-xs">
-              Rekap seluruh siswa: nama, Holland code, confidence, top jurusan.
+              Rekap seluruh siswa: skor per dimensi, Holland code, confidence, top jurusan, tanggal & durasi.
             </p>
           </div>
-          <Button
-            onClick={exportExcel}
-            disabled={exporting || students.length === 0}
-            className="rounded-xl bg-green-600 px-4 py-2 font-bold font-manrope text-white text-xs hover:bg-green-700 disabled:opacity-50"
-          >
-            {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}{" "}
-            Excel
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              onClick={perbaikiTautan}
+              disabled={fixing || students.length === 0}
+              title="Tautkan hasil siswa yang mengerjakan tes sebelum mengklaim undangan"
+              className="rounded-xl bg-gray-100 px-3 py-2 font-bold font-manrope text-gray-700 text-xs hover:bg-gray-200 disabled:opacity-50"
+            >
+              {fixing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Tautkan hasil
+            </Button>
+            <Button
+              onClick={exportExcel}
+              disabled={exporting || students.length === 0}
+              className="rounded-xl bg-green-600 px-4 py-2 font-bold font-manrope text-white text-xs hover:bg-green-700 disabled:opacity-50"
+            >
+              {exporting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+              )}{" "}
+              Excel
+            </Button>
+          </div>
         </div>
       </div>
 
