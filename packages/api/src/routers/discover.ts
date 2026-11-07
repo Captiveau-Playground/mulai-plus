@@ -9,6 +9,7 @@ import {
 } from "@mulai-plus/r2/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
+import { abilityPct, countsForAbility } from "../lib/assessment-analytics";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
 import { notifyBatchComplete, notifyResultReady } from "../lib/assessment-notify";
 import { evaluateTextInput } from "../lib/evaluate-input";
@@ -653,6 +654,19 @@ export const discoverRouter = {
       const dimsAll = await db.query.assessmentDimensions.findMany({
         where: eq(schema.assessmentDimensions.versionId, sess.versionId),
       });
+      // Keluarga tes (minat/bakat) — dipakai sejak tahap scoring (aturan likert).
+      const versionOfSession = await db.query.assessmentVersions.findFirst({
+        where: eq(schema.assessmentVersions.id, sess.versionId),
+        columns: { assessmentId: true },
+      });
+      const assessmentOfSession = versionOfSession
+        ? await db.query.assessments.findFirst({
+            where: eq(schema.assessments.id, versionOfSession.assessmentId),
+            columns: { family: true },
+          })
+        : null;
+      const sessionFamily = assessmentOfSession?.family ?? null;
+
       const runSecs = computeRunSections(sess.configJson as any, qsAll, dimsAll);
       const purse = await db.query.assessmentAnswers.findMany({
         where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
@@ -673,7 +687,7 @@ export const discoverRouter = {
       const qs = qIds.length
         ? await db.query.questions.findMany({
             where: inArray(schema.questions.id, qIds),
-            columns: { id: true, dimensionId: true, weight: true },
+            columns: { id: true, dimensionId: true, weight: true, questionType: true },
           })
         : [];
       const qBy = new Map(qs.map((q) => [q.id, q]));
@@ -705,6 +719,9 @@ export const discoverRouter = {
         let dimId = "";
         let score = a.scoreEarned ?? 0;
         const q = qBy.get(a.questionId);
+        // Butir SKALA (likert) = self-report: sah untuk minat, TIDAK sah untuk kemampuan
+        // (skornya 1–5, bukan benar/salah → kalau dihitung, pct kemampuan bisa >100%).
+        if (!countsForAbility(q?.questionType, sessionFamily)) continue;
         if (a.selectedOptionId) {
           const o = optBy.get(a.selectedOptionId);
           dimId = o?.targetDimension ?? q?.dimensionId ?? "";
@@ -865,7 +882,7 @@ export const discoverRouter = {
                   levels: Object.fromEntries(
                     Object.entries(abilityScores as Record<string, { correct: number; total: number }>).map(
                       ([k, v]) => {
-                        const pct = v.total ? v.correct / v.total : 0;
+                        const pct = abilityPct(v.correct, v.total) / 100;
                         return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
                       },
                     ),
@@ -1583,11 +1600,14 @@ export const discoverAdminRouter = {
           questionText: q.questionText,
           hasMathNotation: q.hasMathNotation,
           mediaUrl: q.mediaUrl,
+          mediaType: (q as any).mediaType ?? null,
           mediaCaption: q.mediaCaption,
           altText: q.altText,
           questionType: q.questionType as any,
           presentationMode: q.presentationMode as any,
           mediaPosition: (q.mediaPosition ?? null) as any,
+          weight: (q as any).weight ?? 1,
+          durationSeconds: (q as any).durationSeconds ?? null,
           displayOrder: q.displayOrder,
           isActive: q.isActive,
         });
@@ -1600,8 +1620,23 @@ export const discoverAdminRouter = {
             label: o.label,
             hasMathNotation: o.hasMathNotation,
             imageUrl: o.imageUrl,
+            imageCaption: o.imageCaption,
+            icon: o.icon,
             score: o.score,
             displayOrder: o.displayOrder,
+          });
+        }
+        // konfigurasi jawaban isian WAJIB ikut tersalin (kalau tidak, soal isian tak bisa dinilai)
+        const tc = await db.query.textInputConfigs.findFirst({
+          where: eq(schema.textInputConfigs.questionId, q.id),
+        });
+        if (tc) {
+          await db.insert(schema.textInputConfigs).values({
+            id: uid(),
+            questionId: nq,
+            evaluationType: tc.evaluationType,
+            answerKey: tc.answerKey,
+            numericTolerance: tc.numericTolerance,
           });
         }
       }
@@ -1825,6 +1860,27 @@ export const discoverAdminRouter = {
                 answerKey: z.string().optional(),
                 evalType: z.string().optional(),
                 numericTolerance: z.string().optional(),
+                // ── kolom lanjutan dari fitur "Ekspor" (opsional) ──
+                questionCode: z.string().max(40).optional(),
+                durationSeconds: z.number().int().min(0).max(3600).nullable().optional(),
+                isActive: z.boolean().optional(),
+                mediaUrl: z.string().max(2048).optional(),
+                mediaType: z.string().max(20).optional(),
+                mediaCaption: z.string().max(500).optional(),
+                optionMeta: z
+                  .array(
+                    z.object({
+                      letter: z.string().min(1).max(2),
+                      target: z.string().max(64).optional(),
+                      icon: z.string().max(64).optional(),
+                      score: z.number().int().min(0).max(100).optional(),
+                      imageUrl: z.string().max(2048).optional(),
+                      imageCaption: z.string().max(500).optional(),
+                      label: z.string().optional(),
+                    }),
+                  )
+                  .max(6)
+                  .optional(),
               }),
             )
             .max(500),
@@ -1872,6 +1928,17 @@ export const discoverAdminRouter = {
           createdDims.push(`${val} → ${code}`);
           return { id: did };
         };
+        /** Dimensi tujuan skor opsi (pair/reverse) — hanya yang sudah ada, tidak auto-create. */
+        const targetDimId = (raw?: string, fallback?: string): string | null => {
+          const val = (raw ?? "").trim();
+          if (!val) return fallback ?? null;
+          const low = val.toLowerCase();
+          const hit = byCode.get(low) ?? byName.get(low);
+          return hit?.id ?? fallback ?? null;
+        };
+        const metaFor = (r: any, letter: string) =>
+          (r.optionMeta ?? []).find((m: any) => String(m.letter).toUpperCase() === letter);
+
         const defaultScale = await db.query.answerScales.findFirst({
           where: eq(schema.answerScales.name, "Skala Bawaan (A-F, 1 poin)"),
         });
@@ -1911,7 +1978,14 @@ export const discoverAdminRouter = {
             presentationMode: (r.presentationMode ?? "standard_option_card") as any,
             weight: r.weight ?? 1,
             displayOrder: order++,
-            isActive: true,
+            isActive: r.isActive ?? true,
+            // kolom lanjutan (kosong kalau file tidak menyertakannya)
+            questionCode: r.questionCode?.trim() || null,
+            durationSeconds: r.durationSeconds ?? null,
+            mediaUrl: r.mediaUrl?.trim() || null,
+            mediaType: r.mediaType?.trim() || null,
+            mediaCaption: r.mediaCaption?.trim() || null,
+            hasMathNotation: /\$[^$]+\$|\\\(|\\\[/.test(r.text),
           });
           if (typeR === "likert") {
             // Skala: kalau opsi diberikan → dipakai sebagai caption (label bawah), emoji dari
@@ -1919,16 +1993,18 @@ export const discoverAdminRouter = {
             const given = (r.options ?? []).filter((o) => o.trim().length > 0);
             const levels = given.length >= 2 ? given : DEFAULT_LIKERT.map((l) => l.caption);
             for (const [oi, caption] of levels.entries()) {
-              const emoji = DEFAULT_LIKERT[oi]?.emoji ?? "•";
+              const letter = String.fromCharCode(65 + oi);
+              const m = metaFor(r, letter);
               await db.insert(schema.questionOptions).values({
                 id: uid(),
                 questionId: qid,
-                optionValue: String.fromCharCode(65 + oi),
-                targetDimension: dim.id,
+                optionValue: letter,
+                targetDimension: targetDimId(m?.target, dim.id),
                 label: caption,
-                icon: emoji,
-                imageCaption: caption,
-                score: oi + 1,
+                icon: m?.icon || DEFAULT_LIKERT[oi]?.emoji || "•",
+                imageUrl: m?.imageUrl || null,
+                imageCaption: m?.imageCaption || caption,
+                score: m?.score ?? oi + 1,
                 displayOrder: oi,
               });
             }
@@ -1940,14 +2016,21 @@ export const discoverAdminRouter = {
               continue;
             }
             const keyIdx = r.key ? Math.max(0, r.key.toUpperCase().charCodeAt(0) - 65) : 0;
+            const explicitScores = (r.optionMeta ?? []).some((m: any) => typeof m.score === "number");
             for (let oi = 0; oi < opts.length; oi++) {
+              const letter = String.fromCharCode(65 + oi);
+              const m = metaFor(r, letter);
               await db.insert(schema.questionOptions).values({
                 id: uid(),
                 questionId: qid,
-                optionValue: String.fromCharCode(65 + oi),
-                targetDimension: dim.id,
+                optionValue: letter,
+                targetDimension: targetDimId(m?.target, dim.id),
                 label: opts[oi] ?? "",
-                score: oi === keyIdx ? 1 : 0,
+                icon: m?.icon || null,
+                imageUrl: m?.imageUrl || null,
+                imageCaption: m?.imageCaption || null,
+                // Skor eksplisit menang; kalau tidak ada, tetap pakai kolom "Kunci" (perilaku lama).
+                score: explicitScores ? (m?.score ?? 0) : oi === keyIdx ? 1 : 0,
                 displayOrder: oi,
               });
             }
