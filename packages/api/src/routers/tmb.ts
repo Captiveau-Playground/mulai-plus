@@ -1,6 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne, sql } from "@mulai-plus/db/db";
-import { assessmentOrgs } from "@mulai-plus/db/schema/assessment";
+import { and, asc, count, db, desc, eq, gte, inArray, isNotNull, lte, max, ne, sql } from "@mulai-plus/db/db";
+import {
+  assessmentAnswers,
+  assessmentDimensions,
+  assessmentOrgs,
+  assessmentResults,
+  assessmentSessions,
+  assessments,
+  assessmentVersions,
+  questionOptions,
+  questions,
+} from "@mulai-plus/db/schema/assessment";
 import { studentDetail, user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
@@ -22,6 +32,15 @@ import {
 import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
+import {
+  avgOf,
+  computeCohortStats,
+  computeFunnel,
+  computeItemStats,
+  computeTimeseries,
+  computeVersionStats,
+} from "../lib/assessment-analytics";
+import { campusTier, pickProdiRefs } from "../lib/campus-priority";
 import { notFound, preconditionFailed } from "../lib/errors";
 import { mail } from "../lib/mail";
 import { levelFromSchoolName } from "../lib/school-level";
@@ -389,16 +408,25 @@ export function computeRecommendations(
       interest: interestMatch,
       ability: abilityMatch,
       count: prodis.length,
-      examples: prodis.slice(0, 3),
+      // kampus favorit diutamakan (satu kampus satu prodi, lalu dilengkapi)
+      examples: pickProdiRefs(prodis, 5),
     });
   }
 
   results.sort((a, b) => b.confidence - a.confidence);
   const top = results.slice(0, 5);
 
-  // karier untuk top kategori
-  const topKeys = new Set(top.map((r) => r.category.categoryKey));
-  const matchedCareers = careers.filter((c) => topKeys.has(c.majorCategory)).slice(0, 5);
+  // karier untuk top kategori — disebar (maks 2 per kategori) supaya variatif, bukan menumpuk di satu jurusan
+  const topKeys = top.map((r) => r.category.categoryKey);
+  const matchedCareers: { majorCategory: string; careerName: string }[] = [];
+  for (let round = 0; round < 2; round++) {
+    for (const key of topKeys) {
+      const opts = careers.filter((c) => c.majorCategory === key);
+      const pick = opts[round];
+      if (pick && !matchedCareers.some((m) => m.careerName === pick.careerName)) matchedCareers.push(pick);
+    }
+  }
+  matchedCareers.length = Math.min(matchedCareers.length, 6);
 
   const majors = top.map((r, i) => ({
     rank: i + 1,
@@ -412,6 +440,7 @@ export function computeRecommendations(
       prodi: p.name,
       level: p.level,
       university: p.university,
+      favorite: campusTier(p.university) < 999,
       link: `/explore/universities/${slugify(p.university)}-${p.idSp.substring(0, 6)}/prodi/${encodeURIComponent(p.idSms)}`,
     })),
   }));
@@ -1402,6 +1431,74 @@ export async function buildBatchRekap(batchId: string) {
   };
 }
 
+/**
+ * Cakupan data untuk analitik: tes (opsional) → versi → sesi.
+ * Semua endpoint analitik memakai helper ini supaya filternya konsisten.
+ */
+async function analyticsScope(input: {
+  code?: string;
+  from?: string;
+  to?: string;
+  batchId?: string;
+  schoolId?: string;
+}) {
+  const assets = input.code
+    ? await db.query.assessments.findMany({ where: eq(assessments.code, input.code.toUpperCase()) })
+    : await db.query.assessments.findMany({});
+
+  // Kohort (B2B): batasi ke siswa yang terdaftar di batch/sekolah itu.
+  let cohortStudentIds: string[] | null = null;
+  if (input.batchId || input.schoolId) {
+    let batchIds: string[] = [];
+    if (input.batchId) batchIds = [input.batchId];
+    else if (input.schoolId) {
+      const bs = await db.query.tmbBatches.findMany({
+        where: eq(tmbBatches.schoolId, input.schoolId),
+        columns: { id: true },
+      });
+      batchIds = bs.map((b) => b.id);
+    }
+    const roster = batchIds.length
+      ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.batchId, batchIds) })
+      : [];
+    cohortStudentIds = roster.map((r) => r.userId ?? `guest-${r.id}`);
+  }
+
+  const versions = assets.length
+    ? await db.query.assessmentVersions.findMany({
+        where: inArray(
+          assessmentVersions.assessmentId,
+          assets.map((a) => a.id),
+        ),
+      })
+    : [];
+  const versionIds = versions.map((v) => v.id);
+  const fromD = input.from ? new Date(input.from) : null;
+  const toD = input.to ? new Date(input.to) : null;
+  const range =
+    fromD || toD
+      ? and(
+          fromD ? gte(assessmentSessions.startedAt, fromD) : undefined,
+          toD ? lte(assessmentSessions.startedAt, toD) : undefined,
+        )
+      : undefined;
+
+  const sessions =
+    versionIds.length && (!cohortStudentIds || cohortStudentIds.length)
+      ? await db.query.assessmentSessions.findMany({
+          where: and(
+            inArray(assessmentSessions.versionId, versionIds),
+            cohortStudentIds ? inArray(assessmentSessions.studentId, cohortStudentIds) : undefined,
+            range,
+          ),
+          orderBy: [desc(assessmentSessions.startedAt)],
+          limit: 20000,
+        })
+      : [];
+
+  return { assets, versions, versionIds, sessions, cohortStudentIds };
+}
+
 export const tmbAdminRouter = {
   schools: {
     list: adminProcedure.handler(async () => {
@@ -2062,88 +2159,753 @@ export const tmbAdminRouter = {
       }),
   },
 
-  analytics: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
-    const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
-    const total = students.length;
-    const completed = students.filter((s) => s.status === "completed").length;
-    const inProgress = students.filter((s) => s.status === "in_progress").length;
-    const invited = students.filter((s) => s.status === "invited").length;
+  /** Analitik assessment — batch (B2B) + lintas-tes (B2C). */
+  analytics: {
+    /** Analitik satu batch/kelas (dipakai halaman batch admin). */
+    batch: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+      const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
+      const total = students.length;
+      const completed = students.filter((s) => s.status === "completed").length;
+      const inProgress = students.filter((s) => s.status === "in_progress").length;
+      const invited = students.filter((s) => s.status === "invited").length;
 
-    // distribusi Holland
-    const hollandCount: Record<string, number> = {};
-    const abilityAvg: Record<string, { sum: number; n: number }> = {};
-    const topMajorCount: Record<string, number> = {};
-
-    for (const s of students) {
-      if (!s.resultId) continue;
-      const resultId = s.resultId;
-      const [r, recos] = await Promise.all([
-        db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
-        db.query.tmbRecommendations.findMany({
-          where: eq(tmbRecommendations.resultId, resultId),
-          orderBy: asc(tmbRecommendations.rank),
-        }),
+      // 2 query total (bukan 2×N seperti versi lama) — aman untuk batas subrequest Worker.
+      const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+      const [results, recos] = await Promise.all([
+        resultIds.length
+          ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+          : Promise.resolve([]),
+        resultIds.length
+          ? db.query.tmbRecommendations.findMany({ where: inArray(tmbRecommendations.resultId, resultIds) })
+          : Promise.resolve([]),
       ]);
-      if (r?.hollandCode) {
-        const primary = r.hollandCode.charAt(0);
-        hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
-      }
-      const ability = (r?.abilityScores as any)?.scores ?? {};
-      for (const [dim, v] of Object.entries(ability as Record<string, { correct: number; total: number }>)) {
-        if (v.total > 0) {
-          abilityAvg[dim] = abilityAvg[dim] ?? { sum: 0, n: 0 };
-          abilityAvg[dim].sum += v.correct / v.total;
-          abilityAvg[dim].n += 1;
+
+      const hollandCount: Record<string, number> = {};
+      const abilityAvg: Record<string, { sum: number; n: number }> = {};
+      const topMajorCount: Record<string, number> = {};
+      const confident: number[] = [];
+
+      for (const r of results) {
+        if (r.hollandCode) {
+          const primary = r.hollandCode.charAt(0);
+          hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
         }
+        const ability = (r.abilityScores as any)?.scores ?? {};
+        for (const [dim, v] of Object.entries(ability as Record<string, { correct: number; total: number }>)) {
+          if (v.total > 0) {
+            abilityAvg[dim] = abilityAvg[dim] ?? { sum: 0, n: 0 };
+            abilityAvg[dim].sum += v.correct / v.total;
+            abilityAvg[dim].n += 1;
+          }
+        }
+        const c = Number(r.confidenceScore);
+        if (Number.isFinite(c) && c > 0) confident.push(c);
       }
-      recos
-        .filter((x) => x.type === "major")
-        .slice(0, 3)
-        .forEach((x) => {
-          topMajorCount[x.itemName] = (topMajorCount[x.itemName] ?? 0) + 1;
+      for (const rc of recos) {
+        if (rc.type !== "major" || (rc.rank ?? 99) > 3) continue;
+        topMajorCount[rc.itemName] = (topMajorCount[rc.itemName] ?? 0) + 1;
+      }
+
+      const topMajors = Object.entries(topMajorCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+      const hollandDistribution = Object.entries(hollandCount)
+        .map(([code, count]) => ({ code, count }))
+        .sort((a, b) => b.count - a.count);
+      const abilityAvgClean = Object.entries(abilityAvg).map(([dim, v]) => ({
+        dim,
+        avg: Math.round((v.sum / v.n) * 100),
+      }));
+
+      return {
+        total,
+        completed,
+        inProgress,
+        invited,
+        hollandDistribution,
+        abilityAvg: abilityAvgClean,
+        topMajors,
+        avgConfidence: avgOf(confident),
+      };
+    }),
+
+    /** Ringkasan lintas tes (B2C) + kesehatan data + daftar perlu perhatian. */
+    overview: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope(input);
+        const sessionIds = scope.sessions.map((s) => s.id);
+        const results = sessionIds.length
+          ? await db.query.assessmentResults.findMany({ where: inArray(assessmentResults.sessionId, sessionIds) })
+          : [];
+        const tmb = await db.query.tmbAssessmentResults.findMany({});
+
+        const answerRows = sessionIds.length
+          ? await db.query.assessmentAnswers.findMany({
+              where: inArray(assessmentAnswers.sessionId, sessionIds),
+              columns: { sessionId: true },
+            })
+          : [];
+        const answersBySession = new Set(answerRows.map((a) => a.sessionId));
+
+        const bySession = new Map(results.map((r) => [r.sessionId, r]));
+        const confidence = scope.sessions.map((s) => {
+          const r = bySession.get(s.id);
+          const recos = (r?.recommendationsJson ?? []) as any[];
+          const top = Number(recos?.[0]?.confidence);
+          return Number.isFinite(top) ? top : null;
         });
-    }
 
-    const topMajors = Object.entries(topMajorCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, count]) => ({ name, count }));
-    const hollandDistribution = Object.entries(hollandCount)
-      .map(([code, count]) => ({ code, count }))
-      .sort((a, b) => b.count - a.count);
-    const abilityAvgClean = Object.entries(abilityAvg).map(([dim, v]) => ({
-      dim,
-      avg: Math.round((v.sum / v.n) * 100),
-    }));
+        const completed = scope.sessions.filter((x) => x.status === "completed").length;
+        const totalTmb = tmb.length;
+        const tmbWithConfidence = tmb.filter((r) => Number(r.confidenceScore) > 0).length;
 
-    return { total, completed, inProgress, invited, hollandDistribution, abilityAvg: abilityAvgClean, topMajors };
-  }),
+        return {
+          tests: scope.assets.map((a) => ({ code: a.code, name: a.name, family: a.family })),
+          versions: scope.versions.length,
+          sessions: {
+            total: scope.sessions.length,
+            completed,
+            inProgress: scope.sessions.filter((x) => x.status === "in_progress").length,
+            paused: scope.sessions.filter((x) => x.status === "paused").length,
+            timeout: scope.sessions.filter((x) => x.status === "timeout").length,
+            completionRate: scope.sessions.length ? Math.round((completed / scope.sessions.length) * 1000) / 1000 : 0,
+            uniqueUsers: new Set(scope.sessions.map((s) => s.studentId)).size,
+          },
+          confidence: {
+            avg: avgOf(confidence),
+            n: confidence.filter((c) => c !== null).length,
+          },
+          retest: (() => {
+            const perUser = new Map<string, number>();
+            for (const s of scope.sessions) perUser.set(s.studentId, (perUser.get(s.studentId) ?? 0) + 1);
+            const repeat = [...perUser.values()].filter((n) => n > 1).length;
+            return {
+              users: perUser.size,
+              repeated: repeat,
+              repeatRate: perUser.size ? Math.round((repeat / perUser.size) * 1000) / 1000 : 0,
+            };
+          })(),
+          health: {
+            resultRows: totalTmb,
+            resultRowsWithConfidence: tmbWithConfidence,
+            resultRowsWithoutConfidence: totalTmb - tmbWithConfidence,
+            // sesi yang selesai tapi tidak menyimpan satu jawaban pun (data race/batal di tengah)
+            sessionsWithoutAnswers: scope.sessions.filter(
+              (s) => (s.status === "completed" || s.status === "timeout") && !answersBySession.has(s.id),
+            ).length,
+            resultRowsWithoutSession: Math.max(0, totalTmb - scope.sessions.length),
+          },
+        };
+      }),
+
+    /**
+     * Ringkasan KOHORT (B2B): satu kelas (batchId) atau satu sekolah (schoolId).
+     * Dipakai halaman sekolah admin & panel analitik kelas — menggabungkan
+     * kelengkapan, sebaran minat/kemampuan, rekomendasi, perhatian, funnel, dan versi.
+     */
+    cohort: adminProcedure
+      .input(
+        z.object({
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+          code: z.string().trim().optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        if (!input.batchId && !input.schoolId) preconditionFailed("batchId atau schoolId wajib diisi");
+
+        let students: (typeof tmbBatchStudents.$inferSelect)[] = [];
+        let batchList: (typeof tmbBatches.$inferSelect)[] = [];
+        if (input.batchId) {
+          students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
+          batchList = await db.query.tmbBatches.findMany({ where: eq(tmbBatches.id, input.batchId) });
+        } else if (input.schoolId) {
+          batchList = await db.query.tmbBatches.findMany({ where: eq(tmbBatches.schoolId, input.schoolId) });
+          students = batchList.length
+            ? await db.query.tmbBatchStudents.findMany({
+                where: inArray(
+                  tmbBatchStudents.batchId,
+                  batchList.map((b) => b.id),
+                ),
+              })
+            : [];
+        }
+
+        const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+        const [results, recos] = await Promise.all([
+          resultIds.length
+            ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+            : Promise.resolve([]),
+          resultIds.length
+            ? db.query.tmbRecommendations.findMany({ where: inArray(tmbRecommendations.resultId, resultIds) })
+            : Promise.resolve([]),
+        ]);
+
+        const stats = computeCohortStats({
+          students: students.map((s) => ({
+            id: s.id,
+            name: s.name,
+            status: s.status,
+            resultId: s.resultId,
+            batchId: s.batchId,
+          })),
+          results: results.map((r) => ({
+            id: r.id,
+            hollandCode: r.hollandCode,
+            hollandScores: (r.hollandScores ?? {}) as Record<string, unknown>,
+            abilityScores: r.abilityScores,
+            confidenceScore: r.confidenceScore,
+            differentiation: r.differentiation,
+            createdAt: r.createdAt,
+          })),
+          recos: recos.map((r) => ({
+            resultId: r.resultId,
+            type: r.type,
+            rank: r.rank,
+            itemName: r.itemName,
+          })),
+        });
+
+        // funnel & versi untuk kohort yang sama (sesi milik siswa kohort)
+        const scope = await analyticsScope({
+          code: input.code,
+          from: input.from,
+          to: input.to,
+          batchId: input.batchId,
+          schoolId: input.schoolId,
+        });
+        const sessionIds = scope.sessions.map((x) => x.id);
+        const answers = sessionIds.length
+          ? await db.query.assessmentAnswers.findMany({
+              where: inArray(assessmentAnswers.sessionId, sessionIds),
+            })
+          : [];
+        const questionsForFunnel = scope.versionIds.length
+          ? await db.query.questions.findMany({ where: inArray(questions.versionId, scope.versionIds) })
+          : [];
+        const dims = scope.versionIds.length
+          ? await db.query.assessmentDimensions.findMany({
+              where: inArray(assessmentDimensions.versionId, scope.versionIds),
+            })
+          : [];
+        const funnel = computeFunnel(
+          scope.sessions,
+          answers.map((a) => ({ sessionId: a.sessionId, questionId: a.questionId, scoreEarned: a.scoreEarned })),
+          questionsForFunnel.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            text: q.questionText,
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+          })),
+        );
+        const dimMap = new Map(dims.map((d) => [d.id, d]));
+
+        return {
+          ...stats,
+          funnel: {
+            ...funnel,
+            completionRatePct: Math.round(funnel.completionRate * 1000) / 10,
+            perDimension: funnel.perDimension.map((d) => ({
+              ...d,
+              code: dimMap.get(d.dimensionId)?.code ?? "",
+              name: dimMap.get(d.dimensionId)?.name ?? "",
+              dropRatePct: Math.round(d.dropRate * 1000) / 10,
+            })),
+          },
+          batches: batchList.map((b) => {
+            const rows = students.filter((s) => s.batchId === b.id);
+            const done = rows.filter((s) => s.status === "completed").length;
+            return {
+              id: b.id,
+              name: b.name,
+              className: b.className,
+              major: b.major,
+              graduationYear: b.graduationYear,
+              inviteCode: b.inviteCode,
+              total: rows.length,
+              completed: done,
+              completionRatePct: rows.length ? Math.round((done / rows.length) * 1000) / 10 : 0,
+            };
+          }),
+          sessionsInScope: scope.sessions.length,
+        };
+      }),
+
+    /** Statistik per butir soal: kesulitan, daya beda, distractor, skip. */
+    items: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          versionId: z.string().trim().optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+          minAnswers: z.number().int().min(0).default(1),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope(input);
+        const versionIds = input.versionId ? [input.versionId] : scope.versionIds;
+        if (!versionIds.length)
+          return {
+            items: [],
+            dimensions: [],
+            questionCount: 0,
+            summary: { items: 0, flagged: 0, avgP: null as number | null, avgDiscrimination: 0 },
+          };
+
+        const finished = scope.sessions.filter(
+          (s) => (s.status === "completed" || s.status === "timeout") && versionIds.includes(s.versionId),
+        );
+        // hanya soal AKTIF: soal nonaktif tidak pernah dilihat siswa →
+        // kalau ikut dihitung, semua tampak "banyak dilewati" (bug lama).
+        const qs = await db.query.questions.findMany({
+          where: and(inArray(questions.versionId, versionIds), eq(questions.isActive, true)),
+          orderBy: [asc(questions.displayOrder)],
+        });
+        const qIds = qs.map((q) => q.id);
+        const [opts, ans, dims] = await Promise.all([
+          qIds.length
+            ? db.query.questionOptions.findMany({ where: inArray(questionOptions.questionId, qIds) })
+            : Promise.resolve([]),
+          finished.length
+            ? db.query.assessmentAnswers.findMany({
+                where: inArray(
+                  assessmentAnswers.sessionId,
+                  finished.map((s) => s.id),
+                ),
+              })
+            : Promise.resolve([]),
+          db.query.assessmentDimensions.findMany({ where: inArray(assessmentDimensions.versionId, versionIds) }),
+        ]);
+
+        const stats = computeItemStats({
+          questions: qs.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            code: q.questionCode,
+            text: q.questionText,
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+          })),
+          options: opts.map((o) => ({
+            id: o.id,
+            questionId: o.questionId,
+            value: o.optionValue,
+            label: o.label,
+            score: o.score,
+          })),
+          answers: ans.map((a) => ({
+            sessionId: a.sessionId,
+            questionId: a.questionId,
+            selectedOptionId: a.selectedOptionId,
+            textAnswer: a.textAnswer,
+            scoreEarned: a.scoreEarned,
+          })),
+          sessions: finished.map((x) => ({ ...x, versionId: x.versionId })),
+          versionId: input.versionId,
+        }).filter((s) => s.answered >= input.minAnswers);
+
+        const verById = new Map(scope.versions.map((v) => [v.id, v]));
+        const testByVersion = new Map<string, string>();
+        for (const v of scope.versions) {
+          const a = scope.assets.find((x) => x.id === v.assessmentId);
+          testByVersion.set(v.id, a?.code ?? "");
+        }
+        const ordered = [...stats].sort(
+          (a, b) =>
+            b.flags.length - a.flags.length ||
+            (verById.get(a.versionId)?.versionNumber ?? 0) - (verById.get(b.versionId)?.versionNumber ?? 0) ||
+            a.order - b.order,
+        );
+
+        return {
+          questionCount: qs.length,
+          dimensions: dims.map((d) => ({ id: d.id, code: d.code, name: d.name })),
+          items: ordered.map((s) => ({
+            ...s,
+            testCode: testByVersion.get(s.versionId) ?? "",
+            versionNumber: verById.get(s.versionId)?.versionNumber ?? null,
+          })),
+          summary: {
+            items: stats.length,
+            flagged: stats.filter((s) => s.flags.length > 0).length,
+            avgP: avgOf(stats.map((s) => (s.p === null ? null : s.p * 100))),
+            avgDiscrimination: (() => {
+              const rs = stats.map((x) => x.discrimination).filter((r): r is number => r !== null);
+              return rs.length ? Math.round((rs.reduce((a, b) => a + b, 0) / rs.length) * 1000) / 1000 : null;
+            })(),
+          },
+        };
+      }),
+
+    /** Funnel penyelesaian + drop-off per dimensi. */
+    funnel: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope(input);
+        const sessionIds = scope.sessions.map((s) => s.id);
+        const [ans, qs, dims] = await Promise.all([
+          sessionIds.length
+            ? db.query.assessmentAnswers.findMany({ where: inArray(assessmentAnswers.sessionId, sessionIds) })
+            : Promise.resolve([]),
+          scope.versionIds.length
+            ? db.query.questions.findMany({ where: inArray(questions.versionId, scope.versionIds) })
+            : Promise.resolve([]),
+          scope.versionIds.length
+            ? db.query.assessmentDimensions.findMany({
+                where: inArray(assessmentDimensions.versionId, scope.versionIds),
+              })
+            : Promise.resolve([]),
+        ]);
+        const f = computeFunnel(
+          scope.sessions,
+          ans.map((a) => ({ sessionId: a.sessionId, questionId: a.questionId, scoreEarned: a.scoreEarned })),
+          qs.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            text: q.questionText,
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+          })),
+        );
+        const dimMap = new Map(dims.map((d) => [d.id, d]));
+        return {
+          ...f,
+          completionRatePct: Math.round(f.completionRate * 1000) / 10,
+          perDimension: f.perDimension.map((d) => ({
+            ...d,
+            code: dimMap.get(d.dimensionId)?.code ?? "",
+            name: dimMap.get(d.dimensionId)?.name ?? "",
+            dropRatePct: Math.round(d.dropRate * 1000) / 10,
+          })),
+        };
+      }),
+
+    /** Perbandingan versi soal (konversi, confidence, rata-rata p). */
+    versions: adminProcedure.input(z.object({ code: z.string().trim().optional() })).handler(async ({ input }) => {
+      const scope = await analyticsScope(input);
+      if (!scope.versionIds.length) return { versions: [] };
+
+      const finished = scope.sessions.filter((s) => s.status === "completed" || s.status === "timeout");
+      const finishedIds = finished.map((s) => s.id);
+      const [qs, opts, ans, results] = await Promise.all([
+        db.query.questions.findMany({ where: inArray(questions.versionId, scope.versionIds) }),
+        db.query.questionOptions.findMany({}),
+        finishedIds.length
+          ? db.query.assessmentAnswers.findMany({ where: inArray(assessmentAnswers.sessionId, finishedIds) })
+          : Promise.resolve([]),
+        finishedIds.length
+          ? db.query.assessmentResults.findMany({ where: inArray(assessmentResults.sessionId, finishedIds) })
+          : Promise.resolve([]),
+      ]);
+      const resBy = new Map(results.map((r) => [r.sessionId, r]));
+
+      const itemStatsByVersion = scope.versionIds.map((vid) => {
+        const vqs = qs.filter((q) => q.versionId === vid);
+        const qIds = new Set(vqs.map((q) => q.id));
+        const stats = computeItemStats({
+          questions: vqs.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            text: q.questionText,
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+          })),
+          options: opts
+            .filter((o) => qIds.has(o.questionId))
+            .map((o) => ({
+              id: o.id,
+              questionId: o.questionId,
+              value: o.optionValue,
+              label: o.label,
+              score: o.score,
+            })),
+          answers: ans
+            .filter((a) => qIds.has(a.questionId))
+            .map((a) => ({
+              sessionId: a.sessionId,
+              questionId: a.questionId,
+              selectedOptionId: a.selectedOptionId,
+              scoreEarned: a.scoreEarned,
+            })),
+          sessions: finished.filter((s) => s.versionId === vid),
+        });
+        return stats.map((s) => ({ versionId: vid, p: s.p }));
+      });
+
+      const versions = computeVersionStats({
+        versions: scope.versions.map((v) => ({ id: v.id, versionNumber: v.versionNumber, status: v.status })),
+        sessions: scope.sessions.map((s) => ({ ...s, versionId: s.versionId })),
+        itemStats: itemStatsByVersion.flat(),
+        confidences: finished.map((s) => ({
+          sessionId: s.id,
+          versionId: s.versionId,
+          confidence: (() => {
+            const r = resBy.get(s.id);
+            const top = Number(((r?.recommendationsJson ?? []) as any[])?.[0]?.confidence);
+            return Number.isFinite(top) ? top : null;
+          })(),
+        })),
+      });
+      return {
+        versions: versions
+          .filter((v) => v.sessions > 0)
+          .map((v) => ({
+            ...v,
+            completionRatePct: Math.round(v.completionRate * 1000) / 10,
+            avgPPct: v.avgP === null ? null : Math.round(v.avgP * 1000) / 10,
+          })),
+      };
+    }),
+
+    /** Tren harian: sesi mulai, selesai, pengguna unik. */
+    timeseries: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+          days: z.number().int().min(1).max(120).default(14),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope({ code: input.code, batchId: input.batchId, schoolId: input.schoolId });
+        return { days: input.days, points: computeTimeseries(scope.sessions, { days: input.days }) };
+      }),
+
+    /** Segmentasi: sumber, sekolah, jenjang, kota. */
+    segments: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope({ code: input.code, batchId: input.batchId, schoolId: input.schoolId });
+        const sessionIds = scope.sessions.map((s) => s.id);
+        const results = sessionIds.length
+          ? await db.query.assessmentResults.findMany({ where: inArray(assessmentResults.sessionId, sessionIds) })
+          : [];
+        const resBy = new Map(results.map((r) => [r.sessionId, r]));
+
+        const userIds = [...new Set(scope.sessions.map((s) => s.studentId))];
+        const accountIds = userIds.filter((u) => !u.startsWith("guest-"));
+        const [accounts, details, roster] = await Promise.all([
+          accountIds.length
+            ? db.query.user.findMany({ where: inArray(userSchema.id, accountIds) })
+            : Promise.resolve([]),
+          accountIds.length
+            ? db.query.studentDetail.findMany({ where: inArray(studentDetail.userId, accountIds) })
+            : Promise.resolve([]),
+          userIds.length
+            ? db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.userId, userIds) })
+            : Promise.resolve([]),
+        ]);
+        const batchIds = [...new Set(roster.map((r) => r.batchId))];
+        const batches = batchIds.length
+          ? await db.query.tmbBatches.findMany({ where: inArray(tmbBatches.id, batchIds) })
+          : [];
+        const schoolIds = [...new Set(batches.map((b) => b.schoolId))];
+        const schools = schoolIds.length
+          ? await db.query.tmbSchools.findMany({ where: inArray(tmbSchools.id, schoolIds) })
+          : [];
+        const batchMap = new Map(batches.map((b) => [b.id, b]));
+        const schoolMap = new Map(schools.map((s) => [s.id, s]));
+        const rosterByUser = new Map<string, (typeof roster)[number]>();
+        for (const r of roster) if (r.userId && !rosterByUser.has(r.userId)) rosterByUser.set(r.userId, r);
+        const detailBy = new Map(details.map((d) => [d.userId, d]));
+
+        const group = (keyFn: (s: (typeof scope.sessions)[number]) => string) => {
+          const m = new Map<string, { total: number; completed: number; conf: number[]; users: Set<string> }>();
+          for (const s of scope.sessions) {
+            const key = keyFn(s) || "Tidak diketahui";
+            const cur = m.get(key) ?? { total: 0, completed: 0, conf: [], users: new Set<string>() };
+            cur.total += 1;
+            if (s.status === "completed") cur.completed += 1;
+            cur.users.add(s.studentId);
+            const top = Number(((resBy.get(s.id)?.recommendationsJson ?? []) as any[])?.[0]?.confidence);
+            if (Number.isFinite(top)) cur.conf.push(top);
+            m.set(key, cur);
+          }
+          return [...m.entries()]
+            .map(([key, v2]) => ({
+              key,
+              sessions: v2.total,
+              users: v2.users.size,
+              completionRatePct: Math.round((v2.completed / v2.total) * 1000) / 10,
+              avgConfidence: avgOf(v2.conf),
+            }))
+            .sort((a, b) => b.sessions - a.sessions);
+        };
+
+        const schoolOf = (studentId: string) => {
+          const r = rosterByUser.get(studentId);
+          const b = r ? batchMap.get(r.batchId) : null;
+          return b ? (schoolMap.get(b.schoolId)?.name ?? "") : "";
+        };
+
+        return {
+          bySource: group((s) => (rosterByUser.has(s.studentId) ? "Sekolah (invitasi)" : "Mandiri")),
+          bySchool: group((s) => schoolOf(s.studentId)).slice(0, 20),
+          byLevel: group((s) => {
+            const d = detailBy.get(s.studentId);
+            return (d?.educationLevel as string) ?? "";
+          }),
+          byCity: group((s) => {
+            const r = rosterByUser.get(s.studentId);
+            const b = r ? batchMap.get(r.batchId) : null;
+            const sc = b ? schoolMap.get(b.schoolId) : null;
+            return (sc as any)?.city ?? "";
+          }),
+          withAccount: accounts.length,
+        };
+      }),
+
+    /** Daftar peserta yang perlu perhatian (keyakinan rendah / minat menyebar / kemampuan lemah). */
+    attention: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+          limit: z.number().int().min(1).max(200).default(50),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope({ code: input.code, batchId: input.batchId, schoolId: input.schoolId });
+        const finished = scope.sessions.filter((s) => s.status === "completed" || s.status === "timeout");
+        if (!finished.length) return { items: [] };
+        const results = await db.query.assessmentResults.findMany({
+          where: inArray(
+            assessmentResults.sessionId,
+            finished.map((s) => s.id),
+          ),
+        });
+        const bySession = new Map(results.map((r) => [r.sessionId, r]));
+
+        const userIds = [...new Set(finished.map((s) => s.studentId))];
+        const accountIds = userIds.filter((u) => !u.startsWith("guest-"));
+        const [accounts, roster, tmbRows] = await Promise.all([
+          accountIds.length
+            ? db.query.user.findMany({ where: inArray(userSchema.id, accountIds) })
+            : Promise.resolve([]),
+          db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.userId, userIds) }),
+          db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.userId, userIds) }),
+        ]);
+        const accBy = new Map(accounts.map((a) => [a.id, a]));
+        const familyByVersion = new Map<string, string | null>();
+        for (const v of scope.versions) {
+          const a = scope.assets.find((x) => x.id === v.assessmentId);
+          familyByVersion.set(v.id, (a?.family as string | null) ?? null);
+        }
+        const rosterBy = new Map<string, (typeof roster)[number]>();
+        for (const r of roster) if (r.userId && !rosterBy.has(r.userId)) rosterBy.set(r.userId, r);
+        const tmbByUser = new Map<string, (typeof tmbRows)[number]>();
+        for (const r of tmbRows) if (!tmbByUser.has(r.userId)) tmbByUser.set(r.userId, r);
+
+        const items = finished.map((s) => {
+          const res = bySession.get(s.id);
+          const tmb = tmbByUser.get(s.studentId);
+          const conf = Number(tmb?.confidenceScore ?? 0) || null;
+          const diff = String(tmb?.differentiation ?? "").toLowerCase();
+          const reasons: string[] = [];
+          if (conf !== null && conf < 50) reasons.push("keyakinan rendah");
+          if (diff.startsWith("weak") || diff.startsWith("flat")) reasons.push("minat menyebar");
+          // kemampuan lemah (berlaku untuk tes bakat): dimensi dengan benar < 40%
+          // hanya untuk tes BAKAT — kemampuan tidak relevan di baris minat
+          if (familyByVersion.get(s.versionId) === "bakat") {
+            const ab = ((tmb?.abilityScores as any)?.scores ?? tmb?.abilityScores ?? {}) as Record<
+              string,
+              { correct?: number; total?: number }
+            >;
+            for (const [k, v] of Object.entries(ab)) {
+              if (!v || typeof v !== "object" || !v.total) continue;
+              if ((v.correct ?? 0) / v.total < 0.4) reasons.push(`kemampuan ${k} lemah`);
+            }
+          }
+          if (!res) reasons.push("hasil belum terbentuk");
+          return {
+            sessionId: s.id,
+            studentId: s.studentId,
+            name: accBy.get(s.studentId)?.name ?? rosterBy.get(s.studentId)?.name ?? "Guest",
+            profileCode: res?.profileCode ?? tmb?.hollandCode ?? null,
+            confidence: conf,
+            differentiation: tmb?.differentiation ?? null,
+            finishedAt: s.completedAt,
+            reasons: reasons.slice(0, 3),
+          };
+        });
+        return {
+          items: items.filter((i) => i.reasons.length > 0).slice(0, input.limit),
+          checked: items.length,
+        };
+      }),
+  },
 
   // ── B2C: statistik & history seluruh pengguna ──
   b2c: {
     stats: adminProcedure.handler(async () => {
-      const [resultCount, userCount, attemptCount, completedCount] = await Promise.all([
-        db.select({ n: count() }).from(tmbAssessmentResults),
-        db
-          .select({ userId: tmbAssessmentResults.userId })
-          .from(tmbAssessmentResults)
-          .groupBy(tmbAssessmentResults.userId),
-        db.select({ n: count() }).from(tmbTestAttempts),
-        db.select({ n: count() }).from(tmbTestAttempts).where(eq(tmbTestAttempts.status, "completed")),
-      ]);
+      const [resultCount, userCount, legacyAttempts, legacyCompleted, engineSessions, engineCompleted] =
+        await Promise.all([
+          db.select({ n: count() }).from(tmbAssessmentResults),
+          db
+            .select({ userId: tmbAssessmentResults.userId })
+            .from(tmbAssessmentResults)
+            .groupBy(tmbAssessmentResults.userId),
+          // legacy (arsip) — tetap ditampilkan terpisah supaya angka tidak menyesatkan
+          db.select({ n: count() }).from(tmbTestAttempts),
+          db.select({ n: count() }).from(tmbTestAttempts).where(eq(tmbTestAttempts.status, "completed")),
+          // sumber utama sekarang: sesi engine
+          db.select({ n: count() }).from(assessmentSessions),
+          db
+            .select({ n: count() })
+            .from(assessmentSessions)
+            .where(inArray(assessmentSessions.status, ["completed", "timeout"] as any)),
+        ]);
 
       // distribusi Holland (semua hasil)
       const results = await db.query.tmbAssessmentResults.findMany({
         columns: { id: true, hollandCode: true, confidenceScore: true, createdAt: true },
       });
       const hollandCount: Record<string, number> = {};
-      let totalConfidence = 0;
+      const confValues: number[] = [];
       for (const r of results) {
         if (r.hollandCode) {
           const primary = r.hollandCode.charAt(0);
           hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
         }
-        totalConfidence += Number(r.confidenceScore ?? 0);
+        // hanya nilai valid yang masuk rata-rata (dulu null dihitung 0 → rata-rata terlalu rendah)
+        const c = Number(r.confidenceScore);
+        if (Number.isFinite(c) && c > 0) confValues.push(c);
       }
 
       // top jurusan (rekomendasi)
@@ -2165,13 +2927,17 @@ export const tmbAdminRouter = {
       return {
         totalAssessments: resultCount[0]?.n ?? 0,
         totalUsers: userCount.length,
-        totalAttempts: attemptCount[0]?.n ?? 0,
-        completedAttempts: completedCount[0]?.n ?? 0,
+        totalAttempts: engineSessions[0]?.n ?? 0,
+        completedAttempts: engineCompleted[0]?.n ?? 0,
+        legacyAttempts: legacyAttempts[0]?.n ?? 0,
+        legacyCompleted: legacyCompleted[0]?.n ?? 0,
         hollandDistribution: Object.entries(hollandCount)
           .map(([code, count]) => ({ code, count }))
           .sort((a, b) => b.count - a.count),
         topMajors,
-        avgConfidence: results.length ? Math.round(totalConfidence / results.length) : 0,
+        avgConfidence: confValues.length ? Math.round(confValues.reduce((a, b) => a + b, 0) / confValues.length) : 0,
+        confidenceSamples: confValues.length,
+        resultsWithoutConfidence: results.length - confValues.length,
       };
     }),
 
@@ -2206,11 +2972,22 @@ export const tmbAdminRouter = {
           if (!topMajorMap.has(rec.resultId)) topMajorMap.set(rec.resultId, rec.itemName);
         }
 
+        // sesi engine per siswa — dipakai menandai hasil yang punya jawaban tersimpan
+        const uids = [...new Set(rows.map((r) => r.userId))];
+        const sessRows = uids.length
+          ? await db.query.assessmentSessions.findMany({
+              where: inArray(assessmentSessions.studentId, uids),
+              columns: { id: true, studentId: true },
+            })
+          : [];
+        const usersWithSession = new Set(sessRows.map((x) => x.studentId));
+
         return {
           total: total[0]?.n ?? 0,
           items: await Promise.all(
             rows.map(async (r) => ({
               id: r.id,
+              hasSession: usersWithSession.has(r.userId),
               name: userMap.get(r.userId) ?? guestMap.get(r.userId) ?? "Guest",
               isGuest: r.userId.startsWith("guest-"),
               hollandCode: r.hollandCode,
@@ -2220,6 +2997,276 @@ export const tmbAdminRouter = {
               source: await resolveResultSource(r.id),
             })),
           ),
+        };
+      }),
+
+    /**
+     * Data ekspor hasil assessment (admin) — 1 baris = 1 PERCOBAAN (sesi tes yang selesai).
+     *
+     * Sumber jawaban & versi soal = engine (`assessment_sessions` → `assessment_answers`),
+     * jadi versi soal tiap percobaan pasti benar. Profil & confidence diambil dari
+     * `assessment_results` (terikat `sessionId`) dan confidence profil dari baris
+     * `tmb_assessment_results` user yang paling dekat waktunya (dicatat di `confidenceMatch`).
+     */
+    exportData: adminProcedure
+      .input(
+        z.object({
+          limit: z.number().int().min(1).max(1000).default(300),
+          offset: z.number().int().min(0).default(0),
+          code: z.string().trim().optional(), // filter kode tes (DISCOVER/TALENT/…)
+          from: z.string().trim().optional(), // ISO — filter completedAt
+          to: z.string().trim().optional(),
+          batchId: z.string().trim().optional(), // B2B: satu kelas
+          schoolId: z.string().trim().optional(), // B2B: satu sekolah
+        }),
+      )
+      .handler(async ({ input }) => {
+        const fromD = input.from ? new Date(input.from) : null;
+        const toD = input.to ? new Date(input.to) : null;
+        const range =
+          fromD || toD
+            ? and(
+                fromD ? gte(assessmentSessions.completedAt, fromD) : undefined,
+                toD ? lte(assessmentSessions.completedAt, toD) : undefined,
+              )
+            : undefined;
+
+        const sessionsAll = await db.query.assessmentSessions.findMany({
+          where: and(
+            inArray(assessmentSessions.status, ["completed", "timeout"] as any),
+            isNotNull(assessmentSessions.completedAt),
+            range,
+          ),
+          orderBy: [desc(assessmentSessions.completedAt)],
+          limit: input.limit,
+          offset: input.offset,
+        });
+
+        // versi + tes (untuk kode/nama/family + nomor versi)
+        const versionIds = [...new Set(sessionsAll.map((s) => s.versionId))];
+        const versions = versionIds.length
+          ? await db.query.assessmentVersions.findMany({
+              where: inArray(assessmentVersions.id, versionIds),
+            })
+          : [];
+        const assessmentIds = [...new Set(versions.map((v) => v.assessmentId))];
+        const assessRows = assessmentIds.length
+          ? await db.query.assessments.findMany({ where: inArray(assessments.id, assessmentIds) })
+          : [];
+        const versionMap = new Map(versions.map((v) => [v.id, v]));
+        const assessMap = new Map(assessRows.map((a) => [a.id, a]));
+        const codeOf = (versionId: string) => {
+          const v = versionMap.get(versionId);
+          return v ? (assessMap.get(v.assessmentId)?.code ?? "") : "";
+        };
+
+        // B2B: batasi ke siswa kohort (kelas/sekolah)
+        let cohortIds: string[] | null = null;
+        if (input.batchId || input.schoolId) {
+          const batchIds = input.batchId
+            ? [input.batchId]
+            : (
+                await db.query.tmbBatches.findMany({
+                  where: eq(tmbBatches.schoolId, input.schoolId as string),
+                  columns: { id: true },
+                })
+              ).map((b) => b.id);
+          const roster = batchIds.length
+            ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.batchId, batchIds) })
+            : [];
+          cohortIds = roster.map((r) => r.userId ?? `guest-${r.id}`);
+        }
+        if (cohortIds)
+          sessionsAll.splice(0, sessionsAll.length, ...sessionsAll.filter((s) => cohortIds?.includes(s.studentId)));
+
+        let sessions = sessionsAll;
+        if (input.code) {
+          const want = input.code.toUpperCase();
+          sessions = sessions.filter((s) => codeOf(s.versionId).toUpperCase() === want);
+        }
+
+        const sessionIds = sessions.map((s) => s.id);
+        const results = sessionIds.length
+          ? await db.query.assessmentResults.findMany({
+              where: inArray(assessmentResults.sessionId, sessionIds),
+            })
+          : [];
+        const answers = sessionIds.length
+          ? await db.query.assessmentAnswers.findMany({
+              where: inArray(assessmentAnswers.sessionId, sessionIds),
+            })
+          : [];
+        const questionIds = [...new Set(answers.map((a) => a.questionId))];
+        const questionRows = versionIds.length
+          ? await db.query.questions.findMany({
+              where: inArray(questions.versionId, versionIds),
+              orderBy: [asc(questions.displayOrder)],
+            })
+          : [];
+        const allQuestionIds = [...new Set([...questionIds, ...questionRows.map((q) => q.id)])];
+        const options = allQuestionIds.length
+          ? await db.query.questionOptions.findMany({
+              where: inArray(questionOptions.questionId, allQuestionIds),
+              orderBy: [asc(questionOptions.displayOrder)],
+            })
+          : [];
+        const dims = versionIds.length
+          ? await db.query.assessmentDimensions.findMany({
+              where: inArray(assessmentDimensions.versionId, versionIds),
+              orderBy: [asc(assessmentDimensions.displayOrder)],
+            })
+          : [];
+
+        // identitas
+        const userIds = [...new Set(sessions.map((s) => s.studentId))];
+        const accountIds = userIds.filter((u) => !u.startsWith("guest-"));
+        const accounts = accountIds.length
+          ? await db.query.user.findMany({ where: inArray(userSchema.id, accountIds) })
+          : [];
+        const accountMap = new Map(accounts.map((u) => [u.id, { name: u.name, email: u.email }]));
+        const roster = userIds.length
+          ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.userId, userIds) })
+          : [];
+        const batchIds = [...new Set(roster.map((r) => r.batchId))];
+        const batches = batchIds.length
+          ? await db.query.tmbBatches.findMany({ where: inArray(tmbBatches.id, batchIds) })
+          : [];
+        const schoolIds = [...new Set(batches.map((b) => b.schoolId))];
+        const schools = schoolIds.length
+          ? await db.query.tmbSchools.findMany({ where: inArray(tmbSchools.id, schoolIds) })
+          : [];
+        const batchMap = new Map(batches.map((b) => [b.id, b]));
+        const schoolMap = new Map(schools.map((s2) => [s2.id, s2]));
+        const rosterByUser = new Map<string, (typeof roster)[number]>();
+        const rosterById = new Map<string, (typeof roster)[number]>();
+        for (const r of roster) {
+          if (r.userId && !rosterByUser.has(r.userId)) rosterByUser.set(r.userId, r);
+          if (!rosterById.has(r.id)) rosterById.set(r.id, r);
+        }
+        /** guest-<rosterId> atau roster yg user_id-nya kosong tetap dapat namanya. */
+        const rosterFor = (studentId: string) =>
+          rosterByUser.get(studentId) ?? rosterById.get(studentId.replace(/^guest-/, "")) ?? null;
+
+        // confidence profil (tmb) — baris terdekat waktunya per user
+        const tmbRows = userIds.length
+          ? await db.query.tmbAssessmentResults.findMany({
+              where: inArray(tmbAssessmentResults.userId, userIds),
+              orderBy: [desc(tmbAssessmentResults.createdAt)],
+            })
+          : [];
+        const matchAttempt = (userId: string, family: string | null, at: Date | null) => {
+          const cands = tmbRows.filter((r) => r.userId === userId);
+          if (!cands.length) return null;
+          const prefer =
+            family === "minat"
+              ? cands.filter((r) => (r.hollandCode ?? "").length > 0)
+              : family === "bakat"
+                ? cands.filter((r) => Object.keys((r as any).abilityScores ?? {}).length > 0)
+                : cands;
+          const pool = prefer.length ? prefer : cands;
+          if (!at) return pool[0] ?? null;
+          return pool.reduce<(typeof pool)[number] | null>((best, r) => {
+            if (!r.createdAt) return best;
+            if (!best?.createdAt) return r;
+            return Math.abs(r.createdAt.getTime() - at.getTime()) < Math.abs(best.createdAt.getTime() - at.getTime())
+              ? r
+              : best;
+          }, null);
+        };
+
+        const rows = sessions.map((s) => {
+          const v = versionMap.get(s.versionId);
+          const a = v ? assessMap.get(v.assessmentId) : null;
+          const family = (a?.family ?? null) as string | null;
+          const res = results.find((r) => r.sessionId === s.id) ?? null;
+          const tmb = matchAttempt(s.studentId, family, s.completedAt);
+          const recos = ((res?.recommendationsJson ?? []) as any[]).map((r: any, i: number) => ({
+            rank: i + 1,
+            name: r.categoryName ?? r.itemName ?? "",
+            confidence: Number(r.confidence ?? 0),
+          }));
+          const rosterRow = rosterFor(s.studentId);
+          const batch = rosterRow ? batchMap.get(rosterRow.batchId) : null;
+          const school = batch ? schoolMap.get(batch.schoolId) : null;
+          const acc = accountMap.get(s.studentId);
+          const ans = answers.filter((x) => x.sessionId === s.id);
+          return {
+            studentId: s.studentId,
+            // samakan dengan tabel Riwayat B2C: tanpa akun/roster → "Guest" (id tetap ada di kolom ID Siswa)
+            name: acc?.name ?? rosterRow?.name ?? "Guest",
+            email: acc?.email ?? rosterRow?.email ?? "",
+            isGuest: s.studentId.startsWith("guest-") || !acc,
+            source: rosterRow ? "sekolah" : "mandiri",
+            schoolName: school?.name ?? "",
+            batchName: batch?.name ?? "",
+            testCode: a?.code ?? "",
+            testName: a?.name ?? "",
+            family,
+            versionNumber: v?.versionNumber ?? null,
+            versionStatus: v?.status ?? "",
+            sessionId: s.id,
+            versionId: s.versionId,
+            startedAt: s.startedAt,
+            finishedAt: s.completedAt,
+            status: s.status,
+            profileCode: res?.profileCode ?? tmb?.hollandCode ?? null,
+            topDimensions: (res?.topDimensionsJson ?? []) as string[],
+            rawScores: (res?.rawScoresJson ?? {}) as Record<string, number>,
+            timedOut: res?.timedOut ?? false,
+            xpEarned: res?.xpEarned ?? 0,
+            recommendations: recos,
+            confidenceProfile: tmb?.confidenceScore ?? null,
+            differentiation: tmb?.differentiation ?? null,
+            confidenceMatch: tmb ? { attemptId: tmb.id, createdAt: tmb.createdAt } : null,
+            answers: ans.map((x) => ({
+              questionId: x.questionId,
+              optionId: x.selectedOptionId ?? null,
+              text: x.textAnswer ?? null,
+              score: x.scoreEarned ?? null,
+            })),
+          };
+        });
+
+        const total = await db
+          .select({ n: count() })
+          .from(assessmentSessions)
+          .where(
+            and(
+              inArray(assessmentSessions.status, ["completed", "timeout"] as any),
+              isNotNull(assessmentSessions.completedAt),
+              range,
+            ),
+          );
+
+        const totalResultRows = await db.select({ n: count() }).from(tmbAssessmentResults);
+        // total HARUS mengikuti cakupan (kohort/tes) — bukan total global
+        const scopedTotal = cohortIds ? rows.length : (total[0]?.n ?? 0);
+
+        return {
+          generatedAt: new Date().toISOString(),
+          total: scopedTotal,
+          totalResults: totalResultRows[0]?.n ?? 0,
+          offset: input.offset,
+          limit: input.limit,
+          rows,
+          questions: questionRows.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            code: q.questionCode ?? "",
+            text: q.questionText ?? "",
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+            presentationMode: q.presentationMode,
+          })),
+          options: options.map((o) => ({
+            id: o.id,
+            questionId: o.questionId,
+            value: o.optionValue,
+            label: o.label,
+            score: o.score,
+          })),
+          dimensions: dims.map((d) => ({ id: d.id, versionId: d.versionId, code: d.code, name: d.name })),
         };
       }),
   },

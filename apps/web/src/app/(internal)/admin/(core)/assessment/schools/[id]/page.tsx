@@ -1,11 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle2, Loader2, Pencil, Plus, School, Trash2, Users } from "lucide-react";
+import { ArrowRight, FileSpreadsheet, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { AssessmentPageHeader, StatCard } from "@/components/admin/assessment-page-header";
+import { AssessmentPageHeader } from "@/components/admin/assessment-page-header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
+import { AnalyticsTabs } from "../../b2c/_components/analytics-tabs";
+import { downloadHistoryXlsx } from "../../b2c/history/_components/export-history";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   prospek: { label: "Prospek", cls: "bg-amber-50 text-amber-600" },
@@ -30,6 +32,7 @@ export default function SchoolDetailPage() {
     enabled: !!id,
   });
 
+  const [exporting, setExporting] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
   const [batchName, setBatchName] = useState("");
   const [className, setClassName] = useState("");
@@ -96,7 +99,7 @@ export default function SchoolDetailPage() {
 
   const { school, batches, stats } = data;
   const st = STATUS_META[school.status] ?? STATUS_META.prospek;
-  const progress = stats.total ? Math.round((stats.completed / stats.total) * 100) : 0;
+  const _progress = stats.total ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return (
     <div className="space-y-5">
@@ -109,27 +112,50 @@ export default function SchoolDetailPage() {
           </span>
         }
         actions={
-          <Link
-            href="/admin/assessment/schools"
-            className="font-manrope font-semibold text-brand-navy text-xs hover:underline"
-          >
-            ← Semua sekolah
-          </Link>
+          <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="school-export"
+              disabled={exporting || stats.total === 0}
+              onClick={async () => {
+                setExporting(true);
+                try {
+                  const { file, rows, total } = await downloadHistoryXlsx({ schoolId: school.id, limit: 1000 });
+                  notify.success(`Ekspor sekolah — ${file}`, {
+                    description: `${rows} percobaan${total > rows ? ` dari ${total}` : ""}`,
+                  });
+                } catch (e: any) {
+                  notify.error("Gagal mengekspor hasil sekolah", {
+                    description: String(e?.message ?? e).slice(0, 160),
+                  });
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              {exporting ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-1 h-4 w-4" />
+              )}
+              Ekspor hasil
+            </Button>
+            <Link
+              href="/admin/assessment/schools"
+              className="font-manrope font-semibold text-brand-navy text-xs hover:underline"
+            >
+              ← Semua sekolah
+            </Link>
+          </div>
         }
       />
 
-      {/* Recap lintas batch */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <StatCard icon={Users} label="Total siswa" value={stats.total} sub="di semua batch sekolah ini" />
-        <StatCard
-          icon={CheckCircle2}
-          label="Selesai test"
-          value={stats.completed}
-          sub={`${progress}% dari total siswa`}
-          tone="teal"
-        />
-        <StatCard icon={School} label="Batch" value={batches.length} sub="kelas / jurusan / angkatan" tone="violet" />
-      </div>
+      {/* Analitik kohort sekolah (B2B) */}
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <h3 className="mb-3 font-bold font-bricolage text-gray-900">Analitik sekolah</h3>
+        <AnalyticsTabs scope={{ schoolId: school.id }} withCohort />
+      </section>
 
       {/* Buat batch */}
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">

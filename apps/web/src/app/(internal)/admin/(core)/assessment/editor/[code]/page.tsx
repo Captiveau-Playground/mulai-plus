@@ -1,7 +1,19 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Eye, FilePlus2, FileUp, Loader2, Plus, Rocket, ShieldCheck, Trash2, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Eye,
+  FilePlus2,
+  FileSpreadsheet,
+  FileUp,
+  Loader2,
+  Plus,
+  Rocket,
+  ShieldCheck,
+  Trash2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,6 +25,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { notify } from "@/lib/toast";
 import { client, orpc } from "@/utils/orpc";
 import "katex/dist/katex.min.css";
+import { downloadVersionXlsx } from "./_components/export-questions";
 import { QuestionList } from "./_components/question-list";
 import { SettingsPanel } from "./_components/settings-panel";
 
@@ -73,6 +86,7 @@ export default function AssessmentDetailPage() {
   const [_dimCode, setDimCode] = useState("");
   const [_dimName, setDimName] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [gal, setGal] = useState<{
     open: boolean;
     cb: (u: string) => void;
@@ -147,6 +161,31 @@ export default function AssessmentDetailPage() {
       enabled: !!selVer && selVer.status === "draft",
     }),
   );
+
+  /** Ekspor soal versi yang sedang dibuka → .xlsx (kolom sama dengan kontrak Import Soal). */
+  const onExport = async () => {
+    if (!content || !selVer || !assess) return;
+    setExporting(true);
+    try {
+      const name = await downloadVersionXlsx({
+        content: content as any,
+        meta: {
+          name: assess.name,
+          code: assess.code,
+          versionNumber: selVer.versionNumber,
+          status: selVer.status,
+          config: (selVer.configJson ?? {}) as any,
+        },
+      });
+      notify.success(`Ekspor selesai — ${name}`, {
+        description: `${(content as any).questions?.length ?? 0} soal · v${selVer.versionNumber} · ${selVer.status}`,
+      });
+    } catch (e: any) {
+      notify.error("Gagal mengekspor soal", { description: String(e?.message ?? e).slice(0, 160) });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: form aturan hanya di-reset saat berpindah versi
   useEffect(() => {
@@ -564,6 +603,21 @@ export default function AssessmentDetailPage() {
                 </Button>
                 <Button
                   size="sm"
+                  variant="outline"
+                  data-testid="q-export"
+                  onClick={() => void onExport()}
+                  disabled={exporting || !content}
+                  title="Ekspor soal versi ini ke Excel (.xlsx)"
+                >
+                  {exporting ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="mr-1 h-4 w-4" />
+                  )}
+                  Ekspor
+                </Button>
+                <Button
+                  size="sm"
                   className="bg-brand-orange hover:bg-brand-orange/90"
                   data-testid="q-add"
                   onClick={() => setModal({ open: true })}
@@ -762,6 +816,9 @@ export default function AssessmentDetailPage() {
           getVersionId={ensureDraft}
           dims={dims}
           mImport={mImport}
+          onExport={onExport}
+          exporting={exporting}
+          canExport={!!content}
           onDone={() => setImportOpen(false)}
           onClose={() => setImportOpen(false)}
         />
@@ -905,6 +962,9 @@ function ImportModal({
   getVersionId,
   dims,
   mImport,
+  onExport,
+  exporting,
+  canExport,
   onDone: _onDone,
   onClose,
 }: {
@@ -912,6 +972,10 @@ function ImportModal({
   getVersionId: () => Promise<string | null>;
   dims: Dim[];
   mImport: any;
+  /** Ekspor soal versi yang sedang dibuka (dari halaman induk). */
+  onExport: () => void | Promise<void>;
+  exporting: boolean;
+  canExport: boolean;
   onDone: () => void;
   onClose: () => void;
 }) {
@@ -1022,24 +1086,49 @@ function ImportModal({
       if (t.includes("persis") || t.includes("exact")) return "exact_match";
       return "exact_match";
     };
+    const LETTERS = ["A", "B", "C", "D", "E", "F"];
+    const txt = (v: any) => String(v ?? "").trim();
+    // `Aktif`: kosong = tidak disebut (default aktif); "tidak"/"no"/"0"/"false" = nonaktif.
+    const asActive = (v: any): boolean | undefined => {
+      const t = txt(v).toLowerCase();
+      if (!t) return undefined;
+      return !["tidak", "no", "n", "0", "false", "nonaktif"].includes(t);
+    };
     setRows(
       raw
-        .map((r) => ({
-          text: String(r.Teks ?? r.Soal ?? ""),
-          dimension: String(r.Dimensi ?? ""),
-          type: mapType(r.Tipe),
-          options: ["A", "B", "C", "D", "E", "F"]
-            .map((l) => String(r[`Opsi ${l}`] ?? r[`Opsi${l}`] ?? ""))
-            .filter((o) => o.trim().length > 0),
-          key: String(r.Kunci ?? "A")
-            .toUpperCase()
-            .slice(0, 1),
-          weight: Number(r.Bobot) || 1,
-          answerKey: String(r["Kunci Isian"] ?? r.Jawaban ?? ""),
-          evalType: mapEval(r["Cara nilai"]),
-          numericTolerance: String(r.Toleransi ?? "0.01"),
-          presentationMode: mapPresentation(r.Tampilan ?? r["Tampilan opsi"]),
-        }))
+        .map((r) => {
+          const optionMeta = LETTERS.map((l) => ({
+            letter: l,
+            label: txt(r[`Opsi ${l}`] ?? r[`Opsi${l}`]),
+            target: txt(r[`Target ${l}`]),
+            icon: txt(r[`Ikon ${l}`]),
+            score: txt(r[`Skor ${l}`]) === "" ? undefined : Number(r[`Skor ${l}`]),
+            imageUrl: txt(r[`Gambar ${l}`]),
+            imageCaption: txt(r[`Caption Gambar ${l}`]),
+          })).filter((m) => m.label || m.target || m.icon || m.imageUrl || m.imageCaption || m.score !== undefined);
+          return {
+            text: txt(r.Teks ?? r.Soal),
+            dimension: txt(r.Dimensi),
+            type: mapType(r.Tipe),
+            options: LETTERS.map((l) => txt(r[`Opsi ${l}`] ?? r[`Opsi${l}`])).filter((o) => o.length > 0),
+            key: txt(r.Kunci ?? "A")
+              .toUpperCase()
+              .slice(0, 1),
+            weight: Number(r.Bobot) || 1,
+            answerKey: txt(r["Kunci Isian"] ?? r.Jawaban),
+            evalType: mapEval(r["Cara nilai"]),
+            numericTolerance: txt(r.Toleransi) || "0.01",
+            presentationMode: mapPresentation(r.Tampilan ?? r["Tampilan opsi"]),
+            // ── kolom lanjutan (hasil "Ekspor"; opsional) ──
+            questionCode: txt(r.Kode) || undefined,
+            durationSeconds: txt(r.Durasi) === "" ? undefined : Number(r.Durasi),
+            isActive: asActive(r.Aktif),
+            mediaUrl: txt(r["Media URL"]) || undefined,
+            mediaType: txt(r["Media Tipe"]) || undefined,
+            mediaCaption: txt(r["Media Caption"]) || undefined,
+            optionMeta: optionMeta.length ? optionMeta : undefined,
+          };
+        })
         .filter((r: any) => r.text.trim()),
     );
   };
@@ -1075,8 +1164,9 @@ function ImportModal({
           </button>
         </div>
         <p className="mt-1 font-manrope text-muted-foreground text-xs">
-          Kolom: Teks · Dimensi (kode/nama) · Tipe (pilihan/isian) · Opsi A–F · Kunci · Bobot · Kunci Isian · Cara nilai
-          · Toleransi.
+          Kolom: Teks · Dimensi (kode/nama) · Tipe (pilihan/isian/skala) · Opsi A–F · Kunci · Bobot · Kunci Isian · Cara
+          nilai · Toleransi · Tampilan. Kolom lanjutan (Kode · Durasi · Aktif · Media · Target/Ikon/Skor/Gambar A–F)
+          dibaca bila ada.
         </p>
         <div className="mt-3 flex gap-2">
           <Button size="sm" variant="outline" onClick={() => void downloadTemplate(false)}>
@@ -1084,6 +1174,22 @@ function ImportModal({
           </Button>
           <Button size="sm" variant="outline" onClick={() => void downloadTemplate(true)}>
             ⬇ Unduh template .csv
+          </Button>
+        </div>
+        <div className="mt-2 flex items-center gap-2 rounded-xl bg-brand-navy/5 px-3 py-2">
+          <FileSpreadsheet className="h-4 w-4 text-brand-navy" />
+          <span className="font-manrope text-[11px] text-gray-600">
+            Sudah ada soal di versi ini? Ekspor dulu, edit di Excel, lalu impor ulang.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto"
+            data-testid="q-export-dialog"
+            disabled={exporting || !canExport}
+            onClick={() => void onExport()}
+          >
+            {exporting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null} Ekspor soal versi ini
           </Button>
         </div>
         <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-300 border-dashed bg-gray-50/60 px-4 py-6 font-manrope text-gray-600 text-sm hover:border-brand-orange/40 hover:bg-gray-50">

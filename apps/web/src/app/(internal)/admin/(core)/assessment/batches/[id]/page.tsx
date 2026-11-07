@@ -28,6 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
+import { AnalyticsTabs } from "../../b2c/_components/analytics-tabs";
+import { downloadHistoryXlsx } from "../../b2c/history/_components/export-history";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string; dot: string }> = {
   invited: { label: "Belum Mulai", cls: "bg-gray-50 text-gray-500", dot: "bg-gray-400" },
@@ -120,11 +122,12 @@ export default function BatchDetailPage() {
   };
 
   const analytics = useQuery({
-    ...orpc.tmbAdmin.analytics.queryOptions({ input: { batchId } }),
+    ...orpc.tmbAdmin.analytics.batch.queryOptions({ input: { batchId } }),
     enabled: !!batchId,
   });
 
   const [exporting, setExporting] = useState(false);
+  const [exportingAnalytics, setExportingAnalytics] = useState(false);
 
   const exportExcel = async () => {
     setExporting(true);
@@ -164,7 +167,7 @@ export default function BatchDetailPage() {
 
   const batch = data?.batch;
   const students = data?.students ?? [];
-  const ana = analytics.data;
+  const _ana = analytics.data;
 
   if (isLoading) {
     return (
@@ -225,39 +228,38 @@ export default function BatchDetailPage() {
         ))}
       </div>
 
-      {/* Analytics mini */}
-      {ana && ana.total > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm"
-        >
-          <h3 className="font-bold font-bricolage text-gray-900 text-sm">Distribusi Minat (Top)</h3>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {ana.hollandDistribution.slice(0, 3).map((h: any) => (
-              <span
-                key={h.code}
-                className="rounded-full bg-mentor-teal/10 px-3 py-1 font-bold font-manrope text-teal-800 text-xs"
-              >
-                {h.code} · {h.count} siswa
-              </span>
-            ))}
-          </div>
-          {ana.topMajors.length > 0 && (
-            <>
-              <h3 className="mt-3 font-bold font-bricolage text-gray-900 text-sm">Rekomendasi Terpopuler</h3>
-              <div className="mt-2 space-y-1">
-                {ana.topMajors.slice(0, 3).map((m: any) => (
-                  <div key={m.name} className="flex items-center justify-between font-manrope text-xs">
-                    <span className="text-gray-700">{m.name}</span>
-                    <span className="font-bold text-gray-400">{m.count}x</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </motion.div>
-      )}
+      {/* Analitik kelas (B2B) */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm"
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-bold font-bricolage text-gray-900 text-sm">Analitik kelas</h3>
+          <button
+            type="button"
+            data-testid="batch-export"
+            disabled={exportingAnalytics || students.length === 0}
+            onClick={async () => {
+              setExportingAnalytics(true);
+              try {
+                const { file, rows, total } = await downloadHistoryXlsx({ batchId, limit: 1000 });
+                notify.success(`Ekspor kelas — ${file}`, {
+                  description: `${rows} percobaan${total > rows ? ` dari ${total}` : ""}`,
+                });
+              } catch (e: any) {
+                notify.error("Gagal mengekspor hasil kelas", { description: String(e?.message ?? e).slice(0, 160) });
+              } finally {
+                setExportingAnalytics(false);
+              }
+            }}
+            className="rounded-xl border border-gray-200 px-3 py-1.5 font-manrope font-semibold text-gray-700 text-xs disabled:opacity-50"
+          >
+            {exportingAnalytics ? "Menyiapkan…" : "Ekspor hasil kelas"}
+          </button>
+        </div>
+        <AnalyticsTabs scope={{ batchId }} withCohort />
+      </motion.div>
 
       {/* Invite */}
       <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
