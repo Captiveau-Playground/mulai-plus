@@ -3,7 +3,7 @@
  * Tidak melakukan I/O CLI; semua fungsi menerima `db` supaya bisa dipakai ulang & diuji.
  */
 
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { CAREER_PROFILES, MAJOR_PATTERNS } from "../../../api/src/lib/assessment-catalog";
 import { db as defaultDb, schema } from "../../src";
 import { DISCOVER_CONFIG, TALENT_CONFIG, TALENT_DIMS, TALENT_ITEMS, type TemplateRow } from "../assessment-banks";
@@ -72,8 +72,14 @@ export async function seedCatalog(db: Db = defaultDb, log: SeedLog = noop) {
     await db.update(schema.tmbMajorPatterns).set({ isActive: false }).where(eq(schema.tmbMajorPatterns.id, s.id));
   }
 
-  log(`katalog: ${inserted} pola baru · ${updated} diperbarui · ${stale.length} dinonaktifkan · ${careers} karier`);
-  return { patterns: MAJOR_PATTERNS.length, careers, inserted, updated, stale: stale.length };
+  // ── petakan prodi → kategori (sekali di sini, bukan saat siswa menyelesaikan tes) ──
+  const mapped = await backfillProdiCategories(db, log);
+
+  log(
+    `katalog: ${inserted} pola baru · ${updated} diperbarui · ${stale.length} dinonaktifkan · ` +
+      `${careers} karier · ${mapped.updated}/${mapped.total} prodi dipetakan`,
+  );
+  return { patterns: MAJOR_PATTERNS.length, careers, inserted, updated, stale: stale.length, prodiMapped: mapped };
 }
 
 // ── Assessment & versi ──────────────────────────────────────────────────
@@ -499,4 +505,74 @@ export async function summarizeVersion(db: Db, versionId: string) {
     textConfigs: texts.length,
     missingTextConfigs: missingKeys,
   };
+}
+
+/**
+ * Isi `study_programs.major_category_key` berdasarkan Pola Jurusan aktif.
+ * Regex dijalankan sekali per prodi (15 ribu), lalu di-update per batch 2.000 baris.
+ * Idempotent: hanya menulis yang berubah.
+ */
+export async function backfillProdiCategories(
+  db: Db = defaultDb,
+  log: SeedLog = noop,
+): Promise<{ total: number; updated: number; unmatched: number }> {
+  // Kolom bisa belum ada kalau migrasi 0045 belum dijalankan → jangan gagalkan seed.
+  try {
+    await db.execute(sql`select major_category_key from ${schema.studyPrograms} limit 1` as any);
+  } catch {
+    log("kolom major_category_key belum ada — jalankan migrasi 0045 (seed katalog tetap aman)");
+    return { total: 0, updated: 0, unmatched: 0 };
+  }
+  const patterns = await db.query.tmbMajorPatterns.findMany({
+    where: eq(schema.tmbMajorPatterns.isActive, true),
+    columns: { categoryKey: true, pattern: true },
+  });
+  const compiled: { key: string; re: RegExp }[] = [];
+  for (const p of patterns) {
+    try {
+      compiled.push({ key: p.categoryKey, re: new RegExp(p.pattern, "i") });
+    } catch {
+      log(`pola "${p.categoryKey}" tidak valid — dilewati`);
+    }
+  }
+
+  const prodis = await db
+    .select({
+      idSms: schema.studyPrograms.idSms,
+      name: schema.studyPrograms.name,
+      current: schema.studyPrograms.majorCategoryKey,
+    })
+    .from(schema.studyPrograms)
+    .where(eq(schema.studyPrograms.status, "Aktif"));
+
+  const updates: { id: string; key: string }[] = [];
+  let unmatched = 0;
+  for (const p of prodis) {
+    let key: string | null = null;
+    for (const c of compiled) {
+      if (c.re.test(p.name)) {
+        key = c.key;
+        break;
+      }
+    }
+    if (!key) {
+      unmatched++;
+      continue;
+    }
+    if (p.current !== key) updates.push({ id: p.idSms, key });
+  }
+
+  const CHUNK = 2000;
+  for (let i = 0; i < updates.length; i += CHUNK) {
+    const slice = updates.slice(i, i + CHUNK);
+    const values = slice.map((u) => `('${u.id.replace(/'/g, "''")}','${u.key.replace(/'/g, "''")}')`).join(",");
+    await db.execute(
+      sql`update ${schema.studyPrograms} as sp
+          set major_category_key = v.key
+          from (values ${sql.raw(values)}) as v(id, key)
+          where sp.id_sms = v.id` as any,
+    );
+  }
+  log(`prodi: ${updates.length} diperbarui dari ${prodis.length} (tak cocok ${unmatched})`);
+  return { total: prodis.length, updated: updates.length, unmatched };
 }

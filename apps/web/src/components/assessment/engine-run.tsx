@@ -343,11 +343,31 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
     window.location.hash = "paused";
   };
 
+  // finish hanya boleh jalan SEKALI. Dulu interval timer memanggilnya tiap detik setelah
+  // waktu habis → confetti berulang + finish berulang (dan +0 XP karena panggilan kedua
+  // mengembalikan `already_completed`).
+  const finishedRef = useRef(false);
+  const finishingRef = useRef(false);
   const finishRun = async (force = false) => {
-    if (!sessionId || (pending && !force)) return;
+    if (!sessionId) return;
+    if (finishedRef.current || (finishingRef.current && !force)) return;
+    finishingRef.current = true;
     setPending(true);
     try {
-      const r = (await client.discover.finish({ sessionId, durations: dimElapsed.current })) as any;
+      const raw = (await client.discover.finish({ sessionId, durations: dimElapsed.current })) as any;
+      // Panggilan ulang (mis. refresh setelah selesai) mengembalikan { already_completed, result }.
+      // Dulu UI membaca `xpEarned` di level atas → tampil "+0 XP". Sekarang dinormalkan.
+      const r =
+        raw?.already_completed && raw?.result
+          ? {
+              ...raw.result,
+              recommendations: raw.result.recommendationsJson ?? [],
+              topDimensions: raw.result.topDimensionsJson ?? [],
+              xpEarned: raw.result.xpEarned ?? 0,
+              streak: raw.result.streak ?? 0,
+            }
+          : raw;
+      finishedRef.current = true;
       setResult(r);
       setPhase("done");
       try {
@@ -356,8 +376,11 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
         /* ignore */
       }
     } catch (e) {
-      setErr((e as Error)?.message ?? "Gagal selesai");
+      // jangan biarkan timer memicu finish berulang saat server error;
+      // tampilkan error + tombol coba lagi (manual)
+      setErr((e as Error)?.message ?? "Gagal menyelesaikan tes");
     } finally {
+      finishingRef.current = false;
       setPending(false);
     }
   };
@@ -367,11 +390,12 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
     const t = setInterval(() => {
       const left = deltaSeconds(timer);
       setRemaining(left);
-      if (left !== null && left <= 0) void finishRun();
+      // waktu habis → selesaikan SEKALI; setelah selesai/gagal, timer berhenti di bawah
+      if (left !== null && left <= 0 && !finishedRef.current && !err) void finishRun();
     }, 1000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer, finishRun]);
+  }, [timer, finishRun, err]);
 
   const previewBanner = preview ? (
     <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 font-manrope text-amber-800 text-xs">
@@ -415,7 +439,21 @@ export function EngineRun({ code, defaultVersionId }: { code: string; defaultVer
                 )}
               </div>
             ))}
-            {err && <p className="mt-3 font-manrope text-red-500 text-xs">{err}</p>}
+            {err && (
+              <div className="mt-3 space-y-2">
+                <p className="font-manrope text-red-500 text-xs">{err}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErr("");
+                    void finishRun(true);
+                  }}
+                  className="rounded-xl bg-white px-4 py-2 font-bold font-manrope text-brand-navy text-xs shadow-sm"
+                >
+                  Coba selesaikan lagi
+                </button>
+              </div>
+            )}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               {dims.map((d) => (
                 <span

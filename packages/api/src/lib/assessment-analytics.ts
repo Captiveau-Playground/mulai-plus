@@ -32,6 +32,8 @@ export interface ItemAnswer {
 export interface ItemSession {
   id: string;
   status: string;
+  /** configJson sesi (dipakai membaca deadline timer untuk durasi yang jujur) */
+  configJson?: unknown;
   startedAt: Date | string | null;
   completedAt: Date | string | null;
   studentId: string;
@@ -223,6 +225,18 @@ export interface FunnelStats {
   perDimension: { dimensionId: string; answered: number; reached: number; dropRate: number }[];
 }
 
+/** Deadline efektif dari configJson.timer (maksimum semua deadline yang ada). */
+export function deadlineMsOf(configJson: unknown): number | null {
+  const t = (configJson as any)?.timer ?? null;
+  if (!t) return null;
+  const times: number[] = [];
+  if (t.expectedEndISO) times.push(new Date(t.expectedEndISO).getTime());
+  for (const d of (t.dims ?? []) as any[]) if (d?.endISO) times.push(new Date(d.endISO).getTime());
+  for (const iso of (t.qEnds ?? []) as string[]) if (iso) times.push(new Date(iso).getTime());
+  const valid = times.filter((n) => Number.isFinite(n));
+  return valid.length ? Math.max(...valid) : null;
+}
+
 const minutes = (a: Date | string | null, b: Date | string | null): number | null => {
   if (!a || !b) return null;
   const start = a instanceof Date ? a : new Date(a);
@@ -236,9 +250,20 @@ export function computeFunnel(sessions: ItemSession[], answers: ItemAnswer[], qu
   const byStatus: Record<string, number> = {};
   for (const s of sessions) byStatus[s.status] = (byStatus[s.status] ?? 0) + 1;
 
+  // Durasi jujur: sesi yang ditutup SISTEM (timeout) bisa baru difinalisasi berhari-hari
+  // kemudian. Pakai deadline timer sebagai akhir, bukan waktu penutupan.
   const durations = sessions
-    .map((s) => minutes(s.startedAt, s.completedAt))
-    .filter((v): v is number => v !== null && v > 0)
+    .filter((s) => s.status === "completed" || s.status === "timeout")
+    .map((s) => {
+      const deadline = deadlineMsOf(s.configJson);
+      const closed = s.completedAt ? new Date(s.completedAt).getTime() : null;
+      const end = deadline !== null && closed !== null ? Math.min(deadline, closed) : (deadline ?? closed);
+      if (!s.startedAt || end === null) return null;
+      const start = new Date(s.startedAt).getTime();
+      const m = (end - start) / 60000;
+      return Number.isFinite(m) && m > 0 ? m : null;
+    })
+    .filter((v): v is number => v !== null)
     .sort((a, b) => a - b);
   const pick = (q: number) =>
     durations.length
@@ -568,4 +593,50 @@ export function countsForAbility(questionType: string | null | undefined, family
 export function abilityPct(correct: number, total: number): number {
   if (!total || total <= 0) return 0;
   return Math.max(0, Math.min(100, Math.round((correct / total) * 100)));
+}
+
+/**
+ * Poin untuk butir skala (likert) berdasarkan urutan opsi + setelan admin
+ * (Penilaian → Skala minimal/maksimal). Dulu engine mengabaikan min/max dan selalu 1..n.
+ */
+export function likertPoint(ordinal: number, min = 1, max?: number | null): number {
+  const point = min + ordinal;
+  return typeof max === "number" && Number.isFinite(max) && max > min ? Math.min(max, point) : point;
+}
+
+// ── Sesi tanpa timer yang ditinggalkan ────────────────────────────────
+
+/** Ambang sesi tanpa timer dianggap ditinggalkan (hari). Default 7, bisa diatur via env. */
+export function staleDaysFromEnv(env: Record<string, string | undefined> = {}): number {
+  const raw = Number(env.ASSESSMENT_STALE_DAYS ?? "");
+  return Number.isFinite(raw) && raw >= 1 ? Math.min(365, Math.floor(raw)) : 7;
+}
+
+/**
+ * Sesi TANPA timer yang sudah lama tidak disentuh → `abandoned`.
+ * - hanya untuk sesi `in_progress`/`paused` yang tidak punya `timer` (yang bertimer
+ *   sudah ditutup otomatis lewat deadline),
+ * - aktivitas terakhir = max(startedAt, answeredAt terakhir),
+ * - tes dengan timer, atau sesi yang masih aktif, tidak pernah dianggap basi.
+ */
+export function isStaleUntimedSession(input: {
+  status: string;
+  configJson: unknown;
+  startedAt: Date | string | null;
+  lastAnsweredAt?: Date | string | null;
+  days?: number;
+  now?: Date;
+}): boolean {
+  if (input.status !== "in_progress" && input.status !== "paused") return false;
+  const timer = (input.configJson as any)?.timer ?? null;
+  if (timer) return false; // ditangani jalur deadline (timeout)
+  const days = input.days ?? 7;
+  const now = (input.now ?? new Date()).getTime();
+  const times = [input.startedAt, input.lastAnsweredAt]
+    .filter(Boolean)
+    .map((d) => new Date(d as string | Date).getTime())
+    .filter((n) => Number.isFinite(n));
+  if (!times.length) return false;
+  const last = Math.max(...times);
+  return now - last > days * 86_400_000;
 }

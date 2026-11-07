@@ -83,6 +83,20 @@ export async function validatePublish(versionId: string): Promise<{
   const opts = qIds.length
     ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.questionId, qIds) })
     : [];
+  const dimIds = new Set(dims.map((d) => d.id));
+  const orphanDims = activeQs.filter((q) => q.dimensionId && !dimIds.has(q.dimensionId));
+  if (orphanDims.length) {
+    const msg = `${orphanDims.length} soal menunjuk dimensi dari versi lain (salinan versi lama) — perbaiki dimensinya dulu.`;
+    errors.push(msg);
+    details.push({ kind: "question", id: orphanDims[0]?.id, message: msg });
+  }
+  const optsForOrphan = opts.filter((o) => o.targetDimension && !dimIds.has(o.targetDimension));
+  if (optsForOrphan.length) {
+    const msg = `${optsForOrphan.length} opsi menunjuk dimensi di luar versi ini — skor bisa salah hitung.`;
+    warnings.push(msg);
+    details.push({ kind: "config", message: msg });
+  }
+
   const orderSeen = new Set<string>();
   for (const q of activeQs) {
     if (!q.dimensionId) {

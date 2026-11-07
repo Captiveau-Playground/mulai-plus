@@ -75,6 +75,7 @@ export function FunnelTab({ scope }: { scope: Scope }) {
     { label: "Mulai tes", value: data.total, tone: "bg-brand-navy" },
     { label: "Selesai", value: data.completed, tone: "bg-teal-500" },
     { label: "Timeout", value: data.timeouts, tone: "bg-amber-500" },
+    { label: "Ditinggalkan", value: (data.byStatus as any).abandoned ?? 0, tone: "bg-rose-400" },
     { label: "Masih berjalan", value: data.byStatus.in_progress ?? 0, tone: "bg-gray-400" },
   ];
   const max = Math.max(1, ...steps.map((s) => s.value));

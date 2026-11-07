@@ -286,3 +286,212 @@ describe("aturan skor kemampuan (bakat)", () => {
     expect(abilityPct(-2, 10)).toBe(0);
   });
 });
+
+describe("skala likert mengikuti setelan admin", () => {
+  it("default 1..n", async () => {
+    const { likertPoint } = await import("../lib/assessment-analytics");
+    expect([0, 1, 4].map((i) => likertPoint(i))).toEqual([1, 2, 5]);
+  });
+  it("min/max dari panel Penilaian dihormati", async () => {
+    const { likertPoint } = await import("../lib/assessment-analytics");
+    expect([0, 1, 2, 3, 4].map((i) => likertPoint(i, 0, 4))).toEqual([0, 1, 2, 3, 4]);
+    expect([0, 1, 2].map((i) => likertPoint(i, 2, 5))).toEqual([2, 3, 4]);
+    // max tidak masuk akal (≤ min) → diabaikan
+    expect(likertPoint(3, 1, 0)).toBe(4);
+  });
+});
+
+describe("finish tidak boleh 500 (pemetaan prodi di-cache)", () => {
+  it("groupProdiByCategory meng-cache hasil & tetap benar", async () => {
+    const mod: any = await import("../routers/tmb");
+    expect(typeof mod.computeRecommendations).toBe("function");
+    // dua panggilan berturut-turut harus menghasilkan kategori yang sama (cache tidak merusak hasil)
+    const patterns = [
+      {
+        categoryKey: "kedokteran",
+        categoryName: "Kedokteran",
+        pattern: "dokter|kedokteran",
+        hollandPrimary: "I",
+        hollandSecondary: "S",
+        abilityWeights: { logical: 1 },
+      },
+      {
+        categoryKey: "informatika",
+        categoryName: "Informatika",
+        pattern: "informatika|komputer",
+        hollandPrimary: "R",
+        hollandSecondary: "I",
+        abilityWeights: { logical: 1 },
+      },
+    ];
+    const prodis = [
+      { name: "Pendidikan Dokter", level: "S1", university: "Universitas Indonesia", idSms: "1", idSp: "2" },
+      { name: "Teknik Informatika", level: "S1", university: "Institut Teknologi Bandung", idSms: "3", idSp: "4" },
+      { name: "Sastra", level: "S1", university: "Universitas Gadjah Mada", idSms: "5", idSp: "6" },
+    ];
+    const args: any[] = [
+      { code: "I-S", scores: { R: 20, I: 100, A: 20, S: 80, E: 20, C: 20 } },
+      { levels: { logical: "high", numerical: "medium", verbal: "medium", spatial: "low", clerical: "medium" } },
+      prodis,
+      patterns,
+      [],
+    ];
+    const a = mod.computeRecommendations(...args);
+    const b = mod.computeRecommendations(...args);
+    expect(a.majors.map((m: any) => m.categoryKey)).toEqual(b.majors.map((m: any) => m.categoryKey));
+    expect(a.majors[0].categoryKey).toBe("kedokteran");
+    expect(a.majors[0].prodiRefs[0].university).toBe("Universitas Indonesia");
+  });
+});
+
+describe("performa rekomendasi (aman untuk Worker)", () => {
+  const patterns = [
+    // regex SENGAJA rusak: kalau jalur precomputed dipakai, pola ini tidak boleh dieksekusi
+    {
+      categoryKey: "kedokteran",
+      categoryName: "Kedokteran",
+      pattern: "([tidak-valid",
+      hollandPrimary: "I",
+      hollandSecondary: "S",
+      abilityWeights: { logical: 1 },
+    },
+    {
+      categoryKey: "informatika",
+      categoryName: "Informatika",
+      pattern: "informatika",
+      hollandPrimary: "R",
+      hollandSecondary: "I",
+      abilityWeights: { logical: 1 },
+    },
+  ];
+  const prodis = [
+    {
+      name: "Pendidikan Dokter",
+      level: "S1",
+      university: "Universitas Indonesia",
+      idSms: "1",
+      idSp: "2",
+      majorCategoryKey: "kedokteran",
+    },
+    {
+      name: "Teknik Informatika",
+      level: "S1",
+      university: "Institut Teknologi Bandung",
+      idSms: "3",
+      idSp: "4",
+      majorCategoryKey: "informatika",
+    },
+  ];
+  const args: any[] = [
+    { code: "I-S", scores: { R: 20, I: 100, A: 20, S: 80, E: 20, C: 20 } },
+    { levels: { logical: "high", numerical: "medium", verbal: "medium", spatial: "low", clerical: "medium" } },
+    prodis,
+    patterns,
+    [],
+  ];
+
+  it("memakai kolom major_category_key (regex tidak dijalankan)", async () => {
+    const mod: any = await import("../routers/tmb");
+    const r = mod.computeRecommendations(...args);
+    expect(r.majors.map((m: any) => m.categoryKey)).toEqual(["kedokteran", "informatika"]);
+    expect(r.majors[0].prodiRefs[0].university).toBe("Universitas Indonesia");
+  });
+
+  it("fallback regex tetap jalan bila kolom kosong (data PDDikti baru)", async () => {
+    const mod: any = await import("../routers/tmb");
+    const r = mod.computeRecommendations(
+      ...([
+        args[0],
+        args[1],
+        [
+          {
+            name: "Pendidikan Dokter",
+            level: "S1",
+            university: "Universitas Indonesia",
+            idSms: "1",
+            idSp: "2",
+            majorCategoryKey: null,
+          },
+          {
+            name: "Teknik Informatika",
+            level: "S1",
+            university: "Institut Teknologi Bandung",
+            idSms: "3",
+            idSp: "4",
+            majorCategoryKey: null,
+          },
+        ],
+        [{ ...patterns[1]!, pattern: "dokter|kedokteran" }, patterns[1]],
+        [],
+      ] as any[]),
+    );
+    expect(r.majors.length).toBeGreaterThan(0);
+  });
+});
+
+describe("sesi tanpa timer yang ditinggalkan", () => {
+  const now = new Date("2026-11-01T00:00:00.000Z");
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000).toISOString();
+
+  it("in_progress tanpa timer & lama → abandoned", async () => {
+    const { isStaleUntimedSession } = await import("../lib/assessment-analytics");
+    expect(isStaleUntimedSession({ status: "in_progress", configJson: {}, startedAt: daysAgo(10), now })).toBe(true);
+    // ada jawaban baru 2 hari lalu → masih hidup
+    expect(
+      isStaleUntimedSession({
+        status: "in_progress",
+        configJson: {},
+        startedAt: daysAgo(30),
+        lastAnsweredAt: daysAgo(2),
+        now,
+      }),
+    ).toBe(false);
+  });
+
+  it("sesi bertimer / selesai tidak pernah dianggap basi", async () => {
+    const { isStaleUntimedSession } = await import("../lib/assessment-analytics");
+    expect(
+      isStaleUntimedSession({
+        status: "in_progress",
+        configJson: { timer: { expectedEndISO: daysAgo(-1) } },
+        startedAt: daysAgo(10),
+        now,
+      }),
+    ).toBe(false);
+    expect(isStaleUntimedSession({ status: "completed", configJson: {}, startedAt: daysAgo(10), now })).toBe(false);
+  });
+
+  it("ambang dari env dibatasi 1..365, default 7", async () => {
+    const { staleDaysFromEnv } = await import("../lib/assessment-analytics");
+    expect(staleDaysFromEnv({})).toBe(7);
+    expect(staleDaysFromEnv({ ASSESSMENT_STALE_DAYS: "14" })).toBe(14);
+    expect(staleDaysFromEnv({ ASSESSMENT_STALE_DAYS: "0" })).toBe(7);
+    expect(staleDaysFromEnv({ ASSESSMENT_STALE_DAYS: "9999" })).toBe(365);
+  });
+});
+
+describe("funnel: durasi sesi yang ditutup sistem", () => {
+  it("memakai deadline, bukan waktu penutupan (yang bisa berhari-hari kemudian)", async () => {
+    const { computeFunnel } = await import("../lib/assessment-analytics");
+    const start = "2026-10-01T09:00:00.000Z";
+    const deadline = "2026-10-01T09:10:00.000Z";
+    const f = computeFunnel(
+      [
+        {
+          id: "s1",
+          status: "timeout",
+          startedAt: start,
+          completedAt: "2026-10-20T09:00:00.000Z", // baru ditutup 19 hari kemudian
+          studentId: "u1",
+          configJson: { timer: { expectedEndISO: deadline, dims: [], qEnds: [] } },
+        },
+        { id: "s2", status: "completed", startedAt: start, completedAt: "2026-10-01T09:20:00.000Z", studentId: "u2" },
+        { id: "s3", status: "abandoned", startedAt: start, completedAt: "2026-10-20T09:00:00.000Z", studentId: "u3" },
+      ],
+      [],
+      [],
+    );
+    expect(f.medianDurationMinutes).toBe(15); // (10 + 20) / 2, bukan 27 ribu menit
+    expect(f.byStatus.abandoned).toBe(1);
+  });
+});
