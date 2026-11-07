@@ -217,7 +217,9 @@ describe("assessment-history-export", () => {
     const sheets = buildHistorySheets(data);
     expect(sheets.map((s) => s.name)).toEqual(["DISCOVER v1", "DISCOVER v2", "TALENT v1", "Soal", "Petunjuk"]);
 
-    const soal = sheets.find((s) => s.name === "Soal")?.rows;
+    const soalSheet = sheets.find((s) => s.name === "Soal");
+    if (!soalSheet) throw new Error("sheet Soal tidak ditemukan");
+    const soal = soalSheet.rows;
     const sh = soal[0] as any[];
     expect(sh.slice(0, 8)).toEqual([
       "Kode Tes",
