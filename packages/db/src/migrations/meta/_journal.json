@@ -281,6 +281,13 @@
       "when": 1730000000000,
       "tag": "0044_talent_deactivate_likert_draft",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0045_prodi_major_category",
+      "breakpoints": true
     }
   ]
 }

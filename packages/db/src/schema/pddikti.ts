@@ -61,8 +61,18 @@ export const studyPrograms = pgTable(
     totalStudents: integer("total_students").default(0),
     ratio: text("ratio"),
     dataCompleteness: integer("data_completeness").default(0),
+    /**
+     * Kategori jurusan TMB hasil pencocokan pola (mis. "kedokteran", "teknik-informatika").
+     * Diisi oleh `seed-assessment-catalog` supaya `computeRecommendations()` TIDAK perlu
+     * menjalankan ribuan regex saat siswa menyelesaikan tes.
+     */
+    majorCategoryKey: text("major_category_key"),
   },
-  (table) => [index("idx_study_programs_id_sp").on(table.idSp), index("idx_study_programs_code").on(table.code)],
+  (table) => [
+    index("idx_study_programs_id_sp").on(table.idSp),
+    index("idx_study_programs_code").on(table.code),
+    index("idx_study_programs_major_category").on(table.majorCategoryKey),
+  ],
 );
 
 export const tuitionFees = pgTable("tuition_fees", {

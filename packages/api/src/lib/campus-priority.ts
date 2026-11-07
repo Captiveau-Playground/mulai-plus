@@ -39,11 +39,17 @@ export const CAMPUS_PRIORITY: string[] = [
   "universitas muhammadiyah yogyakarta",
 ];
 
-/** Peringkat kampus: 0 = paling favorit; 999 = tidak terdaftar. */
+const tierCache = new Map<string, number>();
+
+/** Peringkat kampus: 0 = paling favorit; 999 = tidak terdaftar. (memoized) */
 export function campusTier(university: string): number {
   const u = (university ?? "").toLowerCase();
+  const hit = tierCache.get(u);
+  if (hit !== undefined) return hit;
   const i = CAMPUS_PRIORITY.findIndex((c) => u.includes(c));
-  return i === -1 ? 999 : i;
+  const tier = i === -1 ? 999 : i;
+  if (tierCache.size < 5000) tierCache.set(u, tier);
+  return tier;
 }
 
 /** Jenjang yang relevan untuk calon mahasiswa (S1 dulu, bukan S2/S3). */

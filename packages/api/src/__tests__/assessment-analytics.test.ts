@@ -343,3 +343,88 @@ describe("finish tidak boleh 500 (pemetaan prodi di-cache)", () => {
     expect(a.majors[0].prodiRefs[0].university).toBe("Universitas Indonesia");
   });
 });
+
+describe("performa rekomendasi (aman untuk Worker)", () => {
+  const patterns = [
+    // regex SENGAJA rusak: kalau jalur precomputed dipakai, pola ini tidak boleh dieksekusi
+    {
+      categoryKey: "kedokteran",
+      categoryName: "Kedokteran",
+      pattern: "([tidak-valid",
+      hollandPrimary: "I",
+      hollandSecondary: "S",
+      abilityWeights: { logical: 1 },
+    },
+    {
+      categoryKey: "informatika",
+      categoryName: "Informatika",
+      pattern: "informatika",
+      hollandPrimary: "R",
+      hollandSecondary: "I",
+      abilityWeights: { logical: 1 },
+    },
+  ];
+  const prodis = [
+    {
+      name: "Pendidikan Dokter",
+      level: "S1",
+      university: "Universitas Indonesia",
+      idSms: "1",
+      idSp: "2",
+      majorCategoryKey: "kedokteran",
+    },
+    {
+      name: "Teknik Informatika",
+      level: "S1",
+      university: "Institut Teknologi Bandung",
+      idSms: "3",
+      idSp: "4",
+      majorCategoryKey: "informatika",
+    },
+  ];
+  const args: any[] = [
+    { code: "I-S", scores: { R: 20, I: 100, A: 20, S: 80, E: 20, C: 20 } },
+    { levels: { logical: "high", numerical: "medium", verbal: "medium", spatial: "low", clerical: "medium" } },
+    prodis,
+    patterns,
+    [],
+  ];
+
+  it("memakai kolom major_category_key (regex tidak dijalankan)", async () => {
+    const mod: any = await import("../routers/tmb");
+    const r = mod.computeRecommendations(...args);
+    expect(r.majors.map((m: any) => m.categoryKey)).toEqual(["kedokteran", "informatika"]);
+    expect(r.majors[0].prodiRefs[0].university).toBe("Universitas Indonesia");
+  });
+
+  it("fallback regex tetap jalan bila kolom kosong (data PDDikti baru)", async () => {
+    const mod: any = await import("../routers/tmb");
+    const r = mod.computeRecommendations(
+      ...([
+        args[0],
+        args[1],
+        [
+          {
+            name: "Pendidikan Dokter",
+            level: "S1",
+            university: "Universitas Indonesia",
+            idSms: "1",
+            idSp: "2",
+            majorCategoryKey: null,
+          },
+          {
+            name: "Teknik Informatika",
+            level: "S1",
+            university: "Institut Teknologi Bandung",
+            idSms: "3",
+            idSp: "4",
+            majorCategoryKey: null,
+          },
+        ],
+        [{ ...patterns[1]!, pattern: "dokter|kedokteran" }, patterns[1]],
+        [],
+      ] as any[]),
+    );
+    expect(r.majors.length).toBeGreaterThan(0);
+  });
+});

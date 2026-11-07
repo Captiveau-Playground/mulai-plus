@@ -255,26 +255,60 @@ function matchCareers(
 }
 
 // Cache prodi (data statis) — refresh 24 jam
-let prodiCache: { name: string; level: string | null; university: string; idSms: string; idSp: string }[] | null = null;
+export type ProdiRow = {
+  name: string;
+  level: string | null;
+  university: string;
+  idSms: string;
+  idSp: string;
+  /** kategori jurusan hasil precompute (null bila kolom belum ada / prodi baru) */
+  majorCategoryKey?: string | null;
+};
+let prodiCache: ProdiRow[] | null = null;
 let prodiCacheTs = 0;
+/** false setelah terdeteksi kolom `major_category_key` belum ada (migrasi belum jalan). */
+let prodiHasCategoryColumn = true;
 
-export async function getProdiList() {
+export async function getProdiList(): Promise<ProdiRow[]> {
   const now = Date.now();
-  if (!prodiCache || now - prodiCacheTs > 86400_000) {
-    const rows = await db
-      .select({
-        name: studyPrograms.name,
-        level: studyPrograms.level,
-        university: universities.name,
-        idSms: studyPrograms.idSms,
-        idSp: studyPrograms.idSp,
-      })
-      .from(studyPrograms)
-      .innerJoin(universities, eq(studyPrograms.idSp, universities.idSp))
-      .where(eq(studyPrograms.status, "Aktif"));
-    prodiCache = rows;
-    prodiCacheTs = now;
+  if (prodiCache && now - prodiCacheTs <= 86400_000) return prodiCache;
+
+  const base = {
+    name: studyPrograms.name,
+    level: studyPrograms.level,
+    university: universities.name,
+    idSms: studyPrograms.idSms,
+    idSp: studyPrograms.idSp,
+  };
+
+  // AMAN UNTUK DEPLOY BERTAHAP: kalau migrasi kolom belum jalan, jangan sampai
+  // `finish` ikut 500 — fallback ke query tanpa kolom (jalur regex tetap dipakai).
+  if (prodiHasCategoryColumn) {
+    try {
+      const rows = await db
+        .select({ ...base, majorCategoryKey: studyPrograms.majorCategoryKey })
+        .from(studyPrograms)
+        .innerJoin(universities, eq(studyPrograms.idSp, universities.idSp))
+        .where(eq(studyPrograms.status, "Aktif"));
+      prodiCache = rows;
+      prodiCacheTs = now;
+      return prodiCache;
+    } catch (e: any) {
+      prodiHasCategoryColumn = false;
+      console.error(
+        "[prodi] kolom major_category_key belum tersedia — pakai jalur regex (jalankan migrasi 0045):",
+        String(e?.message ?? e).slice(0, 160),
+      );
+    }
   }
+
+  const rows = await db
+    .select(base)
+    .from(studyPrograms)
+    .innerJoin(universities, eq(studyPrograms.idSp, universities.idSp))
+    .where(eq(studyPrograms.status, "Aktif"));
+  prodiCache = rows.map((r) => ({ ...r, majorCategoryKey: null }));
+  prodiCacheTs = now;
   return prodiCache;
 }
 
@@ -398,12 +432,35 @@ export function computeRecommendations(
   careers: { majorCategory: string; careerName: string }[],
 ) {
   // Kelompokkan prodi per kategori.
-  // Catatan performa (penting di Cloudflare Worker): dulu regex dibuat ULANG untuk setiap
-  // (prodi × pola) — 15.001 prodi × 63 pola ≈ 945 ribu kompilasi regex → CPU habis & request
-  // finish bisa 500/timeout. Sekarang regex dikompilasi sekali dan hasil pemetaan prodi→kategori
-  // di-cache (kunci: jumlah pola + panjang gabungan pola).
-  const compiled = compilePatterns(patterns);
-  const { byCategory } = groupProdiByCategory(prodiList, compiled);
+  // Jalur utama: kolom `study_programs.major_category_key` (sudah diisi seeder) → O(n) tanpa
+  // regex sama sekali. Fallback regex HANYA untuk prodi yang belum punya kategori (data PDDikti
+  // baru / pola baru), dan regex dikompilasi sekali + hasilnya di-cache per isolate.
+  const hasPrecomputed = prodiList.some((p: any) => p.majorCategoryKey);
+  let byCategory: Map<string, typeof prodiList>;
+  if (hasPrecomputed) {
+    byCategory = new Map<string, typeof prodiList>();
+    const pending: typeof prodiList = [];
+    for (const p of prodiList) {
+      const key = (p as any).majorCategoryKey as string | null;
+      if (!key) {
+        pending.push(p);
+        continue;
+      }
+      const arr = byCategory.get(key) ?? [];
+      arr.push(p);
+      byCategory.set(key, arr);
+    }
+    if (pending.length) {
+      const fallback = groupProdiByCategory(pending, compilePatterns(patterns)).byCategory;
+      for (const [k, v] of fallback) {
+        const arr = byCategory.get(k) ?? [];
+        arr.push(...v);
+        byCategory.set(k, arr);
+      }
+    }
+  } else {
+    byCategory = groupProdiByCategory(prodiList, compilePatterns(patterns)).byCategory;
+  }
 
   const studentHolland = holland.scores;
   // Normalisasi skor minat ke 0..1 (engine bisa kirim raw count) — cegah persen kecocokan nggak-realistis (mis. 333%)
@@ -418,6 +475,7 @@ export function computeRecommendations(
     interest: number;
     ability: number;
     count: number;
+    allProdis: typeof prodiList;
     examples: typeof prodiList;
   }[] = [];
 
@@ -448,13 +506,16 @@ export function computeRecommendations(
       interest: interestMatch,
       ability: abilityMatch,
       count: prodis.length,
-      // kampus favorit diutamakan (satu kampus satu prodi, lalu dilengkapi)
-      examples: pickProdiRefs(prodis, 5),
+      // contoh prodi dihitung setelah top-5 dipilih (sorting 63 kategori itu mahal)
+      allProdis: prodis,
+      examples: [] as typeof prodiList,
     });
   }
 
   results.sort((a, b) => b.confidence - a.confidence);
   const top = results.slice(0, 5);
+  // pilih contoh prodi hanya untuk 5 jurusan teratas (kampus favorit dulu)
+  for (const r of top) r.examples = pickProdiRefs(r.allProdis, 5);
 
   // karier untuk top kategori — disebar (maks 2 per kategori) supaya variatif, bukan menumpuk di satu jurusan
   const topKeys = top.map((r) => r.category.categoryKey);
