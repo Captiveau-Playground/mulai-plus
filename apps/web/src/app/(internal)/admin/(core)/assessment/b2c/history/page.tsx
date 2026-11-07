@@ -4,14 +4,26 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, GraduationCap, History, Inbox, User, UserRound } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  GraduationCap,
+  History,
+  Inbox,
+  Loader2,
+  User,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { AssessmentPageHeader, EmptyBlock, SkeletonRows } from "@/components/admin/assessment-page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { holland, hollandNames } from "@/lib/holland";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
+import { downloadHistoryXlsx } from "./_components/export-history";
 
 const PAGE_SIZE = 20;
 type SourceFilter = "all" | "self" | "batch";
@@ -28,6 +40,22 @@ function initials(name: string) {
 export default function AdminB2cHistoryPage() {
   const [offset, setOffset] = useState(0);
   const [filter, setFilter] = useState<SourceFilter>("all");
+  const [exporting, setExporting] = useState(false);
+
+  /** Ekspor semua percobaan tes ke Excel (1 baris = 1 orang + 1 percobaan, kolom Q1..Qn). */
+  const onExport = async () => {
+    setExporting(true);
+    try {
+      const { file, rows, total } = await downloadHistoryXlsx({ limit: 1000 });
+      notify.success(`Ekspor selesai — ${file}`, {
+        description: `${rows} percobaan${total > rows ? ` (dari ${total} total; jalankan lagi dengan filter tanggal untuk sisanya)` : ""}`,
+      });
+    } catch (e: any) {
+      notify.error("Gagal mengekspor riwayat", { description: String(e?.message ?? e).slice(0, 160) });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data, isLoading } = useQuery({
     ...orpc.tmbAdmin.b2c.history.queryOptions({ input: { limit: PAGE_SIZE, offset } }),
@@ -61,20 +89,37 @@ export default function AdminB2cHistoryPage() {
           </span>
         }
         actions={
-          <div className="flex gap-1 rounded-xl bg-gray-100 p-1" data-testid="history-filter">
-            {FILTERS.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFilter(key)}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 font-manrope font-semibold text-xs transition-colors",
-                  filter === key ? "bg-white text-brand-navy shadow-sm" : "text-gray-500 hover:text-gray-700",
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="history-export"
+              disabled={exporting || total === 0}
+              onClick={() => void onExport()}
+              title="Ekspor semua percobaan tes ke Excel (nama, percobaan, versi soal, profil, confidence, jawaban per item)"
+            >
+              {exporting ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-1 h-4 w-4" />
+              )}
+              Ekspor Excel
+            </Button>
+            <div className="flex gap-1 rounded-xl bg-gray-100 p-1" data-testid="history-filter">
+              {FILTERS.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setFilter(key)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 font-manrope font-semibold text-xs transition-colors",
+                    filter === key ? "bg-white text-brand-navy shadow-sm" : "text-gray-500 hover:text-gray-700",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
@@ -134,6 +179,14 @@ export default function AdminB2cHistoryPage() {
                             {r.isGuest && (
                               <span className="inline-flex items-center gap-1 font-manrope text-[10px] text-gray-400">
                                 <UserRound className="h-2.5 w-2.5" /> tamu batch
+                              </span>
+                            )}
+                            {(r as any).hasSession === false && (
+                              <span
+                                className="ml-1 inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 font-manrope text-[10px] text-amber-700"
+                                title="Hasil ini tidak punya sesi tes/jawaban tersimpan (data lama) — tidak muncul di analitik butir soal"
+                              >
+                                tanpa jawaban
                               </span>
                             )}
                           </div>
