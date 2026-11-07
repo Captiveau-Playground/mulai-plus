@@ -288,6 +288,13 @@
       "when": 1730000000000,
       "tag": "0045_prodi_major_category",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "11",
+      "when": 1730000000000,
+      "tag": "0046_session_abandoned",
+      "breakpoints": true
     }
   ]
 }

@@ -2379,6 +2379,7 @@ export const tmbAdminRouter = {
             inProgress: scope.sessions.filter((x) => x.status === "in_progress").length,
             paused: scope.sessions.filter((x) => x.status === "paused").length,
             timeout: scope.sessions.filter((x) => x.status === "timeout").length,
+            abandoned: scope.sessions.filter((x) => x.status === "abandoned").length,
             completionRate: scope.sessions.length ? Math.round((completed / scope.sessions.length) * 1000) / 1000 : 0,
             uniqueUsers: new Set(scope.sessions.map((s) => s.studentId)).size,
           },
@@ -2684,7 +2685,7 @@ export const tmbAdminRouter = {
             : Promise.resolve([]),
         ]);
         const f = computeFunnel(
-          scope.sessions,
+          scope.sessions.map((x) => ({ ...x, configJson: x.configJson })),
           ans.map((a) => ({ sessionId: a.sessionId, questionId: a.questionId, scoreEarned: a.scoreEarned })),
           qs.map((q) => ({
             id: q.id,

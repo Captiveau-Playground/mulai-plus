@@ -9,7 +9,13 @@ import {
 } from "@mulai-plus/r2/server";
 import { z } from "zod";
 import { adminProcedure, publicProcedure } from "../index";
-import { abilityPct, countsForAbility, likertPoint } from "../lib/assessment-analytics";
+import {
+  abilityPct,
+  countsForAbility,
+  isStaleUntimedSession,
+  likertPoint,
+  staleDaysFromEnv,
+} from "../lib/assessment-analytics";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
 import { notifyBatchComplete, notifyResultReady } from "../lib/assessment-notify";
 import { evaluateTextInput } from "../lib/evaluate-input";
@@ -67,7 +73,7 @@ async function getLiveVersion(code: string): Promise<VersionRow | null> {
  * Finalisasi satu sesi: skor per dimensi → profil → rekomendasi → status `completed`/`timeout`.
  * Dipakai oleh `finish` (aksi siswa) DAN auto-expire saat waktu habis (tanpa aksi siswa).
  */
-async function finalizeSession(
+export async function finalizeSession(
   sess: typeof schema.assessmentSessions.$inferSelect,
   durationsClient?: Record<string, number>,
 ) {
@@ -501,6 +507,38 @@ async function expireIfLate(sess: typeof schema.assessmentSessions.$inferSelect 
   return true;
 }
 
+/**
+ * Tutup sesi TANPA timer yang ditinggalkan (tidak disentuh > N hari, default 7).
+ * Status menjadi `abandoned`: tidak bisa dilanjutkan, TIDAK mengarang hasil dari jawaban
+ * parsial, dan tidak lagi dihitung sebagai "masih berjalan" di funnel admin.
+ * Sesi bertimer tidak disentuh di sini (ditangani `expireIfLate` lewat deadline).
+ */
+async function abandonIfStale(sess: typeof schema.assessmentSessions.$inferSelect | null | undefined) {
+  if (!sess) return false;
+  if (sess.status !== "in_progress" && sess.status !== "paused") return false;
+  if (((sess.configJson as any)?.timer ?? null) != null) return false;
+
+  const lastAnswer = await db.query.assessmentAnswers.findFirst({
+    where: eq(schema.assessmentAnswers.sessionId, sess.id),
+    orderBy: (t: any) => [desc(t.answeredAt)],
+    columns: { answeredAt: true },
+  });
+  const stale = isStaleUntimedSession({
+    status: sess.status,
+    configJson: sess.configJson,
+    startedAt: sess.startedAt,
+    lastAnsweredAt: lastAnswer?.answeredAt ?? null,
+    days: staleDaysFromEnv(process.env as Record<string, string | undefined>),
+  });
+  if (!stale) return false;
+
+  await db
+    .update(schema.assessmentSessions)
+    .set({ status: "abandoned" as never, completedAt: new Date() })
+    .where(eq(schema.assessmentSessions.id, sess.id));
+  return true;
+}
+
 async function questionsOf(versionId: string): Promise<QuestionRow[]> {
   const qs = await db.query.questions.findMany({
     where: eq(schema.questions.versionId, versionId),
@@ -893,6 +931,7 @@ export const discoverRouter = {
       // Waktunya sudah habis saat siswa kembali → sesi ditutup (timeout) dan TIDAK dilanjutkan;
       // alur berlanjut membuat sesi baru (CTA tidak boleh menawarkan resume).
       if (existingSess && (await expireIfLate(existingSess))) existingSess = null;
+      if (existingSess && (await abandonIfStale(existingSess))) existingSess = null;
       if (existingSess) {
         const sessCfg = ((existingSess as any).configJson ?? {}) as any;
         let t = sessCfg?.timer ?? null;
@@ -1124,6 +1163,7 @@ export const discoverRouter = {
       const alive: typeof items = [];
       for (const it of items) {
         if (await expireIfLate(it as any)) continue;
+        if (await abandonIfStale(it as any)) continue;
         alive.push(it);
       }
       return { ok: true, items: alive };
@@ -1297,6 +1337,8 @@ export const discoverRouter = {
       // Waktu sudah habis tapi siswa tak menekan "Selesai" (termasuk sesi yang dijeda):
       // tutup sesi (timeout) dan JANGAN tawarkan "Lanjutkan" — tes dianggap selesai.
       if (sess && (await expireIfLate(sess))) return { ok: true, present: false } as const;
+      // sesi tanpa timer yang ditinggal berminggu-minggu → jangan tawarkan "Lanjutkan"
+      if (sess && (await abandonIfStale(sess))) return { ok: true, present: false } as const;
       if (!sess || sess.status !== "in_progress") return { ok: true, present: false } as const;
       const answered = await db.query.assessmentAnswers.findMany({
         where: eq(schema.assessmentAnswers.sessionId, sess.id),

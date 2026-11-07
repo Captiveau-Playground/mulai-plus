@@ -428,3 +428,70 @@ describe("performa rekomendasi (aman untuk Worker)", () => {
     expect(r.majors.length).toBeGreaterThan(0);
   });
 });
+
+describe("sesi tanpa timer yang ditinggalkan", () => {
+  const now = new Date("2026-11-01T00:00:00.000Z");
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000).toISOString();
+
+  it("in_progress tanpa timer & lama → abandoned", async () => {
+    const { isStaleUntimedSession } = await import("../lib/assessment-analytics");
+    expect(isStaleUntimedSession({ status: "in_progress", configJson: {}, startedAt: daysAgo(10), now })).toBe(true);
+    // ada jawaban baru 2 hari lalu → masih hidup
+    expect(
+      isStaleUntimedSession({
+        status: "in_progress",
+        configJson: {},
+        startedAt: daysAgo(30),
+        lastAnsweredAt: daysAgo(2),
+        now,
+      }),
+    ).toBe(false);
+  });
+
+  it("sesi bertimer / selesai tidak pernah dianggap basi", async () => {
+    const { isStaleUntimedSession } = await import("../lib/assessment-analytics");
+    expect(
+      isStaleUntimedSession({
+        status: "in_progress",
+        configJson: { timer: { expectedEndISO: daysAgo(-1) } },
+        startedAt: daysAgo(10),
+        now,
+      }),
+    ).toBe(false);
+    expect(isStaleUntimedSession({ status: "completed", configJson: {}, startedAt: daysAgo(10), now })).toBe(false);
+  });
+
+  it("ambang dari env dibatasi 1..365, default 7", async () => {
+    const { staleDaysFromEnv } = await import("../lib/assessment-analytics");
+    expect(staleDaysFromEnv({})).toBe(7);
+    expect(staleDaysFromEnv({ ASSESSMENT_STALE_DAYS: "14" })).toBe(14);
+    expect(staleDaysFromEnv({ ASSESSMENT_STALE_DAYS: "0" })).toBe(7);
+    expect(staleDaysFromEnv({ ASSESSMENT_STALE_DAYS: "9999" })).toBe(365);
+  });
+});
+
+describe("funnel: durasi sesi yang ditutup sistem", () => {
+  it("memakai deadline, bukan waktu penutupan (yang bisa berhari-hari kemudian)", async () => {
+    const { computeFunnel } = await import("../lib/assessment-analytics");
+    const start = "2026-10-01T09:00:00.000Z";
+    const deadline = "2026-10-01T09:10:00.000Z";
+    const f = computeFunnel(
+      [
+        {
+          id: "s1",
+          status: "timeout",
+          startedAt: start,
+          completedAt: "2026-10-20T09:00:00.000Z", // baru ditutup 19 hari kemudian
+          studentId: "u1",
+          configJson: { timer: { expectedEndISO: deadline, dims: [], qEnds: [] } },
+        },
+        { id: "s2", status: "completed", startedAt: start, completedAt: "2026-10-01T09:20:00.000Z", studentId: "u2" },
+        { id: "s3", status: "abandoned", startedAt: start, completedAt: "2026-10-20T09:00:00.000Z", studentId: "u3" },
+      ],
+      [],
+      [],
+    );
+    expect(f.medianDurationMinutes).toBe(15); // (10 + 20) / 2, bukan 27 ribu menit
+    expect(f.byStatus.abandoned).toBe(1);
+  });
+});

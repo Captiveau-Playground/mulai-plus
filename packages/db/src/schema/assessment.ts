@@ -57,6 +57,8 @@ export const assessmentSessionStatusEnum = pgEnum("assessment_session_status", [
   "paused",
   "completed",
   "timeout",
+  /** ditinggalkan: tes tanpa timer yang tidak disentuh N hari → tidak bisa dilanjutkan, tanpa hasil */
+  "abandoned",
 ]);
 
 export const assessmentTimerScopeEnum = pgEnum("assessment_timer_scope", ["dimension", "question", "none"]);
