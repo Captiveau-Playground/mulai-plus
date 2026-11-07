@@ -12,14 +12,13 @@
  *  - setiap tipe Holland (R/I/A/S/E/C) punya ≥6 kategori
  */
 import dotenv from "dotenv";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { CAREER_PROFILES, MAJOR_PATTERNS } from "../../api/src/lib/assessment-catalog";
-import { nanoidish } from "./lib-id";
 
 // dotenv HARUS jalan sebelum modul db diinisialisasi (env dibaca saat import)
 dotenv.config({ path: "../../apps/server/.env" });
 const { db } = await import("../src");
-const { studyPrograms, tmbCareerMappings, tmbMajorPatterns } = await import("../src/schema");
+const { studyPrograms, tmbMajorPatterns } = await import("../src/schema");
 
 const DRY = process.argv.includes("--dry");
 
@@ -69,51 +68,12 @@ async function main() {
     process.exit(0);
   }
 
-  // 4) upsert pola jurusan
-  let inserted = 0;
-  let updated = 0;
-  for (const pat of MAJOR_PATTERNS) {
-    const existing = await db.query.tmbMajorPatterns.findFirst({
-      where: eq(tmbMajorPatterns.categoryKey, pat.key),
-    });
-    const values = {
-      categoryKey: pat.key,
-      categoryName: pat.name,
-      pattern: pat.pattern,
-      hollandPrimary: pat.hollandPrimary,
-      hollandSecondary: pat.hollandSecondary,
-      abilityWeights: pat.abilityWeights as Record<string, number>,
-      isActive: true,
-    };
-    if (existing) {
-      await db.update(tmbMajorPatterns).set(values).where(eq(tmbMajorPatterns.id, existing.id));
-      updated++;
-    } else {
-      await db.insert(tmbMajorPatterns).values({ id: nanoidish(), ...values });
-      inserted++;
-    }
-  }
+  // 4) upsert pola + karier lewat lib bersama (dipakai juga oleh seeder produksi)
+  const { seedCatalog } = await import("./lib/assessment-seed");
+  const res = await seedCatalog(db, (m) => console.log(`   ${m}`));
 
-  // 5) reset + isi karier per kategori katalog
-  const keys = MAJOR_PATTERNS.map((p) => p.key);
-  await db.delete(tmbCareerMappings).where(inArray(tmbCareerMappings.majorCategory, keys));
-  let careers = 0;
-  for (const key of keys) {
-    for (const name of CAREER_PROFILES[key] ?? []) {
-      await db.insert(tmbCareerMappings).values({ id: nanoidish(), majorCategory: key, careerName: name });
-      careers++;
-    }
-  }
-
-  // 6) matikan pola lama yang tidak ada di katalog (jangan hapus — riwayat tetap aman)
-  const all = await db.query.tmbMajorPatterns.findMany({ columns: { id: true, categoryKey: true } });
-  const stale = all.filter((p) => !keys.includes(p.categoryKey));
-  for (const s of stale) {
-    await db.update(tmbMajorPatterns).set({ isActive: false }).where(eq(tmbMajorPatterns.id, s.id));
-  }
-
-  console.log(`\n✅ Pola: ${inserted} baru, ${updated} diperbarui, ${stale.length} dinonaktifkan`);
-  console.log(`✅ Karier: ${careers} baris untuk ${keys.length} kategori`);
+  console.log(`\n✅ Pola: ${res.inserted} baru, ${res.updated} diperbarui, ${res.stale} dinonaktifkan`);
+  console.log(`✅ Karier: ${res.careers} baris untuk ${res.patterns} kategori`);
   console.log(
     `✅ Total pola aktif: ${(await db.query.tmbMajorPatterns.findMany({ where: eq(tmbMajorPatterns.isActive, true) })).length}`,
   );
