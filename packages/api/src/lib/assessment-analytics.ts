@@ -569,3 +569,12 @@ export function abilityPct(correct: number, total: number): number {
   if (!total || total <= 0) return 0;
   return Math.max(0, Math.min(100, Math.round((correct / total) * 100)));
 }
+
+/**
+ * Poin untuk butir skala (likert) berdasarkan urutan opsi + setelan admin
+ * (Penilaian → Skala minimal/maksimal). Dulu engine mengabaikan min/max dan selalu 1..n.
+ */
+export function likertPoint(ordinal: number, min = 1, max?: number | null): number {
+  const point = min + ordinal;
+  return typeof max === "number" && Number.isFinite(max) && max > min ? Math.min(max, point) : point;
+}

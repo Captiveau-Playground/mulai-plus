@@ -286,3 +286,17 @@ describe("aturan skor kemampuan (bakat)", () => {
     expect(abilityPct(-2, 10)).toBe(0);
   });
 });
+
+describe("skala likert mengikuti setelan admin", () => {
+  it("default 1..n", async () => {
+    const { likertPoint } = await import("../lib/assessment-analytics");
+    expect([0, 1, 4].map((i) => likertPoint(i))).toEqual([1, 2, 5]);
+  });
+  it("min/max dari panel Penilaian dihormati", async () => {
+    const { likertPoint } = await import("../lib/assessment-analytics");
+    expect([0, 1, 2, 3, 4].map((i) => likertPoint(i, 0, 4))).toEqual([0, 1, 2, 3, 4]);
+    expect([0, 1, 2].map((i) => likertPoint(i, 2, 5))).toEqual([2, 3, 4]);
+    // max tidak masuk akal (≤ min) → diabaikan
+    expect(likertPoint(3, 1, 0)).toBe(4);
+  });
+});
