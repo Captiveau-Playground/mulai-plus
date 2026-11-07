@@ -338,6 +338,51 @@ function computeAbility(answers: { question: { dimension: string; answer: string
   return { scores, levels };
 }
 
+/** Regex pola jurusan dikompilasi sekali (bukan per prodi). */
+function compilePatterns(patterns: { pattern: string; categoryKey: string }[]) {
+  const out: { key: string; re: RegExp }[] = [];
+  for (const p of patterns) {
+    try {
+      out.push({ key: p.categoryKey, re: new RegExp(p.pattern, "i") });
+    } catch {
+      // pola rusak di admin tidak boleh menjatuhkan hasil siswa
+    }
+  }
+  return out;
+}
+
+const prodiGroupCache = new Map<string, Map<string, any[]>>();
+
+/**
+ * Petakan prodi→kategori (memoized). Cache di-key oleh "sidik jari" pola + jumlah prodi,
+ * jadi perubahan Pola Jurusan otomatis membuang cache. ~15k prodi × 63 regex hanya
+ * dijalankan sekali per isolate.
+ */
+function groupProdiByCategory(
+  prodiList: { name: string; level: string | null; university: string; idSms: string; idSp: string }[],
+  compiled: { key: string; re: RegExp }[],
+): { byCategory: Map<string, typeof prodiList> } {
+  // Sidik jari HARUS membedakan isi pola (panjang saja bisa tabrakan antar-set pola).
+  const fingerprint = `${prodiList.length}|${compiled.map((c) => `${c.key}=${c.re.source}`).join("¦")}`;
+  const cached = prodiGroupCache.get(fingerprint);
+  if (cached) return { byCategory: cached as Map<string, typeof prodiList> };
+
+  const byCategory = new Map<string, typeof prodiList>();
+  for (const p of prodiList) {
+    for (const c of compiled) {
+      if (c.re.test(p.name)) {
+        const arr = byCategory.get(c.key) ?? [];
+        arr.push(p);
+        byCategory.set(c.key, arr);
+        break;
+      }
+    }
+  }
+  prodiGroupCache.clear();
+  prodiGroupCache.set(fingerprint, byCategory as Map<string, any[]>);
+  return { byCategory };
+}
+
 export function computeRecommendations(
   holland: { code: string; scores: Record<string, number> },
   ability: { levels: Record<string, string> },
@@ -352,18 +397,13 @@ export function computeRecommendations(
   }[],
   careers: { majorCategory: string; careerName: string }[],
 ) {
-  // kelompokkan prodi per kategori
-  const byCategory = new Map<string, typeof prodiList>();
-  for (const p of prodiList) {
-    for (const pat of patterns) {
-      if (new RegExp(pat.pattern, "i").test(p.name)) {
-        const arr = byCategory.get(pat.categoryKey) ?? [];
-        arr.push(p);
-        byCategory.set(pat.categoryKey, arr);
-        break;
-      }
-    }
-  }
+  // Kelompokkan prodi per kategori.
+  // Catatan performa (penting di Cloudflare Worker): dulu regex dibuat ULANG untuk setiap
+  // (prodi × pola) — 15.001 prodi × 63 pola ≈ 945 ribu kompilasi regex → CPU habis & request
+  // finish bisa 500/timeout. Sekarang regex dikompilasi sekali dan hasil pemetaan prodi→kategori
+  // di-cache (kunci: jumlah pola + panjang gabungan pola).
+  const compiled = compilePatterns(patterns);
+  const { byCategory } = groupProdiByCategory(prodiList, compiled);
 
   const studentHolland = holland.scores;
   // Normalisasi skor minat ke 0..1 (engine bisa kirim raw count) — cegah persen kecocokan nggak-realistis (mis. 333%)

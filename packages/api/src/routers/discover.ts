@@ -71,390 +71,403 @@ async function finalizeSession(
   sess: typeof schema.assessmentSessions.$inferSelect,
   durationsClient?: Record<string, number>,
 ) {
-  const input = { sessionId: sess.id, durations: durationsClient };
-  if (sess.status === "completed" || sess.status === "timeout") {
-    const existing = await db.query.assessmentResults.findFirst({
-      where: eq(schema.assessmentResults.sessionId, sess.id),
-    });
-    return { ok: true as const, already_completed: true, result: existing };
-  }
-  const cfg = (sess.configJson ?? {}) as any;
-  const method: string = cfg?.scoring_method ?? "sum";
-  // Timer server-side: lewat deadline → sesi ditandai TIMEOUT (auto-submit klien tetap valid)
-  const deadlineMs = sessionDeadlineMs(sess.configJson);
-  const timedOut = deadlineMs !== null && Date.now() > deadlineMs;
-  // XP/streak: 10 XP per bagian tuntas + 1 XP per jawaban; streak = banyak bagian tuntas
-  const qsAll = await db.query.questions.findMany({
-    where: eq(schema.questions.versionId, sess.versionId),
-    orderBy: asc(schema.questions.displayOrder),
-  });
-  const dimsAll = await db.query.assessmentDimensions.findMany({
-    where: eq(schema.assessmentDimensions.versionId, sess.versionId),
-  });
-  // Keluarga tes (minat/bakat) — dipakai sejak tahap scoring (aturan likert).
-  const versionOfSession = await db.query.assessmentVersions.findFirst({
-    where: eq(schema.assessmentVersions.id, sess.versionId),
-    columns: { assessmentId: true },
-  });
-  const assessmentOfSession = versionOfSession
-    ? await db.query.assessments.findFirst({
-        where: eq(schema.assessments.id, versionOfSession.assessmentId),
-        columns: { family: true },
-      })
-    : null;
-  const sessionFamily = assessmentOfSession?.family ?? null;
-
-  const runSecs = computeRunSections(sess.configJson as any, qsAll, dimsAll);
-  const purse = await db.query.assessmentAnswers.findMany({
-    where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
-  });
-  const answeredSet = new Set(purse.map((a) => a.questionId));
-  let sectionsDone = 0;
-  const activeQs = qsAll.filter((q) => q.isActive);
-  for (const sc of runSecs) {
-    const slice = activeQs.slice(sc.from, sc.to + 1);
-    if (slice.length && slice.every((q) => answeredSet.has(q.id))) sectionsDone++;
-  }
-  const xpEarned = sectionsDone * 10 + answeredSet.size;
-  const optIds = purse.map((a) => a.selectedOptionId).filter(Boolean) as string[];
-  const opts = optIds.length
-    ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.id, optIds) })
-    : [];
-  const qIds = purse.map((a) => a.questionId).filter(Boolean) as string[];
-  const qs = qIds.length
-    ? await db.query.questions.findMany({
-        where: inArray(schema.questions.id, qIds),
-        columns: { id: true, dimensionId: true, weight: true, questionType: true },
-      })
-    : [];
-  const qBy = new Map(qs.map((q) => [q.id, q]));
-  const optBy = new Map(opts.map((o) => [o.id, o]));
-
-  // scoring_mode "likert": poin naik LINIER mengikuti urutan opsi (mengabaikan skor manual
-  // per opsi). Nilai diambil dari urutan displayOrder opsi pada soal tersebut (1..n).
-  const likertMode = cfg?.scoring_mode === "likert";
-  // Batas skala dari panel admin (Penilaian → Skala minimal/maksimal). Dulu engine
-  // selalu memakai 1..n sehingga setelan admin (mis. 0–4) tidak berefek.
-  const likertMin = Number(cfg?.likert_min ?? 1);
-  const likertMaxRaw = Number(cfg?.likert_max ?? 0);
-  const likertMax = Number.isFinite(likertMaxRaw) && likertMaxRaw > likertMin ? likertMaxRaw : null;
-  const likertScoreByOpt = new Map<string, number>();
-  if (likertMode && qIds.length) {
-    const allOpts = await db.query.questionOptions.findMany({
-      where: inArray(schema.questionOptions.questionId, qIds),
-      columns: { id: true, questionId: true, displayOrder: true },
-      orderBy: asc(schema.questionOptions.displayOrder),
-    });
-    for (const qid of qIds) {
-      allOpts
-        .filter((o) => o.questionId === qid)
-        .forEach((o, i) => {
-          likertScoreByOpt.set(o.id, likertPoint(i, likertMin, likertMax));
-        });
+  // Semua langkah di bawah dipantau; kegagalan pada satu tahap tidak boleh membuat
+  // endpoint 500 (dulu: satu error di tengah → 500, klien retry → confetti berulang).
+  let stage = "init";
+  try {
+    const input = { sessionId: sess.id, durations: durationsClient };
+    if (sess.status === "completed" || sess.status === "timeout") {
+      const existing = await db.query.assessmentResults.findFirst({
+        where: eq(schema.assessmentResults.sessionId, sess.id),
+      });
+      return { ok: true as const, already_completed: true, result: existing };
     }
-  }
-
-  // Akumulasi per dimensi: rawscore + count (utk average) + weighted
-  const scores = new Map<string, number>();
-  const counts = new Map<string, number>();
-  for (const a of purse) {
-    let dimId = "";
-    let score = a.scoreEarned ?? 0;
-    const q = qBy.get(a.questionId);
-    // Butir SKALA (likert) = self-report: sah untuk minat, TIDAK sah untuk kemampuan
-    // (skornya 1–5, bukan benar/salah → kalau dihitung, pct kemampuan bisa >100%).
-    if (!countsForAbility(q?.questionType, sessionFamily)) continue;
-    if (a.selectedOptionId) {
-      const o = optBy.get(a.selectedOptionId);
-      dimId = o?.targetDimension ?? q?.dimensionId ?? "";
-      score = likertMode ? (likertScoreByOpt.get(a.selectedOptionId) ?? o?.score ?? score) : (o?.score ?? score);
-    } else {
-      dimId = q?.dimensionId ?? "";
-    }
-    if (!dimId) continue;
-    if (method === "weighted") score = score * (q?.weight ?? 1);
-    scores.set(dimId, (scores.get(dimId) ?? 0) + score);
-    counts.set(dimId, (counts.get(dimId) ?? 0) + 1);
-  }
-  if (method === "average") {
-    for (const [k, v] of scores)
-      scores.set(k, counts.get(k) ? Math.round((v / (counts.get(k) ?? 1)) * 1000) / 1000 : 0);
-  }
-  const dims = await db.query.assessmentDimensions.findMany({
-    where: eq(schema.assessmentDimensions.versionId, sess.versionId),
-  });
-  const dimByCode = new Map(dims.map((d) => [d.id, d.code]));
-  // Fallback: targetDimension opsi bisa menunjuk dimensi VERSI LAMA (salinan draft tidak selalu remap)
-  // → cari code-nya di semua versi agar skor/profil tetap benar.
-  const missingDimIds = [...scores.keys()].filter((x) => !dimByCode.has(x));
-  if (missingDimIds.length > 0) {
-    const extra = await db.query.assessmentDimensions.findMany({
-      where: inArray(schema.assessmentDimensions.id, missingDimIds),
-      columns: { id: true, code: true },
+    const cfg = (sess.configJson ?? {}) as any;
+    const method: string = cfg?.scoring_method ?? "sum";
+    // Timer server-side: lewat deadline → sesi ditandai TIMEOUT (auto-submit klien tetap valid)
+    const deadlineMs = sessionDeadlineMs(sess.configJson);
+    const timedOut = deadlineMs !== null && Date.now() > deadlineMs;
+    // XP/streak: 10 XP per bagian tuntas + 1 XP per jawaban; streak = banyak bagian tuntas
+    stage = "questions";
+    const qsAll = await db.query.questions.findMany({
+      where: eq(schema.questions.versionId, sess.versionId),
+      orderBy: asc(schema.questions.displayOrder),
     });
-    for (const d of extra) if (d.code && !dimByCode.has(d.id)) dimByCode.set(d.id, d.code);
-  }
-  const durations = input.durations ?? {};
-  // completion_time_seconds bertipe INTEGER → bulatkan (durasi dari klien berupa desimal).
-  const rows = [...scores.entries()].map(([dimId, total]) => ({
-    dimId,
-    total,
-    time: durations[dimId] != null ? Math.max(0, Math.round(Number(durations[dimId]))) : Number.MAX_SAFE_INTEGER,
-  }));
-  rows.sort(
-    (a, b) =>
-      b.total - a.total ||
-      a.time - b.time ||
-      (dimByCode.get(a.dimId) ?? "").localeCompare(dimByCode.get(b.dimId) ?? ""),
-  );
-  const topN = Number(cfg?.result_dim_count ?? 3);
-  const top = rows.slice(0, topN).map((r) => dimByCode.get(r.dimId) ?? r.dimId);
-  const profileCode = top.join("-").slice(0, 40); // varchar(40) di tmb_assessment_results
-  // Rekomendasi: ability DINORMALISASI per dim (0–100) agar jumlah soal tak bias,
-  // + confidence digeser oleh gap skor teratas (differentiation).
-  const abilityCodeScores: Record<string, number> = {};
-  for (const [dimId, tt] of scores) {
-    const cnt = counts.get(dimId) ?? 0;
-    const pct = cnt > 0 ? Math.min(100, (tt / cnt) * 100) : 0;
-    const code = (dimByCode.get(dimId) ?? "").toLowerCase();
-    if (code) abilityCodeScores[code] = Math.round(pct);
-  }
-  const r0 = rows[0];
-  const r1 = rows[1];
-  const diffFactor = r0 && r1 && r0.total > 0 ? Math.max(0, Math.min(1, (r0.total - r1.total) / r0.total)) : 1;
-  const recos = await recommendForResult({ topCodes: top, abilityScores: abilityCodeScores, diffFactor });
+    const dimsAll = await db.query.assessmentDimensions.findMany({
+      where: eq(schema.assessmentDimensions.versionId, sess.versionId),
+    });
+    // Keluarga tes (minat/bakat) — dipakai sejak tahap scoring (aturan likert).
+    const versionOfSession = await db.query.assessmentVersions.findFirst({
+      where: eq(schema.assessmentVersions.id, sess.versionId),
+      columns: { assessmentId: true },
+    });
+    const assessmentOfSession = versionOfSession
+      ? await db.query.assessments.findFirst({
+          where: eq(schema.assessments.id, versionOfSession.assessmentId),
+          columns: { family: true },
+        })
+      : null;
+    const sessionFamily = assessmentOfSession?.family ?? null;
 
-  await db
-    .delete(schema.assessmentDimensionScores)
-    .where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row) continue;
-    await db.insert(schema.assessmentDimensionScores).values({
+    const runSecs = computeRunSections(sess.configJson as any, qsAll, dimsAll);
+    const purse = await db.query.assessmentAnswers.findMany({
+      where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
+    });
+    const answeredSet = new Set(purse.map((a) => a.questionId));
+    let sectionsDone = 0;
+    const activeQs = qsAll.filter((q) => q.isActive);
+    for (const sc of runSecs) {
+      const slice = activeQs.slice(sc.from, sc.to + 1);
+      if (slice.length && slice.every((q) => answeredSet.has(q.id))) sectionsDone++;
+    }
+    const xpEarned = sectionsDone * 10 + answeredSet.size;
+    const optIds = purse.map((a) => a.selectedOptionId).filter(Boolean) as string[];
+    const opts = optIds.length
+      ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.id, optIds) })
+      : [];
+    const qIds = purse.map((a) => a.questionId).filter(Boolean) as string[];
+    const qs = qIds.length
+      ? await db.query.questions.findMany({
+          where: inArray(schema.questions.id, qIds),
+          columns: { id: true, dimensionId: true, weight: true, questionType: true },
+        })
+      : [];
+    const qBy = new Map(qs.map((q) => [q.id, q]));
+    const optBy = new Map(opts.map((o) => [o.id, o]));
+
+    // scoring_mode "likert": poin naik LINIER mengikuti urutan opsi (mengabaikan skor manual
+    // per opsi). Nilai diambil dari urutan displayOrder opsi pada soal tersebut (1..n).
+    const likertMode = cfg?.scoring_mode === "likert";
+    // Batas skala dari panel admin (Penilaian → Skala minimal/maksimal). Dulu engine
+    // selalu memakai 1..n sehingga setelan admin (mis. 0–4) tidak berefek.
+    const likertMin = Number(cfg?.likert_min ?? 1);
+    const likertMaxRaw = Number(cfg?.likert_max ?? 0);
+    const likertMax = Number.isFinite(likertMaxRaw) && likertMaxRaw > likertMin ? likertMaxRaw : null;
+    const likertScoreByOpt = new Map<string, number>();
+    if (likertMode && qIds.length) {
+      const allOpts = await db.query.questionOptions.findMany({
+        where: inArray(schema.questionOptions.questionId, qIds),
+        columns: { id: true, questionId: true, displayOrder: true },
+        orderBy: asc(schema.questionOptions.displayOrder),
+      });
+      for (const qid of qIds) {
+        allOpts
+          .filter((o) => o.questionId === qid)
+          .forEach((o, i) => {
+            likertScoreByOpt.set(o.id, likertPoint(i, likertMin, likertMax));
+          });
+      }
+    }
+
+    // Akumulasi per dimensi: rawscore + count (utk average) + weighted
+    stage = "scoring";
+    const scores = new Map<string, number>();
+    const counts = new Map<string, number>();
+    for (const a of purse) {
+      let dimId = "";
+      let score = a.scoreEarned ?? 0;
+      const q = qBy.get(a.questionId);
+      // Butir SKALA (likert) = self-report: sah untuk minat, TIDAK sah untuk kemampuan
+      // (skornya 1–5, bukan benar/salah → kalau dihitung, pct kemampuan bisa >100%).
+      if (!countsForAbility(q?.questionType, sessionFamily)) continue;
+      if (a.selectedOptionId) {
+        const o = optBy.get(a.selectedOptionId);
+        dimId = o?.targetDimension ?? q?.dimensionId ?? "";
+        score = likertMode ? (likertScoreByOpt.get(a.selectedOptionId) ?? o?.score ?? score) : (o?.score ?? score);
+      } else {
+        dimId = q?.dimensionId ?? "";
+      }
+      if (!dimId) continue;
+      if (method === "weighted") score = score * (q?.weight ?? 1);
+      scores.set(dimId, (scores.get(dimId) ?? 0) + score);
+      counts.set(dimId, (counts.get(dimId) ?? 0) + 1);
+    }
+    if (method === "average") {
+      for (const [k, v] of scores)
+        scores.set(k, counts.get(k) ? Math.round((v / (counts.get(k) ?? 1)) * 1000) / 1000 : 0);
+    }
+    const dims = await db.query.assessmentDimensions.findMany({
+      where: eq(schema.assessmentDimensions.versionId, sess.versionId),
+    });
+    const dimByCode = new Map(dims.map((d) => [d.id, d.code]));
+    // Fallback: targetDimension opsi bisa menunjuk dimensi VERSI LAMA (salinan draft tidak selalu remap)
+    // → cari code-nya di semua versi agar skor/profil tetap benar.
+    const missingDimIds = [...scores.keys()].filter((x) => !dimByCode.has(x));
+    if (missingDimIds.length > 0) {
+      const extra = await db.query.assessmentDimensions.findMany({
+        where: inArray(schema.assessmentDimensions.id, missingDimIds),
+        columns: { id: true, code: true },
+      });
+      for (const d of extra) if (d.code && !dimByCode.has(d.id)) dimByCode.set(d.id, d.code);
+    }
+    const durations = input.durations ?? {};
+    // completion_time_seconds bertipe INTEGER → bulatkan (durasi dari klien berupa desimal).
+    stage = "dimension-scores";
+    const rows = [...scores.entries()].map(([dimId, total]) => ({
+      dimId,
+      total,
+      time: durations[dimId] != null ? Math.max(0, Math.round(Number(durations[dimId]))) : Number.MAX_SAFE_INTEGER,
+    }));
+    rows.sort(
+      (a, b) =>
+        b.total - a.total ||
+        a.time - b.time ||
+        (dimByCode.get(a.dimId) ?? "").localeCompare(dimByCode.get(b.dimId) ?? ""),
+    );
+    const topN = Number(cfg?.result_dim_count ?? 3);
+    const top = rows.slice(0, topN).map((r) => dimByCode.get(r.dimId) ?? r.dimId);
+    const profileCode = top.join("-").slice(0, 40); // varchar(40) di tmb_assessment_results
+    // Rekomendasi: ability DINORMALISASI per dim (0–100) agar jumlah soal tak bias,
+    // + confidence digeser oleh gap skor teratas (differentiation).
+    const abilityCodeScores: Record<string, number> = {};
+    for (const [dimId, tt] of scores) {
+      const cnt = counts.get(dimId) ?? 0;
+      const pct = cnt > 0 ? Math.min(100, (tt / cnt) * 100) : 0;
+      const code = (dimByCode.get(dimId) ?? "").toLowerCase();
+      if (code) abilityCodeScores[code] = Math.round(pct);
+    }
+    const r0 = rows[0];
+    const r1 = rows[1];
+    const diffFactor = r0 && r1 && r0.total > 0 ? Math.max(0, Math.min(1, (r0.total - r1.total) / r0.total)) : 1;
+    const recos = await recommendForResult({ topCodes: top, abilityScores: abilityCodeScores, diffFactor });
+
+    await db
+      .delete(schema.assessmentDimensionScores)
+      .where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row) continue;
+      await db.insert(schema.assessmentDimensionScores).values({
+        id: uid(),
+        sessionId: input.sessionId,
+        dimensionId: row.dimId,
+        totalScore: row.total,
+        rank: i + 1,
+        completionTimeSeconds: row.time === Number.MAX_SAFE_INTEGER ? null : row.time,
+      });
+    }
+    const result = {
       id: uid(),
       sessionId: input.sessionId,
-      dimensionId: row.dimId,
-      totalScore: row.total,
-      rank: i + 1,
-      completionTimeSeconds: row.time === Number.MAX_SAFE_INTEGER ? null : row.time,
-    });
-  }
-  const result = {
-    id: uid(),
-    sessionId: input.sessionId,
-    xpEarned,
-    streak: sectionsDone,
-    timedOut,
-    profileCode,
-    topDimensionsJson: top,
-    rawScoresJson: Object.fromEntries([...scores.entries()]),
-    recommendationsJson: recos,
-  };
-  await db.insert(schema.assessmentResults).values(result);
-  // B2B: id hasil pada pipeline lama — dipakai untuk menautkan hasil ke roster sekolah
-  let b2bResultId: string | null = null;
-  // ⚙ Backwrite: hasil engine → pipeline hasil LAMA (kontrak tmb) agar page/template hasil yg ada tetap menampilkan
-  try {
-    const ver0 = await db.query.assessmentVersions.findFirst({
-      where: eq(schema.assessmentVersions.id, sess.versionId),
-    });
-    const ass0 = ver0
-      ? await db.query.assessments.findFirst({ where: eq(schema.assessments.id, ver0.assessmentId) })
-      : null;
-    const fam = ass0?.family ?? null;
-    if (fam && (fam === "minat" || fam === "bakat")) {
-      const existing = await db.query.tmbAssessmentResults.findFirst({
-        where: eq(tmbAssessmentResults.userId, sess.studentId),
-        orderBy: (t: any) => [desc(t.createdAt)],
+      xpEarned,
+      streak: sectionsDone,
+      timedOut,
+      profileCode,
+      topDimensionsJson: top,
+      rawScoresJson: Object.fromEntries([...scores.entries()]),
+      recommendationsJson: recos,
+    };
+    stage = "result";
+    await db.insert(schema.assessmentResults).values(result);
+    // B2B: id hasil pada pipeline lama — dipakai untuk menautkan hasil ke roster sekolah
+    let b2bResultId: string | null = null;
+    // ⚙ Backwrite: hasil engine → pipeline hasil LAMA (kontrak tmb) agar page/template hasil yg ada tetap menampilkan
+    stage = "backwrite";
+    try {
+      const ver0 = await db.query.assessmentVersions.findFirst({
+        where: eq(schema.assessmentVersions.id, sess.versionId),
       });
-      // baris jatuh tempo lengkap (minat+bakat) => ini adalah RETEST → attempt baru (baris baru),
-      // sehingga duet lama tetap tersimpan di history dan yang baru mulai dari bagian ini saja.
-      // 📊 Statistik per dimensi (utk catatan hasil: waktu habis / paling lama)
-      const dimStats = await (async () => {
-        const dimsAll2 = await db.query.assessmentDimensions.findMany({
-          where: eq(schema.assessmentDimensions.versionId, sess.versionId),
-          orderBy: asc(schema.assessmentDimensions.displayOrder),
+      const ass0 = ver0
+        ? await db.query.assessments.findFirst({ where: eq(schema.assessments.id, ver0.assessmentId) })
+        : null;
+      const fam = ass0?.family ?? null;
+      if (fam && (fam === "minat" || fam === "bakat")) {
+        const existing = await db.query.tmbAssessmentResults.findFirst({
+          where: eq(tmbAssessmentResults.userId, sess.studentId),
+          orderBy: (t: any) => [desc(t.createdAt)],
         });
-        const qsAll2 = await db.query.questions.findMany({
-          where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)),
-          columns: { id: true, dimensionId: true },
-        });
-        const ansAll = await db.query.assessmentAnswers.findMany({
-          where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
-        });
-        const ansByQ = new Map(ansAll.map((a) => [a.questionId, a]));
-        const timerCfg = ((sess.configJson as any)?.timer ?? null) as any;
-        return dimsAll2.map((d) => {
-          const qs = qsAll2.filter((q) => q.dimensionId === d.id);
-          const times = qs
-            .map((q) => ansByQ.get(q.id)?.answeredAt)
-            .filter(Boolean)
-            .map((t) => new Date(t as any).getTime())
-            .sort((a, b) => a - b);
-          const first = times[0];
-          const last = times[times.length - 1];
-          const seconds =
-            times.length >= 2 && first !== undefined && last !== undefined ? Math.round((last - first) / 1000) : 0;
-          const answered = qs.filter((q) => ansByQ.has(q.id)).length;
-          const dEnd = (timerCfg?.dims ?? []).find((x: any) => x.id === d.id)?.endISO;
-          const timedOut = !!dEnd && Date.now() >= new Date(dEnd).getTime() && answered < qs.length;
-          return { dimId: d.id, code: d.code, name: d.name, total: qs.length, answered, seconds, timedOut };
-        });
-      })();
+        // baris jatuh tempo lengkap (minat+bakat) => ini adalah RETEST → attempt baru (baris baru),
+        // sehingga duet lama tetap tersimpan di history dan yang baru mulai dari bagian ini saja.
+        // 📊 Statistik per dimensi (utk catatan hasil: waktu habis / paling lama)
+        const dimStats = await (async () => {
+          const dimsAll2 = await db.query.assessmentDimensions.findMany({
+            where: eq(schema.assessmentDimensions.versionId, sess.versionId),
+            orderBy: asc(schema.assessmentDimensions.displayOrder),
+          });
+          const qsAll2 = await db.query.questions.findMany({
+            where: and(eq(schema.questions.versionId, sess.versionId), eq(schema.questions.isActive, true)),
+            columns: { id: true, dimensionId: true },
+          });
+          const ansAll = await db.query.assessmentAnswers.findMany({
+            where: eq(schema.assessmentAnswers.sessionId, input.sessionId),
+          });
+          const ansByQ = new Map(ansAll.map((a) => [a.questionId, a]));
+          const timerCfg = ((sess.configJson as any)?.timer ?? null) as any;
+          return dimsAll2.map((d) => {
+            const qs = qsAll2.filter((q) => q.dimensionId === d.id);
+            const times = qs
+              .map((q) => ansByQ.get(q.id)?.answeredAt)
+              .filter(Boolean)
+              .map((t) => new Date(t as any).getTime())
+              .sort((a, b) => a - b);
+            const first = times[0];
+            const last = times[times.length - 1];
+            const seconds =
+              times.length >= 2 && first !== undefined && last !== undefined ? Math.round((last - first) / 1000) : 0;
+            const answered = qs.filter((q) => ansByQ.has(q.id)).length;
+            const dEnd = (timerCfg?.dims ?? []).find((x: any) => x.id === d.id)?.endISO;
+            const timedOut = !!dEnd && Date.now() >= new Date(dEnd).getTime() && answered < qs.length;
+            return { dimId: d.id, code: d.code, name: d.name, total: qs.length, answered, seconds, timedOut };
+          });
+        })();
 
-      const hReal = !!existing && (existing.hollandCode ?? "").length > 0;
-      const aReal = !!existing && Object.keys((existing as any).abilityScores ?? {}).length > 0;
-      // Kawin hanya bila row punya TEPAT SATU sisi nyata (minat✓/bakat kosong → lanjut).
-      // Junk (kode kosong / {}), row lengkap, atau kosong total → ATTEMPT BARU.
-      const existingForAttempt = hReal !== aReal ? existing : null;
-      const rid = existingForAttempt?.id ?? uid();
-      const base = existingForAttempt ? {} : { id: rid, userId: sess.studentId };
-      const hollandScores: Record<string, number> = {};
-      const abilityScores: Record<string, { correct: number; total: number }> = {};
-      for (const [dimId, total] of scores) {
-        const code = (dimByCode.get(dimId) ?? "").toLowerCase();
-        const cnt = counts.get(dimId) ?? 0;
-        if (fam === "minat" && /^[riasec]$/.test(code)) hollandScores[code.toUpperCase()] = Math.round(total);
-        if (fam === "bakat" && code) abilityScores[code] = { correct: Math.round(total), total: cnt };
-      }
-      // ability disimpan dgn bentuk KONTRAK legacy: { levels, scores } (page hasil baca .levels & .scores)
-      const abilityStore =
-        fam === "bakat"
-          ? {
-              levels: Object.fromEntries(
-                Object.entries(abilityScores as Record<string, { correct: number; total: number }>).map(([k, v]) => {
-                  const pct = abilityPct(v.correct, v.total) / 100;
-                  return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
-                }),
-              ),
-              scores: abilityScores,
-            }
-          : undefined;
-      const gap = r0 && r1 && r0.total > 0 ? (r0.total - r1.total) / r0.total : 0;
-      const diff = gap > 0.4 ? "strong" : gap > 0.15 ? "moderate" : "weak";
-      const confScore = String(Math.max(0, Math.min(100, Math.round(50 + (diffFactor ?? 0.5) * 40))));
-      if (existingForAttempt) {
-        await db
-          .update(tmbAssessmentResults)
-          .set({
+        const hReal = !!existing && (existing.hollandCode ?? "").length > 0;
+        const aReal = !!existing && Object.keys((existing as any).abilityScores ?? {}).length > 0;
+        // Kawin hanya bila row punya TEPAT SATU sisi nyata (minat✓/bakat kosong → lanjut).
+        // Junk (kode kosong / {}), row lengkap, atau kosong total → ATTEMPT BARU.
+        const existingForAttempt = hReal !== aReal ? existing : null;
+        const rid = existingForAttempt?.id ?? uid();
+        const base = existingForAttempt ? {} : { id: rid, userId: sess.studentId };
+        const hollandScores: Record<string, number> = {};
+        const abilityScores: Record<string, { correct: number; total: number }> = {};
+        for (const [dimId, total] of scores) {
+          const code = (dimByCode.get(dimId) ?? "").toLowerCase();
+          const cnt = counts.get(dimId) ?? 0;
+          if (fam === "minat" && /^[riasec]$/.test(code)) hollandScores[code.toUpperCase()] = Math.round(total);
+          if (fam === "bakat" && code) abilityScores[code] = { correct: Math.round(total), total: cnt };
+        }
+        // ability disimpan dgn bentuk KONTRAK legacy: { levels, scores } (page hasil baca .levels & .scores)
+        const abilityStore =
+          fam === "bakat"
+            ? {
+                levels: Object.fromEntries(
+                  Object.entries(abilityScores as Record<string, { correct: number; total: number }>).map(([k, v]) => {
+                    const pct = abilityPct(v.correct, v.total) / 100;
+                    return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
+                  }),
+                ),
+                scores: abilityScores,
+              }
+            : undefined;
+        const gap = r0 && r1 && r0.total > 0 ? (r0.total - r1.total) / r0.total : 0;
+        const diff = gap > 0.4 ? "strong" : gap > 0.15 ? "moderate" : "weak";
+        const confScore = String(Math.max(0, Math.min(100, Math.round(50 + (diffFactor ?? 0.5) * 40))));
+        if (existingForAttempt) {
+          await db
+            .update(tmbAssessmentResults)
+            .set({
+              ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }),
+              differentiation: diff,
+              confidenceScore: confScore,
+              dimStats: dimStats as any,
+            })
+            .where(eq(tmbAssessmentResults.id, rid));
+          await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, rid));
+        } else {
+          await db.insert(tmbAssessmentResults).values({
+            ...(base as any),
             ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }),
             differentiation: diff,
             confidenceScore: confScore,
             dimStats: dimStats as any,
-          })
-          .where(eq(tmbAssessmentResults.id, rid));
-        await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, rid));
-      } else {
-        await db.insert(tmbAssessmentResults).values({
-          ...(base as any),
-          ...(fam === "minat" ? { hollandCode: profileCode, hollandScores } : { abilityScores: abilityStore }),
-          differentiation: diff,
-          confidenceScore: confScore,
-          dimStats: dimStats as any,
-        });
-      }
-      b2bResultId = rid;
-      // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
-      // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)
-      if (existingForAttempt) {
-        const mergedH = {
-          ...((existingForAttempt as any)?.hollandScores ?? {}),
-          ...(fam === "minat" ? hollandScores : {}),
-        };
-        const prevAb = (existingForAttempt as any)?.abilityScores ?? {};
-        const prevScores = prevAb?.scores ?? prevAb ?? {};
-        const mergedA = { ...prevScores, ...(fam === "bakat" ? abilityScores : {}) };
-        const [prodiList, patterns, careersList] = await Promise.all([
-          getProdiList(),
-          db.query.tmbMajorPatterns.findMany({ where: eq(schema.tmbMajorPatterns.isActive, true) }),
-          db.query.tmbCareerMappings.findMany(),
-        ]);
-        const abilityKeys = [
-          ...new Set((patterns as any[]).flatMap((p: any) => Object.keys((p as any)?.abilityWeights ?? {}))),
-        ];
-        const lux = Object.fromEntries(
-          abilityKeys.map((k) => {
-            const v = (mergedA as Record<string, { correct: number; total: number }>)[k];
-            const pct = v?.total ? v.correct / v.total : 0.5; // netral bila belum dikerjakan
-            return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
-          }),
-        );
-        const recoCalc = computeRecommendations(
-          { code: existingForAttempt?.hollandCode ?? profileCode ?? "", scores: mergedH as any },
-          { levels: lux as any },
-          prodiList as any,
-          patterns as any,
-          careersList as any,
-        );
-        for (let i = 0; i < recoCalc.majors.length; i++) {
-          const m = recoCalc.majors[i];
-          if (!m) continue;
-          await db.insert(tmbRecommendations).values({
-            id: uid(),
-            resultId: rid,
-            type: "major",
-            rank: i + 1,
-            itemName: m.itemName,
-            categoryKey: m.categoryKey ?? null,
-            confidence: String(m.confidence ?? 0),
-            prodiRefs: m.prodiRefs ?? [],
           });
         }
-        for (let i = 0; i < recoCalc.careers.length; i++) {
-          const c = recoCalc.careers[i];
-          if (!c) continue;
-          await db.insert(tmbRecommendations).values({
-            id: uid(),
-            resultId: rid,
-            type: "career",
-            rank: recoCalc.majors.length + i + 1,
-            itemName: c.itemName,
-            categoryKey: c.categoryKey ?? null,
-            confidence: (c as any).confidence ?? null,
-            prodiRefs: [] as any,
-          });
+        b2bResultId = rid;
+        // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
+        // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)
+        if (existingForAttempt) {
+          const mergedH = {
+            ...((existingForAttempt as any)?.hollandScores ?? {}),
+            ...(fam === "minat" ? hollandScores : {}),
+          };
+          const prevAb = (existingForAttempt as any)?.abilityScores ?? {};
+          const prevScores = prevAb?.scores ?? prevAb ?? {};
+          const mergedA = { ...prevScores, ...(fam === "bakat" ? abilityScores : {}) };
+          const [prodiList, patterns, careersList] = await Promise.all([
+            getProdiList(),
+            db.query.tmbMajorPatterns.findMany({ where: eq(schema.tmbMajorPatterns.isActive, true) }),
+            db.query.tmbCareerMappings.findMany(),
+          ]);
+          const abilityKeys = [
+            ...new Set((patterns as any[]).flatMap((p: any) => Object.keys((p as any)?.abilityWeights ?? {}))),
+          ];
+          const lux = Object.fromEntries(
+            abilityKeys.map((k) => {
+              const v = (mergedA as Record<string, { correct: number; total: number }>)[k];
+              const pct = v?.total ? v.correct / v.total : 0.5; // netral bila belum dikerjakan
+              return [k, pct >= 0.7 ? "high" : pct >= 0.4 ? "medium" : "low"];
+            }),
+          );
+          const recoCalc = computeRecommendations(
+            { code: existingForAttempt?.hollandCode ?? profileCode ?? "", scores: mergedH as any },
+            { levels: lux as any },
+            prodiList as any,
+            patterns as any,
+            careersList as any,
+          );
+          for (let i = 0; i < recoCalc.majors.length; i++) {
+            const m = recoCalc.majors[i];
+            if (!m) continue;
+            await db.insert(tmbRecommendations).values({
+              id: uid(),
+              resultId: rid,
+              type: "major",
+              rank: i + 1,
+              itemName: m.itemName,
+              categoryKey: m.categoryKey ?? null,
+              confidence: String(m.confidence ?? 0),
+              prodiRefs: m.prodiRefs ?? [],
+            });
+          }
+          for (let i = 0; i < recoCalc.careers.length; i++) {
+            const c = recoCalc.careers[i];
+            if (!c) continue;
+            await db.insert(tmbRecommendations).values({
+              id: uid(),
+              resultId: rid,
+              type: "career",
+              rank: recoCalc.majors.length + i + 1,
+              itemName: c.itemName,
+              categoryKey: c.categoryKey ?? null,
+              confidence: (c as any).confidence ?? null,
+              prodiRefs: [] as any,
+            });
+          }
         }
       }
-    }
-  } catch (e: any) {
-    // backwrite legacy gagal → jangan jatuhkan hasil engine, TAPI tampilkan biar bisa dilacak
-    console.error("[engine][backwrite] gagal:", e?.message ?? e);
-  }
-  // ── B2B: tautkan hasil ke roster sekolah (kalau siswa ini peserta undangan) ──
-  if (b2bResultId) {
-    try {
-      const n = await linkRosterResult(sess.studentId, b2bResultId);
-      if (n > 0) console.log(`[engine][b2b] hasil ${b2bResultId} ditautkan ke ${n} baris roster sekolah`);
-      // (M5.1) kelas penuh selesai → beri tahu admin sekolah & guru BK
-      const roster = await db.query.tmbBatchStudents.findMany({
-        where: eq(tmbBatchStudents.userId, sess.studentId),
-        columns: { batchId: true },
-      });
-      for (const r of roster) await notifyBatchComplete(r.batchId);
     } catch (e: any) {
-      console.error("[engine][b2b] gagal menautkan hasil ke roster:", e?.message ?? e);
+      // backwrite legacy gagal → jangan jatuhkan hasil engine, TAPI tampilkan biar bisa dilacak
+      console.error("[engine][backwrite] gagal:", e?.message ?? e);
     }
-  }
-  // (M5.1) beri tahu siswa bahwa hasilnya siap
-  await notifyResultReady(sess.studentId, profileCode).catch((e: any) =>
-    console.error("[notify] hasil siap gagal:", e?.message ?? e),
-  );
-  await db
-    .update(schema.assessmentSessions)
-    .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
-    .where(eq(schema.assessmentSessions.id, input.sessionId));
+    // ── B2B: tautkan hasil ke roster sekolah (kalau siswa ini peserta undangan) ──
+    if (b2bResultId) {
+      try {
+        const n = await linkRosterResult(sess.studentId, b2bResultId);
+        if (n > 0) console.log(`[engine][b2b] hasil ${b2bResultId} ditautkan ke ${n} baris roster sekolah`);
+        // (M5.1) kelas penuh selesai → beri tahu admin sekolah & guru BK
+        const roster = await db.query.tmbBatchStudents.findMany({
+          where: eq(tmbBatchStudents.userId, sess.studentId),
+          columns: { batchId: true },
+        });
+        for (const r of roster) await notifyBatchComplete(r.batchId);
+      } catch (e: any) {
+        console.error("[engine][b2b] gagal menautkan hasil ke roster:", e?.message ?? e);
+      }
+    }
+    // (M5.1) beri tahu siswa bahwa hasilnya siap
+    await notifyResultReady(sess.studentId, profileCode).catch((e: any) =>
+      console.error("[notify] hasil siap gagal:", e?.message ?? e),
+    );
+    await db
+      .update(schema.assessmentSessions)
+      .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
+      .where(eq(schema.assessmentSessions.id, input.sessionId));
 
-  return {
-    ok: true,
-    profileCode,
-    topDimensions: top,
-    rawScores: result.rawScoresJson,
-    xpEarned,
-    streak: sectionsDone,
-    timedOut,
-    recommendations: recos,
-    resultId: result.id,
-  };
+    return {
+      ok: true,
+      profileCode,
+      topDimensions: top,
+      rawScores: result.rawScoresJson,
+      xpEarned,
+      streak: sectionsDone,
+      timedOut,
+      recommendations: recos,
+      resultId: result.id,
+    };
+  } catch (e: any) {
+    console.error(`[finish] gagal pada tahap "${stage}":`, e?.message ?? e, e?.stack ?? "");
+    return { ok: false as const, error: "finish_failed" as const, stage };
+  }
 }
 
 /** Deadline efektif sesi: titik terjauh dari expectedEnd, deadline dimensi, dan deadline soal. */

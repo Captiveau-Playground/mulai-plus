@@ -300,3 +300,46 @@ describe("skala likert mengikuti setelan admin", () => {
     expect(likertPoint(3, 1, 0)).toBe(4);
   });
 });
+
+describe("finish tidak boleh 500 (pemetaan prodi di-cache)", () => {
+  it("groupProdiByCategory meng-cache hasil & tetap benar", async () => {
+    const mod: any = await import("../routers/tmb");
+    expect(typeof mod.computeRecommendations).toBe("function");
+    // dua panggilan berturut-turut harus menghasilkan kategori yang sama (cache tidak merusak hasil)
+    const patterns = [
+      {
+        categoryKey: "kedokteran",
+        categoryName: "Kedokteran",
+        pattern: "dokter|kedokteran",
+        hollandPrimary: "I",
+        hollandSecondary: "S",
+        abilityWeights: { logical: 1 },
+      },
+      {
+        categoryKey: "informatika",
+        categoryName: "Informatika",
+        pattern: "informatika|komputer",
+        hollandPrimary: "R",
+        hollandSecondary: "I",
+        abilityWeights: { logical: 1 },
+      },
+    ];
+    const prodis = [
+      { name: "Pendidikan Dokter", level: "S1", university: "Universitas Indonesia", idSms: "1", idSp: "2" },
+      { name: "Teknik Informatika", level: "S1", university: "Institut Teknologi Bandung", idSms: "3", idSp: "4" },
+      { name: "Sastra", level: "S1", university: "Universitas Gadjah Mada", idSms: "5", idSp: "6" },
+    ];
+    const args: any[] = [
+      { code: "I-S", scores: { R: 20, I: 100, A: 20, S: 80, E: 20, C: 20 } },
+      { levels: { logical: "high", numerical: "medium", verbal: "medium", spatial: "low", clerical: "medium" } },
+      prodis,
+      patterns,
+      [],
+    ];
+    const a = mod.computeRecommendations(...args);
+    const b = mod.computeRecommendations(...args);
+    expect(a.majors.map((m: any) => m.categoryKey)).toEqual(b.majors.map((m: any) => m.categoryKey));
+    expect(a.majors[0].categoryKey).toBe("kedokteran");
+    expect(a.majors[0].prodiRefs[0].university).toBe("Universitas Indonesia");
+  });
+});
