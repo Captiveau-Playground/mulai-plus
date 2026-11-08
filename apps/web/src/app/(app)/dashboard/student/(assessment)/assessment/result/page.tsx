@@ -12,6 +12,7 @@ import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { buildResultMindMap, resultUtm } from "@/lib/future-career";
 import { printTmbReport } from "@/lib/tmb-report-print";
+import { hollandPercents } from "@/lib/tmb-scores";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -188,19 +189,22 @@ export default function TmbResultPage() {
   }
 
   const hollandScores = (result.hollandScores ?? {}) as Record<string, number>;
+  // Persentase minat HARUS dinormalisasi (skor mentah, mis. 90 → bukan 9000%).
+  const hollandPct = hollandPercents(hollandScores);
   const abilityRaw = (result.abilityScores ?? {}) as {
     scores?: Record<string, { correct: number; total: number }>;
     levels?: Record<string, string>;
   };
   const abilityScores = abilityRaw.scores ?? {};
   const abilityLevels = abilityRaw.levels ?? {};
-  // Hanya dimensi yang BENAR-BENAR punya soal yang ditampilkan. Dulu dimensi tanpa jawaban
-  // tetap muncul sebagai "0/0 · Sedang" sehingga profil terlihat rusak.
-  const abilityRows = Object.entries(ABILITY_INFO).filter(([key]) => {
-    const s = (abilityScores as any)[key];
-    return s && Number(s.total ?? 0) > 0;
+  // Semua dimensi tetap ditampilkan supaya profil terlihat utuh, tetapi dimensi yang belum
+  // ada jawaban diberi label "belum ada jawaban" — bukan "0/0 · Sedang" (menyesatkan) dan
+  // bukan disembunyikan (dulu bikin bingung: "yg lain mana?").
+  const abilityRows = Object.entries(ABILITY_INFO).map(([key, info]) => {
+    const s = ((abilityScores as any)[key] ?? { correct: 0, total: 0 }) as { correct: number; total: number };
+    return { key, info, s, answered: Number(s.total ?? 0) > 0 };
   });
-  const noAbility = abilityRows.length === 0;
+  const noAbility = abilityRows.every((r) => !r.answered);
   const hollandCode = result.hollandCode ?? "---";
   const differentiation = result.differentiation ?? "moderate";
 
@@ -278,7 +282,7 @@ export default function TmbResultPage() {
             {codeLetters.map((letter, i) => {
               const info = HOLLAND_INFO[letter];
               if (!info) return null;
-              const score = Math.round((hollandScores[letter] ?? 0) * 100);
+              const score = hollandPct[letter] ?? 0;
               return (
                 <motion.div
                   key={letter}
@@ -335,35 +339,43 @@ export default function TmbResultPage() {
           ) : (
             <>
               <div className="mt-4 space-y-3">
-                {abilityRows.map(([key, info]) => {
-                  const s = abilityScores[key] ?? { correct: 0, total: 0 };
+                {abilityRows.map(({ key, info, s, answered }) => {
                   const level = abilityLevels[key] ?? "medium";
-                  const pct = s.total ? (s.correct / s.total) * 100 : 0;
+                  const pct = answered ? Math.min(100, (s.correct / s.total) * 100) : 0;
                   return (
-                    <div key={key}>
-                      <div className="flex items-center justify-between">
+                    <div key={key} className={answered ? "" : "opacity-60"}>
+                      <div className="flex items-center justify-between gap-2">
                         <span className="font-manrope font-medium text-gray-700 text-sm">
                           {info.emoji} {info.label}
                         </span>
-                        <span className="font-manrope text-gray-400 text-xs">
-                          {s.correct}/{s.total} benar ·{" "}
-                          <b
-                            className={cn(
-                              "uppercase",
-                              level === "high"
-                                ? "text-green-600"
-                                : level === "medium"
-                                  ? "text-amber-600"
-                                  : "text-red-500",
-                            )}
-                          >
-                            {level === "high" ? "Tinggi" : level === "medium" ? "Sedang" : "Perlu Pengembangan"}
-                          </b>
+                        <span className="shrink-0 font-manrope text-gray-400 text-xs">
+                          {answered ? (
+                            <>
+                              {s.correct}/{s.total} benar ·{" "}
+                              <b
+                                className={cn(
+                                  "uppercase",
+                                  level === "high"
+                                    ? "text-green-600"
+                                    : level === "medium"
+                                      ? "text-amber-600"
+                                      : "text-red-500",
+                                )}
+                              >
+                                {level === "high" ? "Tinggi" : level === "medium" ? "Sedang" : "Perlu Pengembangan"}
+                              </b>
+                            </>
+                          ) : (
+                            <span className="text-gray-400 italic">belum ada jawaban</span>
+                          )}
                         </span>
                       </div>
                       <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-gray-100">
                         <motion.div
-                          className={cn("h-full rounded-full", LEVEL_COLOR[level] ?? "bg-gray-400")}
+                          className={cn(
+                            "h-full rounded-full",
+                            answered ? (LEVEL_COLOR[level] ?? "bg-gray-400") : "bg-gray-200",
+                          )}
                           initial={{ width: 0 }}
                           animate={{ width: `${pct}%` }}
                           transition={{ duration: 0.6, delay: 0.15 }}

@@ -1,4 +1,5 @@
 import { client } from "@/lib/client";
+import { hollandPercents } from "@/lib/tmb-scores";
 
 /**
  * Laporan PDF via HTML → print (Save as PDF).
@@ -124,11 +125,14 @@ function bar(label: string, pct: number, color: string, right?: string, desc?: s
 
 export function renderReportHtml(r: TmbReportData, qrData = ""): string {
   const dims = ["R", "I", "A", "S", "E", "C"];
-  const max = Math.max(...dims.map((d) => r.hollandScores?.[d] ?? 0), 0.1);
+  // Skor minat dinormalisasi ke persen (data mentah ≠ 0..1) → hindari label "6900%".
+  // Panjang bar = nilai persen yang SAMA dengan labelnya (dulu bar diskala ke nilai
+  // tertinggi → label 14% tapi bar hampir penuh, terlihat tidak nyambung).
+  const hollandPct = hollandPercents(r.hollandScores);
   const riasec = dims
     .map((d) => {
-      const score = Math.round((r.hollandScores?.[d] ?? 0) * 100);
-      const pct = ((r.hollandScores?.[d] ?? 0) / max) * 100;
+      const score = hollandPct[d] ?? 0;
+      const pct = score;
       // 100% = hijau penuh; skor lebih rendah → opacity menurun (indikator melemah)
       const alpha = 0.3 + 0.7 * (pct / 100);
       return bar(
