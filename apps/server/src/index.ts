@@ -58,6 +58,21 @@ setInterval(
   5 * 60 * 1000,
 );
 
+// ── Ketahanan runtime (Bun/VPS) ───────────────────────────────────────────────
+// Runtime `net`/pg kadang melempar error koneksi DB yang tidak tertangkap — mis.
+// "TypeError: null is not an object (evaluating 'context')" pada connect timeout ke Neon.
+// Dulu itu MEMATIKAN proses API di tengah penyelesaian tes ("finish_failed" / 502).
+// Sekarang dicatat + dilaporkan ke Sentry; proses tetap hidup, request berikutnya memakai
+// koneksi baru (query-nya sendiri sudah punya retry untuk gangguan sementara).
+process.on("uncaughtException", (err) => {
+  console.error("[uncaught]", err);
+  Sentry.captureException(err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+  Sentry.captureException(reason);
+});
+
 export default {
   port: env.PORT,
   fetch: app.fetch,

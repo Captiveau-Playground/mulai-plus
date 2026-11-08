@@ -190,11 +190,13 @@ function LoginContent() {
               ))}
             </div>
           )}
-          <p className="mb-4 text-center font-manrope text-gray-500 text-xs" data-testid="login-tab-hint">
-            {sekolah
-              ? "Untuk admin sekolah & guru BK — kelola peserta, jadwal, dan lihat hasil tes sekolah."
-              : "Untuk siswa — lanjutkan tes minat-bakat dan lihat hasilmu."}
-          </p>
+          {/* Keterangan peran hanya untuk konteks sekolah (B2B). Halaman siswa memakai
+              heading form apa adanya — tidak perlu teks ajakan tambahan. */}
+          {B2B_ENABLED && sekolah && (
+            <p className="mb-4 text-center font-manrope text-gray-500 text-xs" data-testid="login-tab-hint">
+              Untuk admin sekolah & guru BK — kelola peserta, jadwal, dan lihat hasil tes sekolah.
+            </p>
+          )}
 
           {showSignIn ? (
             <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} callbackUrl={callbackUrl ?? undefined} />
