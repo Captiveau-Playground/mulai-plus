@@ -69,3 +69,14 @@ scripts
 # build artifacts OpenNext
 .next
 .open-next
+apps/web/tsconfig.tsbuildinfo
+packages/db/tsconfig.tsbuildinfo
+packages/api/tsconfig.tsbuildinfo*
+
+# 👉 Motion / HyperFrames reels: production workspace, media assets, renders.
+#    Not tracked on purpose (large media, brand kit copies, local renders).
+packages/motion
+
+# 👉 Skrip DB untuk assessment tetap dilacak (aturan "scripts" di atas mengabaikannya).
+!packages/db/scripts/
+!packages/db/scripts/**

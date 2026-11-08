@@ -101,14 +101,26 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
   const router = useRouter();
 
   // Use ORPC to get fresh permissions from DB directly
-  const { data: userPermissions, isLoading: isPermsLoading } = useQuery(
+  const {
+    data: userPermissions,
+    isLoading: isPermsLoading,
+    refetch: refetchPermissions,
+  } = useQuery(
     orpc.user.myPermissions.queryOptions({
       enabled: !!session?.user,
       retry: false,
-      // Cache 5 menit — reload halaman tidak refetch permission setiap kali (perbaikan loading)
-      staleTime: 5 * 60 * 1000,
+      // Cache singkat: perubahan role (promosi sekolah/admin) harus cepat terlihat.
+      // Selain itu ada deteksi cache basi lewat perbandingan role (lihat di bawah).
+      staleTime: 60 * 1000,
+      refetchOnWindowFocus: true,
     }),
   );
+
+  // Cache basi? Role di sesi berbeda dengan role saat permission diambil
+  // (mis. baru dipromosikan) → refetch & jangan tampilkan "unauthorized" dulu.
+  const cachedRole = (userPermissions as { role?: string | null } | undefined)?.role ?? null;
+  const sessionRole = (session as { user?: { role?: string } } | undefined)?.user?.role ?? null;
+  const permsStale = !!sessionRole && !!cachedRole && sessionRole !== cachedRole;
 
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
@@ -120,10 +132,15 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
       return;
     }
 
+    if (permsStale) refetchPermissions();
+
     // Authorize IMMEDIATELY dengan session permissions (tanpa nunggu round-trip DB).
     // userPermissions (fresh dari DB) datang di background lalu re-evaluasi di bawah.
-    const permsToCheck =
-      userPermissions || ((session.user as { permissions?: string[] }).permissions as string[]) || [];
+    const permsToCheck = permsStale
+      ? ((session.user as { permissions?: string[] }).permissions as string[]) || []
+      : ((userPermissions as { permissions?: string[] } | undefined)?.permissions ??
+        ((session.user as { permissions?: string[] }).permissions as string[]) ??
+        []);
 
     let allAuthorized = true;
     for (const [resource, actions] of Object.entries(permission)) {
@@ -153,7 +170,7 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
     }
 
     setIsAuthorized(allAuthorized);
-  }, [session, isSessionPending, userPermissions, router, permission]);
+  }, [session, isSessionPending, userPermissions, permsStale, refetchPermissions, router, permission]);
 
   return {
     isAuthorized,
@@ -161,7 +178,7 @@ export const useAuthorizePage = (permission: Record<string, string[]>) => {
     // - session masih pending, ATAU
     // - status belum ditentukan, ATAU
     // - ditolak oleh session tapi perms DB belum turun (hindari flash "Unauthorized")
-    isLoading: isSessionPending || isAuthorized === null || (isAuthorized === false && isPermsLoading),
+    isLoading: isSessionPending || isAuthorized === null || permsStale || (isAuthorized === false && isPermsLoading),
     user: session?.user,
   };
 };

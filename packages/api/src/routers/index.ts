@@ -8,19 +8,21 @@ import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
 import { aiRouter } from "./ai";
 import { auditRouter } from "./audit";
 import { articlesRouter, authorsRouter, categoriesRouter, mediaRouter, newsletterRouter, tagsRouter } from "./cms";
+import { discoverAdminRouter, discoverRouter } from "./discover";
 import { emailAdminRouter } from "./email-admin";
 import { esignRouter } from "./esign";
 import { feedbackRouter } from "./feedback";
 import { hermesRouter } from "./hermes";
 import { lmsRouter } from "./lms";
+import { maintenanceRouter } from "./maintenance";
 import { newsletterAdminRouter } from "./newsletter-admin";
 import { notificationRouter } from "./notification";
 import { paymentsRouter } from "./payments";
 import { pddiktiRouter } from "./pddikti";
 import { programActivitiesRouter } from "./program-activities";
 import { programsRouter } from "./programs";
+import { schoolAdminRouter, schoolRouter } from "./school";
 import { settingsRouter } from "./settings";
-import { maintenanceRouter } from "./maintenance";
 import { shortLinksRouter } from "./short-links";
 import { testimonialsRouter } from "./testimonials";
 import { tmbAdminRouter, tmbRouter } from "./tmb";
@@ -38,6 +40,8 @@ export const appRouter = {
   user: userRouter,
   settings: settingsRouter,
   maintenance: maintenanceRouter,
+  discover: discoverRouter,
+  discoverAdmin: discoverAdminRouter,
   features: {
     get: publicProcedure.handler(async () => {
       const nowMs = Date.now();
@@ -85,6 +89,8 @@ export const appRouter = {
   testimonials: testimonialsRouter,
   tmb: tmbRouter,
   tmbAdmin: tmbAdminRouter,
+  school: schoolRouter,
+  schoolAdmin: schoolAdminRouter,
   lms: lmsRouter,
   programs: programsRouter,
   programActivities: programActivitiesRouter,
@@ -220,13 +226,13 @@ export const appRouter = {
     return out;
   }),
   role: {
-    list: protectedProcedure.handler(async () => {
+    list: adminProcedure.handler(async () => {
       return await db.select().from(role);
     }),
-    listPermissions: protectedProcedure.handler(async () => {
+    listPermissions: adminProcedure.handler(async () => {
       return await db.select().from(permission);
     }),
-    create: protectedProcedure
+    create: adminProcedure
       .input(
         z.object({
           id: z.string().min(1),
@@ -239,7 +245,7 @@ export const appRouter = {
         await db.insert(role).values(input);
         return { success: true };
       }),
-    update: protectedProcedure
+    update: adminProcedure
       .input(
         z.object({
           id: z.string().min(1),
@@ -260,16 +266,16 @@ export const appRouter = {
           .where(eq(role.id, input.id));
         return { success: true };
       }),
-    delete: protectedProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
+    delete: adminProcedure.input(z.object({ id: z.string() })).handler(async ({ input }) => {
       await db.delete(role).where(eq(role.id, input.id));
       return { success: true };
     }),
   },
   permission: {
-    list: protectedProcedure.handler(async () => {
+    list: adminProcedure.handler(async () => {
       return await db.select().from(permission);
     }),
-    create: protectedProcedure
+    create: adminProcedure
       .input(
         z.object({
           id: z.string().min(1),

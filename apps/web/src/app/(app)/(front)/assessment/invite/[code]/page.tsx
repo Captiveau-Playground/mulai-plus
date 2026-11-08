@@ -6,6 +6,7 @@ import { Loader2, LogIn } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
@@ -18,10 +19,22 @@ export default function TestInvitePage() {
   const { data: session, isPending } = authClient.useSession();
   const [claimed, setClaimed] = useState(false);
   const [claimError, setClaimError] = useState("");
+  const [_claimCodeErr, setClaimCodeErr] = useState<string | null>(null);
+  // (F07/K6) kode akses manual — jalan keluar saat email akun tidak cocok roster
+  const [manual, setManual] = useState("");
+  const [autoTried, setAutoTried] = useState(false);
 
   const claimMutation = useMutation({
     ...orpc.tmb.invite.claim.mutationOptions(),
-    onSuccess: (d) => {
+    onSuccess: (d: any) => {
+      // klaim mengembalikan objek terstruktur (bukan throw) — lihat `tmb.invite.claim`
+      if (!d?.ok) {
+        setClaimCodeErr(d?.error ?? "gagal");
+        setClaimError(d?.message ?? "Undangan tidak valid");
+        return;
+      }
+      setClaimCodeErr(null);
+      setClaimError("");
       setClaimed(true);
       notify.success(`Selamat datang, ${d.studentName}! 🎉`);
       setTimeout(() => router.push("/dashboard/student/assessment"), 1200);
@@ -31,15 +44,27 @@ export default function TestInvitePage() {
     },
   });
 
+  /** Kirim kode manual (kode akses personal dari sekolah). */
+  const submitManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    const c = manual.trim();
+    if (c.length < 4) {
+      notify.warn("Kode akses minimal 4 karakter");
+      return;
+    }
+    claimMutation.mutate({ code: c.toUpperCase() });
+  };
+
   // sudah login → auto claim
   useEffect(() => {
-    if (session && !claimMutation.isPending && !claimed) {
+    if (session && !claimMutation.isPending && !claimed && !autoTried) {
+      setAutoTried(true);
       claimMutation.mutate({ code });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, claimed, code, claimMutation.mutate, claimMutation.isPending]);
+  }, [session, claimed, code, autoTried, claimMutation.mutate, claimMutation.isPending]);
 
-  if (isPending || (session && !claimMutation.isSuccess && !claimMutation.isError && !claimed)) {
+  if (isPending || (session && claimMutation.isPending && !claimed)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafafc]">
         <Loader2 className="h-8 w-8 animate-spin text-mentor-teal" />
@@ -79,24 +104,60 @@ export default function TestInvitePage() {
             </p>
 
             {claimError && (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-left">
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-left" data-testid="claim-error">
                 <p className="font-bold font-manrope text-red-600 text-xs">⚠️ Tidak bisa klaim undangan</p>
-                <p className="mt-1 font-manrope text-red-700 text-xs leading-relaxed">{claimError}</p>
-                <p className="mt-2 font-manrope text-[11px] text-red-500">
-                  Pastikan kamu login dengan email yang sama dengan yang didaftarkan sekolah. Hubungi sekolah jika
-                  email-mu berbeda.
+                <p className="mt-1 font-manrope text-red-700 text-xs leading-relaxed" data-testid="claim-error-msg">
+                  {claimError}
                 </p>
+
+                {/* (F07/K6) jalan keluar: kode akses personal dari sekolah */}
+                <form onSubmit={submitManual} className="mt-3 space-y-2" data-testid="claim-manual-form">
+                  <label htmlFor="claim-code" className="block font-manrope font-semibold text-[11px] text-red-700">
+                    Punya kode akses dari sekolah? Masukkan di sini:
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="claim-code"
+                      data-testid="claim-code-input"
+                      value={manual}
+                      onChange={(e) => setManual(e.target.value.toUpperCase())}
+                      placeholder="Contoh: AB3D7K"
+                      maxLength={12}
+                      className="h-9 font-bold font-mono tracking-widest"
+                    />
+                    <Button
+                      type="submit"
+                      data-testid="claim-code-submit"
+                      disabled={claimMutation.isPending}
+                      className="h-9 shrink-0 rounded-xl bg-brand-navy px-3 font-bold font-manrope text-white text-xs"
+                    >
+                      {claimMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pakai"}
+                    </Button>
+                  </div>
+                  <p className="font-manrope text-[10px] text-red-500">
+                    Kode diberikan guru BK. Jika belum punya, hubungi sekolahmu — email akunmu (
+                    {session?.user?.email ?? "-"}) perlu didaftarkan atau diganti dengan kode akses.
+                  </p>
+                </form>
               </div>
             )}
 
             <Button
-              onClick={() => {
+              onClick={async () => {
                 const callback = encodeURIComponent(`/assessment/invite/${code}`);
+                // kalau sudah login dengan akun yang salah, tawarkan ganti akun
+                if (session) {
+                  await authClient.signOut();
+                  setClaimed(false);
+                  setClaimError("");
+                  setAutoTried(false);
+                }
                 router.push(`/login?callbackUrl=${callback}`);
               }}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-orange py-6 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
+              data-testid="claim-switch-account"
             >
-              <LogIn className="h-5 w-5" /> Login / Daftar
+              <LogIn className="h-5 w-5" /> {session && claimError ? "Ganti akun" : "Login / Daftar"}
             </Button>
             <p className="mt-4 font-manrope text-[11px] text-gray-400">
               Hasil akan dikirim ke sekolahmu sebagai bahan bimbingan karier.

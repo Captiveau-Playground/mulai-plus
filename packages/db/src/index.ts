@@ -22,6 +22,17 @@ const pool =
     connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
   });
 
+/**
+ * (stability) Postgres/Neon menutup koneksi idle kapan saja. Tanpa listener
+ * `error` pada pool, `pg` memancarkan event 'error' yang tidak tertangani →
+ * Node menghentikan proses (API mati di tengah request). Kejadian nyata:
+ * server dev/API crash saat suite e2e berjalan. Di sini error dicatat dan
+ * pool otomatis membuat koneksi baru pada query berikutnya.
+ */
+pool.on("error", (err) => {
+  console.error("[db] koneksi idle bermasalah (pool tetap hidup):", (err as Error)?.message ?? err);
+});
+
 if (process.env.NODE_ENV !== "production") {
   globalForDb.pool = pool;
 }

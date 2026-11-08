@@ -46,10 +46,11 @@ export function trackEvent(action: string, params?: EventParams) {
   if (typeof window === "undefined") return;
 
   // GA4 — independen dari Amplitude
-  if (env.NEXT_PUBLIC_GA_MEASUREMENT_ID && typeof window.gtag === "function") {
+  const gaId = env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  if (gaId && analyticsEnabled() && typeof window.gtag === "function") {
     window.gtag("event", action, {
       ...params,
-      send_to: env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+      send_to: gaId,
     });
   }
 
@@ -71,15 +72,33 @@ export function trackEvent(action: string, params?: EventParams) {
 }
 
 /**
+ * Apakah GA boleh aktif di lingkungan ini?
+ * Jangan kirim data dari lokal/preview ke properti produksi:
+ *  - NEXT_PUBLIC_GA_MEASUREMENT_ID harus terisi
+ *  - NEXT_PUBLIC_ANALYTICS_DISABLED=1 mematikan SEMUA analytics (GA + Clarity + Amplitude),
+ *    dipakai lokal, staging, dan build e2e supaya tidak mencemari properti produksi
+ *  - hostname localhost / 127.0.0.1 / *.local tidak pernah mengirim
+ */
+export function analyticsEnabled(): boolean {
+  if (!env.NEXT_PUBLIC_GA_MEASUREMENT_ID) return false;
+  if (String(env.NEXT_PUBLIC_ANALYTICS_DISABLED ?? "") === "1") return false;
+  if (typeof window === "undefined") return true; // SSR: keputusan diambil di client
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host.endsWith(".local")) return false;
+  return true;
+}
+
+/**
  * Hook that fires page_view on route changes.
  * Receives the full path including search params as a string.
  */
 export function usePageViewTracking(pagePath?: string) {
   useEffect(() => {
-    if (!env.NEXT_PUBLIC_GA_MEASUREMENT_ID) return;
+    const gaId = env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+    if (!gaId || !analyticsEnabled()) return;
     if (typeof window.gtag !== "function") return;
 
-    window.gtag("config", env.NEXT_PUBLIC_GA_MEASUREMENT_ID, {
+    window.gtag("config", gaId, {
       page_path: pagePath,
       debug_mode: env.NEXT_PUBLIC_GA_DEBUG_MODE,
     });

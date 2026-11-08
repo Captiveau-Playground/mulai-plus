@@ -1,9 +1,41 @@
+import { execSync } from "node:child_process";
 import "@mulai-plus/env/web";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
+import pkg from "./package.json" with { type: "json" };
+
+/**
+ * Versi yang ditampilkan UI — diambil dari sumber nyata, TIDAK hardcode:
+ *   1) NEXT_PUBLIC_RELEASE_TAG (di-set CI dari git tag, mis. "v0.48.0"),
+ *   2) `git describe --tags` saat build lokal (butuh repo git),
+ *   3) versi package.json sebagai fallback terakhir.
+ */
+function resolveAppVersion(): string {
+  const ci = (process.env.NEXT_PUBLIC_RELEASE_TAG ?? "").trim();
+  if (ci) return ci;
+  try {
+    const tag = execSync("git describe --tags --abbrev=0", {
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+    if (tag) return tag;
+  } catch {
+    /* bukan repo git / git tidak tersedia */
+  }
+  return `v${pkg.version}`;
+}
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Versi asli aplikasi (dari package.json) di-inline ke klien supaya footer TIDAK hardcode.
+  // CI tetap bisa menimpa dengan NEXT_PUBLIC_RELEASE_TAG (tag rilis, mis. "v1.4.0-staging.2").
+  env: {
+    NEXT_PUBLIC_APP_VERSION: resolveAppVersion(),
+  },
+  // "standalone" dipakai untuk deploy (Docker/Cloudflare). Untuk e2e lokal kita pakai
+  // `next build && next start` (lebih cepat & SSR-nya normal) → set NEXT_STANDALONE=0.
+  output: process.env.NEXT_STANDALONE === "0" ? undefined : "standalone",
   typedRoutes: true,
   reactCompiler: true,
   images: {

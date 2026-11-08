@@ -1,0 +1,192 @@
+import { and, db, eq, inArray, schema } from "@mulai-plus/db/db";
+
+/**
+ * Publish & Gatekeeper untuk Assessment Engine (Fase 0).
+ * Dipisah dari router agar bisa diuji langsung (tanpa auth/atakan orpc).
+ */
+
+/** Gatekeeper v1 — daftar error actionable; publish ditolak bila ada error. */
+export async function validatePublish(versionId: string): Promise<{
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  /** rincian per item (kind + id) supaya UI bisa "klik untuk lompat" ke soal/dimensi */
+  details?: { kind: "question" | "dimension" | "config"; id?: string; message: string }[];
+}> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const details: { kind: "question" | "dimension" | "config"; id?: string; message: string }[] = [];
+  const v = await db.query.assessmentVersions.findFirst({
+    where: eq(schema.assessmentVersions.id, versionId),
+  });
+  if (!v) return { ok: false, errors: ["version_not_found"], warnings: [] };
+  const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, v.assessmentId) });
+  if (!a?.name || !a.code) {
+    errors.push("Assessment wajib punya nama & kode.");
+    details.push({ kind: "config", message: "Assessment wajib punya nama & kode." });
+  }
+  const cfg = (v.configJson ?? {}) as any;
+  const totalDim = Number(cfg.total_dim ?? 0);
+  const resultCount = Number(cfg.result_dim_count ?? 0);
+  const minQ = Number(cfg.min_q_per_dim ?? 0);
+  if (!totalDim) errors.push("total_dim tidak valid.");
+  if (!resultCount || resultCount > totalDim)
+    errors.push(`result_dim_count (${resultCount}) harus ≤ total_dim (${totalDim}).`);
+
+  const dims = await db.query.assessmentDimensions.findMany({
+    where: eq(schema.assessmentDimensions.versionId, versionId),
+  });
+  const activeDims = dims.filter((d) => d.isActive);
+  if (activeDims.length !== totalDim)
+    errors.push(`Dimensi aktif (${activeDims.length}) harus sesuai total_dim (${totalDim}).`);
+
+  // ⚠️ Warnings (tidak memblok publish): timer bisa per dimensi (#7).
+  // Scope efektif: override dimensi → fallback config global.
+  const effTimerScope = (d: { timerScope?: string | null }) => {
+    const raw = String(d.timerScope ?? "").trim();
+    if (raw === "none" || raw === "dimension" || raw === "question") return raw;
+    return String(cfg.timer_scope ?? "none");
+  };
+  if (cfg.timer_enabled === true) {
+    const noDur = activeDims.filter((d) => effTimerScope(d) === "dimension" && !(Number(d.durationSeconds ?? 0) > 0));
+    if (noDur.length) {
+      warnings.push(`Timer per bagian aktif, tapi ${noDur.length} dimensi belum punya durasi (detik).`);
+      details.push({ kind: "config", message: `Durasi dimensi belum diisi: ${noDur.map((d) => d.name).join(", ")}` });
+    }
+  }
+
+  const questions = await db.query.questions.findMany({ where: eq(schema.questions.versionId, versionId) });
+  const activeQs = questions.filter((q) => q.isActive);
+
+  // ⚠️ Kombinasi setting yang saling merusak (warning, tidak memblok rilis)
+  const likertCount = activeQs.filter((q) => q.questionType === "likert").length;
+  if (cfg.randomize_a === true && likertCount > 0) {
+    const msg = `"Acak urutan pilihan" aktif, tapi ada ${likertCount} soal skala (likert) — urutan opsinya bermakna dan tidak akan diacak.`;
+    warnings.push(msg);
+    details.push({ kind: "config", message: msg });
+  }
+  if (cfg.randomize_q === true && (cfg.section_mode ?? "none") !== "none") {
+    const msg =
+      '"Acak urutan soal" aktif bersamaan dengan pembagian bagian — batas tiap bagian jadi tidak menentu. Matikan salah satunya.';
+    warnings.push(msg);
+    details.push({ kind: "config", message: msg });
+  }
+  if (
+    cfg.timer_enabled === true &&
+    activeDims.some((d) => effTimerScope(d) === "question") &&
+    !(Number(cfg.time_per_question) > 0) &&
+    !activeQs.some((q) => Number(q.durationSeconds ?? 0) > 0)
+  ) {
+    warnings.push("Timer per soal aktif, tapi durasi soal & 'detik per soal' belum diisi (default 30s).");
+  }
+  const qIds = activeQs.map((q) => q.id);
+  const opts = qIds.length
+    ? await db.query.questionOptions.findMany({ where: inArray(schema.questionOptions.questionId, qIds) })
+    : [];
+  const dimIds = new Set(dims.map((d) => d.id));
+  const orphanDims = activeQs.filter((q) => q.dimensionId && !dimIds.has(q.dimensionId));
+  if (orphanDims.length) {
+    const msg = `${orphanDims.length} soal menunjuk dimensi dari versi lain (salinan versi lama) — perbaiki dimensinya dulu.`;
+    errors.push(msg);
+    details.push({ kind: "question", id: orphanDims[0]?.id, message: msg });
+  }
+  const optsForOrphan = opts.filter((o) => o.targetDimension && !dimIds.has(o.targetDimension));
+  if (optsForOrphan.length) {
+    const msg = `${optsForOrphan.length} opsi menunjuk dimensi di luar versi ini — skor bisa salah hitung.`;
+    warnings.push(msg);
+    details.push({ kind: "config", message: msg });
+  }
+
+  const orderSeen = new Set<string>();
+  for (const q of activeQs) {
+    if (!q.dimensionId) {
+      errors.push(`Soal ${q.questionCode ?? q.id} belum punya dimensi.`);
+      details.push({ kind: "question", id: q.id, message: `Soal ${q.questionCode ?? q.id} belum punya dimensi.` });
+    }
+    if (!q.scaleId && q.questionType === "multiple_choice") {
+      errors.push(`Soal ${q.questionCode ?? q.id} belum punya answer scale.`);
+      details.push({ kind: "question", id: q.id, message: `Soal ${q.questionCode ?? q.id} belum punya answer scale.` });
+    }
+    const o = opts.filter((x) => x.questionId === q.id);
+    if (q.questionType === "multiple_choice" && o.length < 2) {
+      errors.push(`Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`);
+      details.push({
+        kind: "question",
+        id: q.id,
+        message: `Soal "${q.questionCode ?? q.id}" butuh minimal 2 opsi aktif (kini ${o.length}).`,
+      });
+    }
+    if (q.questionType !== "text_input")
+      for (const oo of o)
+        if (!oo.label && !oo.imageUrl && !oo.icon) {
+          const msg = `Opsi pada soal ${q.questionCode ?? q.id} harus punya teks atau gambar/ikon.`;
+          errors.push(msg);
+          details.push({ kind: "question", id: q.id, message: msg });
+        }
+    if (q.questionType === "likert" && o.length < 2) {
+      const msg = `Skala Likert pada soal ${q.questionCode ?? q.id} butuh minimal 2 titik skala (kini ${o.length}).`;
+      errors.push(msg);
+      details.push({ kind: "question", id: q.id, message: msg });
+    }
+    const key = `${q.dimensionId}:${q.displayOrder}`;
+    if (orderSeen.has(key)) {
+      errors.push(
+        `Soal "${q.questionCode ?? q.id}" punya nomor urut sama dgn soal lain dalam dimensi — rapikan urutan pakai tombol ↑↓ / drag.`,
+      );
+      details.push({
+        kind: "question",
+        id: q.id,
+        message: `Nomor urut soal "${q.questionCode ?? q.id}" bertabrakan dengan soal lain — rapikan urutan.`,
+      });
+    }
+    orderSeen.add(key);
+  }
+  if (minQ > 0) {
+    const perDim = new Map<string, number>();
+    for (const q of activeQs) perDim.set(q.dimensionId, (perDim.get(q.dimensionId) ?? 0) + 1);
+    for (const d of activeDims) {
+      const n = perDim.get(d.id) ?? 0;
+      if (n < minQ) errors.push(`Dimensi ${d.name} (${d.code}) butuh minimal ${minQ} soal aktif (kini ${n}).`);
+    }
+  }
+  return { ok: errors.length === 0, errors, warnings, details };
+}
+
+/** Publish versi → live; versi live lain → archived. Gatekeeper dulu. */
+export async function publishVersion(
+  versionId: string,
+): Promise<{ ok: boolean; versionId?: string; errors?: string[] }> {
+  const v = await db.query.assessmentVersions.findFirst({ where: eq(schema.assessmentVersions.id, versionId) });
+  if (!v) return { ok: false, errors: ["version_not_found"] };
+  const check = await validatePublish(versionId);
+  if (!check.ok) return { ok: false, errors: check.errors };
+  // B2C policy: hanya satu versi LIVE per keluarga (minat | bakat)
+  const a = await db.query.assessments.findFirst({ where: eq(schema.assessments.id, v.assessmentId) });
+  if (a?.family) {
+    const fam = await db.query.assessments.findMany({ where: eq(schema.assessments.family, a.family) });
+    for (const o of fam) {
+      if (o.id === a.id) continue;
+      const ol = await db.query.assessmentVersions.findFirst({
+        where: and(eq(schema.assessmentVersions.assessmentId, o.id), eq(schema.assessmentVersions.status, "live")),
+      });
+      if (ol)
+        return {
+          ok: false,
+          errors: [
+            `Hanya satu tes ${a.family === "minat" ? "Minat" : "Bakat"} yang boleh LIVE untuk pengguna umum (B2C). Tes lain ("${o.name}") masih LIVE — nonaktifkan rilis itu dulu.`,
+          ],
+        };
+    }
+  }
+  await db
+    .update(schema.assessmentVersions)
+    .set({ status: "archived" })
+    .where(
+      and(eq(schema.assessmentVersions.assessmentId, v.assessmentId), eq(schema.assessmentVersions.status, "live")),
+    );
+  await db
+    .update(schema.assessmentVersions)
+    .set({ status: "live", publishedAt: new Date() })
+    .where(eq(schema.assessmentVersions.id, versionId));
+  return { ok: true, versionId };
+}

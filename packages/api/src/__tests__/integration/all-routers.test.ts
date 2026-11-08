@@ -235,6 +235,8 @@ describe("API Integration", () => {
     it("myPermissions", async () => {
       const r = await call(userRouter.myPermissions, {}, { context: S });
       expect(r).toBeDefined();
+      expect(Array.isArray((r as any).permissions)).toBe(true);
+      expect(typeof (r as any).role === "string" || (r as any).role === null).toBe(true);
     });
   });
 

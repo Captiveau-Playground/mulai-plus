@@ -96,6 +96,7 @@ export const tmbAssessmentResults = pgTable("tmb_assessment_results", {
   abilityScores: jsonb("ability_scores"), // { numerical: { correct: 2, total: 2 }, ... }
   differentiation: text("differentiation"), // strong / moderate / weak
   confidenceScore: text("confidence_score"),
+  dimStats: jsonb("dim_stats"), // [{ dimId, code, name, total, answered, seconds, timedOut }]
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -185,6 +186,15 @@ export const tmbBatches = pgTable("tmb_batches", {
   major: text("major"), // IPA / IPS / Bahasa / SMK
   graduationYear: integer("graduation_year"),
   inviteCode: text("invite_code").unique(), // 1 kode untuk seluruh batch
+  /**
+   * (M2.3) Jadwal tes untuk kelas ini.
+   * `scheduleMode`: "anytime" = boleh dikerjakan kapan saja di dalam rentang;
+   * "scheduled" = serentak pada jam tertentu (UI memakai date+time picker).
+   * Di luar [windowStart, windowEnd] siswa TIDAK bisa memulai tes.
+   */
+  scheduleMode: text("schedule_mode").default("anytime"),
+  windowStart: timestamp("window_start"),
+  windowEnd: timestamp("window_end"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -202,6 +212,9 @@ export const tmbBatchStudents = pgTable(
     status: tmbBatchStudentStatusEnum("status").notNull().default("invited"),
     userId: text("user_id"), // akun student yang meng-klaim undangan (wajib login)
     resultId: text("result_id").references(() => tmbAssessmentResults.id),
+    // (M2.6) kode akses sekali pakai untuk peserta tanpa email
+    claimCode: text("claim_code"),
+    claimCodeUsedAt: timestamp("claim_code_used_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("idx_tmb_batch_students_batch").on(table.batchId)],

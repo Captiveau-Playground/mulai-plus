@@ -1,6 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, db, desc, eq, inArray, isNotNull, max, ne, sql } from "@mulai-plus/db/db";
-import { user as userSchema } from "@mulai-plus/db/schema/auth";
+import { and, asc, count, db, desc, eq, gte, inArray, isNotNull, lte, max, ne, sql } from "@mulai-plus/db/db";
+import {
+  assessmentAnswers,
+  assessmentDimensions,
+  assessmentOrgs,
+  assessmentResults,
+  assessmentSessions,
+  assessments,
+  assessmentVersions,
+  questionOptions,
+  questions,
+} from "@mulai-plus/db/schema/assessment";
+import { studentDetail, user as userSchema } from "@mulai-plus/db/schema/auth";
 import { studyPrograms, universities } from "@mulai-plus/db/schema/pddikti";
 import {
   tmbAiSummaries,
@@ -21,8 +32,21 @@ import {
 import { notifyDiscord } from "@mulai-plus/notify/discord";
 import { z } from "zod";
 import { adminProcedure, protectedProcedure, publicProcedure } from "../index";
+import {
+  avgOf,
+  computeCohortStats,
+  computeFunnel,
+  computeItemStats,
+  computeTimeseries,
+  computeVersionStats,
+} from "../lib/assessment-analytics";
+import { campusTier, levelTier, pickProdiRefs } from "../lib/campus-priority";
+import { pickCareerProdi } from "../lib/career-prodi-hints";
 import { notFound, preconditionFailed } from "../lib/errors";
+import { awardProgress } from "../lib/gamification";
 import { mail } from "../lib/mail";
+import { levelFromSchoolName } from "../lib/school-level";
+import { webBaseUrl } from "../lib/web-url";
 
 // ─── Konstanta ───────────────────────────────────────────
 
@@ -233,26 +257,60 @@ function matchCareers(
 }
 
 // Cache prodi (data statis) — refresh 24 jam
-let prodiCache: { name: string; level: string | null; university: string; idSms: string; idSp: string }[] | null = null;
+export type ProdiRow = {
+  name: string;
+  level: string | null;
+  university: string;
+  idSms: string;
+  idSp: string;
+  /** kategori jurusan hasil precompute (null bila kolom belum ada / prodi baru) */
+  majorCategoryKey?: string | null;
+};
+let prodiCache: ProdiRow[] | null = null;
 let prodiCacheTs = 0;
+/** false setelah terdeteksi kolom `major_category_key` belum ada (migrasi belum jalan). */
+let prodiHasCategoryColumn = true;
 
-async function getProdiList() {
+export async function getProdiList(): Promise<ProdiRow[]> {
   const now = Date.now();
-  if (!prodiCache || now - prodiCacheTs > 86400_000) {
-    const rows = await db
-      .select({
-        name: studyPrograms.name,
-        level: studyPrograms.level,
-        university: universities.name,
-        idSms: studyPrograms.idSms,
-        idSp: studyPrograms.idSp,
-      })
-      .from(studyPrograms)
-      .innerJoin(universities, eq(studyPrograms.idSp, universities.idSp))
-      .where(eq(studyPrograms.status, "Aktif"));
-    prodiCache = rows;
-    prodiCacheTs = now;
+  if (prodiCache && now - prodiCacheTs <= 86400_000) return prodiCache;
+
+  const base = {
+    name: studyPrograms.name,
+    level: studyPrograms.level,
+    university: universities.name,
+    idSms: studyPrograms.idSms,
+    idSp: studyPrograms.idSp,
+  };
+
+  // AMAN UNTUK DEPLOY BERTAHAP: kalau migrasi kolom belum jalan, jangan sampai
+  // `finish` ikut 500 — fallback ke query tanpa kolom (jalur regex tetap dipakai).
+  if (prodiHasCategoryColumn) {
+    try {
+      const rows = await db
+        .select({ ...base, majorCategoryKey: studyPrograms.majorCategoryKey })
+        .from(studyPrograms)
+        .innerJoin(universities, eq(studyPrograms.idSp, universities.idSp))
+        .where(eq(studyPrograms.status, "Aktif"));
+      prodiCache = rows;
+      prodiCacheTs = now;
+      return prodiCache;
+    } catch (e: any) {
+      prodiHasCategoryColumn = false;
+      console.error(
+        "[prodi] kolom major_category_key belum tersedia — pakai jalur regex (jalankan migrasi 0045):",
+        String(e?.message ?? e).slice(0, 160),
+      );
+    }
   }
+
+  const rows = await db
+    .select(base)
+    .from(studyPrograms)
+    .innerJoin(universities, eq(studyPrograms.idSp, universities.idSp))
+    .where(eq(studyPrograms.status, "Aktif"));
+  prodiCache = rows.map((r) => ({ ...r, majorCategoryKey: null }));
+  prodiCacheTs = now;
   return prodiCache;
 }
 
@@ -316,7 +374,89 @@ function computeAbility(answers: { question: { dimension: string; answer: string
   return { scores, levels };
 }
 
-function computeRecommendations(
+/** Regex pola jurusan dikompilasi sekali (bukan per prodi). */
+function compilePatterns(patterns: { pattern: string; categoryKey: string }[]) {
+  const out: { key: string; re: RegExp }[] = [];
+  for (const p of patterns) {
+    try {
+      out.push({ key: p.categoryKey, re: new RegExp(p.pattern, "i") });
+    } catch {
+      // pola rusak di admin tidak boleh menjatuhkan hasil siswa
+    }
+  }
+  return out;
+}
+
+const prodiGroupCache = new Map<string, Map<string, any[]>>();
+
+/**
+ * Petakan prodi→kategori (memoized). Cache di-key oleh "sidik jari" pola + jumlah prodi,
+ * jadi perubahan Pola Jurusan otomatis membuang cache. ~15k prodi × 63 regex hanya
+ * dijalankan sekali per isolate.
+ */
+function groupProdiByCategory(
+  prodiList: { name: string; level: string | null; university: string; idSms: string; idSp: string }[],
+  compiled: { key: string; re: RegExp }[],
+): { byCategory: Map<string, typeof prodiList> } {
+  // Sidik jari HARUS membedakan isi pola (panjang saja bisa tabrakan antar-set pola).
+  const fingerprint = `${prodiList.length}|${compiled.map((c) => `${c.key}=${c.re.source}`).join("¦")}`;
+  const cached = prodiGroupCache.get(fingerprint);
+  if (cached) return { byCategory: cached as Map<string, typeof prodiList> };
+
+  const byCategory = new Map<string, typeof prodiList>();
+  for (const p of prodiList) {
+    for (const c of compiled) {
+      if (c.re.test(p.name)) {
+        const arr = byCategory.get(c.key) ?? [];
+        arr.push(p);
+        byCategory.set(c.key, arr);
+        break;
+      }
+    }
+  }
+  prodiGroupCache.clear();
+  prodiGroupCache.set(fingerprint, byCategory as Map<string, any[]>);
+  return { byCategory };
+}
+
+/**
+ * Kelompokkan prodi per kategori jurusan.
+ * Jalur utama: kolom `study_programs.major_category_key` (diisi seeder) → O(n) tanpa regex.
+ * Fallback regex hanya untuk prodi yang belum berkategori (data PDDikti baru / pola baru);
+ * regex dikompilasi sekali & hasilnya di-cache per isolate.
+ */
+export function prodiByCategory<T extends { name: string; majorCategoryKey?: string | null }>(
+  prodiList: T[],
+  patterns: { categoryKey: string; pattern: string }[],
+): Map<string, T[]> {
+  const byCategory = new Map<string, T[]>();
+  const hasPrecomputed = prodiList.some((p) => p.majorCategoryKey);
+  if (!hasPrecomputed) {
+    return groupProdiByCategory(prodiList as any, compilePatterns(patterns)).byCategory as unknown as Map<string, T[]>;
+  }
+  const pending: T[] = [];
+  for (const p of prodiList) {
+    const key = p.majorCategoryKey ?? null;
+    if (!key) {
+      pending.push(p);
+      continue;
+    }
+    const arr = byCategory.get(key) ?? [];
+    arr.push(p);
+    byCategory.set(key, arr);
+  }
+  if (pending.length) {
+    const fallback = groupProdiByCategory(pending as any, compilePatterns(patterns)).byCategory;
+    for (const [k, v] of fallback) {
+      const arr = byCategory.get(k) ?? [];
+      arr.push(...(v as unknown as T[]));
+      byCategory.set(k, arr);
+    }
+  }
+  return byCategory;
+}
+
+export function computeRecommendations(
   holland: { code: string; scores: Record<string, number> },
   ability: { levels: Record<string, string> },
   prodiList: { name: string; level: string | null; university: string; idSms: string; idSp: string }[],
@@ -330,26 +470,22 @@ function computeRecommendations(
   }[],
   careers: { majorCategory: string; careerName: string }[],
 ) {
-  // kelompokkan prodi per kategori
-  const byCategory = new Map<string, typeof prodiList>();
-  for (const p of prodiList) {
-    for (const pat of patterns) {
-      if (new RegExp(pat.pattern, "i").test(p.name)) {
-        const arr = byCategory.get(pat.categoryKey) ?? [];
-        arr.push(p);
-        byCategory.set(pat.categoryKey, arr);
-        break;
-      }
-    }
-  }
+  const byCategory = prodiByCategory(prodiList as any, patterns as any) as Map<string, typeof prodiList>;
 
   const studentHolland = holland.scores;
+  // Normalisasi skor minat ke 0..1 (engine bisa kirim raw count) — cegah persen kecocokan nggak-realistis (mis. 333%)
+  const rawVals = Object.values(studentHolland ?? {})
+    .map(Number)
+    .filter((v) => Number.isFinite(v));
+  const sumV = rawVals.length ? rawVals.reduce((a, b) => a + b, 0) : 1;
+  const nH = (key: string) => (sumV > 0 ? (Number(studentHolland?.[key]) || 0) / sumV : 0);
   const results: {
     category: (typeof patterns)[number];
     confidence: number;
     interest: number;
     ability: number;
     count: number;
+    allProdis: typeof prodiList;
     examples: typeof prodiList;
   }[] = [];
 
@@ -359,7 +495,7 @@ function computeRecommendations(
 
     const primary = pat.hollandPrimary;
     const secondary = pat.hollandSecondary;
-    const interestMatch = ((studentHolland[primary] ?? 0) + (studentHolland[secondary] ?? 0)) / 2;
+    const interestMatch = (nH(primary) + nH(secondary)) / 2;
 
     const weights = pat.abilityWeights ?? {};
     const weightSum = Object.values(weights).reduce((a: number, b: number) => a + b, 0);
@@ -380,16 +516,28 @@ function computeRecommendations(
       interest: interestMatch,
       ability: abilityMatch,
       count: prodis.length,
-      examples: prodis.slice(0, 3),
+      // contoh prodi dihitung setelah top-5 dipilih (sorting 63 kategori itu mahal)
+      allProdis: prodis,
+      examples: [] as typeof prodiList,
     });
   }
 
   results.sort((a, b) => b.confidence - a.confidence);
   const top = results.slice(0, 5);
+  // pilih contoh prodi hanya untuk 5 jurusan teratas (kampus favorit dulu)
+  for (const r of top) r.examples = pickProdiRefs(r.allProdis, 5);
 
-  // karier untuk top kategori
-  const topKeys = new Set(top.map((r) => r.category.categoryKey));
-  const matchedCareers = careers.filter((c) => topKeys.has(c.majorCategory)).slice(0, 5);
+  // karier untuk top kategori — disebar (maks 2 per kategori) supaya variatif, bukan menumpuk di satu jurusan
+  const topKeys = top.map((r) => r.category.categoryKey);
+  const matchedCareers: { majorCategory: string; careerName: string }[] = [];
+  for (let round = 0; round < 2; round++) {
+    for (const key of topKeys) {
+      const opts = careers.filter((c) => c.majorCategory === key);
+      const pick = opts[round];
+      if (pick && !matchedCareers.some((m) => m.careerName === pick.careerName)) matchedCareers.push(pick);
+    }
+  }
+  matchedCareers.length = Math.min(matchedCareers.length, 6);
 
   const majors = top.map((r, i) => ({
     rank: i + 1,
@@ -403,6 +551,7 @@ function computeRecommendations(
       prodi: p.name,
       level: p.level,
       university: p.university,
+      favorite: campusTier(p.university) < 999,
       link: `/explore/universities/${slugify(p.university)}-${p.idSp.substring(0, 6)}/prodi/${encodeURIComponent(p.idSms)}`,
     })),
   }));
@@ -439,6 +588,33 @@ async function syncCatalogTotal(testCode: "interest" | "ability") {
 let lbCache: any = null;
 let lbCacheTs = 0;
 
+/** (B2C) Isi otomatis profil siswa dari sekolah undangan — hanya bila masih kosong. */
+async function prefillStudentProfileFromBatch(userId: string, batchId: string) {
+  try {
+    const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, batchId) });
+    if (!batch) return;
+    const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
+    if (!school?.name) return;
+
+    const existing = await db.query.studentDetail.findFirst({ where: eq(studentDetail.userId, userId) });
+    const schoolFilled = !!existing?.school?.trim();
+    const levelFilled = !!existing?.educationLevel?.trim();
+    if (schoolFilled && levelFilled) return;
+
+    const patch = {
+      ...(schoolFilled ? {} : { school: school.name }),
+      ...(levelFilled ? {} : { educationLevel: levelFromSchoolName(school.name) }),
+    };
+    if (existing) {
+      await db.update(studentDetail).set(patch).where(eq(studentDetail.id, existing.id));
+    } else {
+      await db.insert(studentDetail).values({ id: randomUUID(), userId, ...patch });
+    }
+  } catch (e: any) {
+    console.error("[prefill profil] gagal:", e?.message ?? e);
+  }
+}
+
 export const tmbRouter = {
   profile: {
     get: protectedProcedure.handler(async ({ context }) => {
@@ -470,33 +646,48 @@ export const tmbRouter = {
   },
 
   leaderboard: {
-    /** Papan peringkat Test Bakat — publik; nama disensor (inisial + ***), email tak pernah dikirim.
-     *  Per user: attempt ability terbaik (skor = jawaban benar, tie-break waktu tercepat). */
+    /**
+     * Papan peringkat Test Bakat — publik; nama disensor (inisial + ***), email tidak pernah dikirim.
+     *
+     * Sumber data = ENGINE aktif (`assessment_*`), bukan `tmb_test_*` legacy: engine menulis
+     * jawaban & durasi ke `assessment_answers` / `assessment_sessions`, sedangkan tabel lama
+     * sudah tidak diisi (dulu leaderboard selalu kosong/skor 0).
+     *
+     * Peringkat: akurasi (benar/dijawab) → jumlah benar → waktu tercepat.
+     * Minimal 10 soal dijawab supaya percobaan 1–2 soal tidak mendominasi 100%.
+     */
     ability: publicProcedure.handler(async ({ context }) => {
       const nowMs = Date.now();
       if (lbCacheTs > nowMs) return lbCache;
       const viewerId = (context as any)?.session?.user?.id ?? null;
       const rows = (await db.execute(sql`
-        WITH sc AS (
-          SELECT a.user_id, a.id,
-            (SELECT count(*) FROM tmb_test_answers x
-              WHERE x.attempt_id = a.id AND x.is_correct = true)::int AS score,
-            (SELECT count(*) FROM tmb_test_answers x
-              WHERE x.attempt_id = a.id)::int AS total,
-            EXTRACT(EPOCH FROM (a.finished_at - a.started_at))::int AS dur
-          FROM tmb_test_attempts a
-          WHERE a.test_code = 'ability' AND a.status = 'completed'
-            AND a.finished_at IS NOT NULL AND a.started_at IS NOT NULL
+        WITH per_attempt AS (
+          SELECT s.student_id AS user_id, s.id,
+            count(an.id)::int AS answered,
+            count(an.id) FILTER (WHERE an.score_earned > 0)::int AS correct,
+            GREATEST(0, EXTRACT(EPOCH FROM (COALESCE(s.completed_at, s.started_at) - s.started_at))::int) AS dur
+          FROM assessment_sessions s
+          JOIN assessment_versions v ON v.id = s.version_id
+          JOIN assessments a ON a.id = v.assessment_id AND a.code = 'TALENT'
+          LEFT JOIN assessment_answers an ON an.session_id = s.id
+          WHERE s.status IN ('completed','timeout')
+          GROUP BY s.student_id, s.id, s.started_at, s.completed_at
+        ), scored AS (
+          SELECT *, (100.0 * correct / GREATEST(answered, 1))::int AS acc
+          FROM per_attempt WHERE answered >= 10
         ), best AS (
-          SELECT DISTINCT ON (user_id) user_id, score, total, dur, id
-          FROM sc ORDER BY user_id, score DESC, dur ASC
+          SELECT DISTINCT ON (user_id) user_id, correct, answered, acc, dur, id
+          FROM scored ORDER BY user_id, acc DESC, correct DESC, dur ASC
         )
-        SELECT b.user_id, b.score, b.total, b.dur, u.name AS name
+        SELECT b.user_id, b.correct, b.answered, b.acc, b.dur, u.name AS name
         FROM best b
         JOIN "user" u ON u.id = b.user_id
-        ORDER BY b.score DESC, b.dur ASC
+        WHERE u.name IS NOT NULL AND btrim(u.name) <> ''
+          AND COALESCE(u.email, '') NOT LIKE '%@test.local'
+          AND COALESCE(u.email, '') NOT LIKE '%@example.com'
+        ORDER BY b.acc DESC, b.correct DESC, b.dur ASC
         LIMIT 50`)) as unknown as {
-        rows?: { user_id: string; score: number; total: number; dur: number; name: string }[];
+        rows?: { user_id: string; correct: number; answered: number; acc: number; dur: number; name: string }[];
       };
 
       const list = (rows.rows ?? []).map((r, i) => {
@@ -506,8 +697,9 @@ export const tmbRouter = {
         return {
           rank: i + 1,
           masked,
-          score: Number(r.score ?? 0),
-          total: Number(r.total ?? 0),
+          score: Number(r.correct ?? 0),
+          total: Number(r.answered ?? 0),
+          accuracy: Number(r.acc ?? 0),
           durationSec: Number(r.dur ?? 0),
           isSelf: !!viewerId && r.user_id === viewerId,
         };
@@ -793,7 +985,71 @@ export const tmbRouter = {
         db.query.tmbProfiles.findFirst({ where: eq(tmbProfiles.userId, userId) }),
       ]);
 
-      return { result, recommendations, summary: summary?.content ?? null, stats, profile };
+      // ── Karier → prodi ────────────────────────────────────────────────────────
+      // Setiap karier WAJIB punya jalur kuliah (minimal 1 prodi) supaya cabang mindmap
+      // tidak berhenti di nama profesi. Satu karier bisa dicapai dari beberapa prodi.
+      const careerRows = recommendations.filter((r) => r.type === "career");
+      let careerProdi: Record<string, any[]> = {};
+      if (careerRows.length) {
+        try {
+          const [patterns, prodiList] = await Promise.all([
+            db.query.tmbMajorPatterns.findMany({ where: eq(tmbMajorPatterns.isActive, true) }),
+            getProdiList(),
+          ]);
+          const byCat = prodiByCategory(prodiList as any, patterns as any);
+          for (const c of careerRows) {
+            const key = (c.categoryKey ?? "").toString();
+            const careerKey = `${key}::${c.itemName}`;
+            if (!key || careerProdi[careerKey]) continue;
+            const pool = (byCat.get(key) ?? []) as any[];
+            // Tiap karier dipilih TERPISAH (skor kata kunci + variasi kampus + rotasi) supaya
+            // dua karier sekategori tidak menampilkan daftar prodi yang sama.
+            const chosen = pickCareerProdi(pool, c.itemName, { limit: 3, levelTier, campusTier });
+            careerProdi[careerKey] = chosen.map((p: any) => ({
+              prodi: p.name,
+              level: p.level,
+              university: p.university,
+              favorite: campusTier(p.university) < 999,
+              link: `/explore/universities/${slugify(p.university)}-${p.idSp.substring(0, 6)}/prodi/${encodeURIComponent(p.idSms)}`,
+            }));
+          }
+        } catch (e: any) {
+          console.error("[result] gagal memetakan karier → prodi:", e?.message ?? e);
+          careerProdi = {};
+        }
+      }
+      // Normalisasi prodiRefs tersimpan: jenjang untuk calon mahasiswa (S1/D4/D3 dulu) +
+      // urutan kampus favorit. Hasil lama (dihitung sebelum aturan ini) ikut dirapikan tanpa
+      // perlu migrasi data.
+      const normalizeRefs = (refs: any[] | null | undefined, limit: number) => {
+        const arr = Array.isArray(refs) ? refs : [];
+        if (!arr.length) return [];
+        const picked = pickProdiRefs(
+          arr.map((x) => ({ ...x, name: x.prodi ?? x.name ?? "" })),
+          limit,
+        );
+        return picked.map((x: any) => ({
+          prodi: x.prodi ?? x.name,
+          level: x.level ?? null,
+          university: x.university,
+          favorite: campusTier(x.university) < 999,
+          link: x.link,
+        }));
+      };
+      const recommendationsWithPaths = recommendations.map((r) => {
+        if (r.type === "career")
+          return { ...r, prodiRefs: careerProdi[`${(r.categoryKey ?? "").toString()}::${r.itemName}`] ?? [] };
+        if (r.type === "major") return { ...r, prodiRefs: normalizeRefs(r.prodiRefs as any[], 5) };
+        return r;
+      });
+
+      return {
+        result,
+        recommendations: recommendationsWithPaths,
+        summary: summary?.content ?? null,
+        stats,
+        profile,
+      };
     }),
 
     history: protectedProcedure.handler(async ({ context }) => {
@@ -830,37 +1086,114 @@ export const tmbRouter = {
   },
 
   invite: {
-    claim: protectedProcedure.input(z.object({ code: z.string().min(4) })).handler(async ({ input, context }) => {
-      const userId = context.session.user.id;
-      const code = input.code.trim().toUpperCase();
+    /**
+     * Klaim undangan. Mengembalikan objek terstruktur (bukan throw) supaya UI bisa
+     * menampilkan tindakan yang tepat: `{ ok:false, error, message }` dengan kode:
+     * kode_tidak_valid | kode_sudah_dipakai | email_kosong | email_tidak_terdaftar |
+     * sudah_diklaim | sekolah_nonaktif | window_ended.
+     */
+    claim: protectedProcedure
+      .input(z.object({ code: z.string().min(4).trim() }))
+      .handler(async ({ input, context }) => {
+        const userId = context.session.user.id;
+        const code = input.code.toUpperCase();
+        const fail = (error: string, message: string) => ({ ok: false as const, error, message });
 
-      const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, code) });
-      if (!batch) notFound("Kode undangan tidak valid — pastikan kode sesuai dari sekolahmu");
+        // 1) kode akses personal (peserta tanpa email ATAU email tidak dipakai)
+        const personal = await db.query.tmbBatchStudents.findFirst({
+          where: eq(tmbBatchStudents.claimCode, code),
+        });
+        if (personal) {
+          if (personal.userId && personal.userId !== userId) {
+            return fail("kode_sudah_dipakai", "Kode akses ini sudah dipakai akun lain — minta kode baru ke sekolahmu.");
+          }
+          if (!personal.userId) {
+            await db
+              .update(tmbBatchStudents)
+              .set({ userId, claimCodeUsedAt: new Date() })
+              .where(eq(tmbBatchStudents.id, personal.id));
+          }
+          const pBatch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, personal.batchId) });
+          const pSchool = pBatch
+            ? await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, pBatch.schoolId) })
+            : null;
+          await prefillStudentProfileFromBatch(userId, personal.batchId);
+          return {
+            ok: true as const,
+            via: "personal" as const,
+            studentName: personal.name,
+            schoolName: pSchool?.name ?? pBatch?.name ?? null,
+            batchId: personal.batchId,
+          };
+        }
 
-      // cari siswa di batch ini yang emailnya cocok dengan akun login
-      const [currentUser] = await db
-        .select({ email: userSchema.email })
-        .from(userSchema)
-        .where(eq(userSchema.id, userId));
-      const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
-      if (!userEmail) preconditionFailed("Akunmu tidak punya email — hubungi admin");
+        // 2) kode undangan kelas + pencocokan email akun
+        const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.inviteCode, code) });
+        if (!batch) {
+          return fail(
+            "kode_tidak_valid",
+            "Kode undangan tidak valid — periksa kembali atau minta kode baru ke sekolahmu.",
+          );
+        }
 
-      const student = await db.query.tmbBatchStudents.findFirst({
-        where: and(eq(tmbBatchStudents.batchId, batch.id), eq(tmbBatchStudents.email, userEmail)),
-      });
-      if (!student) {
-        preconditionFailed(
-          `Email akunmu (${currentUser?.email}) tidak terdaftar di batch "${batch.name}" — hubungi sekolahmu`,
-        );
-      }
+        // guard: sekolah harus aktif
+        const org = batch.schoolId
+          ? await db.query.assessmentOrgs.findFirst({ where: eq(assessmentOrgs.schoolId, batch.schoolId) })
+          : null;
+        if (org && org.status !== "aktif") {
+          return fail("sekolah_nonaktif", "Akun sekolahmu belum aktif — hubungi admin MULAI+.");
+        }
 
-      // tautkan akun ke batch_student (claim sekali)
-      if (!student.userId) {
-        await db.update(tmbBatchStudents).set({ userId }).where(eq(tmbBatchStudents.id, student.id));
-      }
-      const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
-      return { studentName: student.name, schoolName: school?.name ?? batch.name ?? null };
-    }),
+        const [currentUser] = await db
+          .select({ email: userSchema.email })
+          .from(userSchema)
+          .where(eq(userSchema.id, userId));
+        const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
+        if (!userEmail) return fail("email_kosong", "Akunmu tidak punya email — hubungi admin MULAI+.");
+
+        // case-insensitive: data lama bisa berisi huruf besar (lihat migrasi 0041)
+        const student = await db.query.tmbBatchStudents.findFirst({
+          where: and(
+            eq(tmbBatchStudents.batchId, batch.id),
+            sql`lower(btrim(${tmbBatchStudents.email})) = ${userEmail}`,
+          ),
+        });
+        if (!student) {
+          return fail(
+            "email_tidak_terdaftar",
+            `Email akunmu (${currentUser?.email ?? ""}) belum terdaftar di kelas "${batch.name}". ` +
+              "Minta kode akses ke sekolahmu, lalu masukkan kodenya di halaman undangan.",
+          );
+        }
+        if (student.userId && student.userId !== userId) {
+          return fail("sudah_diklaim", "Peserta ini sudah diklaim akun lain — hubungi sekolahmu.");
+        }
+
+        // guard: jadwal kelas sudah berakhir → tetap boleh klaim (untuk melihat hasil),
+        // tapi beri tahu; penolakan mengerjakan tes tetap di `discover.start`.
+        const end = batch.windowEnd ? new Date(batch.windowEnd).getTime() : null;
+        if (end !== null && Date.now() > end) {
+          return fail(
+            "window_ended",
+            `Jadwal pengerjaan kelas "${batch.name}" sudah berakhir. Hubungi sekolahmu untuk memperpanjang jadwal.`,
+          );
+        }
+
+        if (!student.userId) {
+          await db
+            .update(tmbBatchStudents)
+            .set({ userId, email: student.email ? student.email.trim().toLowerCase() : null })
+            .where(eq(tmbBatchStudents.id, student.id));
+        }
+        const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
+        return {
+          ok: true as const,
+          via: "batch" as const,
+          studentName: student.name,
+          schoolName: school?.name ?? batch.name ?? null,
+          batchId: batch.id,
+        };
+      }),
   },
 
   // ─── Karir Impian: teks bebas → jalur kuliah (prodi & univ) ───
@@ -882,18 +1215,9 @@ export const tmbRouter = {
         const top = matched.slice(0, 3);
         const matchedExact = matched[0] != null && matched[0].score >= 2;
 
-        // 2) kelompokkan prodi per kategori (regex pola dari major_patterns)
-        const byCategory = new Map<string, typeof prodiList>();
-        for (const p of prodiList) {
-          for (const pat of patterns) {
-            if (new RegExp(pat.pattern, "i").test(p.name)) {
-              const arr = byCategory.get(pat.categoryKey) ?? [];
-              arr.push(p);
-              byCategory.set(pat.categoryKey, arr);
-              break;
-            }
-          }
-        }
+        // 2) kelompokkan prodi per kategori — SAMA seperti hasil tes: kolom
+        //    `major_category_key` dulu, regex pola hanya untuk prodi yang belum berkategori.
+        const byCategory = prodiByCategory(prodiList as any, patterns as any) as Map<string, typeof prodiList>;
 
         // 3) susun jalur: kategori unik + prodi contoh + karier lain di kategori sama
         const paths: {
@@ -905,14 +1229,24 @@ export const tmbRouter = {
           otherCareers: string[];
         }[] = [];
         const seen = new Set<string>();
-        for (const m of top) {
+        // Setiap jalur WAJIB punya prodi (tidak ada node/cabang tanpa jurusan).
+        const withProdi = top.filter((m) => (byCategory.get(m.categoryKey)?.length ?? 0) > 0);
+        const ranked = withProdi.length ? withProdi : top;
+        const humanize = (key: string) =>
+          key
+            .split(/[-_]/g)
+            .filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+        for (const m of ranked) {
           if (seen.has(m.categoryKey)) continue;
           seen.add(m.categoryKey);
           const pat = patterns.find((p) => p.categoryKey === m.categoryKey);
-          const prodis = (byCategory.get(m.categoryKey) ?? []).slice(0, 6);
+          // Prioritaskan kampus favorit + jenjang relevan (S1 → D4 → D3), sama seperti hasil tes.
+          const prodis = pickProdiRefs(byCategory.get(m.categoryKey) ?? [], 6);
           paths.push({
             categoryKey: m.categoryKey,
-            categoryName: pat?.categoryName ?? m.categoryKey,
+            categoryName: pat?.categoryName ?? humanize(m.categoryKey),
             careerName: m.careerName,
             matchScore: m.score,
             prodis: prodis.map((p) => ({
@@ -940,12 +1274,18 @@ export const tmbRouter = {
         if (result) {
           const hollandScores = (result.hollandScores ?? {}) as Record<string, number>;
           const ability = (result.abilityScores ?? { levels: {} }) as { levels: Record<string, string> };
+          // Skor minat HARUS dinormalisasi ke 0..1. Dulu dipakai angka mentah (mis. 90) sehingga
+          // "kecocokan" bisa tampil 5244%. Normalisasi sama seperti di computeRecommendations.
+          const rawVals = Object.values(hollandScores)
+            .map(Number)
+            .filter((v) => Number.isFinite(v));
+          const sumV = rawVals.length ? rawVals.reduce((a, b) => a + b, 0) : 0;
+          const nH = (k: string) => (sumV > 0 ? (Number(hollandScores[k]) || 0) / sumV : 0);
           let best = 0;
           for (const path of paths) {
             const pat = patterns.find((p) => p.categoryKey === path.categoryKey);
             if (!pat) continue;
-            const interest =
-              ((hollandScores[pat.hollandPrimary] ?? 0) + (hollandScores[pat.hollandSecondary] ?? 0)) / 2;
+            const interest = (nH(pat.hollandPrimary) + nH(pat.hollandSecondary)) / 2;
             const weights = (pat.abilityWeights ?? {}) as Record<string, number>;
             const weightSum = Object.values(weights).reduce((a: number, b: number) => a + b, 0);
             let abilityMatch = 0.6;
@@ -1035,14 +1375,35 @@ export const tmbRouter = {
       }
 
       if (!summary) {
+        // Fallback TANPA AI — grounded di data (bukan cheerleader generik)
+        const code = result?.hollandCode ?? "—";
+        const RIASEC: Record<string, string> = {
+          R: "Realistic (praktis)",
+          I: "Investigative (analitis)",
+          A: "Artistic (kreatif)",
+          S: "Social (sosial)",
+          E: "Enterprising (meyakinkan)",
+          C: "Conventional (terstruktur)",
+        };
+        const letters = code.split("").filter((x) => RIASEC[x]);
+        const dimsText = letters.length
+          ? [...new Set(letters)].map((x) => `${x} (${RIASEC[x] ?? ""})`).join(", ")
+          : "—";
+        const majors3 = recommendations
+          .filter((r) => r.type === "major")
+          .slice(0, 3)
+          .map((r) => r.itemName)
+          .join(", ");
+        const diff =
+          result?.differentiation === "strong"
+            ? "selisih antar-minatmu cukup jelas"
+            : result?.differentiation === "moderate"
+              ? "selisih antar-minatmu sedang"
+              : "selisih antar-minatmu masih kecil (profil belum terlalu menonjol)";
         summary =
-          `Kode minatmu **${result?.hollandCode}** menunjukkan kombinasi unik. Rekomendasi terbaikmu: ` +
-          recommendations
-            .filter((r) => r.type === "major")
-            .slice(0, 3)
-            .map((r) => r.itemName)
-            .join(", ") +
-          ". Terus eksplorasi dan jangan takut mencoba hal baru! 🎉";
+          `Kode minat utamamu **${code}** (${dimsText}). ${diff}. ` +
+          (majors3 ? `Berdasarkan pilihan minatmu, jurusan yang paling cocok saat ini: ${majors3}. ` : "") +
+          "Selesaikan Tes Bakat untuk memperkuat rekomendasi berbasis kemampuan — hasil ini masih gambaran awal dan bukan pengganti pendampingan mentor.";
       }
 
       await db
@@ -1056,28 +1417,8 @@ export const tmbRouter = {
 // ─── Helpers ─────────────────────────────────────────────
 
 async function awardXp(userId: string, xp: number) {
-  const existing = await db.query.tmbUserStats.findFirst({ where: eq(tmbUserStats.userId, userId) });
-  const today = new Date().toDateString();
-  const lastDay = existing?.lastActivityAt ? new Date(existing.lastActivityAt).toDateString() : null;
-
-  const newXp = (existing?.xp ?? 0) + xp;
-  const newLevel = Math.floor(newXp / 150) + 1;
-  const isNewDay = lastDay !== today;
-  const newStreak = isNewDay ? (existing?.streak ?? 0) + 1 : (existing?.streak ?? 0);
-
-  await db
-    .insert(tmbUserStats)
-    .values({ userId, xp: newXp, level: newLevel, streak: newStreak, testsCompleted: 1, lastActivityAt: new Date() })
-    .onConflictDoUpdate({
-      target: tmbUserStats.userId,
-      set: {
-        xp: newXp,
-        level: newLevel,
-        streak: newStreak,
-        testsCompleted: (existing?.testsCompleted ?? 0) + 1,
-        lastActivityAt: new Date(),
-      },
-    });
+  // Aturan XP/level/streak dipusatkan di lib/gamification (dipakai juga oleh engine discover).
+  await awardProgress(userId, xp);
 }
 
 async function computeResult(userId: string, interestAttemptId: string, abilityAttemptId: string) {
@@ -1159,7 +1500,7 @@ async function computeResult(userId: string, interestAttemptId: string, abilityA
 
 // ─── B2B (School Admin) ─────────────────────────────────
 
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let cur = "";
   let row: string[] = [];
@@ -1187,6 +1528,153 @@ function parseCsv(text: string): string[][] {
   row.push(cur);
   if (row.some((c) => c.trim())) rows.push(row);
   return rows;
+}
+
+/**
+ * Baris rekap satu kelas (dipakai admin MULAI+ **dan** portal sekolah).
+ * Dipisah supaya kolom rekap konsisten & tidak ada duplikasi logika.
+ */
+export async function buildBatchRekap(batchId: string) {
+  const batch = await db.query.tmbBatches.findFirst({ where: eq(tmbBatches.id, batchId) });
+  const students = await db.query.tmbBatchStudents.findMany({
+    where: eq(tmbBatchStudents.batchId, batchId),
+    orderBy: asc(tmbBatchStudents.name),
+  });
+  // Ambil hasil & rekomendasi sekali jalan (hindari N+1 saat satu kelas berisi puluhan siswa)
+  const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+  const [results, recos] = await Promise.all([
+    resultIds.length
+      ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+      : [],
+    resultIds.length
+      ? db.query.tmbRecommendations.findMany({
+          where: inArray(tmbRecommendations.resultId, resultIds),
+          orderBy: asc(tmbRecommendations.rank),
+        })
+      : [],
+  ]);
+  const rById = new Map(results.map((r) => [r.id, r]));
+  const recosBy = new Map<string, typeof recos>();
+  for (const rc of recos) {
+    const arr = recosBy.get(rc.resultId) ?? [];
+    arr.push(rc);
+    recosBy.set(rc.resultId, arr);
+  }
+
+  const rows = students.map((s) => {
+    const r = s.resultId ? rById.get(s.resultId) : undefined;
+    const ab: any = (r as any)?.abilityScores ?? null;
+    // kontrak baru: { levels, scores } · warisan: { verbal: {correct,total} }
+    const scores: Record<string, { correct?: number; total?: number }> = ab?.scores ?? ab ?? {};
+    const holland: Record<string, number> = ((r as any)?.hollandScores ?? {}) as any;
+    const dimStats: any[] = (((r as any)?.dimStats ?? []) as any[]) ?? [];
+    const dim = (k: string) => {
+      const v = scores[k];
+      return v && typeof v.total === "number" ? `${v.correct ?? 0}/${v.total}` : "";
+    };
+    const topMajors = (recosBy.get(r?.id ?? "") ?? [])
+      .filter((x) => x.type === "major")
+      .slice(0, 3)
+      .map((x) => x.itemName);
+    return {
+      nama: s.name,
+      email: s.email ?? "",
+      nis: s.nis ?? "",
+      kelas: batch?.className ?? "",
+      jurusan: batch?.major ?? "",
+      status: s.status,
+      hollandCode: r?.hollandCode ?? "",
+      R: holland.R ?? "",
+      I: holland.I ?? "",
+      A: holland.A ?? "",
+      S: holland.S ?? "",
+      E: holland.E ?? "",
+      C: holland.C ?? "",
+      verbal: dim("verbal"),
+      numerical: dim("numerical"),
+      logical: dim("logical"),
+      spatial: dim("spatial"),
+      clerical: dim("clerical"),
+      confidence: r?.confidenceScore ?? "",
+      differentiation: r?.differentiation ?? "",
+      topMajors: topMajors.join(", "),
+      selesai: r?.createdAt ? new Date(r.createdAt).toISOString().slice(0, 16).replace("T", " ") : "",
+      durasiDetik: dimStats.reduce((a, d) => a + (Number(d?.seconds) || 0), 0) || "",
+      jumlahTimeout: dimStats.filter((d) => d?.timedOut).length,
+    };
+  });
+  return {
+    rows,
+    batch: batch ? { name: batch.name, className: batch.className, major: batch.major } : null,
+  };
+}
+
+/**
+ * Cakupan data untuk analitik: tes (opsional) → versi → sesi.
+ * Semua endpoint analitik memakai helper ini supaya filternya konsisten.
+ */
+async function analyticsScope(input: {
+  code?: string;
+  from?: string;
+  to?: string;
+  batchId?: string;
+  schoolId?: string;
+}) {
+  const assets = input.code
+    ? await db.query.assessments.findMany({ where: eq(assessments.code, input.code.toUpperCase()) })
+    : await db.query.assessments.findMany({});
+
+  // Kohort (B2B): batasi ke siswa yang terdaftar di batch/sekolah itu.
+  let cohortStudentIds: string[] | null = null;
+  if (input.batchId || input.schoolId) {
+    let batchIds: string[] = [];
+    if (input.batchId) batchIds = [input.batchId];
+    else if (input.schoolId) {
+      const bs = await db.query.tmbBatches.findMany({
+        where: eq(tmbBatches.schoolId, input.schoolId),
+        columns: { id: true },
+      });
+      batchIds = bs.map((b) => b.id);
+    }
+    const roster = batchIds.length
+      ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.batchId, batchIds) })
+      : [];
+    cohortStudentIds = roster.map((r) => r.userId ?? `guest-${r.id}`);
+  }
+
+  const versions = assets.length
+    ? await db.query.assessmentVersions.findMany({
+        where: inArray(
+          assessmentVersions.assessmentId,
+          assets.map((a) => a.id),
+        ),
+      })
+    : [];
+  const versionIds = versions.map((v) => v.id);
+  const fromD = input.from ? new Date(input.from) : null;
+  const toD = input.to ? new Date(input.to) : null;
+  const range =
+    fromD || toD
+      ? and(
+          fromD ? gte(assessmentSessions.startedAt, fromD) : undefined,
+          toD ? lte(assessmentSessions.startedAt, toD) : undefined,
+        )
+      : undefined;
+
+  const sessions =
+    versionIds.length && (!cohortStudentIds || cohortStudentIds.length)
+      ? await db.query.assessmentSessions.findMany({
+          where: and(
+            inArray(assessmentSessions.versionId, versionIds),
+            cohortStudentIds ? inArray(assessmentSessions.studentId, cohortStudentIds) : undefined,
+            range,
+          ),
+          orderBy: [desc(assessmentSessions.startedAt)],
+          limit: 20000,
+        })
+      : [];
+
+  return { assets, versions, versionIds, sessions, cohortStudentIds };
 }
 
 export const tmbAdminRouter = {
@@ -1411,9 +1899,9 @@ export const tmbAdminRouter = {
         await db.insert(tmbBatchStudents).values({
           id,
           batchId: input.batchId,
-          name: input.name,
-          email: input.email || null,
-          nis: input.nis || null,
+          name: input.name.trim(),
+          email: input.email ? input.email.trim().toLowerCase() : null,
+          nis: input.nis?.trim() || null,
         });
         return { id };
       }),
@@ -1481,7 +1969,7 @@ export const tmbAdminRouter = {
           id: randomUUID(),
           batchId: input.batchId,
           name: (r[idxName] ?? "").trim(),
-          email: idxEmail >= 0 ? (r[idxEmail] ?? "").trim() || null : null,
+          email: idxEmail >= 0 ? (r[idxEmail] ?? "").trim().toLowerCase() || null : null,
           nis: idxNis >= 0 ? (r[idxNis] ?? "").trim() || null : null,
         }));
         const valid = values.filter((v) => v.name);
@@ -1496,7 +1984,7 @@ export const tmbAdminRouter = {
       if (!batch) notFound("Batch tidak ditemukan");
       if (!batch.inviteCode) preconditionFailed("Batch belum punya kode undangan");
 
-      const base = (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+      const base = webBaseUrl();
       const link = `${base}/assessment/invite/${batch.inviteCode}`;
       const school = await db.query.tmbSchools.findFirst({ where: eq(tmbSchools.id, batch.schoolId) });
       const schoolName = school?.name ?? batch.name;
@@ -1526,41 +2014,71 @@ export const tmbAdminRouter = {
       return { sent, failed, code: batch.inviteCode, link };
     }),
 
-    exportRekap: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
-      const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
-      const rows: any[] = [];
-      for (const s of students) {
-        let holland = "";
-        let confidence = "";
-        let topMajors: string[] = [];
-        if (s.resultId) {
-          const resultId = s.resultId;
-          const [r, recos] = await Promise.all([
-            db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
-            db.query.tmbRecommendations.findMany({
-              where: eq(tmbRecommendations.resultId, resultId),
-              orderBy: asc(tmbRecommendations.rank),
-            }),
-          ]);
-          holland = r?.hollandCode ?? "";
-          confidence = r?.confidenceScore ?? "";
-          topMajors = recos
-            .filter((x) => x.type === "major")
-            .slice(0, 3)
-            .map((x) => x.itemName);
-        }
-        rows.push({
-          nama: s.name,
-          email: s.email ?? "",
-          nis: s.nis ?? "",
-          status: s.status,
-          hollandCode: holland,
-          confidence: confidence,
-          topMajors: topMajors.join(", "),
+    exportRekap: adminProcedure
+      .input(z.object({ batchId: z.string() }))
+      .handler(async ({ input }) => buildBatchRekap(input.batchId)),
+
+    /**
+     * Perbaiki tautan hasil → roster (data lama) & status yang tidak konsisten.
+     *
+     * Dipakai untuk siswa yang sudah mengerjakan tes SEBELUM mengklaim undangan (sehingga
+     * tautan di `finish` tidak pernah terjadi), atau roster warisan berstatus "completed"
+     * padahal hasilnya belum tertaut. Hasil yang dipakai = hasil TERBARU siswa.
+     */
+    backfillRosterLinks: adminProcedure
+      .input(z.object({ batchId: z.string().optional() }).optional())
+      .handler(async ({ input }) => {
+        const rows = await db.query.tmbBatchStudents.findMany({
+          where: input?.batchId ? eq(tmbBatchStudents.batchId, input.batchId) : undefined,
+          orderBy: asc(tmbBatchStudents.createdAt),
         });
-      }
-      return { rows };
-    }),
+        const userIds = [...new Set(rows.map((r) => r.userId).filter(Boolean))] as string[];
+        const results = userIds.length
+          ? await db.query.tmbAssessmentResults.findMany({
+              where: inArray(tmbAssessmentResults.userId, userIds),
+              orderBy: desc(tmbAssessmentResults.createdAt),
+            })
+          : [];
+        const latest = new Map<string, string>();
+        for (const r of results) if (!latest.has(r.userId)) latest.set(r.userId, r.id);
+
+        let ditautkan = 0;
+        let direset = 0;
+        let sudahBenar = 0;
+        let tanpaAkun = 0;
+        for (const row of rows) {
+          if (!row.userId) {
+            tanpaAkun++;
+            continue;
+          }
+          const rid = latest.get(row.userId) ?? null;
+          if (rid) {
+            if (row.resultId === rid && row.status === "completed") {
+              sudahBenar++;
+              continue;
+            }
+            await db
+              .update(tmbBatchStudents)
+              .set({ resultId: rid, status: "completed" })
+              .where(eq(tmbBatchStudents.id, row.id));
+            ditautkan++;
+          } else if (row.status === "completed") {
+            // "completed" tanpa hasil sama sekali = data tidak konsisten → kembalikan ke undangan
+            await db.update(tmbBatchStudents).set({ status: "invited" }).where(eq(tmbBatchStudents.id, row.id));
+            direset++;
+          } else {
+            sudahBenar++;
+          }
+        }
+        return {
+          diperiksa: rows.length,
+          ditautkan,
+          direset,
+          sudahBenar,
+          tanpaAkun,
+          siswaDenganHasil: latest.size,
+        };
+      }),
   },
 
   // ─── Konten Test: soal, pola jurusan, mapping karier, catalog ───
@@ -1819,88 +2337,754 @@ export const tmbAdminRouter = {
       }),
   },
 
-  analytics: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
-    const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
-    const total = students.length;
-    const completed = students.filter((s) => s.status === "completed").length;
-    const inProgress = students.filter((s) => s.status === "in_progress").length;
-    const invited = students.filter((s) => s.status === "invited").length;
+  /** Analitik assessment — batch (B2B) + lintas-tes (B2C). */
+  analytics: {
+    /** Analitik satu batch/kelas (dipakai halaman batch admin). */
+    batch: adminProcedure.input(z.object({ batchId: z.string() })).handler(async ({ input }) => {
+      const students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
+      const total = students.length;
+      const completed = students.filter((s) => s.status === "completed").length;
+      const inProgress = students.filter((s) => s.status === "in_progress").length;
+      const invited = students.filter((s) => s.status === "invited").length;
 
-    // distribusi Holland
-    const hollandCount: Record<string, number> = {};
-    const abilityAvg: Record<string, { sum: number; n: number }> = {};
-    const topMajorCount: Record<string, number> = {};
-
-    for (const s of students) {
-      if (!s.resultId) continue;
-      const resultId = s.resultId;
-      const [r, recos] = await Promise.all([
-        db.query.tmbAssessmentResults.findFirst({ where: eq(tmbAssessmentResults.id, resultId) }),
-        db.query.tmbRecommendations.findMany({
-          where: eq(tmbRecommendations.resultId, resultId),
-          orderBy: asc(tmbRecommendations.rank),
-        }),
+      // 2 query total (bukan 2×N seperti versi lama) — aman untuk batas subrequest Worker.
+      const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+      const [results, recos] = await Promise.all([
+        resultIds.length
+          ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+          : Promise.resolve([]),
+        resultIds.length
+          ? db.query.tmbRecommendations.findMany({ where: inArray(tmbRecommendations.resultId, resultIds) })
+          : Promise.resolve([]),
       ]);
-      if (r?.hollandCode) {
-        const primary = r.hollandCode.charAt(0);
-        hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
-      }
-      const ability = (r?.abilityScores as any)?.scores ?? {};
-      for (const [dim, v] of Object.entries(ability as Record<string, { correct: number; total: number }>)) {
-        if (v.total > 0) {
-          abilityAvg[dim] = abilityAvg[dim] ?? { sum: 0, n: 0 };
-          abilityAvg[dim].sum += v.correct / v.total;
-          abilityAvg[dim].n += 1;
+
+      const hollandCount: Record<string, number> = {};
+      const abilityAvg: Record<string, { sum: number; n: number }> = {};
+      const topMajorCount: Record<string, number> = {};
+      const confident: number[] = [];
+
+      for (const r of results) {
+        if (r.hollandCode) {
+          const primary = r.hollandCode.charAt(0);
+          hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
         }
+        const ability = (r.abilityScores as any)?.scores ?? {};
+        for (const [dim, v] of Object.entries(ability as Record<string, { correct: number; total: number }>)) {
+          if (v.total > 0) {
+            abilityAvg[dim] = abilityAvg[dim] ?? { sum: 0, n: 0 };
+            abilityAvg[dim].sum += v.correct / v.total;
+            abilityAvg[dim].n += 1;
+          }
+        }
+        const c = Number(r.confidenceScore);
+        if (Number.isFinite(c) && c > 0) confident.push(c);
       }
-      recos
-        .filter((x) => x.type === "major")
-        .slice(0, 3)
-        .forEach((x) => {
-          topMajorCount[x.itemName] = (topMajorCount[x.itemName] ?? 0) + 1;
+      for (const rc of recos) {
+        if (rc.type !== "major" || (rc.rank ?? 99) > 3) continue;
+        topMajorCount[rc.itemName] = (topMajorCount[rc.itemName] ?? 0) + 1;
+      }
+
+      const topMajors = Object.entries(topMajorCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+      const hollandDistribution = Object.entries(hollandCount)
+        .map(([code, count]) => ({ code, count }))
+        .sort((a, b) => b.count - a.count);
+      const abilityAvgClean = Object.entries(abilityAvg).map(([dim, v]) => ({
+        dim,
+        avg: Math.round((v.sum / v.n) * 100),
+      }));
+
+      return {
+        total,
+        completed,
+        inProgress,
+        invited,
+        hollandDistribution,
+        abilityAvg: abilityAvgClean,
+        topMajors,
+        avgConfidence: avgOf(confident),
+      };
+    }),
+
+    /** Ringkasan lintas tes (B2C) + kesehatan data + daftar perlu perhatian. */
+    overview: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope(input);
+        const sessionIds = scope.sessions.map((s) => s.id);
+        const results = sessionIds.length
+          ? await db.query.assessmentResults.findMany({ where: inArray(assessmentResults.sessionId, sessionIds) })
+          : [];
+        const tmb = await db.query.tmbAssessmentResults.findMany({});
+
+        const answerRows = sessionIds.length
+          ? await db.query.assessmentAnswers.findMany({
+              where: inArray(assessmentAnswers.sessionId, sessionIds),
+              columns: { sessionId: true },
+            })
+          : [];
+        const answersBySession = new Set(answerRows.map((a) => a.sessionId));
+
+        const bySession = new Map(results.map((r) => [r.sessionId, r]));
+        const confidence = scope.sessions.map((s) => {
+          const r = bySession.get(s.id);
+          const recos = (r?.recommendationsJson ?? []) as any[];
+          const top = Number(recos?.[0]?.confidence);
+          return Number.isFinite(top) ? top : null;
         });
-    }
 
-    const topMajors = Object.entries(topMajorCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, count]) => ({ name, count }));
-    const hollandDistribution = Object.entries(hollandCount)
-      .map(([code, count]) => ({ code, count }))
-      .sort((a, b) => b.count - a.count);
-    const abilityAvgClean = Object.entries(abilityAvg).map(([dim, v]) => ({
-      dim,
-      avg: Math.round((v.sum / v.n) * 100),
-    }));
+        const completed = scope.sessions.filter((x) => x.status === "completed").length;
+        const totalTmb = tmb.length;
+        const tmbWithConfidence = tmb.filter((r) => Number(r.confidenceScore) > 0).length;
 
-    return { total, completed, inProgress, invited, hollandDistribution, abilityAvg: abilityAvgClean, topMajors };
-  }),
+        return {
+          tests: scope.assets.map((a) => ({ code: a.code, name: a.name, family: a.family })),
+          versions: scope.versions.length,
+          sessions: {
+            total: scope.sessions.length,
+            completed,
+            inProgress: scope.sessions.filter((x) => x.status === "in_progress").length,
+            paused: scope.sessions.filter((x) => x.status === "paused").length,
+            timeout: scope.sessions.filter((x) => x.status === "timeout").length,
+            abandoned: scope.sessions.filter((x) => x.status === "abandoned").length,
+            completionRate: scope.sessions.length ? Math.round((completed / scope.sessions.length) * 1000) / 1000 : 0,
+            uniqueUsers: new Set(scope.sessions.map((s) => s.studentId)).size,
+          },
+          confidence: {
+            avg: avgOf(confidence),
+            n: confidence.filter((c) => c !== null).length,
+          },
+          retest: (() => {
+            const perUser = new Map<string, number>();
+            for (const s of scope.sessions) perUser.set(s.studentId, (perUser.get(s.studentId) ?? 0) + 1);
+            const repeat = [...perUser.values()].filter((n) => n > 1).length;
+            return {
+              users: perUser.size,
+              repeated: repeat,
+              repeatRate: perUser.size ? Math.round((repeat / perUser.size) * 1000) / 1000 : 0,
+            };
+          })(),
+          health: {
+            resultRows: totalTmb,
+            resultRowsWithConfidence: tmbWithConfidence,
+            resultRowsWithoutConfidence: totalTmb - tmbWithConfidence,
+            // sesi yang selesai tapi tidak menyimpan satu jawaban pun (data race/batal di tengah)
+            sessionsWithoutAnswers: scope.sessions.filter(
+              (s) => (s.status === "completed" || s.status === "timeout") && !answersBySession.has(s.id),
+            ).length,
+            resultRowsWithoutSession: Math.max(0, totalTmb - scope.sessions.length),
+          },
+        };
+      }),
+
+    /**
+     * Ringkasan KOHORT (B2B): satu kelas (batchId) atau satu sekolah (schoolId).
+     * Dipakai halaman sekolah admin & panel analitik kelas — menggabungkan
+     * kelengkapan, sebaran minat/kemampuan, rekomendasi, perhatian, funnel, dan versi.
+     */
+    cohort: adminProcedure
+      .input(
+        z.object({
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+          code: z.string().trim().optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        if (!input.batchId && !input.schoolId) preconditionFailed("batchId atau schoolId wajib diisi");
+
+        let students: (typeof tmbBatchStudents.$inferSelect)[] = [];
+        let batchList: (typeof tmbBatches.$inferSelect)[] = [];
+        if (input.batchId) {
+          students = await db.query.tmbBatchStudents.findMany({ where: eq(tmbBatchStudents.batchId, input.batchId) });
+          batchList = await db.query.tmbBatches.findMany({ where: eq(tmbBatches.id, input.batchId) });
+        } else if (input.schoolId) {
+          batchList = await db.query.tmbBatches.findMany({ where: eq(tmbBatches.schoolId, input.schoolId) });
+          students = batchList.length
+            ? await db.query.tmbBatchStudents.findMany({
+                where: inArray(
+                  tmbBatchStudents.batchId,
+                  batchList.map((b) => b.id),
+                ),
+              })
+            : [];
+        }
+
+        const resultIds = [...new Set(students.map((s) => s.resultId).filter(Boolean))] as string[];
+        const [results, recos] = await Promise.all([
+          resultIds.length
+            ? db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.id, resultIds) })
+            : Promise.resolve([]),
+          resultIds.length
+            ? db.query.tmbRecommendations.findMany({ where: inArray(tmbRecommendations.resultId, resultIds) })
+            : Promise.resolve([]),
+        ]);
+
+        const stats = computeCohortStats({
+          students: students.map((s) => ({
+            id: s.id,
+            name: s.name,
+            status: s.status,
+            resultId: s.resultId,
+            batchId: s.batchId,
+          })),
+          results: results.map((r) => ({
+            id: r.id,
+            hollandCode: r.hollandCode,
+            hollandScores: (r.hollandScores ?? {}) as Record<string, unknown>,
+            abilityScores: r.abilityScores,
+            confidenceScore: r.confidenceScore,
+            differentiation: r.differentiation,
+            createdAt: r.createdAt,
+          })),
+          recos: recos.map((r) => ({
+            resultId: r.resultId,
+            type: r.type,
+            rank: r.rank,
+            itemName: r.itemName,
+          })),
+        });
+
+        // funnel & versi untuk kohort yang sama (sesi milik siswa kohort)
+        const scope = await analyticsScope({
+          code: input.code,
+          from: input.from,
+          to: input.to,
+          batchId: input.batchId,
+          schoolId: input.schoolId,
+        });
+        const sessionIds = scope.sessions.map((x) => x.id);
+        const answers = sessionIds.length
+          ? await db.query.assessmentAnswers.findMany({
+              where: inArray(assessmentAnswers.sessionId, sessionIds),
+            })
+          : [];
+        const questionsForFunnel = scope.versionIds.length
+          ? await db.query.questions.findMany({ where: inArray(questions.versionId, scope.versionIds) })
+          : [];
+        const dims = scope.versionIds.length
+          ? await db.query.assessmentDimensions.findMany({
+              where: inArray(assessmentDimensions.versionId, scope.versionIds),
+            })
+          : [];
+        const funnel = computeFunnel(
+          scope.sessions,
+          answers.map((a) => ({ sessionId: a.sessionId, questionId: a.questionId, scoreEarned: a.scoreEarned })),
+          questionsForFunnel.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            text: q.questionText,
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+          })),
+        );
+        const dimMap = new Map(dims.map((d) => [d.id, d]));
+
+        return {
+          ...stats,
+          funnel: {
+            ...funnel,
+            completionRatePct: Math.round(funnel.completionRate * 1000) / 10,
+            perDimension: funnel.perDimension.map((d) => ({
+              ...d,
+              code: dimMap.get(d.dimensionId)?.code ?? "",
+              name: dimMap.get(d.dimensionId)?.name ?? "",
+              dropRatePct: Math.round(d.dropRate * 1000) / 10,
+            })),
+          },
+          batches: batchList.map((b) => {
+            const rows = students.filter((s) => s.batchId === b.id);
+            const done = rows.filter((s) => s.status === "completed").length;
+            return {
+              id: b.id,
+              name: b.name,
+              className: b.className,
+              major: b.major,
+              graduationYear: b.graduationYear,
+              inviteCode: b.inviteCode,
+              total: rows.length,
+              completed: done,
+              completionRatePct: rows.length ? Math.round((done / rows.length) * 1000) / 10 : 0,
+            };
+          }),
+          sessionsInScope: scope.sessions.length,
+        };
+      }),
+
+    /** Statistik per butir soal: kesulitan, daya beda, distractor, skip. */
+    items: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          versionId: z.string().trim().optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+          minAnswers: z.number().int().min(0).default(1),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope(input);
+        const versionIds = input.versionId ? [input.versionId] : scope.versionIds;
+        if (!versionIds.length)
+          return {
+            items: [],
+            dimensions: [],
+            questionCount: 0,
+            summary: { items: 0, flagged: 0, avgP: null as number | null, avgDiscrimination: 0 },
+          };
+
+        const finished = scope.sessions.filter(
+          (s) => (s.status === "completed" || s.status === "timeout") && versionIds.includes(s.versionId),
+        );
+        // hanya soal AKTIF: soal nonaktif tidak pernah dilihat siswa →
+        // kalau ikut dihitung, semua tampak "banyak dilewati" (bug lama).
+        const qs = await db.query.questions.findMany({
+          where: and(inArray(questions.versionId, versionIds), eq(questions.isActive, true)),
+          orderBy: [asc(questions.displayOrder)],
+        });
+        const qIds = qs.map((q) => q.id);
+        const [opts, ans, dims] = await Promise.all([
+          qIds.length
+            ? db.query.questionOptions.findMany({ where: inArray(questionOptions.questionId, qIds) })
+            : Promise.resolve([]),
+          finished.length
+            ? db.query.assessmentAnswers.findMany({
+                where: inArray(
+                  assessmentAnswers.sessionId,
+                  finished.map((s) => s.id),
+                ),
+              })
+            : Promise.resolve([]),
+          db.query.assessmentDimensions.findMany({ where: inArray(assessmentDimensions.versionId, versionIds) }),
+        ]);
+
+        const stats = computeItemStats({
+          questions: qs.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            code: q.questionCode,
+            text: q.questionText,
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+          })),
+          options: opts.map((o) => ({
+            id: o.id,
+            questionId: o.questionId,
+            value: o.optionValue,
+            label: o.label,
+            score: o.score,
+          })),
+          answers: ans.map((a) => ({
+            sessionId: a.sessionId,
+            questionId: a.questionId,
+            selectedOptionId: a.selectedOptionId,
+            textAnswer: a.textAnswer,
+            scoreEarned: a.scoreEarned,
+          })),
+          sessions: finished.map((x) => ({ ...x, versionId: x.versionId })),
+          versionId: input.versionId,
+        }).filter((s) => s.answered >= input.minAnswers);
+
+        const verById = new Map(scope.versions.map((v) => [v.id, v]));
+        const testByVersion = new Map<string, string>();
+        for (const v of scope.versions) {
+          const a = scope.assets.find((x) => x.id === v.assessmentId);
+          testByVersion.set(v.id, a?.code ?? "");
+        }
+        const ordered = [...stats].sort(
+          (a, b) =>
+            b.flags.length - a.flags.length ||
+            (verById.get(a.versionId)?.versionNumber ?? 0) - (verById.get(b.versionId)?.versionNumber ?? 0) ||
+            a.order - b.order,
+        );
+
+        return {
+          questionCount: qs.length,
+          dimensions: dims.map((d) => ({ id: d.id, code: d.code, name: d.name })),
+          items: ordered.map((s) => ({
+            ...s,
+            testCode: testByVersion.get(s.versionId) ?? "",
+            versionNumber: verById.get(s.versionId)?.versionNumber ?? null,
+          })),
+          summary: {
+            items: stats.length,
+            flagged: stats.filter((s) => s.flags.length > 0).length,
+            avgP: avgOf(stats.map((s) => (s.p === null ? null : s.p * 100))),
+            avgDiscrimination: (() => {
+              const rs = stats.map((x) => x.discrimination).filter((r): r is number => r !== null);
+              return rs.length ? Math.round((rs.reduce((a, b) => a + b, 0) / rs.length) * 1000) / 1000 : null;
+            })(),
+          },
+        };
+      }),
+
+    /** Funnel penyelesaian + drop-off per dimensi. */
+    funnel: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope(input);
+        const sessionIds = scope.sessions.map((s) => s.id);
+        const [ans, qs, dims] = await Promise.all([
+          sessionIds.length
+            ? db.query.assessmentAnswers.findMany({ where: inArray(assessmentAnswers.sessionId, sessionIds) })
+            : Promise.resolve([]),
+          scope.versionIds.length
+            ? db.query.questions.findMany({ where: inArray(questions.versionId, scope.versionIds) })
+            : Promise.resolve([]),
+          scope.versionIds.length
+            ? db.query.assessmentDimensions.findMany({
+                where: inArray(assessmentDimensions.versionId, scope.versionIds),
+              })
+            : Promise.resolve([]),
+        ]);
+        const f = computeFunnel(
+          scope.sessions.map((x) => ({ ...x, configJson: x.configJson })),
+          ans.map((a) => ({ sessionId: a.sessionId, questionId: a.questionId, scoreEarned: a.scoreEarned })),
+          qs.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            text: q.questionText,
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+          })),
+        );
+        const dimMap = new Map(dims.map((d) => [d.id, d]));
+        return {
+          ...f,
+          completionRatePct: Math.round(f.completionRate * 1000) / 10,
+          perDimension: f.perDimension.map((d) => ({
+            ...d,
+            code: dimMap.get(d.dimensionId)?.code ?? "",
+            name: dimMap.get(d.dimensionId)?.name ?? "",
+            dropRatePct: Math.round(d.dropRate * 1000) / 10,
+          })),
+        };
+      }),
+
+    /** Perbandingan versi soal (konversi, confidence, rata-rata p). */
+    versions: adminProcedure.input(z.object({ code: z.string().trim().optional() })).handler(async ({ input }) => {
+      const scope = await analyticsScope(input);
+      if (!scope.versionIds.length) return { versions: [] };
+
+      const finished = scope.sessions.filter((s) => s.status === "completed" || s.status === "timeout");
+      const finishedIds = finished.map((s) => s.id);
+      const [qs, opts, ans, results] = await Promise.all([
+        db.query.questions.findMany({ where: inArray(questions.versionId, scope.versionIds) }),
+        db.query.questionOptions.findMany({}),
+        finishedIds.length
+          ? db.query.assessmentAnswers.findMany({ where: inArray(assessmentAnswers.sessionId, finishedIds) })
+          : Promise.resolve([]),
+        finishedIds.length
+          ? db.query.assessmentResults.findMany({ where: inArray(assessmentResults.sessionId, finishedIds) })
+          : Promise.resolve([]),
+      ]);
+      const resBy = new Map(results.map((r) => [r.sessionId, r]));
+
+      const itemStatsByVersion = scope.versionIds.map((vid) => {
+        const vqs = qs.filter((q) => q.versionId === vid);
+        const qIds = new Set(vqs.map((q) => q.id));
+        const stats = computeItemStats({
+          questions: vqs.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            text: q.questionText,
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+          })),
+          options: opts
+            .filter((o) => qIds.has(o.questionId))
+            .map((o) => ({
+              id: o.id,
+              questionId: o.questionId,
+              value: o.optionValue,
+              label: o.label,
+              score: o.score,
+            })),
+          answers: ans
+            .filter((a) => qIds.has(a.questionId))
+            .map((a) => ({
+              sessionId: a.sessionId,
+              questionId: a.questionId,
+              selectedOptionId: a.selectedOptionId,
+              scoreEarned: a.scoreEarned,
+            })),
+          sessions: finished.filter((s) => s.versionId === vid),
+        });
+        return stats.map((s) => ({ versionId: vid, p: s.p }));
+      });
+
+      const versions = computeVersionStats({
+        versions: scope.versions.map((v) => ({ id: v.id, versionNumber: v.versionNumber, status: v.status })),
+        sessions: scope.sessions.map((s) => ({ ...s, versionId: s.versionId })),
+        itemStats: itemStatsByVersion.flat(),
+        confidences: finished.map((s) => ({
+          sessionId: s.id,
+          versionId: s.versionId,
+          confidence: (() => {
+            const r = resBy.get(s.id);
+            const top = Number(((r?.recommendationsJson ?? []) as any[])?.[0]?.confidence);
+            return Number.isFinite(top) ? top : null;
+          })(),
+        })),
+      });
+      return {
+        versions: versions
+          .filter((v) => v.sessions > 0)
+          .map((v) => ({
+            ...v,
+            completionRatePct: Math.round(v.completionRate * 1000) / 10,
+            avgPPct: v.avgP === null ? null : Math.round(v.avgP * 1000) / 10,
+          })),
+      };
+    }),
+
+    /** Tren harian: sesi mulai, selesai, pengguna unik. */
+    timeseries: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+          days: z.number().int().min(1).max(120).default(14),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope({ code: input.code, batchId: input.batchId, schoolId: input.schoolId });
+        return { days: input.days, points: computeTimeseries(scope.sessions, { days: input.days }) };
+      }),
+
+    /** Segmentasi: sumber, sekolah, jenjang, kota. */
+    segments: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope({ code: input.code, batchId: input.batchId, schoolId: input.schoolId });
+        const sessionIds = scope.sessions.map((s) => s.id);
+        const results = sessionIds.length
+          ? await db.query.assessmentResults.findMany({ where: inArray(assessmentResults.sessionId, sessionIds) })
+          : [];
+        const resBy = new Map(results.map((r) => [r.sessionId, r]));
+
+        const userIds = [...new Set(scope.sessions.map((s) => s.studentId))];
+        const accountIds = userIds.filter((u) => !u.startsWith("guest-"));
+        const [accounts, details, roster] = await Promise.all([
+          accountIds.length
+            ? db.query.user.findMany({ where: inArray(userSchema.id, accountIds) })
+            : Promise.resolve([]),
+          accountIds.length
+            ? db.query.studentDetail.findMany({ where: inArray(studentDetail.userId, accountIds) })
+            : Promise.resolve([]),
+          userIds.length
+            ? db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.userId, userIds) })
+            : Promise.resolve([]),
+        ]);
+        const batchIds = [...new Set(roster.map((r) => r.batchId))];
+        const batches = batchIds.length
+          ? await db.query.tmbBatches.findMany({ where: inArray(tmbBatches.id, batchIds) })
+          : [];
+        const schoolIds = [...new Set(batches.map((b) => b.schoolId))];
+        const schools = schoolIds.length
+          ? await db.query.tmbSchools.findMany({ where: inArray(tmbSchools.id, schoolIds) })
+          : [];
+        const batchMap = new Map(batches.map((b) => [b.id, b]));
+        const schoolMap = new Map(schools.map((s) => [s.id, s]));
+        const rosterByUser = new Map<string, (typeof roster)[number]>();
+        for (const r of roster) if (r.userId && !rosterByUser.has(r.userId)) rosterByUser.set(r.userId, r);
+        const detailBy = new Map(details.map((d) => [d.userId, d]));
+
+        const group = (keyFn: (s: (typeof scope.sessions)[number]) => string) => {
+          const m = new Map<string, { total: number; completed: number; conf: number[]; users: Set<string> }>();
+          for (const s of scope.sessions) {
+            const key = keyFn(s) || "Tidak diketahui";
+            const cur = m.get(key) ?? { total: 0, completed: 0, conf: [], users: new Set<string>() };
+            cur.total += 1;
+            if (s.status === "completed") cur.completed += 1;
+            cur.users.add(s.studentId);
+            const top = Number(((resBy.get(s.id)?.recommendationsJson ?? []) as any[])?.[0]?.confidence);
+            if (Number.isFinite(top)) cur.conf.push(top);
+            m.set(key, cur);
+          }
+          return [...m.entries()]
+            .map(([key, v2]) => ({
+              key,
+              sessions: v2.total,
+              users: v2.users.size,
+              completionRatePct: Math.round((v2.completed / v2.total) * 1000) / 10,
+              avgConfidence: avgOf(v2.conf),
+            }))
+            .sort((a, b) => b.sessions - a.sessions);
+        };
+
+        const schoolOf = (studentId: string) => {
+          const r = rosterByUser.get(studentId);
+          const b = r ? batchMap.get(r.batchId) : null;
+          return b ? (schoolMap.get(b.schoolId)?.name ?? "") : "";
+        };
+
+        return {
+          bySource: group((s) => (rosterByUser.has(s.studentId) ? "Sekolah (invitasi)" : "Mandiri")),
+          bySchool: group((s) => schoolOf(s.studentId)).slice(0, 20),
+          byLevel: group((s) => {
+            const d = detailBy.get(s.studentId);
+            return (d?.educationLevel as string) ?? "";
+          }),
+          byCity: group((s) => {
+            const r = rosterByUser.get(s.studentId);
+            const b = r ? batchMap.get(r.batchId) : null;
+            const sc = b ? schoolMap.get(b.schoolId) : null;
+            return (sc as any)?.city ?? "";
+          }),
+          withAccount: accounts.length,
+        };
+      }),
+
+    /** Daftar peserta yang perlu perhatian (keyakinan rendah / minat menyebar / kemampuan lemah). */
+    attention: adminProcedure
+      .input(
+        z.object({
+          code: z.string().trim().optional(),
+          batchId: z.string().optional(),
+          schoolId: z.string().optional(),
+          limit: z.number().int().min(1).max(200).default(50),
+        }),
+      )
+      .handler(async ({ input }) => {
+        const scope = await analyticsScope({ code: input.code, batchId: input.batchId, schoolId: input.schoolId });
+        const finished = scope.sessions.filter((s) => s.status === "completed" || s.status === "timeout");
+        if (!finished.length) return { items: [] };
+        const results = await db.query.assessmentResults.findMany({
+          where: inArray(
+            assessmentResults.sessionId,
+            finished.map((s) => s.id),
+          ),
+        });
+        const bySession = new Map(results.map((r) => [r.sessionId, r]));
+
+        const userIds = [...new Set(finished.map((s) => s.studentId))];
+        const accountIds = userIds.filter((u) => !u.startsWith("guest-"));
+        const [accounts, roster, tmbRows] = await Promise.all([
+          accountIds.length
+            ? db.query.user.findMany({ where: inArray(userSchema.id, accountIds) })
+            : Promise.resolve([]),
+          db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.userId, userIds) }),
+          db.query.tmbAssessmentResults.findMany({ where: inArray(tmbAssessmentResults.userId, userIds) }),
+        ]);
+        const accBy = new Map(accounts.map((a) => [a.id, a]));
+        const familyByVersion = new Map<string, string | null>();
+        for (const v of scope.versions) {
+          const a = scope.assets.find((x) => x.id === v.assessmentId);
+          familyByVersion.set(v.id, (a?.family as string | null) ?? null);
+        }
+        const rosterBy = new Map<string, (typeof roster)[number]>();
+        for (const r of roster) if (r.userId && !rosterBy.has(r.userId)) rosterBy.set(r.userId, r);
+        const tmbByUser = new Map<string, (typeof tmbRows)[number]>();
+        for (const r of tmbRows) if (!tmbByUser.has(r.userId)) tmbByUser.set(r.userId, r);
+
+        const items = finished.map((s) => {
+          const res = bySession.get(s.id);
+          const tmb = tmbByUser.get(s.studentId);
+          const conf = Number(tmb?.confidenceScore ?? 0) || null;
+          const diff = String(tmb?.differentiation ?? "").toLowerCase();
+          const reasons: string[] = [];
+          if (conf !== null && conf < 50) reasons.push("keyakinan rendah");
+          if (diff.startsWith("weak") || diff.startsWith("flat")) reasons.push("minat menyebar");
+          // kemampuan lemah (berlaku untuk tes bakat): dimensi dengan benar < 40%
+          // hanya untuk tes BAKAT — kemampuan tidak relevan di baris minat
+          if (familyByVersion.get(s.versionId) === "bakat") {
+            const ab = ((tmb?.abilityScores as any)?.scores ?? tmb?.abilityScores ?? {}) as Record<
+              string,
+              { correct?: number; total?: number }
+            >;
+            for (const [k, v] of Object.entries(ab)) {
+              if (!v || typeof v !== "object" || !v.total) continue;
+              if ((v.correct ?? 0) / v.total < 0.4) reasons.push(`kemampuan ${k} lemah`);
+            }
+          }
+          if (!res) reasons.push("hasil belum terbentuk");
+          return {
+            sessionId: s.id,
+            studentId: s.studentId,
+            name: accBy.get(s.studentId)?.name ?? rosterBy.get(s.studentId)?.name ?? "Guest",
+            profileCode: res?.profileCode ?? tmb?.hollandCode ?? null,
+            confidence: conf,
+            differentiation: tmb?.differentiation ?? null,
+            finishedAt: s.completedAt,
+            reasons: reasons.slice(0, 3),
+          };
+        });
+        return {
+          items: items.filter((i) => i.reasons.length > 0).slice(0, input.limit),
+          checked: items.length,
+        };
+      }),
+  },
 
   // ── B2C: statistik & history seluruh pengguna ──
   b2c: {
     stats: adminProcedure.handler(async () => {
-      const [resultCount, userCount, attemptCount, completedCount] = await Promise.all([
-        db.select({ n: count() }).from(tmbAssessmentResults),
-        db
-          .select({ userId: tmbAssessmentResults.userId })
-          .from(tmbAssessmentResults)
-          .groupBy(tmbAssessmentResults.userId),
-        db.select({ n: count() }).from(tmbTestAttempts),
-        db.select({ n: count() }).from(tmbTestAttempts).where(eq(tmbTestAttempts.status, "completed")),
-      ]);
+      const [resultCount, userCount, legacyAttempts, legacyCompleted, engineSessions, engineCompleted] =
+        await Promise.all([
+          db.select({ n: count() }).from(tmbAssessmentResults),
+          db
+            .select({ userId: tmbAssessmentResults.userId })
+            .from(tmbAssessmentResults)
+            .groupBy(tmbAssessmentResults.userId),
+          // legacy (arsip) — tetap ditampilkan terpisah supaya angka tidak menyesatkan
+          db.select({ n: count() }).from(tmbTestAttempts),
+          db.select({ n: count() }).from(tmbTestAttempts).where(eq(tmbTestAttempts.status, "completed")),
+          // sumber utama sekarang: sesi engine
+          db.select({ n: count() }).from(assessmentSessions),
+          db
+            .select({ n: count() })
+            .from(assessmentSessions)
+            .where(inArray(assessmentSessions.status, ["completed", "timeout"] as any)),
+        ]);
 
       // distribusi Holland (semua hasil)
       const results = await db.query.tmbAssessmentResults.findMany({
         columns: { id: true, hollandCode: true, confidenceScore: true, createdAt: true },
       });
       const hollandCount: Record<string, number> = {};
-      let totalConfidence = 0;
+      const confValues: number[] = [];
       for (const r of results) {
         if (r.hollandCode) {
           const primary = r.hollandCode.charAt(0);
           hollandCount[primary] = (hollandCount[primary] ?? 0) + 1;
         }
-        totalConfidence += Number(r.confidenceScore ?? 0);
+        // hanya nilai valid yang masuk rata-rata (dulu null dihitung 0 → rata-rata terlalu rendah)
+        const c = Number(r.confidenceScore);
+        if (Number.isFinite(c) && c > 0) confValues.push(c);
       }
 
       // top jurusan (rekomendasi)
@@ -1922,13 +3106,17 @@ export const tmbAdminRouter = {
       return {
         totalAssessments: resultCount[0]?.n ?? 0,
         totalUsers: userCount.length,
-        totalAttempts: attemptCount[0]?.n ?? 0,
-        completedAttempts: completedCount[0]?.n ?? 0,
+        totalAttempts: engineSessions[0]?.n ?? 0,
+        completedAttempts: engineCompleted[0]?.n ?? 0,
+        legacyAttempts: legacyAttempts[0]?.n ?? 0,
+        legacyCompleted: legacyCompleted[0]?.n ?? 0,
         hollandDistribution: Object.entries(hollandCount)
           .map(([code, count]) => ({ code, count }))
           .sort((a, b) => b.count - a.count),
         topMajors,
-        avgConfidence: results.length ? Math.round(totalConfidence / results.length) : 0,
+        avgConfidence: confValues.length ? Math.round(confValues.reduce((a, b) => a + b, 0) / confValues.length) : 0,
+        confidenceSamples: confValues.length,
+        resultsWithoutConfidence: results.length - confValues.length,
       };
     }),
 
@@ -1963,11 +3151,22 @@ export const tmbAdminRouter = {
           if (!topMajorMap.has(rec.resultId)) topMajorMap.set(rec.resultId, rec.itemName);
         }
 
+        // sesi engine per siswa — dipakai menandai hasil yang punya jawaban tersimpan
+        const uids = [...new Set(rows.map((r) => r.userId))];
+        const sessRows = uids.length
+          ? await db.query.assessmentSessions.findMany({
+              where: inArray(assessmentSessions.studentId, uids),
+              columns: { id: true, studentId: true },
+            })
+          : [];
+        const usersWithSession = new Set(sessRows.map((x) => x.studentId));
+
         return {
           total: total[0]?.n ?? 0,
           items: await Promise.all(
             rows.map(async (r) => ({
               id: r.id,
+              hasSession: usersWithSession.has(r.userId),
               name: userMap.get(r.userId) ?? guestMap.get(r.userId) ?? "Guest",
               isGuest: r.userId.startsWith("guest-"),
               hollandCode: r.hollandCode,
@@ -1977,6 +3176,276 @@ export const tmbAdminRouter = {
               source: await resolveResultSource(r.id),
             })),
           ),
+        };
+      }),
+
+    /**
+     * Data ekspor hasil assessment (admin) — 1 baris = 1 PERCOBAAN (sesi tes yang selesai).
+     *
+     * Sumber jawaban & versi soal = engine (`assessment_sessions` → `assessment_answers`),
+     * jadi versi soal tiap percobaan pasti benar. Profil & confidence diambil dari
+     * `assessment_results` (terikat `sessionId`) dan confidence profil dari baris
+     * `tmb_assessment_results` user yang paling dekat waktunya (dicatat di `confidenceMatch`).
+     */
+    exportData: adminProcedure
+      .input(
+        z.object({
+          limit: z.number().int().min(1).max(1000).default(300),
+          offset: z.number().int().min(0).default(0),
+          code: z.string().trim().optional(), // filter kode tes (DISCOVER/TALENT/…)
+          from: z.string().trim().optional(), // ISO — filter completedAt
+          to: z.string().trim().optional(),
+          batchId: z.string().trim().optional(), // B2B: satu kelas
+          schoolId: z.string().trim().optional(), // B2B: satu sekolah
+        }),
+      )
+      .handler(async ({ input }) => {
+        const fromD = input.from ? new Date(input.from) : null;
+        const toD = input.to ? new Date(input.to) : null;
+        const range =
+          fromD || toD
+            ? and(
+                fromD ? gte(assessmentSessions.completedAt, fromD) : undefined,
+                toD ? lte(assessmentSessions.completedAt, toD) : undefined,
+              )
+            : undefined;
+
+        const sessionsAll = await db.query.assessmentSessions.findMany({
+          where: and(
+            inArray(assessmentSessions.status, ["completed", "timeout"] as any),
+            isNotNull(assessmentSessions.completedAt),
+            range,
+          ),
+          orderBy: [desc(assessmentSessions.completedAt)],
+          limit: input.limit,
+          offset: input.offset,
+        });
+
+        // versi + tes (untuk kode/nama/family + nomor versi)
+        const versionIds = [...new Set(sessionsAll.map((s) => s.versionId))];
+        const versions = versionIds.length
+          ? await db.query.assessmentVersions.findMany({
+              where: inArray(assessmentVersions.id, versionIds),
+            })
+          : [];
+        const assessmentIds = [...new Set(versions.map((v) => v.assessmentId))];
+        const assessRows = assessmentIds.length
+          ? await db.query.assessments.findMany({ where: inArray(assessments.id, assessmentIds) })
+          : [];
+        const versionMap = new Map(versions.map((v) => [v.id, v]));
+        const assessMap = new Map(assessRows.map((a) => [a.id, a]));
+        const codeOf = (versionId: string) => {
+          const v = versionMap.get(versionId);
+          return v ? (assessMap.get(v.assessmentId)?.code ?? "") : "";
+        };
+
+        // B2B: batasi ke siswa kohort (kelas/sekolah)
+        let cohortIds: string[] | null = null;
+        if (input.batchId || input.schoolId) {
+          const batchIds = input.batchId
+            ? [input.batchId]
+            : (
+                await db.query.tmbBatches.findMany({
+                  where: eq(tmbBatches.schoolId, input.schoolId as string),
+                  columns: { id: true },
+                })
+              ).map((b) => b.id);
+          const roster = batchIds.length
+            ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.batchId, batchIds) })
+            : [];
+          cohortIds = roster.map((r) => r.userId ?? `guest-${r.id}`);
+        }
+        if (cohortIds)
+          sessionsAll.splice(0, sessionsAll.length, ...sessionsAll.filter((s) => cohortIds?.includes(s.studentId)));
+
+        let sessions = sessionsAll;
+        if (input.code) {
+          const want = input.code.toUpperCase();
+          sessions = sessions.filter((s) => codeOf(s.versionId).toUpperCase() === want);
+        }
+
+        const sessionIds = sessions.map((s) => s.id);
+        const results = sessionIds.length
+          ? await db.query.assessmentResults.findMany({
+              where: inArray(assessmentResults.sessionId, sessionIds),
+            })
+          : [];
+        const answers = sessionIds.length
+          ? await db.query.assessmentAnswers.findMany({
+              where: inArray(assessmentAnswers.sessionId, sessionIds),
+            })
+          : [];
+        const questionIds = [...new Set(answers.map((a) => a.questionId))];
+        const questionRows = versionIds.length
+          ? await db.query.questions.findMany({
+              where: inArray(questions.versionId, versionIds),
+              orderBy: [asc(questions.displayOrder)],
+            })
+          : [];
+        const allQuestionIds = [...new Set([...questionIds, ...questionRows.map((q) => q.id)])];
+        const options = allQuestionIds.length
+          ? await db.query.questionOptions.findMany({
+              where: inArray(questionOptions.questionId, allQuestionIds),
+              orderBy: [asc(questionOptions.displayOrder)],
+            })
+          : [];
+        const dims = versionIds.length
+          ? await db.query.assessmentDimensions.findMany({
+              where: inArray(assessmentDimensions.versionId, versionIds),
+              orderBy: [asc(assessmentDimensions.displayOrder)],
+            })
+          : [];
+
+        // identitas
+        const userIds = [...new Set(sessions.map((s) => s.studentId))];
+        const accountIds = userIds.filter((u) => !u.startsWith("guest-"));
+        const accounts = accountIds.length
+          ? await db.query.user.findMany({ where: inArray(userSchema.id, accountIds) })
+          : [];
+        const accountMap = new Map(accounts.map((u) => [u.id, { name: u.name, email: u.email }]));
+        const roster = userIds.length
+          ? await db.query.tmbBatchStudents.findMany({ where: inArray(tmbBatchStudents.userId, userIds) })
+          : [];
+        const batchIds = [...new Set(roster.map((r) => r.batchId))];
+        const batches = batchIds.length
+          ? await db.query.tmbBatches.findMany({ where: inArray(tmbBatches.id, batchIds) })
+          : [];
+        const schoolIds = [...new Set(batches.map((b) => b.schoolId))];
+        const schools = schoolIds.length
+          ? await db.query.tmbSchools.findMany({ where: inArray(tmbSchools.id, schoolIds) })
+          : [];
+        const batchMap = new Map(batches.map((b) => [b.id, b]));
+        const schoolMap = new Map(schools.map((s2) => [s2.id, s2]));
+        const rosterByUser = new Map<string, (typeof roster)[number]>();
+        const rosterById = new Map<string, (typeof roster)[number]>();
+        for (const r of roster) {
+          if (r.userId && !rosterByUser.has(r.userId)) rosterByUser.set(r.userId, r);
+          if (!rosterById.has(r.id)) rosterById.set(r.id, r);
+        }
+        /** guest-<rosterId> atau roster yg user_id-nya kosong tetap dapat namanya. */
+        const rosterFor = (studentId: string) =>
+          rosterByUser.get(studentId) ?? rosterById.get(studentId.replace(/^guest-/, "")) ?? null;
+
+        // confidence profil (tmb) — baris terdekat waktunya per user
+        const tmbRows = userIds.length
+          ? await db.query.tmbAssessmentResults.findMany({
+              where: inArray(tmbAssessmentResults.userId, userIds),
+              orderBy: [desc(tmbAssessmentResults.createdAt)],
+            })
+          : [];
+        const matchAttempt = (userId: string, family: string | null, at: Date | null) => {
+          const cands = tmbRows.filter((r) => r.userId === userId);
+          if (!cands.length) return null;
+          const prefer =
+            family === "minat"
+              ? cands.filter((r) => (r.hollandCode ?? "").length > 0)
+              : family === "bakat"
+                ? cands.filter((r) => Object.keys((r as any).abilityScores ?? {}).length > 0)
+                : cands;
+          const pool = prefer.length ? prefer : cands;
+          if (!at) return pool[0] ?? null;
+          return pool.reduce<(typeof pool)[number] | null>((best, r) => {
+            if (!r.createdAt) return best;
+            if (!best?.createdAt) return r;
+            return Math.abs(r.createdAt.getTime() - at.getTime()) < Math.abs(best.createdAt.getTime() - at.getTime())
+              ? r
+              : best;
+          }, null);
+        };
+
+        const rows = sessions.map((s) => {
+          const v = versionMap.get(s.versionId);
+          const a = v ? assessMap.get(v.assessmentId) : null;
+          const family = (a?.family ?? null) as string | null;
+          const res = results.find((r) => r.sessionId === s.id) ?? null;
+          const tmb = matchAttempt(s.studentId, family, s.completedAt);
+          const recos = ((res?.recommendationsJson ?? []) as any[]).map((r: any, i: number) => ({
+            rank: i + 1,
+            name: r.categoryName ?? r.itemName ?? "",
+            confidence: Number(r.confidence ?? 0),
+          }));
+          const rosterRow = rosterFor(s.studentId);
+          const batch = rosterRow ? batchMap.get(rosterRow.batchId) : null;
+          const school = batch ? schoolMap.get(batch.schoolId) : null;
+          const acc = accountMap.get(s.studentId);
+          const ans = answers.filter((x) => x.sessionId === s.id);
+          return {
+            studentId: s.studentId,
+            // samakan dengan tabel Riwayat B2C: tanpa akun/roster → "Guest" (id tetap ada di kolom ID Siswa)
+            name: acc?.name ?? rosterRow?.name ?? "Guest",
+            email: acc?.email ?? rosterRow?.email ?? "",
+            isGuest: s.studentId.startsWith("guest-") || !acc,
+            source: rosterRow ? "sekolah" : "mandiri",
+            schoolName: school?.name ?? "",
+            batchName: batch?.name ?? "",
+            testCode: a?.code ?? "",
+            testName: a?.name ?? "",
+            family,
+            versionNumber: v?.versionNumber ?? null,
+            versionStatus: v?.status ?? "",
+            sessionId: s.id,
+            versionId: s.versionId,
+            startedAt: s.startedAt,
+            finishedAt: s.completedAt,
+            status: s.status,
+            profileCode: res?.profileCode ?? tmb?.hollandCode ?? null,
+            topDimensions: (res?.topDimensionsJson ?? []) as string[],
+            rawScores: (res?.rawScoresJson ?? {}) as Record<string, number>,
+            timedOut: res?.timedOut ?? false,
+            xpEarned: res?.xpEarned ?? 0,
+            recommendations: recos,
+            confidenceProfile: tmb?.confidenceScore ?? null,
+            differentiation: tmb?.differentiation ?? null,
+            confidenceMatch: tmb ? { attemptId: tmb.id, createdAt: tmb.createdAt } : null,
+            answers: ans.map((x) => ({
+              questionId: x.questionId,
+              optionId: x.selectedOptionId ?? null,
+              text: x.textAnswer ?? null,
+              score: x.scoreEarned ?? null,
+            })),
+          };
+        });
+
+        const total = await db
+          .select({ n: count() })
+          .from(assessmentSessions)
+          .where(
+            and(
+              inArray(assessmentSessions.status, ["completed", "timeout"] as any),
+              isNotNull(assessmentSessions.completedAt),
+              range,
+            ),
+          );
+
+        const totalResultRows = await db.select({ n: count() }).from(tmbAssessmentResults);
+        // total HARUS mengikuti cakupan (kohort/tes) — bukan total global
+        const scopedTotal = cohortIds ? rows.length : (total[0]?.n ?? 0);
+
+        return {
+          generatedAt: new Date().toISOString(),
+          total: scopedTotal,
+          totalResults: totalResultRows[0]?.n ?? 0,
+          offset: input.offset,
+          limit: input.limit,
+          rows,
+          questions: questionRows.map((q) => ({
+            id: q.id,
+            versionId: q.versionId,
+            order: q.displayOrder,
+            code: q.questionCode ?? "",
+            text: q.questionText ?? "",
+            type: q.questionType,
+            dimensionId: q.dimensionId,
+            presentationMode: q.presentationMode,
+          })),
+          options: options.map((o) => ({
+            id: o.id,
+            questionId: o.questionId,
+            value: o.optionValue,
+            label: o.label,
+            score: o.score,
+          })),
+          dimensions: dims.map((d) => ({ id: d.id, versionId: d.versionId, code: d.code, name: d.name })),
         };
       }),
   },
@@ -1994,7 +3463,7 @@ async function resolveResultSource(resultId: string) {
 // ─── Short claim code (tanpa huruf ambigu O/0/I/1/L) ───
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-function generateClaimCode(len = 6): string {
+export function generateClaimCode(len = 6): string {
   let out = "";
   for (let i = 0; i < len; i++) {
     out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];

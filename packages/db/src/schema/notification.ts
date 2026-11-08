@@ -11,5 +11,7 @@ export const notification = pgTable("notification", {
   type: text("type").default("info").notNull(), // info | success | warning | error
   read: boolean("read").default(false).notNull(),
   link: text("link"), // Optional link to redirect
+  // (M5.1) kunci unik untuk notifikasi otomatis (anti-dobel)
+  dedupeKey: text("dedupe_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

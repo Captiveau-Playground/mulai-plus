@@ -1068,6 +1068,36 @@
   color: white !important;
 }
 
+/* ─── Area SEKOLAH (B2B): sidebar teal gelap, struktur tetap standar ─── */
+[data-slot="sidebar-wrapper"][data-area="sekolah"],
+[data-area="sekolah"] [data-slot="sidebar-wrapper"] {
+  --sidebar: #0b4f4a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(255, 255, 255, 0.12);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.14);
+  --sidebar-ring: #14b8a6;
+}
+
+/* Cegah konten panjang (kode undangan/tabel) mendorong lebar layout di mobile */
+[data-slot="sidebar-wrapper"][data-area="sekolah"],
+[data-area="sekolah"] [data-slot="sidebar-inset"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-area="sekolah"] [data-slot="sidebar"],
+[data-slot="sidebar"][data-area="sekolah"],
+[data-area="sekolah"] [data-slot="sidebar-header"],
+[data-area="sekolah"] [data-slot="sidebar-footer"],
+/* konten sidebar memakai `bg-sidebar` (var --sidebar) → pastikan teal juga */
+[data-area="sekolah"] [data-slot="sidebar"] > div,
+[data-area="sekolah"] .bg-sidebar {
+  background-color: #0b4f4a !important;
+}
+
 /* Sidebar header/footer backgrounds */
 [data-slot="sidebar-header"],
 [data-slot="sidebar-footer"] {

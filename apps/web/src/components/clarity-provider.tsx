@@ -27,6 +27,7 @@ function isLocalhost(): boolean {
 
 function shouldTrackClarity(pathname: string): boolean {
   // Skip on localhost unless GA_DEBUG_MODE is on
+  if (String(env.NEXT_PUBLIC_ANALYTICS_DISABLED ?? "") === "1") return false;
   if (isLocalhost() && !env.NEXT_PUBLIC_GA_DEBUG_MODE) return false;
   return !EXCLUDED_PATTERNS.some((p) => pathname.startsWith(p));
 }

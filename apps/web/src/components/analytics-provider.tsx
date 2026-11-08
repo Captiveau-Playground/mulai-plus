@@ -4,8 +4,8 @@ import { env } from "@mulai-plus/env/web";
 import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
 
-import { Suspense, useEffect } from "react";
-import { usePageViewTracking } from "@/lib/analytics";
+import { Suspense, useEffect, useState } from "react";
+import { analyticsEnabled, usePageViewTracking } from "@/lib/analytics";
 import { ClarityProvider } from "./clarity-provider";
 import { CookieConsentBanner, useConsent } from "./cookie-consent";
 
@@ -22,6 +22,9 @@ function PageViewTracker() {
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const gaId = env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   const { consent, accept, reject } = useConsent();
+  // Di lokal/preview GA tidak dimuat sama sekali (cegah data lokal masuk ke properti produksi).
+  const [gaOn, setGaOn] = useState(false);
+  useEffect(() => setGaOn(analyticsEnabled()), []);
 
   // GA4 Consent Mode v2 — script dimuat selalu, tapi default DENIED.
   // `wait_for_update` memberi waktu sebelum event dikirim (halaman pertama).
@@ -63,9 +66,13 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
       {children}
 
-      {/* GA4 — Consent Mode v2: script dimuat selalu; storage mengikuti pilihan user */}
-      <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
-      <Script id="ga4-init" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: gaInitScript }} />
+      {/* GA4 — Consent Mode v2. Script hanya dimuat bila lingkungan diizinkan. */}
+      {gaOn && (
+        <>
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
+          <Script id="ga4-init" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: gaInitScript }} />
+        </>
+      )}
 
       <ClarityProvider consent={consent} />
       <CookieConsentBanner consent={consent} onAccept={accept} onReject={reject} />

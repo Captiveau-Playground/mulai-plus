@@ -7,7 +7,7 @@ import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageState } from "@/components/ui/page-state";
 import { useAuthorizePage } from "@/lib/auth-client";
@@ -182,10 +182,14 @@ export default function MentorDashboardPage() {
                         <Calendar className="h-8 w-8 text-white/50" />
                       </div>
                       <p className="font-manrope text-white/70">No upcoming sessions</p>
-                      <Link href="/mentor/sessions" className="mt-3">
-                        <Button variant="outline" className="rounded-full border-white/30 text-white hover:bg-white/10">
-                          View All Sessions
-                        </Button>
+                      <Link
+                        href="/mentor/sessions"
+                        className={cn(
+                          buttonVariants({ variant: "outline" }),
+                          "mt-3 rounded-full border-white/30 text-white hover:bg-white/10",
+                        )}
+                      >
+                        View All Sessions
                       </Link>
                     </div>
                   )}

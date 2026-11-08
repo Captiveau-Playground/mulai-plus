@@ -8,6 +8,14 @@ import { authClient } from "@/lib/auth-client";
 // Fallback key — sebaiknya diatur lewat NEXT_PUBLIC_AMPLITUDE_API_KEY di env
 const FALLBACK_API_KEY = "4b58c01dd72032ca4a3e30482f149d27";
 
+/** Analytics dimatikan total (lokal/staging/preview) atau hostname lokal → jangan kirim apa pun. */
+function analyticsBlocked(): boolean {
+  if (String(env.NEXT_PUBLIC_ANALYTICS_DISABLED ?? "") === "1") return true;
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host.endsWith(".local");
+}
+
 let initialized = false;
 let amplitudeModule: typeof import("@amplitude/unified") | null = null;
 
@@ -35,7 +43,7 @@ export function AmplitudeInit() {
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
-    if (consent !== "accepted") return;
+    if (consent !== "accepted" || analyticsBlocked()) return;
     const userId = session?.user?.id;
     if (userId) identifyAmplitudeUser(userId);
     else resetAmplitudeUser();
@@ -44,7 +52,7 @@ export function AmplitudeInit() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
     if (initialized) return;
-    if (consent !== "accepted") return;
+    if (consent !== "accepted" || analyticsBlocked()) return;
 
     const apiKey =
       env.NEXT_PUBLIC_AMPLITUDE_API_KEY && !env.NEXT_PUBLIC_AMPLITUDE_API_KEY.includes("<")
