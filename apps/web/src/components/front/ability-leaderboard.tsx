@@ -50,15 +50,15 @@ export function AbilityLeaderboard() {
             <Trophy className="size-3.5" /> Papan Peringkat
           </span>
           <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy sm:text-4xl">
-            Tercepat &amp; Terbaik <span className="text-brand-orange">Test Bakat</span>
+            Paling Akurat &amp; Tercepat <span className="text-brand-orange">Test Bakat</span>
           </h2>
           <p className="mx-auto mt-2 max-w-xl font-manrope text-muted-foreground text-sm">
-            Peringkat = akurasi jawaban benar (min. 10 soal), lalu jumlah benar, lalu waktu tercepat. Nama disensor —
-            privasi tetap terjaga.
+            Peringkat = akurasi jawaban benar (minimal 10 soal), lalu jumlah soal dijawab, lalu waktu tercepat. Nama
+            disensor — privasi tetap terjaga.
           </p>
         </div>
 
-        {entries.length >= 1 && <LeaderboardPodium top={entries.slice(0, 3)} />}
+        {entries.length >= 3 && <LeaderboardPodium top={entries.slice(0, 3)} />}
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
           {isLoading ? (
@@ -78,11 +78,11 @@ export function AbilityLeaderboard() {
                   <th className="px-4 py-3 text-left">#</th>
                   <th className="px-4 py-3 text-left">Peserta</th>
                   <th className="px-4 py-3 text-center">Skor</th>
-                  <th className="px-4 py-3 text-right">Waktu</th>
+                  <th className="hidden px-4 py-3 text-right sm:table-cell">Waktu</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {entries.map((e) => (
+                {(entries.length >= 3 ? entries.slice(3) : entries).map((e) => (
                   <tr
                     key={e.rank}
                     className={e.isSelf ? "bg-brand-orange/5 font-semibold" : "transition-colors hover:bg-gray-50/60"}
@@ -111,7 +111,7 @@ export function AbilityLeaderboard() {
                         <span className="ml-1 font-normal text-[10px] text-muted-foreground">({e.accuracy}%)</span>
                       )}
                     </td>
-                    <td className="flex items-center justify-end gap-1 px-4 py-2.5 font-manrope text-muted-foreground text-xs">
+                    <td className="hidden items-center justify-end gap-1 px-4 py-2.5 font-manrope text-muted-foreground text-xs sm:flex">
                       <Timer className="h-3 w-3" /> {fmtTime(e.durationSec)}
                     </td>
                   </tr>
@@ -141,8 +141,15 @@ export function AbilityLeaderboard() {
 }
 
 /** Podium 3 besar — hand-built (rank emas/perak/perunggu). */
-function LeaderboardPodium({ top }: { top: { rank: number; masked: string; score: number; total: number }[] }) {
-  const order = [1, 0, 2];
+function LeaderboardPodium({
+  top,
+}: {
+  top: { rank: number; masked: string; score: number; total: number; accuracy?: number }[];
+}) {
+  // Urutan tampil podium: juara 2 (kiri), juara 1 (tengah), juara 3 (kanan).
+  // Dulu memakai indeks array ([1,0,2]) padahal pencariannya berdasarkan `rank`,
+  // sehingga rank 0 tidak ada dan rank 3 tidak pernah tampil.
+  const order = [2, 1, 3];
   const style: Record<number, { ring: string; chip: string; h: string }> = {
     1: {
       ring: "bg-amber-100 text-amber-600",
@@ -166,16 +173,20 @@ function LeaderboardPodium({ top }: { top: { rank: number; masked: string; score
         return (
           <div key={rank} className="flex flex-col items-center">
             <div
-              className={`flex h-9 w-9 items-center justify-center rounded-full${st.ring}font-bold font-bricolage text-sm`}
+              className={`flex h-9 w-9 items-center justify-center rounded-full font-bold font-bricolage text-sm ${st.ring}`}
             >
               {rank}
             </div>
             <p className="mt-1 max-w-[5.5rem] truncate font-manrope font-semibold text-[11px] text-brand-navy">
               {e.masked}
             </p>
-            <div className={`mt-1 flex w-full flex-col items-center justify-center rounded-t-2xl${st.chip} ${st.h}`}>
-              <span className="font-bold font-bricolage text-lg">{e.score}</span>
-              <span className="font-manrope text-[9px] opacity-80">poin</span>
+            <div className={`mt-1 flex w-full flex-col items-center justify-center rounded-t-2xl ${st.chip} ${st.h}`}>
+              <span className="font-bold font-bricolage text-lg leading-none">
+                {typeof e.accuracy === "number" ? `${e.accuracy}%` : e.score}
+              </span>
+              <span className="mt-0.5 font-manrope text-[9px] opacity-90">
+                {e.score}/{e.total} benar
+              </span>
             </div>
           </div>
         );

@@ -57,9 +57,9 @@ const ABILITIES = [
 ];
 
 const KEY_FACTS = [
-  { icon: Brain, valueNum: 5, suffix: " dimensi", prefix: "", label: "kemampuan dasar" },
-  { icon: ClipboardList, valueNum: 10, suffix: " soal", prefix: "", label: "pilihan ganda" },
-  { icon: Clock, valueNum: 5, suffix: " menit", prefix: "±", label: "waktu pengerjaan" },
+  { icon: Brain, valueNum: 5, suffix: " dimensi", prefix: "", label: "kemampuan dasar (20 soal per dimensi)" },
+  { icon: ClipboardList, valueNum: 100, suffix: " soal", prefix: "", label: "60 pilihan ganda + 40 isian" },
+  { icon: Clock, valueNum: 10, suffix: " menit", prefix: "", label: "timer per bagian (5 bagian)" },
   { icon: TrendingUp, valueNum: 3, suffix: " level", prefix: "", label: "tinggi · sedang · berkembang" },
 ];
 
@@ -232,7 +232,7 @@ export default function AssessmentBakatPage() {
           },
           {
             q: "Berapa lama tesnya?",
-            a: "Sekitar 5 menit untuk 10 soal pilihan ganda. Ada jawaban benar, tapi tidak ada timer yang menekan.",
+            a: "100 soal (60 pilihan ganda + 40 isian) dalam 5 bagian, masing-masing dibatasi 10 menit — total maksimal sekitar 50 menit. Kecepatan ikut dinilai, jadi kerjakan dengan teliti tanpa berlama-lama.",
           },
           {
             q: "Apa bedanya dengan Tes Minat?",
@@ -240,7 +240,7 @@ export default function AssessmentBakatPage() {
           },
           {
             q: "Bagaimana hasilnya dibaca?",
-            a: "Setiap dimensi dinilai menjadi Tinggi, Sedang, atau Perlu Pengembangan. Dua tertinggi jadi kekuatan utamamu, terendah jadi area yang bisa diasah.",
+            a: "Setiap dimensi dinilai menjadi Tinggi, Sedang, atau Perlu Pengembangan. Dua tertinggi jadi kekuatan utamamu, terendah jadi area yang bisa diasah. Skor gabungan 5 dimensi juga muncul di papan peringkat Tes Bakat.",
           },
           { q: "Apakah tesnya gratis?", a: "Ya, sepenuhnya gratis untuk individu setelah login." },
         ]}
@@ -249,14 +249,25 @@ export default function AssessmentBakatPage() {
       {/* CTA */}
       <section className="border-gray-100 border-t bg-white">
         <Reveal className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 md:py-20">
-          <p className="font-bold font-manrope text-user-primary text-xs uppercase tracking-widest">Tes Bakat · 5 Dimensi</p>
+          <p className="font-bold font-manrope text-user-primary text-xs uppercase tracking-widest">
+            Tes Bakat · 5 Dimensi
+          </p>
           <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight sm:text-4xl">
             Ukur Kekuatanmu Sekarang
           </h2>
-          <p className="mx-auto mt-3 max-w-lg font-manrope text-gray-500">Gratis, ±5 menit, hasil langsung. Kenali 5 dimensi bakatmu dan 2 kekuatan utama yang bisa kamu andalkan.</p>
+          <p className="mx-auto mt-3 max-w-lg font-manrope text-gray-500">
+            Gratis, ±5 menit, hasil langsung. Kenali 5 dimensi bakatmu dan 2 kekuatan utama yang bisa kamu andalkan.
+          </p>
           <a
             data-tracked="1"
-            href={buildUtmUrl('/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment', { source: 'mulaiplus_web', medium: 'front', campaign: 'assessment-bakat', content: 'cta-bottom' }) as any}
+            href={
+              buildUtmUrl("/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment", {
+                source: "mulaiplus_web",
+                medium: "front",
+                campaign: "assessment-bakat",
+                content: "cta-bottom",
+              }) as any
+            }
             onClick={() => trackEvent("assessment_cta_click", { type: "bakat", cta: "bottom" })}
             className="mt-7 inline-flex items-center gap-2 rounded-xl bg-brand-orange px-7 py-3.5 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
           >

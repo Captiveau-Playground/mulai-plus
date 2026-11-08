@@ -2,7 +2,7 @@ import { ArrowRight, BrainCircuit, Database, FileCheck2, Sparkles, Target, UserR
 
 /**
  * USP: hasil assessment dihitung dengan AI + database MULAI+
- * (18.000+ prodi & 400+ universitas) — bukan opini acak.
+ * (15.000+ prodi aktif & 400+ kampus) — bukan opini acak.
  */
 
 export function AssessmentEngineSection() {
@@ -22,7 +22,10 @@ export function AssessmentEngineSection() {
 
       {/* Pipeline */}
       <div className="relative mx-auto mt-14 max-w-4xl">
-        <div className="absolute top-12 right-[22%] left-[22%] hidden h-px bg-gradient-to-r from-teal-500/30 via-gray-300 to-teal-500/30 md:block" aria-hidden>
+        <div
+          className="absolute top-12 right-[22%] left-[22%] hidden h-px bg-gradient-to-r from-teal-500/30 via-gray-300 to-teal-500/30 md:block"
+          aria-hidden
+        >
           {[0, 1, 2].map((i) => (
             <span
               key={i}
@@ -40,7 +43,7 @@ export function AssessmentEngineSection() {
             </div>
             <h3 className="mt-4 font-bold font-bricolage text-base text-gray-900">Profilmu</h3>
             <p className="mx-auto mt-1 max-w-[220px] font-manrope text-gray-500 text-xs leading-relaxed">
-              Minat (Holland RIASEC) + 5 dimensi bakat dari 20 jawabanmu.
+              Minat (Holland RIASEC) + 5 dimensi bakat dari 220 jawabanmu.
             </p>
           </div>
 
@@ -55,10 +58,10 @@ export function AssessmentEngineSection() {
             </p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
               <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 font-bold font-manrope text-[10px] text-teal-700 shadow-sm">
-                <Database className="h-3 w-3" /> 18.000+ prodi
+                <Database className="h-3 w-3" /> 15.000+ prodi
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 font-bold font-manrope text-[10px] text-teal-700 shadow-sm">
-                <Database className="h-3 w-3" /> 400+ universitas
+                <Database className="h-3 w-3" /> 400+ kampus
               </span>
             </div>
           </div>
@@ -70,7 +73,7 @@ export function AssessmentEngineSection() {
             </div>
             <h3 className="mt-4 font-bold font-bricolage text-base text-gray-900">Rekomendasi</h3>
             <p className="mx-auto mt-1 max-w-[220px] font-manrope text-gray-500 text-xs leading-relaxed">
-              Top 5 jurusan + karier dengan skor kecocokan, plus ringkasan AI.
+              5 jurusan + 6 karier dengan skor kecocokan, contoh prodi &amp; kampus, plus peta rekomendasi.
             </p>
           </div>
         </div>
@@ -91,7 +94,10 @@ export function AssessmentEngineSection() {
             desc: "Setiap jurusan diberi persentase — transparan, bukan magic.",
           },
         ].map((c) => (
-          <div key={c.title} className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-5 transition-all hover:-translate-y-1 hover:border-teal-500/25 hover:shadow-md">
+          <div
+            key={c.title}
+            className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-5 transition-all hover:-translate-y-1 hover:border-teal-500/25 hover:shadow-md"
+          >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600">
               <c.icon className="h-4.5 h-[18px] w-4.5 w-[18px]" />
             </div>
@@ -112,13 +118,13 @@ export function UspStrip() {
     <div className="border-gray-100 border-y bg-gray-50/60">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-4 py-4 sm:px-6 lg:px-8">
         <span className="inline-flex items-center gap-2 font-manrope font-semibold text-gray-600 text-xs">
-          <Database className="h-4 w-4 text-teal-600" /> Database 18.000+ prodi & 400+ universitas
+          <Database className="h-4 w-4 text-teal-600" /> Database 15.000+ prodi & 400+ kampus
         </span>
         <span className="inline-flex items-center gap-2 font-manrope font-semibold text-gray-600 text-xs">
           <BrainCircuit className="h-4 w-4 text-teal-600" /> Diproses dengan AI
         </span>
         <span className="inline-flex items-center gap-2 font-manrope font-semibold text-gray-600 text-xs">
-          <Sparkles className="h-4 w-4 text-teal-600" /> Skor kecocokan & rekomendasi karier
+          <Sparkles className="h-4 w-4 text-teal-600" /> Skor kecocokan, rekomendasi karier & peta prodi
         </span>
         <span className="inline-flex items-center gap-1.5 font-bold font-manrope text-teal-700 text-xs">
           <ArrowRight className="h-3.5 w-3.5" /> Coba sekarang

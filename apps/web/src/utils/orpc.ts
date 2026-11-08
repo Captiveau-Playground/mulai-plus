@@ -1,9 +1,9 @@
-import { env } from "@mulai-plus/env/web";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/client";
 import { notify } from "@/lib/toast";
+import { SERVER_URL } from "@/lib/web-env";
 
 export { client };
 
@@ -21,7 +21,7 @@ export const queryClient = new QueryClient({
 });
 
 export const link = new RPCLink({
-  url: `${env.NEXT_PUBLIC_SERVER_URL}/rpc`,
+  url: `${SERVER_URL}/rpc`,
   fetch(url, options) {
     return fetch(url, {
       ...options,
