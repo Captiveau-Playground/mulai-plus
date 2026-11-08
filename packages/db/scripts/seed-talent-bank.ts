@@ -230,6 +230,13 @@ async function main() {
     ] as never);
     console.log("✅ 2 pengantar ditambahkan.");
   }
+  // Nama dimensi manusiawi (dipakai di header instruksi & label bagian)
+  const dbName: Record<string, string> = {};
+  for (const d of await db.query.assessmentDimensions.findMany({
+    where: eq(schema.assessmentDimensions.versionId, target.id),
+  })) {
+    dbName[d.code] = d.name;
+  }
   const ins = await db.query.dimensionInstructions.findMany({
     where: eq(schema.dimensionInstructions.dimensionId, dimIdOf(TALENT_DIMS[0] ?? "verbal")),
   });
@@ -238,7 +245,7 @@ async function main() {
       await db.insert(schema.dimensionInstructions).values({
         id: id(),
         dimensionId: dimIdOf(code),
-        header: `Bagian ${code.charAt(0).toUpperCase() + code.slice(1)}`,
+        header: `Bagian ${dbName[code] ?? code.charAt(0).toUpperCase() + code.slice(1)}`,
         contentType: "bullet_list",
         contentJson: {
           items: [

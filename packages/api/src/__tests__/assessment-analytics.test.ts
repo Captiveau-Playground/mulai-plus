@@ -495,3 +495,32 @@ describe("funnel: durasi sesi yang ditutup sistem", () => {
     expect(f.byStatus.abandoned).toBe(1);
   });
 });
+
+describe("timer digeser saat tes benar-benar dimulai", () => {
+  it("semua deadline bergeser sebesar durasi intro", async () => {
+    const { shiftTimer } = await import("../lib/assessment-analytics");
+    const base = "2026-11-01T10:00:00.000Z";
+    const at = (s: number) => new Date(new Date(base).getTime() + s * 1000).toISOString();
+    const timer = {
+      serverNowISO: base,
+      expectedEndISO: at(120),
+      dims: [{ id: "d1", startISO: base, endISO: at(60), durationSeconds: 60 }],
+      qEnds: [at(90), "", at(120)],
+    };
+    const shifted = shiftTimer(timer, 30_000);
+    expect(shifted.expectedEndISO).toBe(at(150));
+    expect(shifted.dims[0].endISO).toBe(at(90));
+    expect(shifted.qEnds[0]).toBe(at(120));
+    expect(shifted.qEnds[1]).toBe("");
+    // durasi total tetap
+    const dur = new Date(shifted.expectedEndISO).getTime() - new Date(shifted.serverNowISO).getTime();
+    expect(dur).toBe(120_000);
+  });
+
+  it("tanpa timer / shift nol → tidak berubah", async () => {
+    const { shiftTimer } = await import("../lib/assessment-analytics");
+    expect(shiftTimer(null, 1000)).toBeNull();
+    const t = { expectedEndISO: "2026-11-01T10:02:00.000Z" };
+    expect(shiftTimer(t, 0)).toBe(t);
+  });
+});

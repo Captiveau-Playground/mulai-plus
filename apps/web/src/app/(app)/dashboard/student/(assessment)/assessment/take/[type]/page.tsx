@@ -55,9 +55,10 @@ function TestRoute({ code }: { code: string }) {
   const search = useSearchParams();
   const preview = search?.get("preview") === "1";
   const versionId = search?.get("v");
-  // Preview admin: engine dipakai untuk SEMUA kode (termasuk tes kustom), supaya yang
-  // dilihat admin persis halaman tes siswa dengan konten versi yang dipilih.
-  if (preview || code === "DISCOVER" || code === "TALENT")
+  // SATU jalur render: engine dipakai untuk semua kode tes (termasuk tes kustom & preview
+  // admin), supaya yang dilihat admin PERSIS sama dengan yang dilihat siswa.
+  // `LegacyWizard` hanya untuk kode katalog lama ("interest"/"ability") yang datanya di tmb_*.
+  if (preview || (code !== "interest" && code !== "ability"))
     return <EngineWrapper code={code} preview={preview} versionId={versionId} />;
   return <LegacyWizard />;
 }
@@ -754,6 +755,35 @@ function LegacyWizard({
     // biome-ignore lint/correctness/useExhaustiveDependencies: timer tick sengaja hanya bergantung nilai ini
   }, [timerSt, eq, effQs.length, engineFinish, timerJump, isEngine, serverNowEst, deadlineOf]);
 
+  // ⏱ Suara peringatan SEKALI saat masuk fase kritis (waktu hampir habis).
+  // Efek ini sengaja diletakkan bersama hook lain (di atas semua early-return) supaya
+  // jumlah hook stabil antar-render — versi sebelumnya ditaruh setelah early-return dan
+  // memicu "Rendered more hooks than during the previous render".
+  const critBlipRef = useRef(false);
+  useEffect(() => {
+    if (!isEngine || !timerSt?.ok) {
+      critBlipRef.current = false;
+      return;
+    }
+    const dl = deadlineOf(eq);
+    if (dl.kind === "none") {
+      critBlipRef.current = false;
+      return;
+    }
+    const remain = new Date(dl.endISO as string).getTime() - serverNowEst();
+    const ratio = dl.totalMs && dl.totalMs > 0 ? remain / dl.totalMs : 1;
+    if (ratio > 0.1) {
+      critBlipRef.current = false;
+      return;
+    }
+    if (!critBlipRef.current) {
+      critBlipRef.current = true;
+      blip(880, 0.12);
+      setTimeout(() => blip(660, 0.1), 180);
+    }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: dipicu perubahan timer/posisi soal
+  }, [timerSt, eq, isEngine, serverNowEst, deadlineOf, blip]);
+
   const [_lastEval, setLastEval] = useState<boolean | null>(null); // hasil eval soal isian
   const engineSubmitText = () => {
     if (revealed || !question || !etv.trim()) return;
@@ -1274,7 +1304,18 @@ function LegacyWizard({
         )}
         <button
           type="button"
-          onClick={() => {
+          data-testid="start-test"
+          onClick={async () => {
+            // Timer dibuat saat sesi dibuat (mount) → geser deadline sekali supaya waktu
+            // di layar intro/guide tidak memakan jatah. Server-authoritative & idempotent.
+            try {
+              const r = (await (client as any).discover.begin({ sessionId: engine?.sessionId })) as any;
+              if (r?.ok && r?.timer && r?.shiftedMs) {
+                setTimerSt((prev: any) => ({ ...(prev ?? {}), ...r.timer, _localAt: Date.now() }));
+              }
+            } catch {
+              /* jangan blokir mulai tes kalau server lambat */
+            }
             setIntro(false);
           }}
           className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
@@ -1320,7 +1361,9 @@ function LegacyWizard({
           const items: string[] = Array.isArray(cj.items) ? cj.items : cj.text ? [cj.text] : [];
           return (
             <div className="mt-4 w-full max-w-sm rounded-2xl border border-teal-100 bg-teal-50/50 px-4 py-3 text-left">
-              <p className="font-bold font-manrope text-[11px] text-teal-800">{ins.header ?? "Instruksi"}</p>
+              <p className="font-bold font-manrope text-[11px] text-teal-800">
+                Instruksi · {dimNameOf(dimId as string)}
+              </p>
               {items.length > 0 && (
                 <ul className="mt-1 space-y-0.5 font-manrope text-[11px] text-teal-700">
                   {items.map((it, i) => (
@@ -1472,6 +1515,23 @@ function LegacyWizard({
 
   return (
     <div className="fixed inset-0 z-[70] h-dvh overflow-hidden bg-bg-light">
+      {_tone === "crit" && timerSt?.ok && (
+        <>
+          <div
+            aria-hidden
+            data-testid="time-critical-ring"
+            className="pointer-events-none fixed inset-0 z-[95] animate-pulse rounded-[28px] ring-4 ring-red-500/60 ring-inset"
+          />
+          <div
+            data-testid="time-critical-banner"
+            className="pointer-events-none fixed inset-x-0 top-0 z-[96] flex justify-center px-4 pt-2"
+          >
+            <span className="animate-shake-soft rounded-full bg-red-500 px-3 py-1 font-bold font-manrope text-[11px] text-white shadow-lg">
+              ⏱ Waktu hampir habis — {_mmss} lagi
+            </span>
+          </div>
+        </>
+      )}
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 pt-6 pb-5">
         <div className="flex flex-col">
           {showGuide && (
@@ -1616,26 +1676,29 @@ function LegacyWizard({
                       bersamanya saat timer aktif — jadi siswa tahu berjalan & sisa waktu. */}
                   <span
                     data-testid="elapsed-chip"
-                    title="Waktu berjalan"
-                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 font-manrope font-semibold text-[10px] text-slate-600 tabular-nums sm:px-2 sm:text-[11px]"
+                    title="Waktu berjalan (dihitung naik sejak tes dimulai)"
+                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 font-manrope font-semibold text-[10px] text-slate-500 tabular-nums sm:px-2 sm:text-[11px]"
                   >
                     <Timer className="h-3 w-3" />
+                    <span className="hidden sm:inline">Berjalan</span>
                     {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
                   </span>
                   {_mmss && (
                     <span
                       data-testid="countdown-chip"
-                      title="Sisa waktu"
+                      data-tone={_tone}
+                      title="Sisa waktu bagian/soal ini"
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-bold font-manrope text-[10px] tabular-nums sm:px-2 sm:text-[11px]",
+                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-bold font-manrope text-[10px] tabular-nums transition-colors sm:px-2 sm:text-[11px]",
                         _tone === "crit"
-                          ? "animate-pulse bg-red-100 text-red-600"
+                          ? "animate-pulse bg-red-500 text-white shadow-md shadow-red-500/30"
                           : _tone === "warn"
-                            ? "bg-amber-100 text-amber-600"
-                            : "bg-sky-100 text-sky-600",
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-sky-100 text-sky-700",
                       )}
                     >
                       <Timer className="h-3 w-3" />
+                      <span className="hidden sm:inline">Sisa</span>
                       {_mmss}
                     </span>
                   )}

@@ -14,6 +14,7 @@ import {
   countsForAbility,
   isStaleUntimedSession,
   likertPoint,
+  shiftTimer,
   staleDaysFromEnv,
 } from "../lib/assessment-analytics";
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
@@ -1118,6 +1119,38 @@ export const discoverRouter = {
       if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
       return finalizeSession(sess, input.durations);
     }),
+
+  /**
+   * Mulai mengerjakan (dipanggil saat siswa menekan "Mulai Tes"/"Mulai bagian" pertama).
+   * Timer sesi dibuat saat sesi dibuat (mount halaman) — waktu di layar intro/guide tidak
+   * boleh memakan jatah pengerjaan, jadi seluruh deadline digeser sekali sebesar waktu intro.
+   * Idempotent: hanya berlaku sekali per sesi (`timerStartedAt`).
+   */
+  begin: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input, context }) => {
+    const sess = await db.query.assessmentSessions.findFirst({
+      where: eq(schema.assessmentSessions.id, input.sessionId),
+    });
+    if (!sess) return { ok: false, error: "session_not_found" } as const;
+    if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
+    if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
+
+    const cfg = (sess.configJson ?? {}) as any;
+    const timer = cfg?.timer ?? null;
+    if (!timer) return { ok: true, shiftedMs: 0 } as const;
+    if (cfg.timerStartedAt) return { ok: true, shiftedMs: 0, already: true } as const;
+
+    const startedAt = sess.startedAt ? new Date(sess.startedAt).getTime() : Date.now();
+    // batasi agar sesi yang ditinggal berhari-hari di intro tidak dapat tambahan waktu besar
+    const shift = Math.max(0, Math.min(5 * 60_000, Date.now() - startedAt));
+    const nextTimer = shiftTimer(timer, shift);
+    await db
+      .update(schema.assessmentSessions)
+      .set({
+        configJson: { ...cfg, timer: nextTimer, timerStartedAt: new Date().toISOString() },
+      })
+      .where(eq(schema.assessmentSessions.id, sess.id));
+    return { ok: true, shiftedMs: shift, timer: nextTimer } as const;
+  }),
 
   /** Jeda (pause) → lanjutkan nanti. */
   pause: publicProcedure
