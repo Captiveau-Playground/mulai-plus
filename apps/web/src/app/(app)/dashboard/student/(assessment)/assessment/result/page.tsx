@@ -10,7 +10,7 @@ import { FutureCareerMap } from "@/components/front/future-career-map";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
-import { buildResultMindMap } from "@/lib/future-career";
+import { buildResultMindMap, resultUtm } from "@/lib/future-career";
 import { printTmbReport } from "@/lib/tmb-report-print";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -32,18 +32,6 @@ const ABILITY_INFO: Record<string, { label: string; emoji: string }> = {
   spatial: { label: "Spasial", emoji: "🧊" },
   clerical: { label: "Ketelitian", emoji: "🔍" },
 };
-
-/**
- * Tambahkan UTM ke link internal prodi supaya asal klik terlacak di analytics:
- * semua link dari halaman HASIL memakai `utm_source=result` (+ jenis kartunya).
- */
-export function withUtm(link: string, slot = "major_card"): string {
-  if (!link) return link;
-  const [base, hash = ""] = link.split("#");
-  const sep = (base ?? "").includes("?") ? "&" : "?";
-  const q = `utm_source=result&utm_medium=app&utm_campaign=tmb_result&utm_content=${encodeURIComponent(slot)}`;
-  return `${base}${sep}${q}${hash ? `#${hash}` : ""}`;
-}
 
 const LEVEL_COLOR: Record<string, string> = {
   high: "bg-green-500",
@@ -475,7 +463,7 @@ export default function TmbResultPage() {
                   {m.prodiRefs.map((p: any, j: number) => (
                     <Link
                       key={j}
-                      href={withUtm(p.link, "major_card") as any}
+                      href={resultUtm(p.link, "major_card") as any}
                       className="flex w-full min-w-0 max-w-full items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2 transition-colors hover:bg-mentor-teal/5"
                     >
                       <span className="min-w-0 flex-1 truncate font-manrope text-gray-600 text-xs">
@@ -512,7 +500,7 @@ export default function TmbResultPage() {
                   {(c.prodiRefs as any[]).slice(0, 3).map((p: any, j: number) => (
                     <Link
                       key={j}
-                      href={withUtm(p.link, "career_card") as any}
+                      href={resultUtm(p.link, "career_card") as any}
                       className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5 transition-colors hover:bg-mentor-teal/5"
                     >
                       <span className="min-w-0 flex-1 truncate font-manrope text-gray-600 text-xs">

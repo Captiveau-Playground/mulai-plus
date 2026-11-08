@@ -26,6 +26,7 @@ import {
 import { publishVersion, validatePublish } from "../lib/assessment-gate";
 import { notifyBatchComplete, notifyResultReady } from "../lib/assessment-notify";
 import { evaluateTextInput } from "../lib/evaluate-input";
+import { awardProgress } from "../lib/gamification";
 import { recommendForResult } from "../lib/recommend";
 import { computeRecommendations, getProdiList } from "./tmb";
 
@@ -511,6 +512,17 @@ export async function finalizeSession(
       .set({ status: timedOut ? "timeout" : "completed", completedAt: new Date() })
       .where(eq(schema.assessmentSessions.id, input.sessionId));
 
+    // XP/level/streak DISIMPAN (dulu hanya dikembalikan ke klien sehingga dashboard
+    // selalu "0 / 300 XP"). Streak = hari berturut-turut, bukan jumlah bagian.
+    let progress = { xp: 0, level: 1, streak: 0, testsCompleted: 0 };
+    if (!sess.studentId.startsWith("preview-")) {
+      try {
+        progress = await withDbRetry(() => awardProgress(sess.studentId, xpEarned), "award-progress");
+      } catch (e: any) {
+        console.error("[finish] gagal menyimpan XP/streak:", e?.message ?? e);
+      }
+    }
+
     // Status DUA SISI diambil dari server (satu sumber kebenaran) supaya CTA di klien tidak
     // bergantung pada cache lama: "lanjut tes yang kurang" vs "lihat rekomendasi".
     let minatDone = false;
@@ -533,10 +545,13 @@ export async function finalizeSession(
       topDimensions: top,
       rawScores: result.rawScoresJson,
       xpEarned,
-      streak: sectionsDone,
       timedOut,
       recommendations: recos,
       resultId: result.id,
+      // XP & streak hasil award (bukan jumlah bagian) — dipakai layar selesai tes.
+      totalXp: progress.xp,
+      level: progress.level,
+      streak: progress.streak,
       minatDone,
       bakatDone,
       bothDone: minatDone && bakatDone,

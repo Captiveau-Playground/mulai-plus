@@ -1,4 +1,5 @@
 import type { MindElixirData } from "mind-elixir";
+import { buildUtmUrl } from "@/lib/utm";
 
 export interface FutureCareerProdi {
   prodi: string;
@@ -74,13 +75,24 @@ export function buildCareerMindMap(query: string, paths: FutureCareerPath[]): Mi
   };
 }
 
-/** UTM untuk link prodi yang dibuka dari halaman hasil (dipakai kartu jurusan & mindmap). */
-export function withResultUtm(link: string, slot = "mindmap"): string {
+/**
+ * UTM untuk link prodi yang dibuka dari halaman hasil / karir impian.
+ * Memakai util resmi `buildUtmUrl` (satu sumber aturan UTM di aplikasi).
+ */
+export function resultUtm(link: string, slot = "mindmap"): string {
   if (!link) return link;
   const [base, hash = ""] = link.split("#");
-  const sep = (base ?? "").includes("?") ? "&" : "?";
-  return `${base}${sep}utm_source=result&utm_medium=app&utm_campaign=tmb_result&utm_content=${encodeURIComponent(slot)}${hash ? `#${hash}` : ""}`;
+  const url = buildUtmUrl(base ?? link, {
+    source: "result",
+    medium: "app",
+    campaign: "tmb_result",
+    content: slot,
+  });
+  return hash ? `${url}#${hash}` : url;
 }
+
+/** Alias lama (dipakai halaman Karir Impian). */
+export const withResultUtm = resultUtm;
 
 type ProdiRef = { prodi: string; level?: string | null; university: string; link: string };
 

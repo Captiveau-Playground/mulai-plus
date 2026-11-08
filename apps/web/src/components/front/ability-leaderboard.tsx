@@ -12,6 +12,7 @@ type Entry = {
   masked: string;
   score: number;
   total: number;
+  accuracy?: number;
   durationSec: number;
   isSelf: boolean;
 };
@@ -52,7 +53,8 @@ export function AbilityLeaderboard() {
             Tercepat &amp; Terbaik <span className="text-brand-orange">Test Bakat</span>
           </h2>
           <p className="mx-auto mt-2 max-w-xl font-manrope text-muted-foreground text-sm">
-            Skor = jumlah jawaban benar; urutan kedua = waktu tercepat. Nama disensor — privasi tetap terjaga.
+            Peringkat = akurasi jawaban benar (min. 10 soal), lalu jumlah benar, lalu waktu tercepat. Nama disensor —
+            privasi tetap terjaga.
           </p>
         </div>
 
@@ -105,6 +107,9 @@ export function AbilityLeaderboard() {
                     <td className="px-4 py-2.5 text-center font-manrope font-semibold text-brand-navy text-xs">
                       {e.score}
                       <span className="text-muted-foreground/60">/{e.total}</span>
+                      {typeof e.accuracy === "number" && (
+                        <span className="ml-1 font-normal text-[10px] text-muted-foreground">({e.accuracy}%)</span>
+                      )}
                     </td>
                     <td className="flex items-center justify-end gap-1 px-4 py-2.5 font-manrope text-muted-foreground text-xs">
                       <Timer className="h-3 w-3" /> {fmtTime(e.durationSec)}
@@ -139,9 +144,17 @@ export function AbilityLeaderboard() {
 function LeaderboardPodium({ top }: { top: { rank: number; masked: string; score: number; total: number }[] }) {
   const order = [1, 0, 2];
   const style: Record<number, { ring: string; chip: string; h: string }> = {
-    1: { ring: "bg-amber-100 text-amber-600", chip: "bg-gradient-to-b from-amber-300 to-amber-400 text-white", h: "h-16" },
+    1: {
+      ring: "bg-amber-100 text-amber-600",
+      chip: "bg-gradient-to-b from-amber-300 to-amber-400 text-white",
+      h: "h-16",
+    },
     2: { ring: "bg-gray-100 text-gray-500", chip: "bg-gradient-to-b from-gray-300 to-gray-400 text-white", h: "h-12" },
-    3: { ring: "bg-orange-50 text-orange-700", chip: "bg-gradient-to-b from-orange-300 to-orange-400 text-white", h: "h-10" },
+    3: {
+      ring: "bg-orange-50 text-orange-700",
+      chip: "bg-gradient-to-b from-orange-300 to-orange-400 text-white",
+      h: "h-10",
+    },
   };
   const p = (rank: number) => top.find((e) => e.rank === rank);
   return (
@@ -152,9 +165,15 @@ function LeaderboardPodium({ top }: { top: { rank: number; masked: string; score
         const st = style[rank] ?? style[3];
         return (
           <div key={rank} className="flex flex-col items-center">
-            <div className={"flex h-9 w-9 items-center justify-center rounded-full " + st.ring + " font-bold font-bricolage text-sm"}>{rank}</div>
-            <p className="mt-1 max-w-[5.5rem] truncate font-manrope text-[11px] font-semibold text-brand-navy">{e.masked}</p>
-            <div className={"mt-1 flex w-full flex-col items-center justify-center rounded-t-2xl " + st.chip + " " + st.h}>
+            <div
+              className={`flex h-9 w-9 items-center justify-center rounded-full${st.ring}font-bold font-bricolage text-sm`}
+            >
+              {rank}
+            </div>
+            <p className="mt-1 max-w-[5.5rem] truncate font-manrope font-semibold text-[11px] text-brand-navy">
+              {e.masked}
+            </p>
+            <div className={`mt-1 flex w-full flex-col items-center justify-center rounded-t-2xl${st.chip} ${st.h}`}>
               <span className="font-bold font-bricolage text-lg">{e.score}</span>
               <span className="font-manrope text-[9px] opacity-80">poin</span>
             </div>

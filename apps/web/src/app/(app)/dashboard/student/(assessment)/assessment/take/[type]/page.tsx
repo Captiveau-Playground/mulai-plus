@@ -69,6 +69,11 @@ function TestRoute({ code }: { code: string }) {
   const search = useSearchParams();
   const preview = search?.get("preview") === "1";
   const versionId = search?.get("v");
+  const demo = search?.get("demo") === "1";
+  // MODE SIMULASI (`?demo=1`) memakai soal contoh bawaan tanpa backend — dulu rute
+  // `/take/minat?demo=1` jatuh ke engine dan gagal memuat tes karena tidak ada tes berkode
+  // "minat" di database. Simulasi harus selalu dirender oleh alur demo.
+  if (demo) return <LegacyWizard />;
   // SATU jalur render: engine dipakai untuk semua kode tes (termasuk tes kustom & preview
   // admin), supaya yang dilihat admin PERSIS sama dengan yang dilihat siswa.
   // `LegacyWizard` hanya untuk kode katalog lama ("interest"/"ability") yang datanya di tmb_*.
@@ -1354,12 +1359,14 @@ function LegacyWizard({
           </motion.div>
 
           <h1 className="mt-5 font-bold font-bricolage text-2xl text-gray-900">
-            {bothDone ? "Semua Test Selesai!" : "Test Selesai!"}
+            {isDemo ? "Simulasi Selesai!" : bothDone ? "Semua Test Selesai!" : "Test Selesai!"}
           </h1>
           <p className="mt-2 font-manrope text-gray-500 text-sm">
-            {bothDone
-              ? "Rekomendasi jurusan & kariermu sudah siap dihasilkan."
-              : `Kamu dapat ${xpEarned} XP! ${streak >= 2 ? `Streak ${streak} hari 🔥` : "Ayo lanjutkan streak besok!"}`}
+            {isDemo
+              ? "Itu contoh 4 soal. Tes lengkapnya 120 soal minat + 100 soal bakat, ±45 menit."
+              : bothDone
+                ? "Rekomendasi jurusan & kariermu sudah siap dihasilkan."
+                : `Kamu dapat ${xpEarned} XP! ${streak >= 2 ? `Streak ${streak} hari 🔥` : "Ayo lanjutkan streak besok!"}`}
           </p>
 
           {!isEngine && isInterest && !bothDone && (
@@ -1388,6 +1395,13 @@ function LegacyWizard({
                   </Link>
                 );
               })()
+            ) : isDemo ? (
+              <Link
+                href="/dashboard/student/assessment"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
+              >
+                Mulai Tes Lengkap <ArrowRight className="h-5 w-5" />
+              </Link>
             ) : bothDone || (!isInterest && resultId) ? (
               <Link
                 href="/dashboard/student/assessment/result"

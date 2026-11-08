@@ -42,6 +42,7 @@ import {
 } from "../lib/assessment-analytics";
 import { campusTier, pickProdiRefs } from "../lib/campus-priority";
 import { notFound, preconditionFailed } from "../lib/errors";
+import { awardProgress } from "../lib/gamification";
 import { mail } from "../lib/mail";
 import { levelFromSchoolName } from "../lib/school-level";
 import { webBaseUrl } from "../lib/web-url";
@@ -644,33 +645,48 @@ export const tmbRouter = {
   },
 
   leaderboard: {
-    /** Papan peringkat Test Bakat — publik; nama disensor (inisial + ***), email tak pernah dikirim.
-     *  Per user: attempt ability terbaik (skor = jawaban benar, tie-break waktu tercepat). */
+    /**
+     * Papan peringkat Test Bakat — publik; nama disensor (inisial + ***), email tidak pernah dikirim.
+     *
+     * Sumber data = ENGINE aktif (`assessment_*`), bukan `tmb_test_*` legacy: engine menulis
+     * jawaban & durasi ke `assessment_answers` / `assessment_sessions`, sedangkan tabel lama
+     * sudah tidak diisi (dulu leaderboard selalu kosong/skor 0).
+     *
+     * Peringkat: akurasi (benar/dijawab) → jumlah benar → waktu tercepat.
+     * Minimal 10 soal dijawab supaya percobaan 1–2 soal tidak mendominasi 100%.
+     */
     ability: publicProcedure.handler(async ({ context }) => {
       const nowMs = Date.now();
       if (lbCacheTs > nowMs) return lbCache;
       const viewerId = (context as any)?.session?.user?.id ?? null;
       const rows = (await db.execute(sql`
-        WITH sc AS (
-          SELECT a.user_id, a.id,
-            (SELECT count(*) FROM tmb_test_answers x
-              WHERE x.attempt_id = a.id AND x.is_correct = true)::int AS score,
-            (SELECT count(*) FROM tmb_test_answers x
-              WHERE x.attempt_id = a.id)::int AS total,
-            EXTRACT(EPOCH FROM (a.finished_at - a.started_at))::int AS dur
-          FROM tmb_test_attempts a
-          WHERE a.test_code = 'ability' AND a.status = 'completed'
-            AND a.finished_at IS NOT NULL AND a.started_at IS NOT NULL
+        WITH per_attempt AS (
+          SELECT s.student_id AS user_id, s.id,
+            count(an.id)::int AS answered,
+            count(an.id) FILTER (WHERE an.score_earned > 0)::int AS correct,
+            GREATEST(0, EXTRACT(EPOCH FROM (COALESCE(s.completed_at, s.started_at) - s.started_at))::int) AS dur
+          FROM assessment_sessions s
+          JOIN assessment_versions v ON v.id = s.version_id
+          JOIN assessments a ON a.id = v.assessment_id AND a.code = 'TALENT'
+          LEFT JOIN assessment_answers an ON an.session_id = s.id
+          WHERE s.status IN ('completed','timeout')
+          GROUP BY s.student_id, s.id, s.started_at, s.completed_at
+        ), scored AS (
+          SELECT *, (100.0 * correct / GREATEST(answered, 1))::int AS acc
+          FROM per_attempt WHERE answered >= 10
         ), best AS (
-          SELECT DISTINCT ON (user_id) user_id, score, total, dur, id
-          FROM sc ORDER BY user_id, score DESC, dur ASC
+          SELECT DISTINCT ON (user_id) user_id, correct, answered, acc, dur, id
+          FROM scored ORDER BY user_id, acc DESC, correct DESC, dur ASC
         )
-        SELECT b.user_id, b.score, b.total, b.dur, u.name AS name
+        SELECT b.user_id, b.correct, b.answered, b.acc, b.dur, u.name AS name
         FROM best b
         JOIN "user" u ON u.id = b.user_id
-        ORDER BY b.score DESC, b.dur ASC
+        WHERE u.name IS NOT NULL AND btrim(u.name) <> ''
+          AND COALESCE(u.email, '') NOT LIKE '%@test.local'
+          AND COALESCE(u.email, '') NOT LIKE '%@example.com'
+        ORDER BY b.acc DESC, b.correct DESC, b.dur ASC
         LIMIT 50`)) as unknown as {
-        rows?: { user_id: string; score: number; total: number; dur: number; name: string }[];
+        rows?: { user_id: string; correct: number; answered: number; acc: number; dur: number; name: string }[];
       };
 
       const list = (rows.rows ?? []).map((r, i) => {
@@ -680,8 +696,9 @@ export const tmbRouter = {
         return {
           rank: i + 1,
           masked,
-          score: Number(r.score ?? 0),
-          total: Number(r.total ?? 0),
+          score: Number(r.correct ?? 0),
+          total: Number(r.answered ?? 0),
+          accuracy: Number(r.acc ?? 0),
           durationSec: Number(r.dur ?? 0),
           isSelf: !!viewerId && r.user_id === viewerId,
         };
@@ -1394,28 +1411,8 @@ export const tmbRouter = {
 // ─── Helpers ─────────────────────────────────────────────
 
 async function awardXp(userId: string, xp: number) {
-  const existing = await db.query.tmbUserStats.findFirst({ where: eq(tmbUserStats.userId, userId) });
-  const today = new Date().toDateString();
-  const lastDay = existing?.lastActivityAt ? new Date(existing.lastActivityAt).toDateString() : null;
-
-  const newXp = (existing?.xp ?? 0) + xp;
-  const newLevel = Math.floor(newXp / 150) + 1;
-  const isNewDay = lastDay !== today;
-  const newStreak = isNewDay ? (existing?.streak ?? 0) + 1 : (existing?.streak ?? 0);
-
-  await db
-    .insert(tmbUserStats)
-    .values({ userId, xp: newXp, level: newLevel, streak: newStreak, testsCompleted: 1, lastActivityAt: new Date() })
-    .onConflictDoUpdate({
-      target: tmbUserStats.userId,
-      set: {
-        xp: newXp,
-        level: newLevel,
-        streak: newStreak,
-        testsCompleted: (existing?.testsCompleted ?? 0) + 1,
-        lastActivityAt: new Date(),
-      },
-    });
+  // Aturan XP/level/streak dipusatkan di lib/gamification (dipakai juga oleh engine discover).
+  await awardProgress(userId, xp);
 }
 
 async function computeResult(userId: string, interestAttemptId: string, abilityAttemptId: string) {
