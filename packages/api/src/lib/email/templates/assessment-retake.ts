@@ -5,7 +5,6 @@ import {
   emailHeader,
   emailLayout,
   heading,
-  infoCard,
   noticeBox,
   sectionTitle,
   text,
@@ -53,13 +52,17 @@ export function getAssessmentRetakeHtml(data: AssessmentRetakeData = {}): string
       }),
 
       data.oldCode
-        ? infoCard({
-            children: text({
-              content: `Kode minat lamamu: <strong style="color:${COLORS.navy};">${data.oldCode}</strong> — hasil ini tetap tersimpan. Dengan mengulang tes, rekomendasimu akan dihitung ulang memakai data & mesin terbaru.`,
-              padding: "0",
-              size: 13,
-            }),
-          })
+        ? `<tr><td style="padding: 0 40px 24px 40px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border-radius: 12px; border: 1px solid ${COLORS.border};">
+              <tr>
+                <td align="center" style="padding: 20px 24px;">
+                  <p style="margin: 0; font-size: 13px; color: ${COLORS.textBody}; line-height: 1.7;">
+                    Kode minat lamamu: <strong style="color:${COLORS.navy};">${data.oldCode}</strong> — hasil ini tetap tersimpan. Dengan mengulang tes, rekomendasimu akan dihitung ulang memakai data &amp; mesin terbaru.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td></tr>`
         : "",
 
       // sectionTitle mengembalikan <p> (bukan <tr>) → bungkus agar tidak "lompat" keluar tabel.
