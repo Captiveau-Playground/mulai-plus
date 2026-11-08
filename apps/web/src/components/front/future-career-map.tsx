@@ -20,6 +20,7 @@ export function FutureCareerMap({ data }: { data: MindElixirData }) {
         keypress={false}
         theme="light"
         fit
+        openLinkOnClick
         loader={
           <div className="absolute inset-0 flex items-center justify-center bg-white">
             <Loader2 className="h-6 w-6 animate-spin text-brand-navy" />

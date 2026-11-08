@@ -1,4 +1,5 @@
 import type { MindElixirData } from "mind-elixir";
+import { buildUtmUrl } from "@/lib/utm";
 
 export interface FutureCareerProdi {
   prodi: string;
@@ -53,7 +54,7 @@ export function buildCareerMindMap(query: string, paths: FutureCareerPath[]): Mi
       id: `${p.categoryKey}-prodi-${j}`,
       topic: truncate(`${pr.prodi}${pr.level ? ` (${pr.level})` : ""}`, 30),
       tags: [pr.university.slice(0, 24)],
-      hyperLink: pr.link,
+      hyperLink: withResultUtm(pr.link, "career_dream"),
     }));
     return {
       id: `cat-${p.categoryKey}`,
@@ -75,8 +76,40 @@ export function buildCareerMindMap(query: string, paths: FutureCareerPath[]): Mi
 }
 
 /**
+ * UTM untuk link prodi yang dibuka dari halaman hasil / karir impian.
+ * Memakai util resmi `buildUtmUrl` (satu sumber aturan UTM di aplikasi).
+ */
+export function resultUtm(link: string, slot = "mindmap"): string {
+  if (!link) return link;
+  const [base, hash = ""] = link.split("#");
+  const url = buildUtmUrl(base ?? link, {
+    source: "result",
+    medium: "app",
+    campaign: "tmb_result",
+    content: slot,
+  });
+  return hash ? `${url}#${hash}` : url;
+}
+
+/** Alias lama (dipakai halaman Karir Impian). */
+export const withResultUtm = resultUtm;
+
+type ProdiRef = { prodi: string; level?: string | null; university: string; link: string };
+
+function prodiNode(id: string, pr: ProdiRef, slot: string): MindElixirData["nodeData"] {
+  return {
+    id,
+    topic: truncate(`${pr.prodi}${pr.level ? ` (${pr.level})` : ""}`, 30),
+    tags: [pr.university.slice(0, 24)],
+    hyperLink: withResultUtm(pr.link, slot),
+  };
+}
+
+/**
  * Bangun MindElixirData dari HASIL TEST (Journey 1):
- * root = profil Holland → cabang = jurusan (confidence) → daun = prodi (hyperlink) + karier.
+ * root = profil Holland → cabang = jurusan (confidence) → daun = prodi (hyperlink) + KARIER,
+ * dan setiap KARIER punya anak PRODI sendiri (jalur kuliahnya) — jadi tidak ada node karier
+ * yang "berhenti" tanpa informasi jurusan. Satu karier bisa dicapai dari >1 prodi.
  */
 export function buildResultMindMap(
   hollandCode: string,
@@ -84,33 +117,61 @@ export function buildResultMindMap(
     itemName: string;
     confidence: string;
     categoryKey?: string;
-    prodiRefs?: FutureCareerProdi[];
+    prodiRefs?: ProdiRef[];
   }[],
-  careers: { itemName: string; categoryKey?: string }[],
+  careers: { itemName: string; categoryKey?: string; prodiRefs?: ProdiRef[]; confidence?: string | null }[],
 ): MindElixirData {
-  const children = majors.map((m, i) => {
-    const leaves: MindElixirData["nodeData"]["children"] = [];
-    for (const pr of (m.prodiRefs ?? []).slice(0, 3)) {
-      leaves.push({
-        id: `m${i}-p-${leaves.length}`,
-        topic: truncate(`${pr.prodi}${pr.level ? ` (${pr.level})` : ""}`, 30),
-        tags: [pr.university.slice(0, 24)],
-        hyperLink: pr.link,
-      });
+  /**
+   * Struktur (sesuai permintaan produk): PROFIL → keilmuan/topik → karier → jurusan (prodi).
+   *
+   * Aturan:
+   * • Setiap KARIER wajib punya jurusan/prodi (minimal 1). Karier yang berbagi keilmuan boleh
+   *   menampilkan prodi yang sama — itu memang jalur kuliahnya (bukan "loop"), karena cabang
+   *   keilmuan sendiri TIDAK lagi mendaftar prodi.
+   * • Duplikat hanya dibuang DI DALAM satu karier (prodi sama kampus berbeda → tampil sekali).
+   * • Keilmuan tanpa karier menampilkan prodi langsung agar cabang tidak kosong.
+   */
+  const nameKey = (pr: ProdiRef) => pr.prodi.trim().toLowerCase();
+  const prodiLeaves = (pool: ProdiRef[], idPrefix: string, slot: string, limit = 3) => {
+    const leaves: MindElixirData["nodeData"][] = [];
+    const seen = new Set<string>();
+    for (const pr of pool) {
+      if (leaves.length >= limit) break;
+      const k = nameKey(pr);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      leaves.push(prodiNode(`${idPrefix}-p${leaves.length}`, pr, slot));
     }
-    for (const c of careers.filter((x) => x.categoryKey === m.categoryKey).slice(0, 2)) {
-      leaves.push({
-        id: `m${i}-c-${leaves.length}`,
-        topic: truncate(c.itemName, 24),
-        style: { fontWeight: "600" },
-      });
-    }
+    return leaves;
+  };
+
+  const children: MindElixirData["nodeData"][] = majors.map((m, i) => {
+    const inCategory = careers.filter((c) => c.categoryKey === m.categoryKey).slice(0, 2);
+    const branchColor = BRANCH_COLORS[i % BRANCH_COLORS.length];
+    const careerKids: MindElixirData["nodeData"][] = inCategory.map((c, j) => {
+      const own = (c.prodiRefs ?? []) as ProdiRef[];
+      const pool = own.length ? own : ((m.prodiRefs ?? []) as ProdiRef[]);
+      const leaves = prodiLeaves(pool, `m${i}-c${j}`, `career_${c.itemName.slice(0, 20)}`);
+      const conf = Number(String(c.confidence ?? "").replace("%", ""));
+      if (Number.isFinite(conf) && conf > 0) {
+        leaves.push({ id: `m${i}-c${j}-fit`, topic: `Kecocokan profil ${Math.round(conf)}%` });
+      }
+      return {
+        id: `m${i}-c${j}`,
+        topic: truncate(c.itemName, 28),
+        expanded: j === 0,
+        children: leaves.length ? leaves : undefined,
+      };
+    });
+    const kids = careerKids.length
+      ? careerKids
+      : prodiLeaves((m.prodiRefs ?? []) as ProdiRef[], `m${i}`, `major_${i + 1}`);
     return {
       id: `m-${i}`,
       topic: `${m.itemName} · ${m.confidence}%`,
-      branchColor: BRANCH_COLORS[i % BRANCH_COLORS.length],
+      branchColor,
       expanded: i === 0,
-      children: leaves.length > 0 ? leaves : undefined,
+      children: kids.length ? kids : undefined,
     };
   });
 

@@ -20,7 +20,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 import { FutureCareerMap } from "@/components/front/future-career-map";
-import { buildCareerMindMap, type FutureCareerResult } from "@/lib/future-career";
+import { buildCareerMindMap, type FutureCareerResult, withResultUtm } from "@/lib/future-career";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -318,7 +318,7 @@ export default function FutureCareerPage() {
                   {p.prodis.map((pr) => (
                     <Link
                       key={pr.link}
-                      href={pr.link as Route}
+                      href={withResultUtm(pr.link, "career_dream") as Route}
                       className="group flex w-full min-w-0 max-w-full items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3.5 py-2.5 transition-colors hover:border-teal-500/30 hover:bg-teal-500/5"
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-2.5">

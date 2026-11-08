@@ -40,8 +40,10 @@ import {
   computeTimeseries,
   computeVersionStats,
 } from "../lib/assessment-analytics";
-import { campusTier, pickProdiRefs } from "../lib/campus-priority";
+import { campusTier, levelTier, pickProdiRefs } from "../lib/campus-priority";
+import { pickCareerProdi } from "../lib/career-prodi-hints";
 import { notFound, preconditionFailed } from "../lib/errors";
+import { awardProgress } from "../lib/gamification";
 import { mail } from "../lib/mail";
 import { levelFromSchoolName } from "../lib/school-level";
 import { webBaseUrl } from "../lib/web-url";
@@ -417,6 +419,43 @@ function groupProdiByCategory(
   return { byCategory };
 }
 
+/**
+ * Kelompokkan prodi per kategori jurusan.
+ * Jalur utama: kolom `study_programs.major_category_key` (diisi seeder) → O(n) tanpa regex.
+ * Fallback regex hanya untuk prodi yang belum berkategori (data PDDikti baru / pola baru);
+ * regex dikompilasi sekali & hasilnya di-cache per isolate.
+ */
+export function prodiByCategory<T extends { name: string; majorCategoryKey?: string | null }>(
+  prodiList: T[],
+  patterns: { categoryKey: string; pattern: string }[],
+): Map<string, T[]> {
+  const byCategory = new Map<string, T[]>();
+  const hasPrecomputed = prodiList.some((p) => p.majorCategoryKey);
+  if (!hasPrecomputed) {
+    return groupProdiByCategory(prodiList as any, compilePatterns(patterns)).byCategory as unknown as Map<string, T[]>;
+  }
+  const pending: T[] = [];
+  for (const p of prodiList) {
+    const key = p.majorCategoryKey ?? null;
+    if (!key) {
+      pending.push(p);
+      continue;
+    }
+    const arr = byCategory.get(key) ?? [];
+    arr.push(p);
+    byCategory.set(key, arr);
+  }
+  if (pending.length) {
+    const fallback = groupProdiByCategory(pending as any, compilePatterns(patterns)).byCategory;
+    for (const [k, v] of fallback) {
+      const arr = byCategory.get(k) ?? [];
+      arr.push(...(v as unknown as T[]));
+      byCategory.set(k, arr);
+    }
+  }
+  return byCategory;
+}
+
 export function computeRecommendations(
   holland: { code: string; scores: Record<string, number> },
   ability: { levels: Record<string, string> },
@@ -431,36 +470,7 @@ export function computeRecommendations(
   }[],
   careers: { majorCategory: string; careerName: string }[],
 ) {
-  // Kelompokkan prodi per kategori.
-  // Jalur utama: kolom `study_programs.major_category_key` (sudah diisi seeder) → O(n) tanpa
-  // regex sama sekali. Fallback regex HANYA untuk prodi yang belum punya kategori (data PDDikti
-  // baru / pola baru), dan regex dikompilasi sekali + hasilnya di-cache per isolate.
-  const hasPrecomputed = prodiList.some((p: any) => p.majorCategoryKey);
-  let byCategory: Map<string, typeof prodiList>;
-  if (hasPrecomputed) {
-    byCategory = new Map<string, typeof prodiList>();
-    const pending: typeof prodiList = [];
-    for (const p of prodiList) {
-      const key = (p as any).majorCategoryKey as string | null;
-      if (!key) {
-        pending.push(p);
-        continue;
-      }
-      const arr = byCategory.get(key) ?? [];
-      arr.push(p);
-      byCategory.set(key, arr);
-    }
-    if (pending.length) {
-      const fallback = groupProdiByCategory(pending, compilePatterns(patterns)).byCategory;
-      for (const [k, v] of fallback) {
-        const arr = byCategory.get(k) ?? [];
-        arr.push(...v);
-        byCategory.set(k, arr);
-      }
-    }
-  } else {
-    byCategory = groupProdiByCategory(prodiList, compilePatterns(patterns)).byCategory;
-  }
+  const byCategory = prodiByCategory(prodiList as any, patterns as any) as Map<string, typeof prodiList>;
 
   const studentHolland = holland.scores;
   // Normalisasi skor minat ke 0..1 (engine bisa kirim raw count) — cegah persen kecocokan nggak-realistis (mis. 333%)
@@ -636,33 +646,48 @@ export const tmbRouter = {
   },
 
   leaderboard: {
-    /** Papan peringkat Test Bakat — publik; nama disensor (inisial + ***), email tak pernah dikirim.
-     *  Per user: attempt ability terbaik (skor = jawaban benar, tie-break waktu tercepat). */
+    /**
+     * Papan peringkat Test Bakat — publik; nama disensor (inisial + ***), email tidak pernah dikirim.
+     *
+     * Sumber data = ENGINE aktif (`assessment_*`), bukan `tmb_test_*` legacy: engine menulis
+     * jawaban & durasi ke `assessment_answers` / `assessment_sessions`, sedangkan tabel lama
+     * sudah tidak diisi (dulu leaderboard selalu kosong/skor 0).
+     *
+     * Peringkat: akurasi (benar/dijawab) → jumlah benar → waktu tercepat.
+     * Minimal 10 soal dijawab supaya percobaan 1–2 soal tidak mendominasi 100%.
+     */
     ability: publicProcedure.handler(async ({ context }) => {
       const nowMs = Date.now();
       if (lbCacheTs > nowMs) return lbCache;
       const viewerId = (context as any)?.session?.user?.id ?? null;
       const rows = (await db.execute(sql`
-        WITH sc AS (
-          SELECT a.user_id, a.id,
-            (SELECT count(*) FROM tmb_test_answers x
-              WHERE x.attempt_id = a.id AND x.is_correct = true)::int AS score,
-            (SELECT count(*) FROM tmb_test_answers x
-              WHERE x.attempt_id = a.id)::int AS total,
-            EXTRACT(EPOCH FROM (a.finished_at - a.started_at))::int AS dur
-          FROM tmb_test_attempts a
-          WHERE a.test_code = 'ability' AND a.status = 'completed'
-            AND a.finished_at IS NOT NULL AND a.started_at IS NOT NULL
+        WITH per_attempt AS (
+          SELECT s.student_id AS user_id, s.id,
+            count(an.id)::int AS answered,
+            count(an.id) FILTER (WHERE an.score_earned > 0)::int AS correct,
+            GREATEST(0, EXTRACT(EPOCH FROM (COALESCE(s.completed_at, s.started_at) - s.started_at))::int) AS dur
+          FROM assessment_sessions s
+          JOIN assessment_versions v ON v.id = s.version_id
+          JOIN assessments a ON a.id = v.assessment_id AND a.code = 'TALENT'
+          LEFT JOIN assessment_answers an ON an.session_id = s.id
+          WHERE s.status IN ('completed','timeout')
+          GROUP BY s.student_id, s.id, s.started_at, s.completed_at
+        ), scored AS (
+          SELECT *, (100.0 * correct / GREATEST(answered, 1))::int AS acc
+          FROM per_attempt WHERE answered >= 10
         ), best AS (
-          SELECT DISTINCT ON (user_id) user_id, score, total, dur, id
-          FROM sc ORDER BY user_id, score DESC, dur ASC
+          SELECT DISTINCT ON (user_id) user_id, correct, answered, acc, dur, id
+          FROM scored ORDER BY user_id, acc DESC, correct DESC, dur ASC
         )
-        SELECT b.user_id, b.score, b.total, b.dur, u.name AS name
+        SELECT b.user_id, b.correct, b.answered, b.acc, b.dur, u.name AS name
         FROM best b
         JOIN "user" u ON u.id = b.user_id
-        ORDER BY b.score DESC, b.dur ASC
+        WHERE u.name IS NOT NULL AND btrim(u.name) <> ''
+          AND COALESCE(u.email, '') NOT LIKE '%@test.local'
+          AND COALESCE(u.email, '') NOT LIKE '%@example.com'
+        ORDER BY b.acc DESC, b.correct DESC, b.dur ASC
         LIMIT 50`)) as unknown as {
-        rows?: { user_id: string; score: number; total: number; dur: number; name: string }[];
+        rows?: { user_id: string; correct: number; answered: number; acc: number; dur: number; name: string }[];
       };
 
       const list = (rows.rows ?? []).map((r, i) => {
@@ -672,8 +697,9 @@ export const tmbRouter = {
         return {
           rank: i + 1,
           masked,
-          score: Number(r.score ?? 0),
-          total: Number(r.total ?? 0),
+          score: Number(r.correct ?? 0),
+          total: Number(r.answered ?? 0),
+          accuracy: Number(r.acc ?? 0),
           durationSec: Number(r.dur ?? 0),
           isSelf: !!viewerId && r.user_id === viewerId,
         };
@@ -959,7 +985,71 @@ export const tmbRouter = {
         db.query.tmbProfiles.findFirst({ where: eq(tmbProfiles.userId, userId) }),
       ]);
 
-      return { result, recommendations, summary: summary?.content ?? null, stats, profile };
+      // ── Karier → prodi ────────────────────────────────────────────────────────
+      // Setiap karier WAJIB punya jalur kuliah (minimal 1 prodi) supaya cabang mindmap
+      // tidak berhenti di nama profesi. Satu karier bisa dicapai dari beberapa prodi.
+      const careerRows = recommendations.filter((r) => r.type === "career");
+      let careerProdi: Record<string, any[]> = {};
+      if (careerRows.length) {
+        try {
+          const [patterns, prodiList] = await Promise.all([
+            db.query.tmbMajorPatterns.findMany({ where: eq(tmbMajorPatterns.isActive, true) }),
+            getProdiList(),
+          ]);
+          const byCat = prodiByCategory(prodiList as any, patterns as any);
+          for (const c of careerRows) {
+            const key = (c.categoryKey ?? "").toString();
+            const careerKey = `${key}::${c.itemName}`;
+            if (!key || careerProdi[careerKey]) continue;
+            const pool = (byCat.get(key) ?? []) as any[];
+            // Tiap karier dipilih TERPISAH (skor kata kunci + variasi kampus + rotasi) supaya
+            // dua karier sekategori tidak menampilkan daftar prodi yang sama.
+            const chosen = pickCareerProdi(pool, c.itemName, { limit: 3, levelTier, campusTier });
+            careerProdi[careerKey] = chosen.map((p: any) => ({
+              prodi: p.name,
+              level: p.level,
+              university: p.university,
+              favorite: campusTier(p.university) < 999,
+              link: `/explore/universities/${slugify(p.university)}-${p.idSp.substring(0, 6)}/prodi/${encodeURIComponent(p.idSms)}`,
+            }));
+          }
+        } catch (e: any) {
+          console.error("[result] gagal memetakan karier → prodi:", e?.message ?? e);
+          careerProdi = {};
+        }
+      }
+      // Normalisasi prodiRefs tersimpan: jenjang untuk calon mahasiswa (S1/D4/D3 dulu) +
+      // urutan kampus favorit. Hasil lama (dihitung sebelum aturan ini) ikut dirapikan tanpa
+      // perlu migrasi data.
+      const normalizeRefs = (refs: any[] | null | undefined, limit: number) => {
+        const arr = Array.isArray(refs) ? refs : [];
+        if (!arr.length) return [];
+        const picked = pickProdiRefs(
+          arr.map((x) => ({ ...x, name: x.prodi ?? x.name ?? "" })),
+          limit,
+        );
+        return picked.map((x: any) => ({
+          prodi: x.prodi ?? x.name,
+          level: x.level ?? null,
+          university: x.university,
+          favorite: campusTier(x.university) < 999,
+          link: x.link,
+        }));
+      };
+      const recommendationsWithPaths = recommendations.map((r) => {
+        if (r.type === "career")
+          return { ...r, prodiRefs: careerProdi[`${(r.categoryKey ?? "").toString()}::${r.itemName}`] ?? [] };
+        if (r.type === "major") return { ...r, prodiRefs: normalizeRefs(r.prodiRefs as any[], 5) };
+        return r;
+      });
+
+      return {
+        result,
+        recommendations: recommendationsWithPaths,
+        summary: summary?.content ?? null,
+        stats,
+        profile,
+      };
     }),
 
     history: protectedProcedure.handler(async ({ context }) => {
@@ -1125,18 +1215,9 @@ export const tmbRouter = {
         const top = matched.slice(0, 3);
         const matchedExact = matched[0] != null && matched[0].score >= 2;
 
-        // 2) kelompokkan prodi per kategori (regex pola dari major_patterns)
-        const byCategory = new Map<string, typeof prodiList>();
-        for (const p of prodiList) {
-          for (const pat of patterns) {
-            if (new RegExp(pat.pattern, "i").test(p.name)) {
-              const arr = byCategory.get(pat.categoryKey) ?? [];
-              arr.push(p);
-              byCategory.set(pat.categoryKey, arr);
-              break;
-            }
-          }
-        }
+        // 2) kelompokkan prodi per kategori — SAMA seperti hasil tes: kolom
+        //    `major_category_key` dulu, regex pola hanya untuk prodi yang belum berkategori.
+        const byCategory = prodiByCategory(prodiList as any, patterns as any) as Map<string, typeof prodiList>;
 
         // 3) susun jalur: kategori unik + prodi contoh + karier lain di kategori sama
         const paths: {
@@ -1148,14 +1229,24 @@ export const tmbRouter = {
           otherCareers: string[];
         }[] = [];
         const seen = new Set<string>();
-        for (const m of top) {
+        // Setiap jalur WAJIB punya prodi (tidak ada node/cabang tanpa jurusan).
+        const withProdi = top.filter((m) => (byCategory.get(m.categoryKey)?.length ?? 0) > 0);
+        const ranked = withProdi.length ? withProdi : top;
+        const humanize = (key: string) =>
+          key
+            .split(/[-_]/g)
+            .filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+        for (const m of ranked) {
           if (seen.has(m.categoryKey)) continue;
           seen.add(m.categoryKey);
           const pat = patterns.find((p) => p.categoryKey === m.categoryKey);
-          const prodis = (byCategory.get(m.categoryKey) ?? []).slice(0, 6);
+          // Prioritaskan kampus favorit + jenjang relevan (S1 → D4 → D3), sama seperti hasil tes.
+          const prodis = pickProdiRefs(byCategory.get(m.categoryKey) ?? [], 6);
           paths.push({
             categoryKey: m.categoryKey,
-            categoryName: pat?.categoryName ?? m.categoryKey,
+            categoryName: pat?.categoryName ?? humanize(m.categoryKey),
             careerName: m.careerName,
             matchScore: m.score,
             prodis: prodis.map((p) => ({
@@ -1183,12 +1274,18 @@ export const tmbRouter = {
         if (result) {
           const hollandScores = (result.hollandScores ?? {}) as Record<string, number>;
           const ability = (result.abilityScores ?? { levels: {} }) as { levels: Record<string, string> };
+          // Skor minat HARUS dinormalisasi ke 0..1. Dulu dipakai angka mentah (mis. 90) sehingga
+          // "kecocokan" bisa tampil 5244%. Normalisasi sama seperti di computeRecommendations.
+          const rawVals = Object.values(hollandScores)
+            .map(Number)
+            .filter((v) => Number.isFinite(v));
+          const sumV = rawVals.length ? rawVals.reduce((a, b) => a + b, 0) : 0;
+          const nH = (k: string) => (sumV > 0 ? (Number(hollandScores[k]) || 0) / sumV : 0);
           let best = 0;
           for (const path of paths) {
             const pat = patterns.find((p) => p.categoryKey === path.categoryKey);
             if (!pat) continue;
-            const interest =
-              ((hollandScores[pat.hollandPrimary] ?? 0) + (hollandScores[pat.hollandSecondary] ?? 0)) / 2;
+            const interest = (nH(pat.hollandPrimary) + nH(pat.hollandSecondary)) / 2;
             const weights = (pat.abilityWeights ?? {}) as Record<string, number>;
             const weightSum = Object.values(weights).reduce((a: number, b: number) => a + b, 0);
             let abilityMatch = 0.6;
@@ -1320,28 +1417,8 @@ export const tmbRouter = {
 // ─── Helpers ─────────────────────────────────────────────
 
 async function awardXp(userId: string, xp: number) {
-  const existing = await db.query.tmbUserStats.findFirst({ where: eq(tmbUserStats.userId, userId) });
-  const today = new Date().toDateString();
-  const lastDay = existing?.lastActivityAt ? new Date(existing.lastActivityAt).toDateString() : null;
-
-  const newXp = (existing?.xp ?? 0) + xp;
-  const newLevel = Math.floor(newXp / 150) + 1;
-  const isNewDay = lastDay !== today;
-  const newStreak = isNewDay ? (existing?.streak ?? 0) + 1 : (existing?.streak ?? 0);
-
-  await db
-    .insert(tmbUserStats)
-    .values({ userId, xp: newXp, level: newLevel, streak: newStreak, testsCompleted: 1, lastActivityAt: new Date() })
-    .onConflictDoUpdate({
-      target: tmbUserStats.userId,
-      set: {
-        xp: newXp,
-        level: newLevel,
-        streak: newStreak,
-        testsCompleted: (existing?.testsCompleted ?? 0) + 1,
-        lastActivityAt: new Date(),
-      },
-    });
+  // Aturan XP/level/streak dipusatkan di lib/gamification (dipakai juga oleh engine discover).
+  await awardProgress(userId, xp);
 }
 
 async function computeResult(userId: string, interestAttemptId: string, abilityAttemptId: string) {
