@@ -40,7 +40,8 @@ import {
   computeTimeseries,
   computeVersionStats,
 } from "../lib/assessment-analytics";
-import { campusTier, pickProdiRefs } from "../lib/campus-priority";
+import { campusTier, levelTier, pickProdiRefs } from "../lib/campus-priority";
+import { pickCareerProdi } from "../lib/career-prodi-hints";
 import { notFound, preconditionFailed } from "../lib/errors";
 import { awardProgress } from "../lib/gamification";
 import { mail } from "../lib/mail";
@@ -998,9 +999,13 @@ export const tmbRouter = {
           const byCat = prodiByCategory(prodiList as any, patterns as any);
           for (const c of careerRows) {
             const key = (c.categoryKey ?? "").toString();
-            if (!key || careerProdi[key]) continue;
+            const careerKey = `${key}::${c.itemName}`;
+            if (!key || careerProdi[careerKey]) continue;
             const pool = (byCat.get(key) ?? []) as any[];
-            careerProdi[key] = pickProdiRefs(pool, 3).map((p: any) => ({
+            // Tiap karier dipilih TERPISAH (skor kata kunci + variasi kampus + rotasi) supaya
+            // dua karier sekategori tidak menampilkan daftar prodi yang sama.
+            const chosen = pickCareerProdi(pool, c.itemName, { limit: 3, levelTier, campusTier });
+            careerProdi[careerKey] = chosen.map((p: any) => ({
               prodi: p.name,
               level: p.level,
               university: p.university,
@@ -1032,7 +1037,8 @@ export const tmbRouter = {
         }));
       };
       const recommendationsWithPaths = recommendations.map((r) => {
-        if (r.type === "career") return { ...r, prodiRefs: careerProdi[(r.categoryKey ?? "").toString()] ?? [] };
+        if (r.type === "career")
+          return { ...r, prodiRefs: careerProdi[`${(r.categoryKey ?? "").toString()}::${r.itemName}`] ?? [] };
         if (r.type === "major") return { ...r, prodiRefs: normalizeRefs(r.prodiRefs as any[], 5) };
         return r;
       });

@@ -119,66 +119,61 @@ export function buildResultMindMap(
     categoryKey?: string;
     prodiRefs?: ProdiRef[];
   }[],
-  careers: { itemName: string; categoryKey?: string; prodiRefs?: ProdiRef[] }[],
+  careers: { itemName: string; categoryKey?: string; prodiRefs?: ProdiRef[]; confidence?: string | null }[],
 ): MindElixirData {
+  /**
+   * Struktur (sesuai permintaan produk): PROFIL → keilmuan/topik → karier → jurusan (prodi).
+   *
+   * Aturan:
+   * • Setiap KARIER wajib punya jurusan/prodi (minimal 1). Karier yang berbagi keilmuan boleh
+   *   menampilkan prodi yang sama — itu memang jalur kuliahnya (bukan "loop"), karena cabang
+   *   keilmuan sendiri TIDAK lagi mendaftar prodi.
+   * • Duplikat hanya dibuang DI DALAM satu karier (prodi sama kampus berbeda → tampil sekali).
+   * • Keilmuan tanpa karier menampilkan prodi langsung agar cabang tidak kosong.
+   */
+  const nameKey = (pr: ProdiRef) => pr.prodi.trim().toLowerCase();
+  const prodiLeaves = (pool: ProdiRef[], idPrefix: string, slot: string, limit = 3) => {
+    const leaves: MindElixirData["nodeData"][] = [];
+    const seen = new Set<string>();
+    for (const pr of pool) {
+      if (leaves.length >= limit) break;
+      const k = nameKey(pr);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      leaves.push(prodiNode(`${idPrefix}-p${leaves.length}`, pr, slot));
+    }
+    return leaves;
+  };
+
   const children: MindElixirData["nodeData"][] = majors.map((m, i) => {
-    const leaves: MindElixirData["nodeData"]["children"] = [];
-    const shownProdi = new Set<string>();
-    for (const pr of (m.prodiRefs ?? []).slice(0, 3)) {
-      leaves.push(prodiNode(`m${i}-p-${leaves.length}`, pr, `major_${i + 1}`));
-      shownProdi.add(`${pr.prodi}@${pr.university}`);
-    }
-    const catCareers = careers.filter((x) => x.categoryKey === m.categoryKey).slice(0, 2);
-    for (const c of catCareers) {
-      // prodi untuk karier ini: pakai prodiRefs karier (dari kategorinya). Kalau kosong,
-      // pakai prodi jurusan induk supaya cabang tetap punya jalur kuliah.
-      // Prodi untuk karier ini (dari kategorinya). Prodi yang sudah tampil di jurusan induk
-      // dilewati supaya peta tidak mengulang kampus yang sama; kalau semua sudah tampil,
-      // tampilkan satu sebagai jangkar jalur kuliah.
-      const pool = (c.prodiRefs?.length ? c.prodiRefs : (m.prodiRefs ?? [])) as ProdiRef[];
-      const fresh = pool.filter((pr) => !shownProdi.has(`${pr.prodi}@${pr.university}`));
-      const path = (fresh.length ? fresh : pool).slice(0, 2);
-      const kids = path.map((pr, j) =>
-        prodiNode(`m${i}-c${leaves.length}-p${j}`, pr, `career_${c.itemName.slice(0, 20)}`),
-      );
-      leaves.push({
-        id: `m${i}-c-${leaves.length}`,
-        topic: truncate(c.itemName, 26),
-        style: { fontWeight: "600" },
-        expanded: false,
-        children: kids.length ? kids : undefined,
-      });
-    }
+    const inCategory = careers.filter((c) => c.categoryKey === m.categoryKey).slice(0, 2);
+    const branchColor = BRANCH_COLORS[i % BRANCH_COLORS.length];
+    const careerKids: MindElixirData["nodeData"][] = inCategory.map((c, j) => {
+      const own = (c.prodiRefs ?? []) as ProdiRef[];
+      const pool = own.length ? own : ((m.prodiRefs ?? []) as ProdiRef[]);
+      const leaves = prodiLeaves(pool, `m${i}-c${j}`, `career_${c.itemName.slice(0, 20)}`);
+      const conf = Number(String(c.confidence ?? "").replace("%", ""));
+      if (Number.isFinite(conf) && conf > 0) {
+        leaves.push({ id: `m${i}-c${j}-fit`, topic: `Kecocokan profil ${Math.round(conf)}%` });
+      }
+      return {
+        id: `m${i}-c${j}`,
+        topic: truncate(c.itemName, 28),
+        expanded: j === 0,
+        children: leaves.length ? leaves : undefined,
+      };
+    });
+    const kids = careerKids.length
+      ? careerKids
+      : prodiLeaves((m.prodiRefs ?? []) as ProdiRef[], `m${i}`, `major_${i + 1}`);
     return {
       id: `m-${i}`,
       topic: `${m.itemName} · ${m.confidence}%`,
-      branchColor: BRANCH_COLORS[i % BRANCH_COLORS.length],
+      branchColor,
       expanded: i === 0,
-      children: leaves.length > 0 ? leaves : undefined,
+      children: kids.length ? kids : undefined,
     };
   });
-
-  // Karier yang kategorinya tidak masuk top-5 jurusan tetap ditampilkan sebagai cabang
-  // "Karier lain" lengkap dengan jalur prodinya (tidak hilang dari peta).
-  const shown = new Set(majors.map((m) => m.categoryKey));
-  // Hanya karier yang punya jalur prodi (supaya tidak ada node tanpa informasi jurusan).
-  const orphans = careers.filter((c) => !shown.has(c.categoryKey) && (c.prodiRefs ?? []).length > 0).slice(0, 4);
-  if (orphans.length) {
-    children.push({
-      id: "other-careers",
-      topic: "Karier lain",
-      branchColor: BRANCH_COLORS[4],
-      expanded: false,
-      children: orphans.map((c, i) => ({
-        id: `oc-${i}`,
-        topic: truncate(c.itemName, 26),
-        style: { fontWeight: "600" },
-        children: (c.prodiRefs ?? [])
-          .slice(0, 2)
-          .map((pr, j) => prodiNode(`oc-${i}-p${j}`, pr, `career_other_${i + 1}`)),
-      })),
-    });
-  }
 
   return {
     nodeData: {

@@ -75,6 +75,21 @@ function useResolvedTheme(themeProp?: "light" | "dark"): "light" | "dark" {
 
 type Theme = "light" | "dark";
 
+// CSS khusus peta rekomendasi: label panjang dipotong rapi (tooltip berisi teks penuh)
+// dan ikon link dibuat lebih mudah diklik.
+const MP_MINDMAP_CSS = `
+.mp-mindmap a[href] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  min-height: 18px;
+  border-radius: 6px;
+}
+.mp-mindmap a[href]:hover { background: rgba(13,148,136,0.14); }
+.mp-mindmap [title] { cursor: pointer; }
+`;
+
 // Context for MindMap
 interface MindMapContextValue {
   mind: MindElixirInstance | null;
@@ -135,6 +150,11 @@ interface MindMapProps {
    * Useful for dense presentation maps.
    */
   compact?: boolean;
+  /**
+   * Klik pada node yang punya `hyperLink` langsung membuka link (tab baru).
+   * Berguna untuk peta rekomendasi jurusan: ikon link Mind Elixir kecil & sulit dijangkau.
+   */
+  openLinkOnClick?: boolean;
   /**
    * Custom markdown parser. When provided, node topics (and arrow/summary
    * labels) are passed through this function before rendering as HTML.
@@ -334,6 +354,7 @@ export const MindMap = forwardRef<MindMapRef, MindMapProps>(function MindMap(
     onOperation,
     onSelectNodes,
     loader,
+    openLinkOnClick = false,
   }: MindMapProps,
   ref,
 ) {
@@ -365,6 +386,11 @@ export const MindMap = forwardRef<MindMapRef, MindMapProps>(function MindMap(
   const onSelectNodesRef = useRef(onSelectNodes);
   const markdownRef = useRef(markdown);
   const imageProxyRef = useRef(imageProxy);
+  const openLinkOnClickRef = useRef(openLinkOnClick);
+
+  useEffect(() => {
+    openLinkOnClickRef.current = openLinkOnClick;
+  }, [openLinkOnClick]);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -420,6 +446,59 @@ export const MindMap = forwardRef<MindMapRef, MindMapProps>(function MindMap(
           mind.scaleFit();
         }
 
+        // ── UX peta: tooltip teks lengkap + klik node untuk membuka link ──
+        // Mind Elixir memotong/membungkus label panjang dan ikon link-nya kecil; di sini
+        // seluruh node bisa diklik (bila punya hyperLink) dan label diberi tooltip penuh.
+        const el = containerRef.current;
+        if (el) {
+          el.classList.add("mp-mindmap");
+          if (!document.getElementById("mp-mindmap-css")) {
+            const style = document.createElement("style");
+            style.id = "mp-mindmap-css";
+            style.textContent = MP_MINDMAP_CSS;
+            document.head.appendChild(style);
+          }
+          // UX peta: label panjang diberi tooltip teks penuh, dan SELURUH node yang punya
+          // link bisa diklik (ikon link bawaan terlalu kecil untuk dijangkau di layar sempit).
+          // Semua dipandu lewat elemen anchor (a.hyper-link) agar tidak bergantung nama kelas node.
+          const decorate = () => {
+            el.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
+              const host = (a.closest(".me-tpc, .me-node, li, div") ?? a.parentElement) as HTMLElement | null;
+              const text = (host?.textContent ?? a.textContent ?? "").trim();
+              if (host) host.title = text;
+              a.setAttribute("aria-label", `Buka ${text}`);
+              a.style.display = "inline-flex";
+              a.style.alignItems = "center";
+              a.style.justifyContent = "center";
+              a.style.minWidth = "18px";
+              a.style.minHeight = "18px";
+              a.style.borderRadius = "6px";
+              if (openLinkOnClickRef.current && host) host.style.cursor = "pointer";
+            });
+          };
+          decorate();
+          const obs = new MutationObserver(() => decorate());
+          obs.observe(el, { childList: true, subtree: true });
+          const onClick = (ev: MouseEvent) => {
+            if (!openLinkOnClickRef.current) return;
+            const target = ev.target as HTMLElement | null;
+            if (!target) return;
+            const direct = target.closest<HTMLAnchorElement>("a[href]");
+            if (direct?.href) return; // ikon link: biarkan perilaku bawaan
+            const host = target.closest<HTMLElement>(".me-tpc, .me-node");
+            const anchor = host?.querySelector<HTMLAnchorElement>("a[href]") ?? null;
+            if (!anchor?.href) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            window.open(anchor.href, "_blank", "noopener,noreferrer");
+          };
+          el.addEventListener("click", onClick, true);
+          (el as any)._mpCleanup = () => {
+            obs.disconnect();
+            el.removeEventListener("click", onClick, true);
+          };
+        }
+
         // Event listeners (using refs to avoid re-initialization)
         mind.bus.addListener("operation", (operation) => {
           // Call onOperation if provided
@@ -447,6 +526,11 @@ export const MindMap = forwardRef<MindMapRef, MindMapProps>(function MindMap(
 
     return () => {
       isSubscribed = false;
+      try {
+        (containerRef.current as any)?._mpCleanup?.();
+      } catch {
+        /* abaikan */
+      }
       // Note: We intentionally don't clean up the mind instance here
       // to avoid DOM manipulation conflicts with React
       // The instance will be garbage collected when the component unmounts
