@@ -27,7 +27,6 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
   const pd = (qP.data as any)?.present === true ? (qP.data as any) : null;
   const lastA = attempts[attempts.length - 1];
   const sideDone = test.family === "minat" ? !!lastA?.hollandCode : !!lastA?.hasAbility;
-  const [retestOpen, setRetestOpen] = useState(false);
   const meta =
     test.family === "minat"
       ? {
@@ -134,53 +133,14 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
         </Link>
       )}
       {sideDone && !pd && (
-        <button
-          type="button"
-          onClick={() => setRetestOpen(true)}
+        // Konfirmasi "tes ulang" ada di halaman tes (satu tempat), bukan di kartu ini.
+        <Link
+          href={meta.href as any}
+          data-testid="retest-link"
           className="mt-2 w-full text-center font-manrope font-semibold text-[11px] text-gray-400 transition-colors hover:text-brand-navy"
         >
           🔄 Tes Ulang
-        </button>
-      )}
-
-      {/* Konfirmasi retest */}
-      {retestOpen && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label="Tutup"
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setRetestOpen(false)}
-          />
-          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
-            <span className="text-4xl">🔄</span>
-            <h3 className="mt-2 font-bold font-bricolage text-gray-900 text-lg">
-              Ulangi {test.family === "minat" ? "Tes Minat" : "Tes Bakat"}?
-            </h3>
-            <p className="mt-1 font-manrope text-gray-500 text-sm">
-              Ini memulai percobaan baru. Hasil lama tetap tersimpan di History.
-            </p>
-            <div className="mt-5 space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setRetestOpen(false);
-                  window.location.assign(`${meta.href}?retest=1`);
-                }}
-                className="w-full rounded-2xl bg-brand-navy px-4 py-3 font-bold font-bricolage text-sm text-white shadow-md transition-all hover:brightness-110"
-              >
-                Ya, Tes Ulang
-              </button>
-              <button
-                type="button"
-                onClick={() => setRetestOpen(false)}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
-              >
-                Batal
-              </button>
-            </div>
-          </div>
-        </div>
+        </Link>
       )}
     </div>
   );

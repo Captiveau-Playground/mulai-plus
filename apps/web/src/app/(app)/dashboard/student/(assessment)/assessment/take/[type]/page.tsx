@@ -68,12 +68,11 @@ function TestRoute({ code }: { code: string }) {
   const search = useSearchParams();
   const preview = search?.get("preview") === "1";
   const versionId = search?.get("v");
-  const retest = search?.get("retest") === "1";
   // SATU jalur render: engine dipakai untuk semua kode tes (termasuk tes kustom & preview
   // admin), supaya yang dilihat admin PERSIS sama dengan yang dilihat siswa.
   // `LegacyWizard` hanya untuk kode katalog lama ("interest"/"ability") yang datanya di tmb_*.
   if (preview || (code !== "interest" && code !== "ability"))
-    return <EngineWrapper code={code} preview={preview} versionId={versionId} retest={retest} />;
+    return <EngineWrapper code={code} preview={preview} versionId={versionId} />;
   return <LegacyWizard />;
 }
 
@@ -81,13 +80,10 @@ function EngineWrapper({
   code,
   preview = false,
   versionId = null,
-  retest = false,
 }: {
   code: string;
   preview?: boolean;
   versionId?: string | null;
-  /** hanya true saat siswa memilih "Tes Ulang" (bukan sekadar membuka halaman tes). */
-  retest?: boolean;
 }) {
   const [ready, setReady] = useState<{
     sessionId: string;
@@ -120,7 +116,6 @@ function EngineWrapper({
           code,
           studentId: sid,
           versionId: versionId ?? undefined,
-          retest,
         } as any)) as any;
         // Sudah selesai & bukan tes ulang → jangan masuk tes; arahkan ke hasil.
         if (st?.ok === false && st?.error === "already_completed") {
@@ -170,7 +165,7 @@ function EngineWrapper({
         setErrg(e?.message ?? "Gagal memuat tes");
       }
     })();
-  }, [code, sid, versionId, retest]);
+  }, [code, sid, versionId]);
   if (alreadyDone)
     return (
       <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg-light p-6 text-center">
@@ -189,14 +184,30 @@ function EngineWrapper({
           </button>
           <button
             type="button"
-            onClick={() => {
-              const url = new URL(window.location.href);
-              url.searchParams.set("retest", "1");
-              window.location.assign(url.toString());
+            data-testid="retest-now"
+            onClick={async () => {
+              setAlreadyDone(false);
+              setErrg("");
+              try {
+                const st = (await client.discover.start({
+                  code,
+                  studentId: sid as string,
+                  versionId: versionId ?? undefined,
+                  retest: true,
+                } as any)) as any;
+                if (st?.ok === false) {
+                  setAlreadyDone(true);
+                  return;
+                }
+                // sesi baru sudah dibuat di server → muat ulang halaman untuk mulai dari awal
+                window.location.reload();
+              } catch {
+                setAlreadyDone(true);
+              }
             }}
             className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 font-bold font-manrope text-gray-600 text-sm"
           >
-            Tes ulang
+            Ya, tes ulang
           </button>
         </div>
       </div>
