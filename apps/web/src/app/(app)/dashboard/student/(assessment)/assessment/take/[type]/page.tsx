@@ -14,6 +14,7 @@ import { Latex } from "@/components/assessment/latex";
 import { StreakFlame } from "@/components/assessment/streak-flame";
 import { trackEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
+import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
 
@@ -275,7 +276,16 @@ function LegacyWizard({
   // editor menutup dialog preview.
   const isPreviewMode =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "1";
-  const keluar = () => {
+  const keluar = async () => {
+    // Keluar = waktu DIBEKUKAN (kalau tidak, siswa kehilangan waktu saat keluar sebentar).
+    try {
+      if (isEngine && engine?.sessionId) {
+        setPausedAtClient(Date.now());
+        await client.discover.pause({ sessionId: engine.sessionId } as any);
+      }
+    } catch {
+      /* offline: abaikan */
+    }
     if (isPreviewMode) {
       try {
         window.parent?.postMessage({ type: "assessment-preview-exit" }, "*");
@@ -430,6 +440,8 @@ function LegacyWizard({
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [done, setDone] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [finishErr, setFinishErr] = useState(false);
   const [bothDone, setBothDone] = useState(false);
   const [resultId, setResultId] = useState<string | null>(null);
   const [_correctCount, setCorrectCount] = useState(0);
@@ -469,6 +481,13 @@ function LegacyWizard({
     }
     setShowGuide(false);
     setIntro(false);
+    // Tampilkan layar INSTRUKSI bagian pertama SEKARANG (sinkron, satu render dengan intro=false).
+    // Kalau menunggu efek berikutnya, jendela timer bagian-1 sempat dibuat saat siswa masih
+    // membaca instruksi → waktu terpakai sia-sia dan hitungannya terasa "melompat".
+    if (sectionsOn && effQs.length) {
+      const firstDim = (effQs[0] as any)?.dimensionId;
+      if (firstDim) setSecStart({ eqIndex: 0, name: dimNameOf(firstDim as string) });
+    }
   };
 
   // Timer — waktu dihabiskan (analitik + tampilan)
@@ -559,12 +578,37 @@ function LegacyWizard({
     setEq(i);
   };
   const engineFinish = async () => {
-    try {
-      const r = (await client.discover.finish({ sessionId: engine?.sessionId } as any)) as any;
-      setXpEarned(r?.xpEarned ?? 0);
-    } catch {
-      /* ok */
+    if (finishing) return;
+    setFinishing(true);
+    setFinishErr(false);
+    // Simpan hasil dengan percobaan ulang: gangguan jaringan sesaat TIDAK boleh membuat
+    // pengguna melihat "Test Selesai!" padahal server belum menyimpan hasilnya.
+    let r: any = null;
+    let lastErr = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        r = await client.discover.finish({ sessionId: engine?.sessionId } as any);
+        if (r?.ok === false) {
+          lastErr = r?.error === "finish_failed" ? `finish_failed:${r?.stage ?? "-"}` : String(r?.error ?? "");
+          throw new Error(lastErr);
+        }
+        break;
+      } catch (e: any) {
+        lastErr = String(e?.message ?? e);
+        if (attempt === 2) {
+          // Gagal total → jangan pura-pura selesai; tampilkan tombol coba lagi.
+          setFinishing(false);
+          setFinishErr(true);
+          notify.error("Hasil belum tersimpan", {
+            description: "Koneksi sedang tidak stabil. Jawabanmu aman — tekan Coba simpan lagi.",
+          });
+          return;
+        }
+        await new Promise((res) => setTimeout(res, 500 * (attempt + 1)));
+      }
     }
+    setFinishing(false);
+    setXpEarned(r?.xpEarned ?? 0);
     setDone(true);
     blip(1318, 0.22);
     fireConfetti();
@@ -751,7 +795,7 @@ function LegacyWizard({
           </button>
           <button
             type="button"
-            onClick={keluar}
+            onClick={() => void keluar()}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
           >
             Keluar & Simpan
@@ -769,6 +813,9 @@ function LegacyWizard({
   // Timer per dimensi/per soal karena itu selalu mulai penuh saat masuk bagian baru.
   const [win, setWin] = useState<{ key: string; startISO: string; endISO: string; seconds: number } | null>(null);
   const [timerNotice, setTimerNotice] = useState<string | null>(null); // banner "waktu habis"
+  const [paused, setPaused] = useState(false); // timer beku (tab tersembunyi / keluar sementara)
+  const [touchN, setTouchN] = useState(0); // pemicu ulang pembukaan jendela timer setelah resume
+  const [pausedAtClient, setPausedAtClient] = useState<number | null>(null); // jam klien saat dijeda
   const [_tick, setTick] = useState(0); // re-render tiap detik utk countdown & cek deadline
   const jumpRef = useRef<string>(""); // cegah lompat dobel
 
@@ -853,6 +900,18 @@ function LegacyWizard({
     setTimerNotice(
       dl.kind === "dimension" ? "⏱ Waktu bagian habis — lanjut otomatis" : "⏱ Waktu soal habis — lanjut otomatis",
     );
+    // Pindah BAGIAN karena waktu habis → tetap tampilkan instruksi bagian berikutnya
+    // (dulu langsung lompat ke soal sehingga siswa tak tahu aturan bagian baru).
+    const fromDim = (effQs[eq] as any)?.dimensionId;
+    const toDim = (effQs[target] as any)?.dimensionId;
+    if (sectionsOn && toDim && toDim !== fromDim) {
+      setWin(null);
+      setSelected(null);
+      setRevealed(false);
+      setEq(target);
+      setSecStart({ eqIndex: target, name: dimNameOf(toDim as string) });
+      return;
+    }
     timerJump(target);
     setTimeout(() => setTimerNotice(null), 3000);
     // biome-ignore lint/correctness/useExhaustiveDependencies: timer tick sengaja hanya bergantung nilai ini
@@ -910,6 +969,49 @@ function LegacyWizard({
     setTimeout(() => engineNext(nextUn(eq + 1)), 950);
   };
 
+  // ⏸ Timer hanya berjalan saat halaman tes benar-benar dilihat.
+  // Keluar / pindah tab / kunci HP → timer DIJEDA (server membekukan waktu & menggeser tenggat
+  // saat kembali), jadi siswa tidak kehilangan waktu.
+  useEffect(() => {
+    if (!isEngine || !engine?.sessionId || done || intro !== false) return;
+    const sid = engine.sessionId;
+    let alive = true;
+    const doPause = () => {
+      setPaused(true);
+      setPausedAtClient((prev) => prev ?? Date.now());
+      void client.discover.pause({ sessionId: sid } as any).catch(() => {});
+    };
+    const doResume = () => {
+      void client.discover
+        .resume({ sessionId: sid } as any)
+        .then(() => {
+          if (!alive) return;
+          setPaused(false);
+          setPausedAtClient(null);
+          setTouchN((x) => x + 1); // buka lagi jendela timer (sisa waktu yang benar)
+        })
+        .catch(() => {
+          if (alive) {
+            setPaused(false);
+            setPausedAtClient(null);
+          }
+        });
+    };
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") doPause();
+    else doResume();
+    const onVis = () => (document.visibilityState === "hidden" ? doPause() : doResume());
+    const onHide = () => doPause();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("blur", onHide);
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("blur", onHide);
+    };
+  }, [isEngine, engine?.sessionId, done, intro]);
+
   // ⏱ Buka jendela timer untuk soal aktif (server membuat start/end baru untuk bagian/soal ini)
   // biome-ignore lint/correctness/useExhaustiveDependencies: cukup saat soal aktif berganti
   useEffect(() => {
@@ -935,7 +1037,7 @@ function LegacyWizard({
     return () => {
       alive = false;
     };
-  }, [isEngine, engine?.sessionId, eq, intro, done, secStart]);
+  }, [isEngine, engine?.sessionId, eq, intro, done, secStart, touchN]);
 
   // ⏱ HEARTBEAT timer (server-authoritative) — sinkron tiap 12s + tick 1s utk UI
   useEffect(() => {
@@ -1359,6 +1461,34 @@ function LegacyWizard({
       </div>
     );
   }
+  if (isEngine && finishErr && !done) {
+    return (
+      <div className="fixed inset-0 z-[95] flex flex-col items-center justify-center bg-bg-light px-6 text-center">
+        <div className="max-w-sm rounded-3xl bg-white px-6 py-8 shadow-xl">
+          <p className="font-bold font-manrope text-amber-600 text-xs uppercase tracking-widest">Koneksi terputus</p>
+          <h2 className="mt-2 font-bold font-bricolage text-2xl text-gray-900">Hasil belum tersimpan</h2>
+          <p className="mt-2 font-manrope text-gray-500 text-sm">
+            Semua jawabanmu ({effQs.length} soal) sudah aman di server. Tekan tombol di bawah untuk menyimpan hasil.
+          </p>
+          <button
+            type="button"
+            data-testid="retry-finish"
+            onClick={() => void engineFinish()}
+            disabled={finishing}
+            className="mt-6 w-full rounded-2xl bg-brand-orange px-6 py-3.5 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-70"
+          >
+            {finishing ? "Menyimpan…" : "Coba simpan lagi"}
+          </button>
+          <a
+            href="/dashboard/student/assessment"
+            className="mt-3 inline-block font-manrope text-gray-400 text-xs hover:text-gray-600"
+          >
+            Kembali ke beranda
+          </a>
+        </div>
+      </div>
+    );
+  }
   if (isEngine && intro === true) {
     const nSec = engine?.sections ?? Math.max(1, new Set(effQs.map((q) => q.dimensionId)).size);
     return (
@@ -1507,7 +1637,7 @@ function LegacyWizard({
         {allowPause && dimIdxOf(secStart.eqIndex) > 0 && dimIdxOf(secStart.eqIndex) < totalDims - 1 && (
           <button
             type="button"
-            onClick={keluar}
+            onClick={() => void keluar()}
             className="mt-3 font-manrope font-semibold text-gray-400 text-sm underline-offset-2 hover:text-gray-600 hover:underline"
           >
             Berhenti dulu — lanjut kapan saja
@@ -1558,7 +1688,7 @@ function LegacyWizard({
             {allowPause && dimIdxOf(secOverlay.nextEq) < totalDims && (
               <button
                 type="button"
-                onClick={keluar}
+                onClick={() => void keluar()}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 font-manrope font-semibold text-gray-500 text-xs hover:bg-gray-50"
               >
                 ⏸ Berhenti di sini — lanjut nanti dari bagian ini
@@ -1612,15 +1742,21 @@ function LegacyWizard({
 
   // ⏱ Countdown dari deadline SERVER (offset clock) + tone visual (Duolingo-style 20%/10%)
   const _nowServer = timerSt?.serverNow
-    ? Number(timerSt.serverNow) + (Date.now() - Number(timerSt._localAt ?? Date.now()))
-    : Date.now();
+    ? Number(timerSt.serverNow) +
+      (Date.now() - Number(timerSt._localAt ?? Date.now())) -
+      (paused && pausedAtClient ? Date.now() - pausedAtClient : 0)
+    : Date.now() - (paused && pausedAtClient ? Date.now() - pausedAtClient : 0);
   let _remainMs: number | null = null;
   let _ratio = 1;
   {
+    // Saat dijeda `deadlineOf` kosong (tidak boleh memicu auto-lompat) → pakai jendela tersimpan
+    // supaya sisa waktu tetap terlihat (dan tidak berjalan) selama jeda.
     const dl = deadlineOf(eq);
-    if (timerSt?.ok && dl.kind !== "none") {
-      _remainMs = new Date(dl.endISO as string).getTime() - _nowServer;
-      _ratio = dl.totalMs && dl.totalMs > 0 ? Math.max(0, _remainMs) / dl.totalMs : 0;
+    const endISO = dl.kind !== "none" ? (dl.endISO as string) : paused && win?.endISO ? win.endISO : null;
+    const totalMs = dl.kind !== "none" ? dl.totalMs : paused && win ? Math.max(1000, Number(win.seconds) * 1000) : 0;
+    if (timerSt?.ok && endISO) {
+      _remainMs = new Date(endISO).getTime() - _nowServer;
+      _ratio = totalMs && totalMs > 0 ? Math.max(0, _remainMs) / totalMs : 0;
     }
   }
   const _tone: "none" | "normal" | "warn" | "crit" =
@@ -1630,6 +1766,8 @@ function LegacyWizard({
       ? `${String(Math.max(0, Math.floor(_remainMs / 60000))).padStart(2, "0")}:${String(Math.max(0, Math.floor((_remainMs % 60000) / 1000))).padStart(2, "0")}`
       : null;
   const _expiredDims = new Set((timerSt?.dims ?? []).filter((d: any) => d.expired).map((d: any) => d.id));
+  const _dlNow = deadlineOf(eq);
+  const dlScopeLabel = _dlNow.kind === "question" ? "soal ini" : "bagian ini";
 
   return (
     <div className="fixed inset-0 z-[70] h-dvh overflow-hidden bg-bg-light">
@@ -1784,47 +1922,62 @@ function LegacyWizard({
                   );
                 })}
               </div>
-              <div className="mt-1 flex items-center justify-between font-manrope text-[10px] text-gray-500">
-                <span className="truncate font-semibold text-gray-600">{curSecName || "Mulai"}</span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  <span className="font-bold text-amber-600">+{xpEarned} XP</span>
+              {/* ── METRIK ─────────────────────────────────────────────────────────────
+                   Mobile sempit → hanya 3 hal yang benar-benar penting:
+                   (1) nama bagian, (2) progres soal, (3) SISA WAKTU.
+                   "Waktu berjalan" hanya di desktop supaya tidak ada dua angka waktu yang
+                   tampak "loncat-loncat" (dulu labelnya disembunyikan → siswa bingung). */}
+              <div className="mt-1 flex items-center justify-between gap-2 font-manrope text-[10px] text-gray-500">
+                <span className="min-w-0 truncate font-semibold text-gray-600">
+                  {curSecName || "Mulai"}
+                  {sectionsOn && totalDims > 1 && (
+                    <span className="ml-1 font-normal text-gray-400">
+                      · {curSec + 1}/{totalDims}
+                    </span>
+                  )}
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setMapOpen(true)}
-                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 font-bold text-gray-600 transition-colors hover:bg-gray-100"
+                    aria-label={`Peta soal, ${answeredSet?.size ?? 0} dari ${effQs.length} terjawab`}
+                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 font-bold text-gray-600 transition-colors hover:bg-gray-100 sm:px-2"
                   >
                     🗺 {answeredSet?.size ?? 0}/{effQs.length}
                   </button>
-                  {/* (B) Elapsed time SELALU tampil (termasuk mobile); countdown tampil
-                      bersamanya saat timer aktif — jadi siswa tahu berjalan & sisa waktu. */}
-                  <span
-                    data-testid="elapsed-chip"
-                    title="Waktu berjalan (dihitung naik sejak tes dimulai)"
-                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 font-manrope font-semibold text-[10px] text-slate-500 tabular-nums sm:px-2 sm:text-[11px]"
-                  >
-                    <Timer className="h-3 w-3" />
-                    <span className="hidden sm:inline">Berjalan</span>
-                    {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
-                  </span>
-                  {_mmss && (
+                  {/* satu-satunya timer yang tampil di mobile: SISA WAKTU */}
+                  {_mmss ? (
                     <span
                       data-testid="countdown-chip"
                       data-tone={_tone}
-                      title="Sisa waktu bagian/soal ini"
+                      title={
+                        paused ? "Waktu dijeda" : `Sisa waktu ${dlScopeLabel} — berhenti otomatis saat kamu keluar`
+                      }
                       className={cn(
                         "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-bold font-manrope text-[10px] tabular-nums transition-colors sm:px-2 sm:text-[11px]",
-                        _tone === "crit"
-                          ? "animate-pulse bg-red-500 text-white shadow-md shadow-red-500/30"
-                          : _tone === "warn"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-sky-100 text-sky-700",
+                        paused
+                          ? "bg-slate-200 text-slate-600"
+                          : _tone === "crit"
+                            ? "animate-pulse bg-red-500 text-white shadow-md shadow-red-500/30"
+                            : _tone === "warn"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-sky-100 text-sky-700",
                       )}
                     >
                       <Timer className="h-3 w-3" />
-                      <span className="hidden sm:inline">Sisa</span>
-                      {_mmss}
+                      <span>{paused ? `Dijeda ${_mmss}` : `Sisa ${_mmss}`}</span>
                     </span>
-                  )}
+                  ) : null}
+                  {/* "Berjalan" hanya desktop (mengurangi kebingungan 2 timer di HP) */}
+                  <span
+                    data-testid="elapsed-chip"
+                    title="Waktu berjalan sejak tes dimulai"
+                    className="hidden items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-manrope font-semibold text-[11px] text-slate-500 tabular-nums sm:inline-flex"
+                  >
+                    <Timer className="h-3 w-3" />
+                    {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
+                  </span>
+                  <span className="hidden font-bold text-amber-600 sm:inline">+{xpEarned} XP</span>
                   <span className="hidden sm:inline-flex">
                     <StreakFlame days={streak} showDots={false} showLabel={false} />
                   </span>
