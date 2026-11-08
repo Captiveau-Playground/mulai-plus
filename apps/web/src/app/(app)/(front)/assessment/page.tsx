@@ -11,6 +11,7 @@ import {
   TrendingUp,
   User,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
@@ -374,6 +375,103 @@ export default function AssessmentLandingPage() {
             </StaggerItem>
           ))}
         </StaggerGroup>
+      </section>
+
+      {/* ── TAMPILAN ASLI (screenshot produk) ── */}
+      <section className="border-gray-100 border-t bg-gray-50/60">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+          <Reveal className="mx-auto max-w-2xl text-center">
+            <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">Tampilan Asli</p>
+            <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight md:text-4xl">
+              Bukan Mockup — Ini Produknya
+            </h2>
+            <p className="mt-4 font-manrope text-gray-500">
+              Tangkapan layar langsung dari aplikasi: soal Tes Minat skala emoji, Tes Bakat dengan timer per bagian,
+              sampai laporan hasil dan peta rekomendasi.
+            </p>
+          </Reveal>
+
+          {/* Baris 1 — dua layar HP (dipotong rapi, fokus ke soal & opsi) */}
+          <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
+            {[
+              {
+                src: "/product-shots/soal-minat.webp",
+                title: "Soal Tes Minat",
+                desc: "120 soal skala emoji · tanpa batas waktu",
+              },
+              {
+                src: "/product-shots/soal-bakat.webp",
+                title: "Soal Tes Bakat",
+                desc: "100 soal · timer 10 menit per bagian",
+              },
+            ].map((shot) => (
+              <div key={shot.src} className="text-center">
+                <div className="relative overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white p-1.5 shadow-brand-navy/5 shadow-lg">
+                  <Image
+                    src={shot.src}
+                    alt={`Tampilan ${shot.title} di aplikasi MULAI+`}
+                    width={780}
+                    height={1688}
+                    className="max-h-[430px] w-full rounded-[1.4rem] object-cover object-top"
+                    sizes="(max-width: 640px) 90vw, 30vw"
+                  />
+                  <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 h-10 rounded-b-[1.4rem] bg-gradient-to-t from-white to-transparent" />
+                </div>
+                <p className="mt-3 font-bold font-bricolage text-gray-900 text-sm">{shot.title}</p>
+                <p className="font-manrope text-gray-500 text-xs">{shot.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Baris 2 — dua layar lebar (laporan & peta) */}
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            {(
+              [
+                {
+                  src: "/product-shots/hasil.webp",
+                  w: 1200,
+                  h: 497,
+                  title: "Laporan hasil",
+                  desc: "Kode minat, 5 dimensi bakat, dan rekomendasi jurusan dalam satu halaman",
+                },
+                {
+                  src: "/product-shots/peta.webp",
+                  w: 1200,
+                  h: 594,
+                  title: "Peta rekomendasi",
+                  desc: "Profil → jurusan → karier → prodi, tiap node bisa diklik",
+                },
+              ] as { src: string; w: number; h: number; title: string; desc: string }[]
+            ).map((shot) => (
+              <div key={shot.src}>
+                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-brand-navy/5 shadow-lg">
+                  <div className="flex items-center gap-1.5 border-gray-100 border-b bg-gray-50/80 px-3 py-2">
+                    <span className="h-2 w-2 rounded-full bg-red-300" />
+                    <span className="h-2 w-2 rounded-full bg-amber-300" />
+                    <span className="h-2 w-2 rounded-full bg-green-300" />
+                    <span className="ml-2 truncate font-manrope text-[10px] text-gray-400">
+                      mulaiplus.id — {shot.title}
+                    </span>
+                  </div>
+                  <Image
+                    src={shot.src}
+                    alt={`Tampilan ${shot.title} di aplikasi MULAI+`}
+                    width={shot.w ?? 1400}
+                    height={shot.h ?? 1025}
+                    className="h-auto w-full"
+                    sizes="(max-width: 768px) 92vw, 44vw"
+                  />
+                </div>
+                <p className="mt-3 font-bold font-bricolage text-gray-900 text-sm">{shot.title}</p>
+                <p className="font-manrope text-gray-500 text-xs">{shot.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-10 text-center font-manrope text-[11px] text-gray-400">
+            Tangkapan layar dari aplikasi MULAI+ (akun demo) — data pribadi tidak ditampilkan.
+          </p>
+        </div>
       </section>
 
       {/* ── PREVIEW LAPORAN ── */}

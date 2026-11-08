@@ -387,9 +387,23 @@ export async function finalizeSession(
                 scores: abilityScores,
               }
             : undefined;
-        const gap = r0 && r1 && r0.total > 0 ? (r0.total - r1.total) / r0.total : 0;
+        // Kejelasan minat dihitung dari SEBARAN SKOR HOLLAND (RIASEC) milik attempt ini,
+        // bukan dari sebaran skor bakat. Dulu penyelesaian Tes Bakat menimpa nilai ini sehingga
+        // hasil minat yang sangat tegas (mis. I=100 vs A=40) tetap berlabel "Perlu Eksplorasi".
+        const mergedHolland = {
+          ...((existingForAttempt as any)?.hollandScores ?? {}),
+          ...(fam === "minat" ? hollandScores : {}),
+        } as Record<string, number>;
+        const hVals = Object.values(mergedHolland)
+          .map((v) => Number(v))
+          .filter((v) => Number.isFinite(v) && v > 0)
+          .sort((a, b) => b - a);
+        const hGap =
+          hVals.length >= 2 && (hVals[0] ?? 0) > 0 ? ((hVals[0] ?? 0) - (hVals[1] ?? 0)) / (hVals[0] ?? 1) : 0;
+        const abilityGap = r0 && r1 && r0.total > 0 ? (r0.total - r1.total) / r0.total : 0;
+        const gap = hVals.length >= 2 ? hGap : abilityGap;
         const diff = gap > 0.4 ? "strong" : gap > 0.15 ? "moderate" : "weak";
-        const confScore = String(Math.max(0, Math.min(100, Math.round(50 + (diffFactor ?? 0.5) * 40))));
+        const confScore = String(Math.max(0, Math.min(100, Math.round(50 + Math.min(1, Math.max(0, gap)) * 40))));
         if (existingForAttempt) {
           await db
             .update(tmbAssessmentResults)
