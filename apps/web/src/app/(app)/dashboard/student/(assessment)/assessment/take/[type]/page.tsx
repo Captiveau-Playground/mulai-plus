@@ -68,11 +68,12 @@ function TestRoute({ code }: { code: string }) {
   const search = useSearchParams();
   const preview = search?.get("preview") === "1";
   const versionId = search?.get("v");
+  const retest = search?.get("retest") === "1";
   // SATU jalur render: engine dipakai untuk semua kode tes (termasuk tes kustom & preview
   // admin), supaya yang dilihat admin PERSIS sama dengan yang dilihat siswa.
   // `LegacyWizard` hanya untuk kode katalog lama ("interest"/"ability") yang datanya di tmb_*.
   if (preview || (code !== "interest" && code !== "ability"))
-    return <EngineWrapper code={code} preview={preview} versionId={versionId} />;
+    return <EngineWrapper code={code} preview={preview} versionId={versionId} retest={retest} />;
   return <LegacyWizard />;
 }
 
@@ -80,10 +81,13 @@ function EngineWrapper({
   code,
   preview = false,
   versionId = null,
+  retest = false,
 }: {
   code: string;
   preview?: boolean;
   versionId?: string | null;
+  /** hanya true saat siswa memilih "Tes Ulang" (bukan sekadar membuka halaman tes). */
+  retest?: boolean;
 }) {
   const [ready, setReady] = useState<{
     sessionId: string;
@@ -99,6 +103,7 @@ function EngineWrapper({
     allowPause?: boolean;
   } | null>(null);
   const [errg, setErrg] = useState("");
+  const [alreadyDone, setAlreadyDone] = useState(false);
   const { data: authSession } = authClient.useSession();
   const startedRef = useRef(false);
   // id preview dibuat sekali per mount (tidak memicu loop & tidak menyentuh data siswa)
@@ -115,7 +120,13 @@ function EngineWrapper({
           code,
           studentId: sid,
           versionId: versionId ?? undefined,
+          retest,
         } as any)) as any;
+        // Sudah selesai & bukan tes ulang → jangan masuk tes; arahkan ke hasil.
+        if (st?.ok === false && st?.error === "already_completed") {
+          setAlreadyDone(true);
+          return;
+        }
         // (M2.3) Kelas punya jadwal & sedang di luar window → tampilkan pesan jadwal,
         // bukan error generik. (Server tetap sumber kebenaran penolakannya.)
         if (st?.ok === false) {
@@ -159,7 +170,37 @@ function EngineWrapper({
         setErrg(e?.message ?? "Gagal memuat tes");
       }
     })();
-  }, [code, sid, versionId]);
+  }, [code, sid, versionId, retest]);
+  if (alreadyDone)
+    return (
+      <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg-light p-6 text-center">
+        <span className="text-4xl">✅</span>
+        <p className="font-bold font-bricolage text-brand-navy text-xl">Tes ini sudah selesai</p>
+        <p className="max-w-sm font-manrope text-gray-500 text-sm">
+          Hasilmu sudah tersimpan. Lihat hasilnya, atau mulai percobaan baru kalau memang ingin mengulang.
+        </p>
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.location.assign("/dashboard/student/assessment/result")}
+            className="rounded-xl bg-brand-navy px-5 py-2.5 font-bold font-manrope text-sm text-white"
+          >
+            Lihat hasil
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set("retest", "1");
+              window.location.assign(url.toString());
+            }}
+            className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 font-bold font-manrope text-gray-600 text-sm"
+          >
+            Tes ulang
+          </button>
+        </div>
+      </div>
+    );
   if (errg)
     return (
       <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light p-4">
@@ -1677,7 +1718,11 @@ function LegacyWizard({
                           "h-full rounded-full transition-all duration-500",
                           pct > 0 ? "bg-gradient-to-r from-mentor-teal to-teal-500" : "bg-transparent",
                         )}
-                        style={{ width: `${pct > 0 ? Math.max(pct * 100, 5) : 0}%` }}
+                        style={{
+                          // Akurat: dulu ada "minimum 5%" supaya progres kecil terlihat, tapi untuk
+                          // 120 soal artinya 1 jawaban = 5% → batang langsung meloncat di awal.
+                          width: `${Math.min(100, Math.max(0, pct * 100))}%`,
+                        }}
                       />
                     </div>
                   );
