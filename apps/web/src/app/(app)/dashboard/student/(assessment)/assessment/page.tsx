@@ -112,12 +112,23 @@ function TestCard({ test, pid, attempts = [] }: { test: any; pid: string; attemp
           )}
           <button
             type="button"
-            onClick={() => {
-              void raw.discover.abandon({ studentId: pid, code: test.code }).then(() => qP.refetch());
+            data-testid="reset-all"
+            onClick={async () => {
+              const ok = window.confirm(
+                "Mulai ulang dari nol? Progres & hasil TES MINAT dan TES BAKAT akan dihapus, lalu kamu mengerjakan keduanya lagi.",
+              );
+              if (!ok) return;
+              try {
+                await raw.discover.resetAll({ studentId: pid });
+                await qP.refetch();
+                await qc.invalidateQueries({ queryKey: ["ep", pid] });
+              } catch (e: any) {
+                notify.error("Gagal mereset", { description: String(e?.message ?? e).slice(0, 120) });
+              }
             }}
             className="w-full text-center font-manrope text-[10px] text-gray-400 hover:text-red-500"
           >
-            Bukan ini? Mulai ulang (buang progres)
+            Bukan ini? Mulai ulang kedua tes (buang progres)
           </button>
         </div>
       ) : sideDone ? (
