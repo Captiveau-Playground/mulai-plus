@@ -417,6 +417,43 @@ function groupProdiByCategory(
   return { byCategory };
 }
 
+/**
+ * Kelompokkan prodi per kategori jurusan.
+ * Jalur utama: kolom `study_programs.major_category_key` (diisi seeder) → O(n) tanpa regex.
+ * Fallback regex hanya untuk prodi yang belum berkategori (data PDDikti baru / pola baru);
+ * regex dikompilasi sekali & hasilnya di-cache per isolate.
+ */
+export function prodiByCategory<T extends { name: string; majorCategoryKey?: string | null }>(
+  prodiList: T[],
+  patterns: { categoryKey: string; pattern: string }[],
+): Map<string, T[]> {
+  const byCategory = new Map<string, T[]>();
+  const hasPrecomputed = prodiList.some((p) => p.majorCategoryKey);
+  if (!hasPrecomputed) {
+    return groupProdiByCategory(prodiList as any, compilePatterns(patterns)).byCategory as unknown as Map<string, T[]>;
+  }
+  const pending: T[] = [];
+  for (const p of prodiList) {
+    const key = p.majorCategoryKey ?? null;
+    if (!key) {
+      pending.push(p);
+      continue;
+    }
+    const arr = byCategory.get(key) ?? [];
+    arr.push(p);
+    byCategory.set(key, arr);
+  }
+  if (pending.length) {
+    const fallback = groupProdiByCategory(pending as any, compilePatterns(patterns)).byCategory;
+    for (const [k, v] of fallback) {
+      const arr = byCategory.get(k) ?? [];
+      arr.push(...(v as unknown as T[]));
+      byCategory.set(k, arr);
+    }
+  }
+  return byCategory;
+}
+
 export function computeRecommendations(
   holland: { code: string; scores: Record<string, number> },
   ability: { levels: Record<string, string> },
@@ -431,36 +468,7 @@ export function computeRecommendations(
   }[],
   careers: { majorCategory: string; careerName: string }[],
 ) {
-  // Kelompokkan prodi per kategori.
-  // Jalur utama: kolom `study_programs.major_category_key` (sudah diisi seeder) → O(n) tanpa
-  // regex sama sekali. Fallback regex HANYA untuk prodi yang belum punya kategori (data PDDikti
-  // baru / pola baru), dan regex dikompilasi sekali + hasilnya di-cache per isolate.
-  const hasPrecomputed = prodiList.some((p: any) => p.majorCategoryKey);
-  let byCategory: Map<string, typeof prodiList>;
-  if (hasPrecomputed) {
-    byCategory = new Map<string, typeof prodiList>();
-    const pending: typeof prodiList = [];
-    for (const p of prodiList) {
-      const key = (p as any).majorCategoryKey as string | null;
-      if (!key) {
-        pending.push(p);
-        continue;
-      }
-      const arr = byCategory.get(key) ?? [];
-      arr.push(p);
-      byCategory.set(key, arr);
-    }
-    if (pending.length) {
-      const fallback = groupProdiByCategory(pending, compilePatterns(patterns)).byCategory;
-      for (const [k, v] of fallback) {
-        const arr = byCategory.get(k) ?? [];
-        arr.push(...v);
-        byCategory.set(k, arr);
-      }
-    }
-  } else {
-    byCategory = groupProdiByCategory(prodiList, compilePatterns(patterns)).byCategory;
-  }
+  const byCategory = prodiByCategory(prodiList as any, patterns as any) as Map<string, typeof prodiList>;
 
   const studentHolland = holland.scores;
   // Normalisasi skor minat ke 0..1 (engine bisa kirim raw count) — cegah persen kecocokan nggak-realistis (mis. 333%)
@@ -959,7 +967,66 @@ export const tmbRouter = {
         db.query.tmbProfiles.findFirst({ where: eq(tmbProfiles.userId, userId) }),
       ]);
 
-      return { result, recommendations, summary: summary?.content ?? null, stats, profile };
+      // ── Karier → prodi ────────────────────────────────────────────────────────
+      // Setiap karier WAJIB punya jalur kuliah (minimal 1 prodi) supaya cabang mindmap
+      // tidak berhenti di nama profesi. Satu karier bisa dicapai dari beberapa prodi.
+      const careerRows = recommendations.filter((r) => r.type === "career");
+      let careerProdi: Record<string, any[]> = {};
+      if (careerRows.length) {
+        try {
+          const [patterns, prodiList] = await Promise.all([
+            db.query.tmbMajorPatterns.findMany({ where: eq(tmbMajorPatterns.isActive, true) }),
+            getProdiList(),
+          ]);
+          const byCat = prodiByCategory(prodiList as any, patterns as any);
+          for (const c of careerRows) {
+            const key = (c.categoryKey ?? "").toString();
+            if (!key || careerProdi[key]) continue;
+            const pool = (byCat.get(key) ?? []) as any[];
+            careerProdi[key] = pickProdiRefs(pool, 3).map((p: any) => ({
+              prodi: p.name,
+              level: p.level,
+              university: p.university,
+              favorite: campusTier(p.university) < 999,
+              link: `/explore/universities/${slugify(p.university)}-${p.idSp.substring(0, 6)}/prodi/${encodeURIComponent(p.idSms)}`,
+            }));
+          }
+        } catch (e: any) {
+          console.error("[result] gagal memetakan karier → prodi:", e?.message ?? e);
+          careerProdi = {};
+        }
+      }
+      // Normalisasi prodiRefs tersimpan: jenjang untuk calon mahasiswa (S1/D4/D3 dulu) +
+      // urutan kampus favorit. Hasil lama (dihitung sebelum aturan ini) ikut dirapikan tanpa
+      // perlu migrasi data.
+      const normalizeRefs = (refs: any[] | null | undefined, limit: number) => {
+        const arr = Array.isArray(refs) ? refs : [];
+        if (!arr.length) return [];
+        const picked = pickProdiRefs(
+          arr.map((x) => ({ ...x, name: x.prodi ?? x.name ?? "" })),
+          limit,
+        );
+        return picked.map((x: any) => ({
+          prodi: x.prodi ?? x.name,
+          level: x.level ?? null,
+          university: x.university,
+          favorite: campusTier(x.university) < 999,
+          link: x.link,
+        }));
+      };
+      const recommendationsWithPaths = recommendations.map((r) => {
+        if (r.type === "career") return { ...r, prodiRefs: careerProdi[(r.categoryKey ?? "").toString()] ?? [] };
+        if (r.type === "major") return { ...r, prodiRefs: normalizeRefs(r.prodiRefs as any[], 5) };
+        return r;
+      });
+
+      return {
+        result,
+        recommendations: recommendationsWithPaths,
+        summary: summary?.content ?? null,
+        stats,
+        profile,
+      };
     }),
 
     history: protectedProcedure.handler(async ({ context }) => {
@@ -1125,18 +1192,9 @@ export const tmbRouter = {
         const top = matched.slice(0, 3);
         const matchedExact = matched[0] != null && matched[0].score >= 2;
 
-        // 2) kelompokkan prodi per kategori (regex pola dari major_patterns)
-        const byCategory = new Map<string, typeof prodiList>();
-        for (const p of prodiList) {
-          for (const pat of patterns) {
-            if (new RegExp(pat.pattern, "i").test(p.name)) {
-              const arr = byCategory.get(pat.categoryKey) ?? [];
-              arr.push(p);
-              byCategory.set(pat.categoryKey, arr);
-              break;
-            }
-          }
-        }
+        // 2) kelompokkan prodi per kategori — SAMA seperti hasil tes: kolom
+        //    `major_category_key` dulu, regex pola hanya untuk prodi yang belum berkategori.
+        const byCategory = prodiByCategory(prodiList as any, patterns as any) as Map<string, typeof prodiList>;
 
         // 3) susun jalur: kategori unik + prodi contoh + karier lain di kategori sama
         const paths: {
@@ -1148,14 +1206,24 @@ export const tmbRouter = {
           otherCareers: string[];
         }[] = [];
         const seen = new Set<string>();
-        for (const m of top) {
+        // Setiap jalur WAJIB punya prodi (tidak ada node/cabang tanpa jurusan).
+        const withProdi = top.filter((m) => (byCategory.get(m.categoryKey)?.length ?? 0) > 0);
+        const ranked = withProdi.length ? withProdi : top;
+        const humanize = (key: string) =>
+          key
+            .split(/[-_]/g)
+            .filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+        for (const m of ranked) {
           if (seen.has(m.categoryKey)) continue;
           seen.add(m.categoryKey);
           const pat = patterns.find((p) => p.categoryKey === m.categoryKey);
-          const prodis = (byCategory.get(m.categoryKey) ?? []).slice(0, 6);
+          // Prioritaskan kampus favorit + jenjang relevan (S1 → D4 → D3), sama seperti hasil tes.
+          const prodis = pickProdiRefs(byCategory.get(m.categoryKey) ?? [], 6);
           paths.push({
             categoryKey: m.categoryKey,
-            categoryName: pat?.categoryName ?? m.categoryKey,
+            categoryName: pat?.categoryName ?? humanize(m.categoryKey),
             careerName: m.careerName,
             matchScore: m.score,
             prodis: prodis.map((p) => ({
@@ -1183,12 +1251,18 @@ export const tmbRouter = {
         if (result) {
           const hollandScores = (result.hollandScores ?? {}) as Record<string, number>;
           const ability = (result.abilityScores ?? { levels: {} }) as { levels: Record<string, string> };
+          // Skor minat HARUS dinormalisasi ke 0..1. Dulu dipakai angka mentah (mis. 90) sehingga
+          // "kecocokan" bisa tampil 5244%. Normalisasi sama seperti di computeRecommendations.
+          const rawVals = Object.values(hollandScores)
+            .map(Number)
+            .filter((v) => Number.isFinite(v));
+          const sumV = rawVals.length ? rawVals.reduce((a, b) => a + b, 0) : 0;
+          const nH = (k: string) => (sumV > 0 ? (Number(hollandScores[k]) || 0) / sumV : 0);
           let best = 0;
           for (const path of paths) {
             const pat = patterns.find((p) => p.categoryKey === path.categoryKey);
             if (!pat) continue;
-            const interest =
-              ((hollandScores[pat.hollandPrimary] ?? 0) + (hollandScores[pat.hollandSecondary] ?? 0)) / 2;
+            const interest = (nH(pat.hollandPrimary) + nH(pat.hollandSecondary)) / 2;
             const weights = (pat.abilityWeights ?? {}) as Record<string, number>;
             const weightSum = Object.values(weights).reduce((a: number, b: number) => a + b, 0);
             let abilityMatch = 0.6;

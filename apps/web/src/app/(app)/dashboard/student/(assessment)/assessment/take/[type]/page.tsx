@@ -609,6 +609,10 @@ function LegacyWizard({
     }
     setFinishing(false);
     setXpEarned(r?.xpEarned ?? 0);
+    // Status dua sisi dari SERVER (bukan cache attempt) → CTA "Lihat Rekomendasi" vs
+    // "Lanjut ke tes yang belum" selalu benar, apa pun urutan pengerjaannya.
+    setBothDone(!!r?.bothDone);
+    void queryClient.invalidateQueries({ queryKey: ["engine-attempts", engine?.studentId] });
     setDone(true);
     blip(1318, 0.22);
     fireConfetti();
@@ -1367,7 +1371,7 @@ function LegacyWizard({
           <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
             {isEngine ? (
               (() => {
-                return bothSidesDone ? (
+                return bothDone || bothSidesDone ? (
                   <Link
                     href={"/dashboard/student/assessment/result" as any}
                     className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"

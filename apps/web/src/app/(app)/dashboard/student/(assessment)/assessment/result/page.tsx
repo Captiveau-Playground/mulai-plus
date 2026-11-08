@@ -33,6 +33,18 @@ const ABILITY_INFO: Record<string, { label: string; emoji: string }> = {
   clerical: { label: "Ketelitian", emoji: "🔍" },
 };
 
+/**
+ * Tambahkan UTM ke link internal prodi supaya asal klik terlacak di analytics:
+ * semua link dari halaman HASIL memakai `utm_source=result` (+ jenis kartunya).
+ */
+export function withUtm(link: string, slot = "major_card"): string {
+  if (!link) return link;
+  const [base, hash = ""] = link.split("#");
+  const sep = (base ?? "").includes("?") ? "&" : "?";
+  const q = `utm_source=result&utm_medium=app&utm_campaign=tmb_result&utm_content=${encodeURIComponent(slot)}`;
+  return `${base}${sep}${q}${hash ? `#${hash}` : ""}`;
+}
+
 const LEVEL_COLOR: Record<string, string> = {
   high: "bg-green-500",
   medium: "bg-amber-400",
@@ -143,7 +155,13 @@ export default function TmbResultPage() {
   };
   const abilityScores = abilityRaw.scores ?? {};
   const abilityLevels = abilityRaw.levels ?? {};
-  const noAbility = Object.keys(abilityScores).length === 0;
+  // Hanya dimensi yang BENAR-BENAR punya soal yang ditampilkan. Dulu dimensi tanpa jawaban
+  // tetap muncul sebagai "0/0 · Sedang" sehingga profil terlihat rusak.
+  const abilityRows = Object.entries(ABILITY_INFO).filter(([key]) => {
+    const s = (abilityScores as any)[key];
+    return s && Number(s.total ?? 0) > 0;
+  });
+  const noAbility = abilityRows.length === 0;
   const hollandCode = result.hollandCode ?? "---";
   const differentiation = result.differentiation ?? "moderate";
 
@@ -278,7 +296,7 @@ export default function TmbResultPage() {
           ) : (
             <>
               <div className="mt-4 space-y-3">
-                {Object.entries(ABILITY_INFO).map(([key, info]) => {
+                {abilityRows.map(([key, info]) => {
                   const s = abilityScores[key] ?? { correct: 0, total: 0 };
                   const level = abilityLevels[key] ?? "medium";
                   const pct = s.total ? (s.correct / s.total) * 100 : 0;
@@ -289,7 +307,7 @@ export default function TmbResultPage() {
                           {info.emoji} {info.label}
                         </span>
                         <span className="font-manrope text-gray-400 text-xs">
-                          {s.correct}/{s.total} ·{" "}
+                          {s.correct}/{s.total} benar ·{" "}
                           <b
                             className={cn(
                               "uppercase",
@@ -457,7 +475,7 @@ export default function TmbResultPage() {
                   {m.prodiRefs.map((p: any, j: number) => (
                     <Link
                       key={j}
-                      href={p.link}
+                      href={withUtm(p.link, "major_card") as any}
                       className="flex w-full min-w-0 max-w-full items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2 transition-colors hover:bg-mentor-teal/5"
                     >
                       <span className="min-w-0 flex-1 truncate font-manrope text-gray-600 text-xs">
@@ -482,14 +500,35 @@ export default function TmbResultPage() {
         className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
       >
         <h2 className="font-bold font-bricolage text-gray-900">💼 Karier yang Cocok</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <p className="mt-1 font-manrope text-gray-400 text-xs">
+          Tiap karier dilengkapi jalur kuliahnya — satu karier bisa dicapai dari beberapa prodi.
+        </p>
+        <div className="mt-3 space-y-2.5">
           {careers.map((c: any) => (
-            <span
-              key={c.id}
-              className="rounded-full border border-mentor-teal/30 bg-mentor-teal/5 px-3.5 py-1.5 font-manrope font-medium text-sm text-teal-800"
-            >
-              {c.itemName}
-            </span>
+            <div key={c.id} className="rounded-2xl border border-gray-100 p-3.5">
+              <p className="font-bold font-manrope text-sm text-teal-800">💼 {c.itemName}</p>
+              {(c.prodiRefs ?? []).length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  {(c.prodiRefs as any[]).slice(0, 3).map((p: any, j: number) => (
+                    <Link
+                      key={j}
+                      href={withUtm(p.link, "career_card") as any}
+                      className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5 transition-colors hover:bg-mentor-teal/5"
+                    >
+                      <span className="min-w-0 flex-1 truncate font-manrope text-gray-600 text-xs">
+                        📚 {p.prodi} <span className="text-gray-400">({p.level})</span>
+                        <span className="ml-1 text-gray-400">— {p.university}</span>
+                      </span>
+                      <ArrowUpRight className="h-3 w-3 shrink-0 text-mentor-teal" />
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-1 font-manrope text-[11px] text-gray-400">
+                  Jalur prodi belum tersedia untuk karier ini.
+                </p>
+              )}
+            </div>
           ))}
         </div>
       </motion.div>

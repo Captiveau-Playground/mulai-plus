@@ -74,7 +74,11 @@ export function pickProdiRefs<T extends { name: string; university: string; leve
   prodis: T[],
   limit = 5,
 ): T[] {
-  const sorted = [...prodis].sort(
+  // Jenjang untuk calon mahasiswa: utamakan S1/D4/D3. S2/S3 hanya dipakai bila kategori
+  // benar-benar tidak punya jenjang sarjana (dulu "Magister …" bisa muncul di hasil tes).
+  const undergraduate = prodis.filter((p) => levelTier(p.level) <= 2);
+  const pool = undergraduate.length > 0 ? undergraduate : prodis;
+  const sorted = [...pool].sort(
     (a, b) =>
       levelTier(a.level) - levelTier(b.level) ||
       campusTier(a.university) - campusTier(b.university) ||
