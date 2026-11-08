@@ -189,11 +189,13 @@ function EngineWrapper({
               setAlreadyDone(false);
               setErrg("");
               try {
+                // "Tes ulang" = mulai KEDUA tes dari 0 (bukan hanya yang ini), sesuai aturan
+                // bahwa rekomendasi baru keluar setelah minat + bakat selesai.
+                await client.discover.resetAll({ studentId: sid as string });
                 const st = (await client.discover.start({
                   code,
                   studentId: sid as string,
                   versionId: versionId ?? undefined,
-                  retest: true,
                 } as any)) as any;
                 if (st?.ok === false) {
                   setAlreadyDone(true);
@@ -349,18 +351,15 @@ function LegacyWizard({
       }
     })();
   }, [isEngine, engine?.sessionId, engineQs.map, engineQs]);
-  const otherDoneQ = useQuery({
-    queryKey: ["engine-other-done", engine?.code, engine?.studentId],
-    enabled: isEngine && !!engine?.studentId,
-    queryFn: () => (client as any).discover.resultsFor({ code: engine?.otherCode, studentId: engine?.studentId }),
-  });
-  const otherDone = isEngine ? (otherDoneQ.data as any)?.present === true : false;
   const attQ = useQuery({
     queryKey: ["engine-attempts", engine?.studentId],
     enabled: isEngine && !!engine?.studentId,
     queryFn: () => (client as any).discover.attempts({ studentId: engine?.studentId }),
   });
   const attempts: any[] = (attQ.data as any)?.attempts ?? [];
+  // Rekomendasi hanya boleh muncul bila TES MINAT **dan** TES BAKAT selesai pada attempt yang sama.
+  const lastAttempt = attempts[attempts.length - 1];
+  const bothSidesDone = !!lastAttempt?.hollandCode && !!lastAttempt?.hasAbility;
   const attemptNo =
     attempts.length === 0 ? 1 : attempts[attempts.length - 1]?.complete ? attempts.length + 1 : attempts.length;
   const params = useParams();
@@ -766,6 +765,9 @@ function LegacyWizard({
   const [savedFlash, setSavedFlash] = useState(false); // chip "tersimpan" singkat
   const [achPop, setAchPop] = useState(false); // modal perayaan brand saat tes selesai
   const [timerSt, setTimerSt] = useState<any | null>(null); // heartbeat timer (otoritas server)
+  // Jendela timer untuk soal yang sedang dibuka (dibuat server saat bagian/soal dimasuki).
+  // Timer per dimensi/per soal karena itu selalu mulai penuh saat masuk bagian baru.
+  const [win, setWin] = useState<{ key: string; startISO: string; endISO: string; seconds: number } | null>(null);
   const [timerNotice, setTimerNotice] = useState<string | null>(null); // banner "waktu habis"
   const [_tick, setTick] = useState(0); // re-render tiap detik utk countdown & cek deadline
   const jumpRef = useRef<string>(""); // cegah lompat dobel
@@ -775,14 +777,24 @@ function LegacyWizard({
   //   · soal di dimensi ber-scope "dimension" → dims[dimId].endISO
   //   · selain itu → tanpa batas
   const deadlineOf = (i: number): { kind: "none" | "question" | "dimension"; endISO?: string; totalMs?: number } => {
-    const t: any = timerSt;
-    if (!t?.ok) return { kind: "none" };
-    const qEnd = (t.qEnds ?? [])[i];
-    if (qEnd) return { kind: "question", endISO: qEnd, totalMs: Math.max(1000, Number(t.qPerMs ?? 30000)) };
-    const dimId = effQs[i]?.dimensionId;
-    const d = (t.dims ?? []).find((x: any) => x.id === dimId);
-    if (d?.endISO) return { kind: "dimension", endISO: d.endISO, totalMs: Number(d.durationSeconds ?? 0) * 1000 };
-    return { kind: "none" };
+    // Timer berbasis JENDELA: hanya soal aktif yang punya jendela. Soal lain belum dimulai,
+    // jadi tidak boleh dianggap "sudah lewat waktu" (dulu semua deadline absolut → bagian
+    // berikutnya langsung 00:00 karena sisa waktu bagian sebelumnya).
+    // Jangan pernah menghitung waktu saat masih di layar info / layar selesai: dulu efek
+    // auto-lompat sempat menutup tes ("Test Selesai!") padahal pengguna belum mulai.
+    if (i !== eq || !win?.endISO || intro !== false || done || secStart) return { kind: "none" };
+    // Jendela harus MILIK soal/bagian yang sedang ditampilkan. Setelah lompat bagian, jendela
+    // lama masih tersimpan sesaat; dulu itu dibaca sebagai "sudah habis" → efek auto-lompat
+    // berantai melewati semua bagian lalu menutup tes di tengah jalan.
+    const target = effQs[i] as any;
+    const winId = win.key.slice(win.key.indexOf(":") + 1);
+    const belongs = win.key.startsWith("q:") ? winId === target?.id : winId === target?.dimensionId;
+    if (!belongs) return { kind: "none" };
+    return {
+      kind: win.key.startsWith("q:") ? "question" : "dimension",
+      endISO: win.endISO,
+      totalMs: Math.max(1000, Number(win.seconds) * 1000),
+    };
   };
   const serverNowEst = () =>
     Number(timerSt?.serverNow ?? Date.now()) + (Date.now() - Number(timerSt?._localAt ?? Date.now()));
@@ -793,6 +805,7 @@ function LegacyWizard({
   const dimExpiredNow = timeExpiredNow;
   const questionExpiredNow = timeExpiredNow;
   const timerJump = (target: number) => {
+    setWin(null); // jendela bagian sebelumnya tidak berlaku lagi
     if (target < 0 || target >= effQs.length) {
       void engineFinish();
       return;
@@ -803,27 +816,32 @@ function LegacyWizard({
     setLastEval?.(null as any);
     engineLoad(target);
   };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: timer tick sengaja hanya bergantung nilai ini
   useEffect(() => {
-    if (!isEngine || !timerSt?.ok) return;
+    if (!isEngine || !timerSt?.ok || intro !== false || done || secStart) return;
     const nowS = serverNowEst();
     const expiredAt = (i: number) => {
       const dl = deadlineOf(i);
       return dl.kind !== "none" && nowS >= new Date(dl.endISO as string).getTime();
     };
     if (!expiredAt(eq)) return; // soal sekarang masih ada waktu
-    // Cari soal berikutnya yang deadlinenya belum lewat (mixed scope: per soal & per bagian)
+    // Timer berbasis JENDELA:
+    //  • per soal  → lanjut ke soal berikutnya (jendela baru dibuat saat dibuka)
+    //  • per bagian → LEWATI sisa soal bagian ini, langsung ke bagian berikutnya
+    //    (jendela bagian baru penuh), bukan berhenti di 00:00 pada soal yang sama.
+    const perQuestion = (win?.key ?? "").startsWith("q:");
     let target = -1;
-    for (let i = eq + 1; i < effQs.length; i++)
-      if (!expiredAt(i)) {
-        target = i;
-        break;
-      }
-    if (target === -1)
-      for (let i = 0; i < effQs.length; i++)
-        if (!expiredAt(i)) {
+    if (perQuestion) {
+      target = eq + 1 < effQs.length ? eq + 1 : -1;
+    } else {
+      const curDim = (effQs[eq] as any)?.dimensionId;
+      for (let i = eq + 1; i < effQs.length; i++) {
+        if ((effQs[i] as any)?.dimensionId !== curDim) {
           target = i;
           break;
         }
+      }
+    }
     if (target === -1) {
       void engineFinish();
       return;
@@ -838,7 +856,7 @@ function LegacyWizard({
     timerJump(target);
     setTimeout(() => setTimerNotice(null), 3000);
     // biome-ignore lint/correctness/useExhaustiveDependencies: timer tick sengaja hanya bergantung nilai ini
-  }, [timerSt, eq, effQs.length, engineFinish, timerJump, isEngine, serverNowEst, deadlineOf]);
+  }, [timerSt, eq, effQs.length, engineFinish, timerJump, isEngine, serverNowEst, intro, done, secStart]);
 
   // ⏱ Suara peringatan SEKALI saat masuk fase kritis (waktu hampir habis).
   // Efek ini sengaja diletakkan bersama hook lain (di atas semua early-return) supaya
@@ -891,6 +909,33 @@ function LegacyWizard({
       .catch((e: any) => console.error("[engine] submitText gagal:", e?.message ?? e));
     setTimeout(() => engineNext(nextUn(eq + 1)), 950);
   };
+
+  // ⏱ Buka jendela timer untuk soal aktif (server membuat start/end baru untuk bagian/soal ini)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cukup saat soal aktif berganti
+  useEffect(() => {
+    const activeQ = effQs[eq] as any;
+    if (!isEngine || !engine?.sessionId || !activeQ?.id || intro !== false || done || secStart) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const r = (await (client as any).discover.touch({
+          sessionId: engine.sessionId,
+          questionId: activeQ.id,
+        })) as any;
+        if (!alive) return;
+        if (r?.ok && r?.endISO) {
+          setWin({ key: r.key, startISO: r.startISO, endISO: r.endISO, seconds: Number(r.seconds ?? 0) });
+        } else {
+          setWin(null);
+        }
+      } catch {
+        /* offline: biarkan jendela terakhir */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isEngine, engine?.sessionId, eq, intro, done, secStart]);
 
   // ⏱ HEARTBEAT timer (server-authoritative) — sinkron tiap 12s + tick 1s utk UI
   useEffect(() => {
@@ -1220,7 +1265,7 @@ function LegacyWizard({
           <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
             {isEngine ? (
               (() => {
-                return otherDone ? (
+                return bothSidesDone ? (
                   <Link
                     href={"/dashboard/student/assessment/result" as any}
                     className="flex items-center justify-center gap-2 rounded-2xl bg-mentor-teal px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"

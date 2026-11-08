@@ -1,5 +1,11 @@
 import { and, asc, db, desc, eq, inArray, schema } from "@mulai-plus/db/db";
-import { tmbAssessmentResults, tmbBatches, tmbBatchStudents, tmbRecommendations } from "@mulai-plus/db/schema/tmb";
+import {
+  tmbAssessmentResults,
+  tmbBatches,
+  tmbBatchStudents,
+  tmbRecommendations,
+  tmbUserStats,
+} from "@mulai-plus/db/schema/tmb";
 import {
   deleteFromR2,
   extractKeyFromUrl,
@@ -210,10 +216,16 @@ export async function finalizeSession(
     const durations = input.durations ?? {};
     // completion_time_seconds bertipe INTEGER → bulatkan (durasi dari klien berupa desimal).
     stage = "dimension-scores";
+    // Angka dari klien (durasi) & skor harus dibulatkan/di-clamp: nilai NaN/Infinity atau
+    // di luar jangkauan integer PostgreSQL membuat INSERT gagal ("finish_failed").
+    const safeInt = (v: unknown, max = 2_147_483_647) => {
+      const n = Math.round(Number(v));
+      return Number.isFinite(n) ? Math.min(max, Math.max(0, n)) : 0;
+    };
     const rows = [...scores.entries()].map(([dimId, total]) => ({
-      dimId,
-      total,
-      time: durations[dimId] != null ? Math.max(0, Math.round(Number(durations[dimId]))) : Number.MAX_SAFE_INTEGER,
+      dimId: String(dimId ?? "").slice(0, 24),
+      total: safeInt(total),
+      time: durations[dimId] != null ? safeInt(durations[dimId]) : Number.MAX_SAFE_INTEGER,
     }));
     rows.sort(
       (a, b) =>
@@ -243,15 +255,20 @@ export async function finalizeSession(
       .where(eq(schema.assessmentDimensionScores.sessionId, input.sessionId));
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      if (!row) continue;
-      await db.insert(schema.assessmentDimensionScores).values({
-        id: uid(),
-        sessionId: input.sessionId,
-        dimensionId: row.dimId,
-        totalScore: row.total,
-        rank: i + 1,
-        completionTimeSeconds: row.time === Number.MAX_SAFE_INTEGER ? null : row.time,
-      });
+      if (!row?.dimId) continue;
+      try {
+        await db.insert(schema.assessmentDimensionScores).values({
+          id: uid(),
+          sessionId: input.sessionId,
+          dimensionId: row.dimId,
+          totalScore: row.total,
+          rank: i + 1,
+          completionTimeSeconds: row.time === Number.MAX_SAFE_INTEGER ? null : row.time,
+        });
+      } catch (e: any) {
+        // Statistik per dimensi bersifat pendukung: jangan gagalkan penyelesaian tes.
+        console.error("[finish] gagal menulis skor dimensi:", row.dimId, e?.message ?? e);
+      }
     }
     const result = {
       id: uid(),
@@ -370,9 +387,20 @@ export async function finalizeSession(
           });
         }
         b2bResultId = rid;
-        // Rekomendasi LENGKAP (jurusan+kampus+karir) — selalu dihitung dari sisi yg tersedia;
-        // sisi yg belum dikerjakan diberi level netral ("medium") agar rekomendasi tetap tampil (sepakat dgn v1)
-        if (existingForAttempt) {
+        // Rekomendasi LENGKAP (jurusan+kampus+karir) hanya dibuat bila KEDUA tes sudah selesai
+        // (minat ✓ dan bakat ✓). Bila baru satu sisi, rekomendasi lama dibuang supaya tidak ada
+        // hasil "setengah jadi" yang tampil di halaman lain (mis. Karir Impian).
+        const bothSidesNow =
+          (fam === "minat"
+            ? Object.keys(hollandScores).length > 0
+            : Object.keys((existingForAttempt as any)?.hollandScores ?? {}).length > 0) &&
+          (fam === "bakat"
+            ? Object.keys(abilityScores).length > 0
+            : Object.keys((existingForAttempt as any)?.abilityScores?.scores ?? {}).length > 0);
+        if (existingForAttempt && !bothSidesNow) {
+          await db.delete(tmbRecommendations).where(eq(tmbRecommendations.resultId, rid));
+        }
+        if (existingForAttempt && bothSidesNow) {
           const mergedH = {
             ...((existingForAttempt as any)?.hollandScores ?? {}),
             ...(fam === "minat" ? hollandScores : {}),
@@ -485,6 +513,9 @@ function sessionDeadlineMs(configJson: unknown): number | null {
   if (t.expectedEndISO) times.push(new Date(t.expectedEndISO).getTime());
   for (const d of (t.dims ?? []) as any[]) if (d?.endISO) times.push(new Date(d.endISO).getTime());
   for (const iso of (t.qEnds ?? []) as string[]) if (iso) times.push(new Date(iso).getTime());
+  // CATATAN: jendela (timer.windows) TIDAK dipakai di sini. Jendela dibuat bertahap saat
+  // bagian dimasuki, jadi jendela terakhir ≠ akhir sesi; memakainya membuat sesi dianggap
+  // habis begitu bagian pertama selesai (tes berhenti sendiri di tengah jalan).
   const valid = times.filter((n) => Number.isFinite(n));
   return valid.length ? Math.max(...valid) : null;
 }
@@ -538,6 +569,62 @@ async function abandonIfStale(sess: typeof schema.assessmentSessions.$inferSelec
     .set({ status: "abandoned" as never, completedAt: new Date() })
     .where(eq(schema.assessmentSessions.id, sess.id));
   return true;
+}
+
+/**
+ * Timer berbasis JENDELA: tiap dimensi (atau tiap soal, sesuai config) punya jendela sendiri
+ * yang baru dimulai saat bagian itu pertama kali dimasuki. Dulu semua deadline dijadwalkan
+ * absolut dari detik sesi dibuat, jadi dimensi ke-2 "mewarisi" sisa waktu dimensi ke-1
+ * (bisa langsung 00:00) — itu bug yang dilaporkan.
+ *
+ * windows disimpan di `configJson.timer.windows` = { [key]: { startISO, endISO } }.
+ * key = "dim:<dimensionId>" untuk scope per dimensi, "q:<questionId>" untuk per soal.
+ */
+type TimerWindow = { startISO: string; endISO: string };
+
+function scopeOfDimension(timer: any, dimId: string): "none" | "dimension" | "question" {
+  const d = (timer?.dims ?? []).find((x: any) => x.id === dimId);
+  const scoped = timer?.dimScopes?.[dimId];
+  const v = scoped ?? d?.timerScope ?? timer?.scope ?? "none";
+  return v === "dimension" || v === "question" ? v : "none";
+}
+
+/** Durasi (detik) untuk jendela sebuah soal/dimensi. */
+async function windowSpecFor(
+  timer: any,
+  question: { id: string; dimensionId: string | null; durationSeconds?: number | null },
+): Promise<{ key: string; scope: "none" | "dimension" | "question"; seconds: number }> {
+  const dimId = question.dimensionId ?? "";
+  const scope = scopeOfDimension(timer, dimId);
+  if (scope === "question") {
+    const perQ = Math.max(1, Number(timer?.qPerMs ?? 30_000) / 1000);
+    const secs = Number(question.durationSeconds ?? 0) > 0 ? Number(question.durationSeconds) : perQ;
+    return { key: `q:${question.id}`, scope, seconds: secs };
+  }
+  if (scope === "dimension") {
+    const d = (timer?.dims ?? []).find((x: any) => x.id === dimId);
+    const secs = Math.max(1, Number(d?.durationSeconds ?? 0));
+    return { key: `dim:${dimId}`, scope, seconds: secs };
+  }
+  return { key: "", scope: "none", seconds: 0 };
+}
+
+/** Jendela aktif untuk soal ini; dibuat (start = sekarang) bila belum ada. */
+function ensureWindow(timer: any, key: string, seconds: number, now = Date.now()) {
+  const windows: Record<string, TimerWindow> = { ...((timer?.windows ?? {}) as Record<string, TimerWindow>) };
+  const existing = windows[key];
+  if (existing?.endISO) return { windows, window: existing, created: false };
+  const created: TimerWindow = {
+    startISO: new Date(now).toISOString(),
+    endISO: new Date(now + seconds * 1000).toISOString(),
+  };
+  windows[key] = created;
+  return { windows, window: created, created: true };
+}
+
+/** Ambil window tersimpan untuk soal (tanpa membuat baru). */
+function readWindow(timer: any, key: string): TimerWindow | null {
+  return ((timer?.windows ?? {}) as Record<string, TimerWindow>)[key] ?? null;
 }
 
 async function questionsOf(versionId: string): Promise<QuestionRow[]> {
@@ -602,6 +689,44 @@ function canAccessSession(sess: { studentId: string }, context: any): boolean {
   const actor = actorOf(context);
   if (actor.id) return sess.studentId === actor.id;
   return allowAnonAssessment();
+}
+
+/**
+ * Apakah jawaban untuk soal ini sudah lewat waktu?
+ * Mengutamakan JENDELA (timer.windows) — dibuat saat bagian dimasuki; bila belum ada,
+ * jatuh ke jadwal lama (qEnds / dims) agar sesi lama tetap terlindungi.
+ */
+async function isAnswerTooLate(
+  timer: any,
+  questionId: string,
+  configJson: unknown,
+): Promise<"question_timed_out" | "dimension_timed_out" | null> {
+  if (!timer) return null;
+  const q = await db.query.questions.findFirst({
+    where: eq(schema.questions.id, questionId),
+    columns: { id: true, dimensionId: true, durationSeconds: true },
+  });
+  if (!q) return null;
+
+  const spec = await windowSpecFor(timer, q);
+  const win = spec.key ? readWindow(timer, spec.key) : null;
+  if (win?.endISO) {
+    if (Date.now() >= new Date(win.endISO).getTime()) {
+      return spec.scope === "question" ? "question_timed_out" : "dimension_timed_out";
+    }
+    return null;
+  }
+
+  // fallback jadwal lama
+  const order: string[] = ((timer.questionOrderIds ?? (configJson as any)?.questionOrderIds ?? []) as string[]) ?? [];
+  const qi = order.indexOf(questionId);
+  const qEnd = qi >= 0 ? (timer.qEnds as string[])[qi] : undefined;
+  if (qEnd && Date.now() >= new Date(qEnd).getTime()) return "question_timed_out";
+  if (!qEnd && (timer.dims ?? []).length) {
+    const dEnd = (timer.dims as any[]).find((d: any) => d.id === q.dimensionId)?.endISO;
+    if (dEnd && Date.now() >= new Date(dEnd).getTime()) return "dimension_timed_out";
+  }
+  return null;
 }
 
 export const discoverRouter = {
@@ -916,6 +1041,8 @@ export const discoverRouter = {
           dims,
           qEnds: hasQuestionScope ? qEnds : [],
           qPerMs: perQ * 1000,
+          // jendela per bagian/soal dibuat saat bagian itu dimasuki (lihat `touch`)
+          windows: {},
         };
       };
       const serverTimer = await buildTimer();
@@ -1027,6 +1154,54 @@ export const discoverRouter = {
       return { ok: true, sessionId: session.id, versionId: v.id, serverTimer, orderIds, optionOrder };
     }),
 
+  /**
+   * "Saya sedang di soal ini" — memulai jendela timer untuk soal/bagian tsb bila belum ada.
+   * Dipanggil klien setiap kali pindah soal/bagian. Server-authoritative: deadline dibuat
+   * di server dan dipakai `submit` untuk menolak jawaban lewat waktu.
+   */
+  touch: publicProcedure
+    .input(z.object({ sessionId: z.string().min(1), questionId: z.string().min(1) }))
+    .handler(async ({ input, context }) => {
+      const sess = await db.query.assessmentSessions.findFirst({
+        where: eq(schema.assessmentSessions.id, input.sessionId),
+      });
+      if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
+      if (sess.status !== "in_progress") return { ok: false, error: "session_closed" } as const;
+
+      const cfg = (sess.configJson ?? {}) as any;
+      const timer = cfg?.timer ?? null;
+      if (!timer) return { ok: true, scope: "none", endISO: null, remainingMs: null } as const;
+
+      const q = await db.query.questions.findFirst({
+        where: eq(schema.questions.id, input.questionId),
+        columns: { id: true, dimensionId: true, durationSeconds: true },
+      });
+      if (!q) return { ok: false, error: "question_not_found" } as const;
+
+      const spec = await windowSpecFor(timer, q);
+      if (spec.scope === "none") return { ok: true, scope: "none", endISO: null, remainingMs: null } as const;
+
+      const { windows, window } = ensureWindow(timer, spec.key, spec.seconds);
+      // Simpan hanya bila berubah (hindari write tiap pindah soal yang sama)
+      const nextTimer = { ...timer, windows };
+      await db
+        .update(schema.assessmentSessions)
+        .set({ configJson: { ...cfg, timer: nextTimer } })
+        .where(eq(schema.assessmentSessions.id, sess.id));
+
+      return {
+        ok: true,
+        scope: spec.scope,
+        key: spec.key,
+        seconds: spec.seconds,
+        startISO: window.startISO,
+        endISO: window.endISO,
+        remainingMs: Math.max(0, new Date(window.endISO).getTime() - Date.now()),
+        serverNow: Date.now(),
+      } as const;
+    }),
+
   /** Simpan satu jawaban (upsert). */
   submit: publicProcedure
     .input(
@@ -1046,26 +1221,8 @@ export const discoverRouter = {
       // ANTI-TAMPER: tolak submit bila deadline (per SOAL atau per DIMENSI) sudah lewat.
       // Timer bisa beda scope per dimensi (#7), jadi tidak lagi bergantung `timer.scope` global.
       const timerS = ((sess.configJson as any)?.timer ?? null) as any;
-      if (timerS) {
-        const order: string[] = (timerS.questionOrderIds ??
-          (sess.configJson as any)?.questionOrderIds ??
-          []) as string[];
-        const qi = order.indexOf(input.questionId);
-        const qEnd = qi >= 0 ? (timerS.qEnds as string[])[qi] : undefined;
-        if (qEnd && Date.now() >= new Date(qEnd).getTime()) {
-          return { ok: false, error: "question_timed_out" } as const;
-        }
-        if (!qEnd && (timerS.dims ?? []).length) {
-          const qFor = await db.query.questions.findFirst({
-            where: eq(schema.questions.id, input.questionId),
-            columns: { id: true, dimensionId: true },
-          });
-          const dEnd = (timerS.dims as any[]).find((d: any) => d.id === qFor?.dimensionId)?.endISO;
-          if (dEnd && Date.now() >= new Date(dEnd).getTime()) {
-            return { ok: false, error: "dimension_timed_out" } as const;
-          }
-        }
-      }
+      const blocked = await isAnswerTooLate(timerS, input.questionId, sess.configJson);
+      if (blocked) return { ok: false, error: blocked } as const;
       const opt = await db.query.questionOptions.findFirst({
         where: eq(schema.questionOptions.id, input.optionId),
       });
@@ -1134,6 +1291,49 @@ export const discoverRouter = {
       }
       return { ok: true, correct: evalRes.correct, normalized: evalRes.normalized };
     }),
+
+  /**
+   * Reset SEMUA progres siswa (TES MINAT + TES BAKAT) — dipakai tombol "Mulai ulang" dan
+   * "Tes ulang" di halaman tes. Setelah ini kedua tes mulai dari 0 dan hasil/rekomendasi
+   * ikut terhapus (rekomendasi baru muncul bila KEDUA tes selesai).
+   */
+  resetAll: publicProcedure.input(z.object({ studentId: z.string().min(1) })).handler(async ({ input, context }) => {
+    const who = resolveStudentId(context, input.studentId);
+    if (who.error) return { ok: false, error: who.error } as const;
+    const studentId = who.studentId as string;
+
+    const sessions = await db.query.assessmentSessions.findMany({
+      where: eq(schema.assessmentSessions.studentId, studentId),
+      columns: { id: true },
+    });
+    const ids = sessions.map((x) => x.id);
+    let answers = 0;
+    if (ids.length) {
+      const delA = await db.delete(schema.assessmentAnswers).where(inArray(schema.assessmentAnswers.sessionId, ids));
+      answers = Number((delA as any)?.rowCount ?? 0);
+      await db.delete(schema.assessmentDimensionScores).where(inArray(schema.assessmentDimensionScores.sessionId, ids));
+      await db.delete(schema.assessmentResults).where(inArray(schema.assessmentResults.sessionId, ids));
+      await db.delete(schema.assessmentSessions).where(inArray(schema.assessmentSessions.id, ids));
+    }
+
+    // hasil "kontrak lama" + rekomendasi + gamifikasi (XP/streak) ikut direset
+    const oldResults = await db.query.tmbAssessmentResults.findMany({
+      where: eq(tmbAssessmentResults.userId, studentId),
+      columns: { id: true },
+    });
+    if (oldResults.length) {
+      await db.delete(tmbRecommendations).where(
+        inArray(
+          tmbRecommendations.resultId,
+          oldResults.map((r) => r.id),
+        ),
+      );
+      await db.delete(tmbAssessmentResults).where(eq(tmbAssessmentResults.userId, studentId));
+    }
+    await db.delete(tmbUserStats).where(eq(tmbUserStats.userId, studentId));
+
+    return { ok: true as const, removed: { sessions: ids.length, answers, results: oldResults.length } };
+  }),
 
   /** Selesaikan → skor per method (SUM/AVG/WEIGHTED) → top-N → profile (tie: waktu→abjad). */
   finish: publicProcedure
@@ -1318,58 +1518,97 @@ export const discoverRouter = {
     }),
 
   /** Heartbeat timer — otoritas SERVER: current_time + deadline aktif + status timeout/lock. */
-  timerState: publicProcedure.input(z.object({ sessionId: z.string().min(1) })).handler(async ({ input, context }) => {
-    const sess = await db.query.assessmentSessions.findFirst({
-      where: eq(schema.assessmentSessions.id, input.sessionId),
-    });
-    if (!sess) return { ok: false, error: "session_not_found" } as const;
-    if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
-    const timer = ((sess.configJson as any)?.timer ?? null) as any;
-    if (!timer) return { ok: true, scope: "none", serverNow: Date.now() } as const;
-    // Deadline lewat + siswa tak menyelesaikan → tutup sesi di server (bukan resume).
-    const closedByServer = await expireIfLate(sess);
-    if (closedByServer) {
+  timerState: publicProcedure
+    .input(z.object({ sessionId: z.string().min(1), questionId: z.string().optional() }))
+    .handler(async ({ input, context }) => {
+      const sess = await db.query.assessmentSessions.findFirst({
+        where: eq(schema.assessmentSessions.id, input.sessionId),
+      });
+      if (!sess) return { ok: false, error: "session_not_found" } as const;
+      if (!canAccessSession(sess, context)) return { ok: false, error: "forbidden" } as const;
+      const cfgSess = (sess.configJson ?? {}) as any;
+      const timer = cfgSess?.timer ?? null;
+      if (!timer) return { ok: true, scope: "none", serverNow: Date.now() } as const;
+
+      // Timer berbasis jendela: bila klien menyebut soal aktifnya, pastikan jendela bagian/soal
+      // itu sudah dimulai (reset penuh saat masuk bagian baru) dan kembalikan deadline-nya.
+      if (input.questionId && sess.status === "in_progress") {
+        const qCur = await db.query.questions.findFirst({
+          where: eq(schema.questions.id, input.questionId),
+          columns: { id: true, dimensionId: true, durationSeconds: true },
+        });
+        if (qCur) {
+          const spec = await windowSpecFor(timer, qCur);
+          if (spec.scope !== "none") {
+            const { windows, window: win } = ensureWindow(timer, spec.key, spec.seconds);
+            const nextTimer = { ...timer, windows };
+            await db
+              .update(schema.assessmentSessions)
+              .set({ configJson: { ...cfgSess, timer: nextTimer } })
+              .where(eq(schema.assessmentSessions.id, sess.id));
+            return {
+              ok: true,
+              scope: spec.scope,
+              key: spec.key,
+              serverNow: Date.now(),
+              current: {
+                key: spec.key,
+                startISO: win.startISO,
+                endISO: win.endISO,
+                remainingMs: Math.max(0, new Date(win.endISO).getTime() - Date.now()),
+                seconds: spec.seconds,
+              },
+              dims: [],
+              qEnds: [],
+              timedOut: Date.now() >= new Date(win.endISO).getTime(),
+            } as const;
+          }
+        }
+      }
+      // Deadline lewat + siswa tak menyelesaikan → tutup sesi di server (bukan resume).
+      const closedByServer = await expireIfLate(sess);
+      if (closedByServer) {
+        return {
+          ok: true,
+          scope: "closed",
+          serverNow: Date.now(),
+          timedOut: true,
+          closed: true,
+          dims: [],
+          qEnds: [],
+        } as const;
+      }
+      const now = Date.now();
+      // (#7) Timer bisa beda scope antar dimensi → kirim keduanya; klien menentukan
+      // deadline efektif per soal (qEnds[i] bila ada, kalau tidak deadline dimensinya).
+      const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map(
+        (d: any) => ({
+          id: d.id,
+          endISO: d.endISO,
+          durationSeconds: Number(d.durationSeconds ?? 0),
+          expired: now >= new Date(d.endISO).getTime(),
+        }),
+      );
+      const qEnds: string[] = (timer.qEnds ?? []) as string[];
+      const hasQ = qEnds.some((iso) => !!iso);
+      const activeIndex = qEnds.findIndex((iso) => !!iso && now < new Date(iso).getTime());
+      const anyActive =
+        dims.some((d) => !d.expired) ||
+        qEnds.some((iso) => !!iso && now < new Date(iso).getTime()) ||
+        (!dims.length && !hasQ);
       return {
         ok: true,
-        scope: "closed",
-        serverNow: Date.now(),
-        timedOut: true,
-        closed: true,
-        dims: [],
-        qEnds: [],
+        scope: timer.mixed ? "mixed" : (timer.scope ?? "none"),
+        dimScopes: timer.dimScopes ?? {},
+        serverNow: now,
+        dims,
+        qEnds,
+        qPerMs: Math.max(1000, Number(timer.qPerMs ?? 30000)),
+        activeIndex: activeIndex === -1 ? qEnds.length : activeIndex,
+        activeDimId: dims.find((d) => !d.expired)?.id ?? null,
+        timedOut: !anyActive,
       } as const;
-    }
-    const now = Date.now();
-    // (#7) Timer bisa beda scope antar dimensi → kirim keduanya; klien menentukan
-    // deadline efektif per soal (qEnds[i] bila ada, kalau tidak deadline dimensinya).
-    const dims: { id: string; endISO: string; durationSeconds: number; expired: boolean }[] = (timer.dims ?? []).map(
-      (d: any) => ({
-        id: d.id,
-        endISO: d.endISO,
-        durationSeconds: Number(d.durationSeconds ?? 0),
-        expired: now >= new Date(d.endISO).getTime(),
-      }),
-    );
-    const qEnds: string[] = (timer.qEnds ?? []) as string[];
-    const hasQ = qEnds.some((iso) => !!iso);
-    const activeIndex = qEnds.findIndex((iso) => !!iso && now < new Date(iso).getTime());
-    const anyActive =
-      dims.some((d) => !d.expired) ||
-      qEnds.some((iso) => !!iso && now < new Date(iso).getTime()) ||
-      (!dims.length && !hasQ);
-    return {
-      ok: true,
-      scope: timer.mixed ? "mixed" : (timer.scope ?? "none"),
-      dimScopes: timer.dimScopes ?? {},
-      serverNow: now,
-      dims,
-      qEnds,
-      qPerMs: Math.max(1000, Number(timer.qPerMs ?? 30000)),
-      activeIndex: activeIndex === -1 ? qEnds.length : activeIndex,
-      activeDimId: dims.find((d) => !d.expired)?.id ?? null,
-      timedOut: !anyActive,
-    } as const;
-  }),
+    }),
 
   /** Status sesi SEMESTI (in_progress + sudah ada jawaban) — utk CTA 'Lanjutkan' di kartu test. */
   pending: publicProcedure
