@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { B2B_ENABLED } from "@/lib/features";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
@@ -25,7 +26,8 @@ import { orpc } from "@/utils/orpc";
 /** Grup tampilan — HARUS sama dengan `section` di admin-sidebar (navAssessment). */
 const SECTIONS: { title: string; group: "content" | "b2b" | "b2c" }[] = [
   { title: "Konten & Soal", group: "content" },
-  { title: "Operasional B2B", group: "b2b" },
+  // Operasional B2B hanya muncul saat fitur B2B dirilis (rilis bertahap).
+  ...(B2B_ENABLED ? [{ title: "Operasional B2B", group: "b2b" as const }] : []),
   { title: "Analitik B2C", group: "b2c" },
 ];
 

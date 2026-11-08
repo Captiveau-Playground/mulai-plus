@@ -13,9 +13,25 @@ import { SchoolSidebar } from "@/components/school/school-sidebar";
 import { PageState } from "@/components/ui/page-state";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { B2B_ENABLED } from "@/lib/features";
 
 function SchoolShell({ children }: { children: React.ReactNode }) {
+  // SEMUA hook di atas, baru guard — menghindari "hook dipanggil kondisional".
   const { setOpenMobile } = useSidebar();
+  const router = useRouter();
+  // Portal sekolah (B2B) dirilis bertahap. Selama flag mati, area ini tidak dibuka.
+  useEffect(() => {
+    if (!B2B_ENABLED) router.replace("/login?b2b=off");
+  }, [router]);
+  if (!B2B_ENABLED) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg-light p-6">
+        <p className="max-w-sm text-center font-manrope text-gray-500 text-sm">
+          Portal sekolah belum dibuka. Fitur B2B sedang disiapkan untuk rilis bertahap.
+        </p>
+      </div>
+    );
+  }
   return (
     <>
       <SchoolSidebar onNavigate={() => setOpenMobile(false)} />
