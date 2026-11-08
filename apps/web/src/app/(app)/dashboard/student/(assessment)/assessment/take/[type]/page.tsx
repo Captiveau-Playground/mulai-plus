@@ -37,6 +37,19 @@ function fireConfetti() {
 
 export default function TmbTestPage() {
   const t = String(useParams().type ?? "");
+  // Halaman tes sepenuhnya interaktif & bergantung state klien (timer, sesi, guide).
+  // Dirender setelah mount supaya tidak ada hydration mismatch antara HTML server
+  // (tanpa sesi) dan render klien (dengan sesi) — dulu memunculkan peringatan
+  // "Hydration failed…" di console.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) {
+    return (
+      <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light">
+        <span className="h-8 w-8 animate-spin rounded-full border-2 border-mentor-teal border-t-transparent" />
+      </div>
+    );
+  }
   return (
     <Suspense
       fallback={<div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light" />}
@@ -381,15 +394,31 @@ function LegacyWizard({
   const milestonesShown = useRef<Set<string>>(new Set());
   const _answeredRef = useRef(false);
 
-  // Guide pertama kali (keyboard, auto-next, dsb)
+  // Guide "Cara Main" ditampilkan di layar INTRO (sebelum tes dimulai), bukan setelah
+  // soal berjalan — supaya tidak menutupi soal & tidak memakan waktu pengerjaan.
   useEffect(() => {
+    if (!isEngine || !intro) return;
     try {
       if (localStorage.getItem("mulai-test-guide-v1")) return;
       setShowGuide(true);
     } catch {
       /* noop */
     }
-  }, []);
+  }, [isEngine, intro]);
+
+  /** Mulai mengerjakan: geser deadline sekali (waktu intro tidak dipotong) lalu masuk ke bagian. */
+  const startTest = async () => {
+    try {
+      const r = (await (client as any).discover.begin({ sessionId: engine?.sessionId })) as any;
+      if (r?.ok && r?.timer && r?.shiftedMs) {
+        setTimerSt((prev: any) => ({ ...(prev ?? {}), ...r.timer, _localAt: Date.now() }));
+      }
+    } catch {
+      /* jangan blokir mulai tes kalau server lambat */
+    }
+    setShowGuide(false);
+    setIntro(false);
+  };
 
   // Timer — waktu dihabiskan (analitik + tampilan)
   useEffect(() => {
@@ -497,14 +526,18 @@ function LegacyWizard({
   const [secStart, setSecStart] = useState<{ eqIndex: number; name: string } | null>(null);
   const lastDimRef = useRef<string | null>(null);
   const dimNameOf = (dimId: string) => engine?.dims?.find((d: any) => d.id === dimId)?.name ?? "Bagian berikutnya";
-  // indeks dimensi (0-based) utk posisi soal eq: berapa dimensi berbeda sebelum eq
+  // Indeks BAGIAN (0-based) untuk soal ke-eq = jumlah PERPINDAHAN dimensi sampai eq.
+  // Dulu memakai "jumlah dimensi berbeda sebelum eq" → salah satu langkah:
+  // soal ke-2 di bagian pertama menghasilkan indeks 1, sehingga label bagian menunjuk
+  // dimensi berikutnya (mis. "Kecepatan Perseptual" padahal soalnya Penalaran Spasial).
   const dimIdxOf = (eqI: number) => {
-    const seen = new Set<string>();
-    for (let k = 0; k < eqI; k++) {
-      const d = effQs[k]?.dimensionId;
-      if (d) seen.add(d);
+    let idx = 0;
+    for (let k = 1; k <= eqI; k++) {
+      const cur = effQs[k]?.dimensionId;
+      const prev = effQs[k - 1]?.dimensionId;
+      if (cur && prev && cur !== prev) idx++;
     }
-    return seen.size;
+    return idx;
   };
   const totalDims = new Set(effQs.map((q: any) => q.dimensionId).filter(Boolean)).size || engine?.sections || 1;
   // Segmen top-bar per bagian (Duolingo-style) — dari urutan sesi
@@ -1305,19 +1338,7 @@ function LegacyWizard({
         <button
           type="button"
           data-testid="start-test"
-          onClick={async () => {
-            // Timer dibuat saat sesi dibuat (mount) → geser deadline sekali supaya waktu
-            // di layar intro/guide tidak memakan jatah. Server-authoritative & idempotent.
-            try {
-              const r = (await (client as any).discover.begin({ sessionId: engine?.sessionId })) as any;
-              if (r?.ok && r?.timer && r?.shiftedMs) {
-                setTimerSt((prev: any) => ({ ...(prev ?? {}), ...r.timer, _localAt: Date.now() }));
-              }
-            } catch {
-              /* jangan blokir mulai tes kalau server lambat */
-            }
-            setIntro(false);
-          }}
+          onClick={() => void startTest()}
           className="mt-8 w-full max-w-sm rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-base text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
         >
           Mulai Tes →
@@ -1534,7 +1555,7 @@ function LegacyWizard({
       )}
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 pt-6 pb-5">
         <div className="flex flex-col">
-          {showGuide && (
+          {showGuide && intro && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1598,8 +1619,9 @@ function LegacyWizard({
                     type="button"
                     onClick={() => {
                       localStorage.setItem("mulai-test-guide-v1", "1");
-                      setShowGuide(false);
+                      void startTest();
                     }}
+                    data-testid="guide-ok"
                     className="flex-1 rounded-2xl bg-brand-navy px-5 py-3 font-bold font-bricolage text-white transition-all hover:brightness-110 active:scale-[0.98]"
                   >
                     {isDemo ? "Mulai Simulasi" : "Paham, Mulai!"}
