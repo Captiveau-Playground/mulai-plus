@@ -147,8 +147,9 @@ export function StudentSidebar({
 
       <SidebarContent className="px-2">
         <NavMain items={topItems} />
-        <NavMain label="Program" items={programItems} />
+        {/* Urutan grup: Assessment lebih dulu (aktivitas utama siswa), Program di bawahnya. */}
         <NavMain label="Assessment" items={assessmentItems} />
+        <NavMain label="Program" items={programItems} />
         <NavMain label="Bantuan" items={bantuanItems} />
 
         {/* Back to Site */}

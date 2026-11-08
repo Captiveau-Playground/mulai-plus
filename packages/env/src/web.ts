@@ -22,6 +22,8 @@ function createStrictWebEnv() {
       NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().optional(),
       NEXT_PUBLIC_APP_URL: z.string().url().optional(),
       NEXT_PUBLIC_RELEASE_TAG: z.string().optional(),
+      // Di-inline next.config.ts dari package.json (versi asli aplikasi).
+      NEXT_PUBLIC_APP_VERSION: z.string().optional(),
     },
     runtimeEnv: {
       NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
@@ -34,6 +36,7 @@ function createStrictWebEnv() {
       NEXT_PUBLIC_AMPLITUDE_API_KEY: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
       NEXT_PUBLIC_RELEASE_TAG: process.env.NEXT_PUBLIC_RELEASE_TAG,
+      NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION,
     },
     emptyStringAsUndefined: true,
   });
@@ -60,6 +63,7 @@ function buildWebEnv(): StrictWebEnv {
         NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().optional(),
         NEXT_PUBLIC_APP_URL: z.string().url().optional(),
         NEXT_PUBLIC_RELEASE_TAG: z.string().optional(),
+        NEXT_PUBLIC_APP_VERSION: z.string().optional(),
       },
       runtimeEnv: {
         NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
@@ -71,6 +75,7 @@ function buildWebEnv(): StrictWebEnv {
         NEXT_PUBLIC_AMPLITUDE_API_KEY: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
         NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
         NEXT_PUBLIC_RELEASE_TAG: process.env.NEXT_PUBLIC_RELEASE_TAG,
+        NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION,
       },
       emptyStringAsUndefined: true,
       skipValidation: true,

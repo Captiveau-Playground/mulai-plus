@@ -13,6 +13,7 @@ import { authClient } from "@/lib/auth-client";
 import { B2B_ENABLED } from "@/lib/features";
 import { homeForRole } from "@/lib/role-home";
 import { notify } from "@/lib/toast";
+import { VERSION_LABEL } from "@/lib/web-env";
 
 function LoginContent() {
   const router = useRouter();
@@ -212,6 +213,11 @@ function LoginContent() {
               </Link>
             </p>
           )}
+
+          {/* Versi aplikasi (sumber: RELEASE_TAG CI → git tag → package.json) */}
+          <p className="mt-8 text-center font-manrope text-[11px] text-gray-400" data-testid="auth-version">
+            &copy; {new Date().getFullYear()} Mulai Plus · {VERSION_LABEL}
+          </p>
         </div>
       </div>
     </div>

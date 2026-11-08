@@ -70,10 +70,10 @@ function TestRoute({ code }: { code: string }) {
   const preview = search?.get("preview") === "1";
   const versionId = search?.get("v");
   const demo = search?.get("demo") === "1";
-  // MODE SIMULASI (`?demo=1`) memakai soal contoh bawaan tanpa backend — dulu rute
-  // `/take/minat?demo=1` jatuh ke engine dan gagal memuat tes karena tidak ada tes berkode
-  // "minat" di database. Simulasi harus selalu dirender oleh alur demo.
-  if (demo) return <LegacyWizard />;
+  // MODE SIMULASI (`?demo=1`): soal contoh, TANPA backend, tetapi dirender oleh RENDERER YANG
+  // SAMA dengan tes asli (top bar segmen, layar instruksi bagian, timer, peta soal) supaya
+  // demo benar-benar mewakili UI/UX tes sesungguhnya.
+  if (demo) return <EngineWrapper code="DISCOVER" demo />;
   // SATU jalur render: engine dipakai untuk semua kode tes (termasuk tes kustom & preview
   // admin), supaya yang dilihat admin PERSIS sama dengan yang dilihat siswa.
   // `LegacyWizard` hanya untuk kode katalog lama ("interest"/"ability") yang datanya di tmb_*.
@@ -82,14 +82,116 @@ function TestRoute({ code }: { code: string }) {
   return <LegacyWizard />;
 }
 
+/**
+ * Data SIMULASI dalam bentuk payload engine (`questions` + `dims` + `instr` + `sectionMode`).
+ * Tujuannya: halaman demo memakai UI/UX yang SAMA PERSIS dengan tes asli (top bar segmen,
+ * layar instruksi per bagian, timer per bagian/soal, peta soal), hanya sumber soalnya contoh.
+ */
+const DEMO_DIM_MINAT = "demo-minat";
+const DEMO_DIM_BAKAT = "demo-bakat";
+const DEMO_ENGINE = {
+  sessionId: "demo",
+  demo: true,
+  code: "DISCOVER",
+  otherCode: "TALENT",
+  otherLabel: "Tes Bakat",
+  studentId: "demo",
+  sectionMode: "by_dimension",
+  allowPause: false,
+  sections: 2,
+  secData: [],
+  dims: [
+    { id: DEMO_DIM_MINAT, name: "Minat", durationSeconds: null },
+    { id: DEMO_DIM_BAKAT, name: "Kemampuan Numerik", durationSeconds: null },
+  ],
+  instr: [
+    {
+      dimensionId: DEMO_DIM_MINAT,
+      header: "Bagian Minat",
+      contentJson: { items: ["Pilih aktivitas yang paling kamu nikmati.", "Tidak ada jawaban benar/salah."] },
+    },
+    {
+      dimensionId: DEMO_DIM_BAKAT,
+      header: "Bagian Kemampuan",
+      contentJson: { items: ["Pilih satu jawaban paling tepat.", "Ada batas waktu per soal (contoh 15 detik)."] },
+    },
+  ],
+  questions: [
+    {
+      id: "demo-m1",
+      questionText: "Kamu lebih menikmati kegiatan mana?",
+      questionType: "multiple_choice",
+      presentationMode: "standard_option_card",
+      dimensionId: DEMO_DIM_MINAT,
+      hasMathNotation: false,
+      isActive: true,
+      displayOrder: 0,
+      opts: [
+        { id: "demo-m1-a", optionValue: "A", label: "Mengorganisir acara bersama banyak orang", icon: "🤝" },
+        { id: "demo-m1-b", optionValue: "B", label: "Menganalisis data sendirian", icon: "📊" },
+      ],
+    },
+    {
+      id: "demo-m2",
+      questionText: "Kalau ada tugas kelompok, peran yang paling kamu suka?",
+      questionType: "multiple_choice",
+      presentationMode: "standard_option_card",
+      dimensionId: DEMO_DIM_MINAT,
+      hasMathNotation: false,
+      isActive: true,
+      displayOrder: 1,
+      opts: [
+        { id: "demo-m2-a", optionValue: "A", label: "Memimpin & membagi kerja", icon: "🚀" },
+        { id: "demo-m2-b", optionValue: "B", label: "Mengolah data & laporan", icon: "🧾" },
+      ],
+    },
+    {
+      id: "demo-b1",
+      questionText: "24 × 5 ÷ 8 = …",
+      questionType: "multiple_choice",
+      presentationMode: "standard_option_card",
+      dimensionId: DEMO_DIM_BAKAT,
+      hasMathNotation: false,
+      isActive: true,
+      displayOrder: 2,
+      _demoSeconds: 15,
+      opts: [
+        { id: "demo-b1-a", optionValue: "A", label: "12" },
+        { id: "demo-b1-b", optionValue: "B", label: "15" },
+        { id: "demo-b1-c", optionValue: "C", label: "18" },
+        { id: "demo-b1-d", optionValue: "D", label: "20" },
+      ],
+    },
+    {
+      id: "demo-b2",
+      questionText: "Lanjutkan pola: 3, 6, 12, 24, …",
+      questionType: "multiple_choice",
+      presentationMode: "standard_option_card",
+      dimensionId: DEMO_DIM_BAKAT,
+      hasMathNotation: false,
+      isActive: true,
+      displayOrder: 3,
+      _demoSeconds: 15,
+      opts: [
+        { id: "demo-b2-a", optionValue: "A", label: "36" },
+        { id: "demo-b2-b", optionValue: "B", label: "42" },
+        { id: "demo-b2-c", optionValue: "C", label: "48" },
+        { id: "demo-b2-d", optionValue: "D", label: "54" },
+      ],
+    },
+  ],
+};
+
 function EngineWrapper({
   code,
   preview = false,
   versionId = null,
+  demo = false,
 }: {
   code: string;
   preview?: boolean;
   versionId?: string | null;
+  demo?: boolean;
 }) {
   const [ready, setReady] = useState<{
     sessionId: string;
@@ -105,6 +207,23 @@ function EngineWrapper({
     allowPause?: boolean;
   } | null>(null);
   const [errg, setErrg] = useState("");
+  // Simulasi: langsung "siap" dengan payload demo (bentuknya sama dengan payload engine asli).
+  useEffect(() => {
+    if (!demo) return;
+    setReady({
+      sessionId: DEMO_ENGINE.sessionId,
+      questions: DEMO_ENGINE.questions,
+      dims: DEMO_ENGINE.dims,
+      otherCode: DEMO_ENGINE.otherCode,
+      otherLabel: DEMO_ENGINE.otherLabel,
+      studentId: DEMO_ENGINE.studentId,
+      sections: DEMO_ENGINE.sections,
+      secData: DEMO_ENGINE.secData,
+      instr: DEMO_ENGINE.instr,
+      sectionMode: DEMO_ENGINE.sectionMode,
+      allowPause: DEMO_ENGINE.allowPause,
+    } as any);
+  }, [demo]);
   const [alreadyDone, setAlreadyDone] = useState(false);
   const { data: authSession } = authClient.useSession();
   const startedRef = useRef(false);
@@ -112,6 +231,7 @@ function EngineWrapper({
   const previewSid = useMemo(() => (preview ? `preview-${Math.random().toString(36).slice(2, 9)}` : null), [preview]);
   const sid = previewSid ?? authSession?.user?.id;
   useEffect(() => {
+    if (demo) return; // simulasi: data contoh, tanpa sesi server
     if (!sid) return;
     if (startedRef.current) return; // StrictMode/dev double-mount → jangan start 2x
     startedRef.current = true;
@@ -171,7 +291,7 @@ function EngineWrapper({
         setErrg(e?.message ?? "Gagal memuat tes");
       }
     })();
-  }, [code, sid, versionId]);
+  }, [code, sid, versionId, demo]);
   if (alreadyDone)
     return (
       <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg-light p-6 text-center">
@@ -235,6 +355,7 @@ function EngineWrapper({
   return (
     <LegacyWizard
       engine={{
+        demo,
         code,
         sessionId: ready.sessionId,
         questions: ready.questions,
@@ -256,6 +377,8 @@ function LegacyWizard({
   engine,
 }: {
   engine?: {
+    /** true = data simulasi (tanpa sesi server, tanpa timer/jawaban tersimpan) */
+    demo?: boolean;
     code: string;
     sessionId: string;
     questions: any[];
@@ -319,6 +442,8 @@ function LegacyWizard({
     e.preventDefault();
     keluar();
   };
+  // Simulasi yang dirender lewat jalur engine (data contoh): JANGAN panggil API sesi/timer.
+  const isDemoRun = (engine as any)?.demo === true;
   const engineQs = engine?.questions ?? [];
   const [orderIds, setOrderIds] = useState<string[] | null>(null); // urutan soal sesi (ujian) — stabil utk resume & grid
   const [answeredSet, setAnsweredSet] = useState<Set<string> | null>(null);
@@ -327,12 +452,12 @@ function LegacyWizard({
     ? orderIds.map((id) => engineQs.find((q: any) => q.id === id)).filter(Boolean)
     : engineQs;
   const [eq, setEq] = useState(0);
-  const [intro, setIntro] = useState<boolean | null>(isEngine ? null : false); // null = masih cek resume → jangan render intro dulu
+  const [intro, setIntro] = useState<boolean | null>(isDemoRun ? true : isEngine ? null : false); // null = masih cek resume → jangan render intro dulu
   const introStarted = useRef(false);
   const resumeStartRef = useRef(0);
   const resumedRef = useRef(false);
   useEffect(() => {
-    if (!isEngine || !engine?.sessionId || resumedRef.current) return;
+    if (!isEngine || isDemoRun || !engine?.sessionId || resumedRef.current) return;
     resumedRef.current = true;
     (async () => {
       try {
@@ -365,10 +490,10 @@ function LegacyWizard({
         setIntro(true);
       }
     })();
-  }, [isEngine, engine?.sessionId, engineQs.map, engineQs]);
+  }, [isEngine, engine?.sessionId, engineQs.map, engineQs, isDemoRun]);
   const attQ = useQuery({
     queryKey: ["engine-attempts", engine?.studentId],
-    enabled: isEngine && !!engine?.studentId,
+    enabled: isEngine && !isDemoRun && !!engine?.studentId,
     queryFn: () => (client as any).discover.attempts({ studentId: engine?.studentId }),
   });
   const attempts: any[] = (attQ.data as any)?.attempts ?? [];
@@ -389,7 +514,11 @@ function LegacyWizard({
   const isInterest = testCode === "interest";
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const isDemo = searchParams.get("demo") === "1";
+  const isDemoParam = searchParams.get("demo") === "1";
+  // Demo berbasis ENGINE (rute `?demo=1` sekarang) memakai alur engine; `DEMO_QUESTIONS`
+  // hanya dipakai bila kebetulan ada jalur legacy tanpa payload engine.
+  const isDemo = isDemoParam && !isDemoRun;
+  // Simulasi yang dirender lewat jalur engine (data contoh): JANGAN panggil API sesi/timer.
   const [demoIdx, setDemoIdx] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
 
@@ -477,6 +606,7 @@ function LegacyWizard({
   /** Mulai mengerjakan: geser deadline sekali (waktu intro tidak dipotong) lalu masuk ke bagian. */
   const startTest = async () => {
     try {
+      if (isDemoRun) throw new Error("demo");
       const r = (await (client as any).discover.begin({ sessionId: engine?.sessionId })) as any;
       if (r?.ok && r?.timer && r?.shiftedMs) {
         setTimerSt((prev: any) => ({ ...(prev ?? {}), ...r.timer, _localAt: Date.now() }));
@@ -523,6 +653,19 @@ function LegacyWizard({
   const optsRef = useRef<any[] | null>(null);
   const engineLoad = (i: number) => {
     const q = effQs[i];
+    if (isDemoRun && q) {
+      const secs = Number((q as any)._demoSeconds ?? 0);
+      setWin(
+        secs > 0
+          ? {
+              key: `q:${q.id}`,
+              startISO: new Date().toISOString(),
+              endISO: new Date(Date.now() + secs * 1000).toISOString(),
+              seconds: secs,
+            }
+          : null,
+      );
+    }
     if (!q) {
       void engineFinish();
       return;
@@ -583,6 +726,15 @@ function LegacyWizard({
     setEq(i);
   };
   const engineFinish = async () => {
+    if (isDemoRun) {
+      // Simulasi: tidak ada penyimpanan hasil — cukup tampilkan layar selesai.
+      setFinishing(false);
+      setDone(true);
+      setBothDone(true);
+      fireConfetti();
+      setTimeout(() => setAchPop(true), 400);
+      return;
+    }
     if (finishing) return;
     setFinishing(true);
     setFinishErr(false);
@@ -739,6 +891,24 @@ function LegacyWizard({
     return effQs.length;
   };
   const engineSelect = (option: string) => {
+    if (isDemoRun) {
+      if (revealed || !question) return;
+      setSelected(option);
+      setRevealed(true);
+      markAnswered(question.id);
+      const oList = optsRef.current ?? [];
+      const idx = ["A", "B", "C", "D", "E", "F"].indexOf(option);
+      const isBakatDemo = !!oList[idx] && (effQs[eq] as any)?._demoSeconds;
+      // Minat: pilih → lanjut. Bakat: tampilkan benar/salah sebentar lalu lanjut (seperti asli).
+      const delay = isBakatDemo ? 900 : 550;
+      if (isBakatDemo) setLastCorrect(idx === 0);
+      setTimeout(() => {
+        setRevealed(false);
+        setLastCorrect(null);
+        engineNext(nextUn(eq + 1));
+      }, delay);
+      return;
+    }
     if (revealed || !question) return;
     if (dimExpiredNow() || questionExpiredNow()) {
       setTimerNotice("⏱ Waktu habis — tidak bisa dijawab");
@@ -982,7 +1152,7 @@ function LegacyWizard({
   // Keluar / pindah tab / kunci HP → timer DIJEDA (server membekukan waktu & menggeser tenggat
   // saat kembali), jadi siswa tidak kehilangan waktu.
   useEffect(() => {
-    if (!isEngine || !engine?.sessionId || done || intro !== false) return;
+    if (!isEngine || isDemoRun || !engine?.sessionId || done || intro !== false) return;
     const sid = engine.sessionId;
     let alive = true;
     const doPause = () => {
@@ -1019,13 +1189,13 @@ function LegacyWizard({
       window.removeEventListener("pagehide", onHide);
       window.removeEventListener("blur", onHide);
     };
-  }, [isEngine, engine?.sessionId, done, intro]);
+  }, [isEngine, engine?.sessionId, done, intro, isDemoRun]);
 
   // ⏱ Buka jendela timer untuk soal aktif (server membuat start/end baru untuk bagian/soal ini)
   // biome-ignore lint/correctness/useExhaustiveDependencies: cukup saat soal aktif berganti
   useEffect(() => {
     const activeQ = effQs[eq] as any;
-    if (!isEngine || !engine?.sessionId || !activeQ?.id || intro !== false || done || secStart) return;
+    if (!isEngine || isDemoRun || !engine?.sessionId || !activeQ?.id || intro !== false || done || secStart) return;
     let alive = true;
     void (async () => {
       try {
@@ -1050,7 +1220,7 @@ function LegacyWizard({
 
   // ⏱ HEARTBEAT timer (server-authoritative) — sinkron tiap 12s + tick 1s utk UI
   useEffect(() => {
-    if (!isEngine || !engine?.sessionId) return;
+    if (!isEngine || isDemoRun || !engine?.sessionId) return;
     let alive = true;
     const sync = async () => {
       try {
@@ -1068,7 +1238,7 @@ function LegacyWizard({
       clearInterval(iv);
       clearInterval(tk);
     };
-  }, [isEngine, engine?.sessionId]);
+  }, [isEngine, engine?.sessionId, isDemoRun]);
 
   const startMutation = useMutation({
     ...orpc.tmb.assessment.start.mutationOptions(),
@@ -1359,10 +1529,10 @@ function LegacyWizard({
           </motion.div>
 
           <h1 className="mt-5 font-bold font-bricolage text-2xl text-gray-900">
-            {isDemo ? "Simulasi Selesai!" : bothDone ? "Semua Test Selesai!" : "Test Selesai!"}
+            {isDemoParam ? "Simulasi Selesai!" : bothDone ? "Semua Test Selesai!" : "Test Selesai!"}
           </h1>
           <p className="mt-2 font-manrope text-gray-500 text-sm">
-            {isDemo
+            {isDemoParam
               ? "Itu contoh 4 soal. Tes lengkapnya 120 soal minat + 100 soal bakat, ±45 menit."
               : bothDone
                 ? "Rekomendasi jurusan & kariermu sudah siap dihasilkan."
@@ -1395,7 +1565,7 @@ function LegacyWizard({
                   </Link>
                 );
               })()
-            ) : isDemo ? (
+            ) : isDemoParam ? (
               <Link
                 href="/dashboard/student/assessment"
                 className="flex items-center justify-center gap-2 rounded-2xl bg-brand-navy px-6 py-4 font-bold font-bricolage text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"

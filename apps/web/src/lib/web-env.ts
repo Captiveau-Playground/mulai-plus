@@ -25,3 +25,13 @@ export const isStaging = getWebEnv() === "staging";
  * Diisi CI dari job `tag` (NEXT_PUBLIC_RELEASE_TAG). Kosong saat build lokal/manual.
  */
 export const RELEASE_TAG = (env.NEXT_PUBLIC_RELEASE_TAG ?? "").trim();
+
+/**
+ * Versi aplikasi yang DITAMPILKAN di UI.
+ * Urutan: tag rilis CI (mis. "v1.4.0-staging.2") → versi `package.json` (di-inline
+ * next.config) → "dev" saat build lokal tanpa env. Jangan hardcode versi di komponen.
+ */
+export const APP_VERSION = (env.NEXT_PUBLIC_APP_VERSION ?? "").trim();
+
+export const VERSION_LABEL =
+  RELEASE_TAG || (APP_VERSION ? (APP_VERSION.startsWith("v") ? APP_VERSION : `v${APP_VERSION}`) : "dev");
