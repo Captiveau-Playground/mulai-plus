@@ -652,6 +652,7 @@ function LegacyWizard({
 
   const optsRef = useRef<any[] | null>(null);
   const engineLoad = (i: number) => {
+    setTimerNotice(null); // banner "waktu habis" hanya untuk momen lompat, jangan menempel
     const q = effQs[i];
     if (isDemoRun && q) {
       const secs = Number((q as any)._demoSeconds ?? 0);
@@ -1079,6 +1080,9 @@ function LegacyWizard({
     setTimerNotice(
       dl.kind === "dimension" ? "⏱ Waktu bagian habis — lanjut otomatis" : "⏱ Waktu soal habis — lanjut otomatis",
     );
+    // Banner hanya muncul SESUAI. Dulu banner ini tidak pernah dibersihkan saat lompat
+    // bagian (ada `return` sebelum setTimeout) → menempel sampai tes selesai.
+    window.setTimeout(() => setTimerNotice(null), 3000);
     // Pindah BAGIAN karena waktu habis → tetap tampilkan instruksi bagian berikutnya
     // (dulu langsung lompat ke soal sehingga siswa tak tahu aturan bagian baru).
     const fromDim = (effQs[eq] as any)?.dimensionId;
@@ -1092,7 +1096,6 @@ function LegacyWizard({
       return;
     }
     timerJump(target);
-    setTimeout(() => setTimerNotice(null), 3000);
     // biome-ignore lint/correctness/useExhaustiveDependencies: timer tick sengaja hanya bergantung nilai ini
   }, [timerSt, eq, effQs.length, engineFinish, timerJump, isEngine, serverNowEst, intro, done, secStart]);
 
@@ -1813,6 +1816,7 @@ function LegacyWizard({
         <button
           type="button"
           onClick={() => {
+            setTimerNotice(null);
             setSecStart(null);
             setSelected(null);
             setRevealed(false);
