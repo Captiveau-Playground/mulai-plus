@@ -18,7 +18,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ApplicationHistory } from "@/components/student/application-history";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageState } from "@/components/ui/page-state";
 import { cn } from "@/lib/utils";
@@ -201,13 +201,14 @@ export default function StudentDashboardPage() {
                         <Calendar className="h-8 w-8 text-white/50" />
                       </div>
                       <p className="font-manrope text-white/70">No upcoming sessions</p>
-                      <Link href="/dashboard/student/schedule" className="mt-3">
-                        <Button
-                          variant="outline"
-                          className="rounded-full border-white/30 bg-white text-brand-navy hover:bg-white/10 hover:text-white"
-                        >
-                          View All Sessions
-                        </Button>
+                      <Link
+                        href="/dashboard/student/schedule"
+                        className={cn(
+                          buttonVariants({ variant: "outline" }),
+                          "mt-3 rounded-full border-white/30 bg-white text-brand-navy hover:bg-white/10 hover:text-white",
+                        )}
+                      >
+                        View All Sessions
                       </Link>
                     </div>
                   )}
@@ -330,10 +331,11 @@ export default function StudentDashboardPage() {
                   Your last {Math.min(pastSessions.length, 5)} sessions attended
                 </CardDescription>
               </div>
-              <Link href="/dashboard/student/schedule?tab=past">
-                <Button variant="outline" size="sm" className="rounded-full">
-                  View All
-                </Button>
+              <Link
+                href="/dashboard/student/schedule?tab=past"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-full")}
+              >
+                View All
               </Link>
             </CardHeader>
             <CardContent>

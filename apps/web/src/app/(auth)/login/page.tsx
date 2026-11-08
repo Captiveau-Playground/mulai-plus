@@ -28,6 +28,11 @@ function LoginContent() {
   });
   const sekolah = as === "sekolah";
 
+  // Hydration: status sesi berbeda antara render server (belum tahu sesi) dan klien.
+  // Halaman dirender setelah mount supaya tidak memicu "Hydration failed" di console.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (error) {
       notify.error(`Authentication failed: ${error}`);
@@ -47,7 +52,7 @@ function LoginContent() {
     }
   }, [session, isPending, router, callbackUrl]);
 
-  if (isPending) {
+  if (!mounted || isPending) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg-light">
         <Loader />

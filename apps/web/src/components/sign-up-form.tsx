@@ -82,7 +82,7 @@ export default function SignUpForm({
       </div>
 
       <div className="mt-8 text-center">
-        <p className="font-manrope text-[#888888]">
+        <div className="font-manrope text-[#888888]">
           Already have an account?{" "}
           <button
             type="button"
@@ -91,7 +91,7 @@ export default function SignUpForm({
           >
             Sign In
           </button>
-        </p>
+        </div>
       </div>
     </div>
   );

@@ -640,3 +640,25 @@ export function isStaleUntimedSession(input: {
   const last = Math.max(...times);
   return now - last > days * 86_400_000;
 }
+
+/**
+ * Geser semua deadline timer sebesar `shiftMs` (dipakai saat sesi baru benar-benar dimulai).
+ * Tujuannya: waktu yang dihabiskan di layar intro/guide tidak memakan jatah pengerjaan.
+ * Struktur timer (urutan dimensi & soal) tetap sama, hanya digeser.
+ */
+export function shiftTimer(timer: any, shiftMs: number): any {
+  if (!timer || !Number.isFinite(shiftMs) || shiftMs === 0) return timer;
+  const shift = (iso?: string | null) =>
+    iso ? new Date(new Date(iso).getTime() + shiftMs).toISOString() : (iso ?? undefined);
+  return {
+    ...timer,
+    serverNowISO: shift(timer.serverNowISO),
+    expectedEndISO: shift(timer.expectedEndISO),
+    dims: (timer.dims ?? []).map((d: any) => ({
+      ...d,
+      startISO: shift(d.startISO),
+      endISO: shift(d.endISO),
+    })),
+    qEnds: (timer.qEnds ?? []).map((iso: string) => (iso ? shift(iso) : iso)),
+  };
+}
