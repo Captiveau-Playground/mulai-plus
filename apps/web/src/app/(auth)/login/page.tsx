@@ -10,6 +10,7 @@ import Loader from "@/components/loader";
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 import { authClient } from "@/lib/auth-client";
+import { B2B_ENABLED } from "@/lib/features";
 import { homeForRole } from "@/lib/role-home";
 import { notify } from "@/lib/toast";
 
@@ -163,29 +164,32 @@ function LoginContent() {
       {/* Right Side - Form */}
       <div className="flex w-full flex-col justify-center bg-bg-light lg:w-1/2">
         <div className="mx-auto w-full max-w-md px-6 py-12 lg:px-8">
-          {/* Tab konteks — form & ending sama, hanya beda peran */}
-          <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1" role="tablist">
-            {(
-              [
-                { key: "siswa", label: "🎓 Siswa" },
-                { key: "sekolah", label: "🏫 Sekolah" },
-              ] as const
-            ).map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                data-testid={`login-tab-${t.key}`}
-                aria-selected={as === t.key}
-                onClick={() => setAs(t.key)}
-                className={`rounded-xl px-3 py-2 font-manrope font-semibold text-sm transition-all ${
-                  as === t.key ? "bg-white text-brand-navy shadow-sm" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {/* Tab konteks — form & ending sama, hanya beda peran.
+              Tab "Sekolah" hanya muncul saat fitur B2B dirilis (NEXT_PUBLIC_B2B_ENABLED=1). */}
+          {B2B_ENABLED && (
+            <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1" role="tablist">
+              {(
+                [
+                  { key: "siswa", label: "🎓 Siswa" },
+                  { key: "sekolah", label: "🏫 Sekolah" },
+                ] as const
+              ).map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  data-testid={`login-tab-${t.key}`}
+                  aria-selected={as === t.key}
+                  onClick={() => setAs(t.key)}
+                  className={`rounded-xl px-3 py-2 font-manrope font-semibold text-sm transition-all ${
+                    as === t.key ? "bg-white text-brand-navy shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="mb-4 text-center font-manrope text-gray-500 text-xs" data-testid="login-tab-hint">
             {sekolah
               ? "Untuk admin sekolah & guru BK — kelola peserta, jadwal, dan lihat hasil tes sekolah."
@@ -198,7 +202,7 @@ function LoginContent() {
             <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} callbackUrl={callbackUrl ?? undefined} />
           )}
 
-          {sekolah && (
+          {B2B_ENABLED && sekolah && (
             <p className="mt-4 text-center font-manrope text-gray-500 text-xs">
               Belum punya akun sekolah?{" "}
               <Link href={"/sekolah/daftar" as any} className="font-semibold text-mentor-teal underline">

@@ -12,6 +12,7 @@ import { SchoolSuggestions, useSchoolSearch } from "@/components/student/school-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { B2B_ENABLED } from "@/lib/features";
 import { notify } from "@/lib/toast";
 import { orpc } from "@/utils/orpc";
 
@@ -287,8 +288,30 @@ function DaftarSekolahPageInner() {
   );
 }
 
+/**
+ * Pendaftaran sekolah = pintu masuk B2B. Selama fitur B2B belum dirilis
+ * (`NEXT_PUBLIC_B2B_ENABLED` mati), halaman ini tidak dibuka untuk umum.
+ */
+function B2bClosedNotice() {
+  return (
+    <div className="flex min-h-[70vh] items-center justify-center px-6">
+      <div className="max-w-md text-center">
+        <p className="font-bold font-bricolage text-brand-navy text-lg">Pendaftaran sekolah belum dibuka</p>
+        <p className="mt-2 font-manrope text-gray-500 text-sm">
+          Fitur B2B (sekolah &amp; guru BK) sedang disiapkan untuk rilis bertahap. Sementara itu, kamu tetap bisa
+          memakai tes minat bakat dan explore data sebagai siswa.
+        </p>
+        <Link href="/login" className="mt-4 inline-block font-manrope font-semibold text-mentor-teal text-sm underline">
+          Masuk sebagai siswa
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 // `useSearchParams` (kode rujukan ?ref=…) butuh Suspense agar bisa diprerender.
 export default function DaftarSekolahPagePage() {
+  if (!B2B_ENABLED) return <B2bClosedNotice />;
   return (
     <Suspense fallback={<div className="min-h-[60vh]" />}>
       <DaftarSekolahPageInner />

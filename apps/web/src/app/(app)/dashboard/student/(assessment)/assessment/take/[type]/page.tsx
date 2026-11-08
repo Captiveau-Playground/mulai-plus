@@ -99,6 +99,7 @@ function EngineWrapper({
     allowPause?: boolean;
   } | null>(null);
   const [errg, setErrg] = useState("");
+  const [alreadyDone, setAlreadyDone] = useState(false);
   const { data: authSession } = authClient.useSession();
   const startedRef = useRef(false);
   // id preview dibuat sekali per mount (tidak memicu loop & tidak menyentuh data siswa)
@@ -116,6 +117,11 @@ function EngineWrapper({
           studentId: sid,
           versionId: versionId ?? undefined,
         } as any)) as any;
+        // Sudah selesai & bukan tes ulang → jangan masuk tes; arahkan ke hasil.
+        if (st?.ok === false && st?.error === "already_completed") {
+          setAlreadyDone(true);
+          return;
+        }
         // (M2.3) Kelas punya jadwal & sedang di luar window → tampilkan pesan jadwal,
         // bukan error generik. (Server tetap sumber kebenaran penolakannya.)
         if (st?.ok === false) {
@@ -160,6 +166,52 @@ function EngineWrapper({
       }
     })();
   }, [code, sid, versionId]);
+  if (alreadyDone)
+    return (
+      <div className="fixed inset-0 z-[70] flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg-light p-6 text-center">
+        <span className="text-4xl">✅</span>
+        <p className="font-bold font-bricolage text-brand-navy text-xl">Tes ini sudah selesai</p>
+        <p className="max-w-sm font-manrope text-gray-500 text-sm">
+          Hasilmu sudah tersimpan. Lihat hasilnya, atau mulai percobaan baru kalau memang ingin mengulang.
+        </p>
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.location.assign("/dashboard/student/assessment/result")}
+            className="rounded-xl bg-brand-navy px-5 py-2.5 font-bold font-manrope text-sm text-white"
+          >
+            Lihat hasil
+          </button>
+          <button
+            type="button"
+            data-testid="retest-now"
+            onClick={async () => {
+              setAlreadyDone(false);
+              setErrg("");
+              try {
+                const st = (await client.discover.start({
+                  code,
+                  studentId: sid as string,
+                  versionId: versionId ?? undefined,
+                  retest: true,
+                } as any)) as any;
+                if (st?.ok === false) {
+                  setAlreadyDone(true);
+                  return;
+                }
+                // sesi baru sudah dibuat di server → muat ulang halaman untuk mulai dari awal
+                window.location.reload();
+              } catch {
+                setAlreadyDone(true);
+              }
+            }}
+            className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 font-bold font-manrope text-gray-600 text-sm"
+          >
+            Ya, tes ulang
+          </button>
+        </div>
+      </div>
+    );
   if (errg)
     return (
       <div className="fixed inset-0 z-[70] flex min-h-dvh items-center justify-center bg-bg-light p-4">
@@ -1677,7 +1729,11 @@ function LegacyWizard({
                           "h-full rounded-full transition-all duration-500",
                           pct > 0 ? "bg-gradient-to-r from-mentor-teal to-teal-500" : "bg-transparent",
                         )}
-                        style={{ width: `${pct > 0 ? Math.max(pct * 100, 5) : 0}%` }}
+                        style={{
+                          // Akurat: dulu ada "minimum 5%" supaya progres kecil terlihat, tapi untuk
+                          // 120 soal artinya 1 jawaban = 5% → batang langsung meloncat di awal.
+                          width: `${Math.min(100, Math.max(0, pct * 100))}%`,
+                        }}
                       />
                     </div>
                   );

@@ -732,6 +732,8 @@ export const discoverRouter = {
         code: z.string().default("DISCOVER"),
         studentId: z.string().min(1),
         versionId: z.string().optional(),
+        /** true hanya saat siswa/panitia memang minta TES ULANG (bukan sekadar masuk lagi). */
+        retest: z.boolean().optional(),
       }),
     )
     .handler(async ({ input, context }) => {
@@ -989,6 +991,31 @@ export const discoverRouter = {
           optionOrder: sessOptionOrder,
         } as const;
       }
+      // Anti "masuk tes lagi" tanpa sengaja: kalau siswa SUDAH punya hasil selesai untuk tes
+      // ini dan tidak ada sesi berjalan, jangan buat sesi baru — arahkan ke halaman hasil.
+      // Tes ulang tetap bisa lewat `retest: true` (tombol "Tes Ulang" di dashboard).
+      if (!input.retest) {
+        const a0 = await db.query.assessments.findFirst({
+          where: eq(schema.assessments.id, (v as any).assessmentId),
+        });
+        const doneRows = await db.query.tmbAssessmentResults.findMany({
+          where: eq(tmbAssessmentResults.userId, studentId),
+          orderBy: (t: any) => [desc(t.createdAt)],
+          limit: 1,
+        });
+        const fam = a0?.family ?? null;
+        const done = doneRows[0];
+        const alreadyDone =
+          !!done && (fam === "minat" ? !!done.hollandCode : fam === "bakat" ? !!done.abilityScores : false);
+        if (alreadyDone) {
+          return {
+            ok: false as const,
+            error: "already_completed" as const,
+            profileCode: done?.hollandCode ?? null,
+          };
+        }
+      }
+
       const session = {
         id: uid(),
         studentId: studentId,

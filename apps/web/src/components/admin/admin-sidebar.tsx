@@ -25,6 +25,7 @@ import { NavUser } from "@/components/nav-user";
 import { TeamSwitcher } from "@/components/team-switcher";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { B2B_ENABLED } from "@/lib/features";
 
 export function CvgLogo(props: Omit<React.ComponentProps<typeof Image>, "src" | "alt" | "width" | "height">) {
   return <Image src="/main-icon-logo.svg" alt="Logo" width={32} height={32} {...props} />;
@@ -64,8 +65,13 @@ const data = {
         { title: "Konten Legacy", url: "/admin/assessment/questions" },
         { title: "Pola Jurusan", url: "/admin/assessment/patterns" },
         { title: "Mapping Karier", url: "/admin/assessment/careers" },
-        { title: "Sekolah & Batch", url: "/admin/assessment/schools", section: "Operasional B2B" },
-        { title: "Verifikasi Sekolah", url: "/admin/assessment/schools/pendaftaran" },
+        // Operasional B2B dirilis bertahap → hanya tampil saat flag aktif.
+        ...(B2B_ENABLED
+          ? [
+              { title: "Sekolah & Batch", url: "/admin/assessment/schools", section: "Operasional B2B" },
+              { title: "Verifikasi Sekolah", url: "/admin/assessment/schools/pendaftaran" },
+            ]
+          : []),
         { title: "Statistik B2C", url: "/admin/assessment/b2c", section: "Analitik B2C" },
         { title: "Riwayat B2C", url: "/admin/assessment/b2c/history" },
       ],

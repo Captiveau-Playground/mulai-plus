@@ -319,6 +319,15 @@ async function computeCohortInsight(
   };
 }
 
+/**
+ * Fitur B2B (pendaftaran sekolah) dirilis bertahap ke production.
+ * Default MATI: pendaftaran organisasi sekolah tidak dibuka sampai `B2B_ENABLED=1`.
+ * Data B2B yang sudah ada (sekolah/batch/kelas) TIDAK dihapus — hanya pintu masuknya.
+ */
+function b2bEnabled() {
+  return process.env.B2B_ENABLED === "1";
+}
+
 export const schoolRouter = {
   /**
    * Ajukan pendaftaran sekolah. Akun belum aktif sampai disetujui admin MULAI+.
@@ -340,6 +349,7 @@ export const schoolRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
+      if (!b2bEnabled()) return { ok: false as const, error: "b2b_disabled" as const };
       const userId = context.session.user.id;
       const existing = await orgOfUser(userId);
       if (existing.member) {
