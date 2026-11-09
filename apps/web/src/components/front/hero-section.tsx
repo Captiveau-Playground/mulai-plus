@@ -1,6 +1,5 @@
 "use client";
 
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { motion } from "framer-motion";
 import { BookOpen, ChevronDown, GraduationCap, MapPin, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -84,7 +83,7 @@ export function HeroSection() {
           >
             Mul.ai menjawab pertanyaan{" "}
             <b className="text-gray-700">universitas, jurusan, passing grade, dan beasiswa</b> dengan data MULAI+ —
-            dipersonalisasi oleh Tes Minat Bakat gratismu (±10 menit) dan profil sekolahmu.
+            dipersonalisasi oleh Tes Minat Bakat gratismu (±45 menit, 2 tes) dan profil sekolahmu.
           </motion.p>
 
           {/* ── Stats Row ── */}
@@ -162,19 +161,13 @@ export function HeroSection() {
               preload="auto"
               disablePictureInPicture
               aria-label="Animasi maskot MULAI+ memegang kompas"
-              className="h-full w-full object-cover scale-[1.2] [&::-webkit-media-controls-panel]:hidden"
+              className="h-full w-full scale-[1.2] object-cover [&::-webkit-media-controls-panel]:hidden"
             >
               {/* mov (HEVC-alpha): Safari/iOS & browser yg bisa HEVC → transparan;
                   webm (VP9+alpha): Chrome/Edge/Firefox fallback. MOV dulu biar Safari
                   nggak salah pilih webm (Safari render alpha VP9 sebagai opaque biru). */}
-              <source
-                src="/animation/animation-527dfa9e-a574-4e54-91fe-c0e9c3184392.mov"
-                type="video/quicktime"
-              />
-              <source
-                src="/animation/animation-fbfda72d-efce-471b-b059-1813b501ac6a.webm"
-                type="video/webm"
-              />
+              <source src="/animation/animation-527dfa9e-a574-4e54-91fe-c0e9c3184392.mov" type="video/quicktime" />
+              <source src="/animation/animation-fbfda72d-efce-471b-b059-1813b501ac6a.webm" type="video/webm" />
             </video>
           </div>
         </motion.div>

@@ -1,0 +1,83 @@
+name: Seed Assessment (manual)
+
+# ── SEEDER BANK SOAL & KATALOG (manual, aman) ────────────────────────────────
+# Dijalankan dari tab Actions → "Seed Assessment (manual)" → Run workflow.
+# WAJIB environment `production` (memakai secrets.DATABASE_URL milik production,
+# biasanya dilindungi reviewer → butuh approval).
+#
+# Urutan yang benar:
+#   1. dry        → hanya membaca & menampilkan rencana
+#   2. verify     → cek kesiapan (read-only), harus "SIAP MERGE — 0 masalah"
+#   3. catalog    → 63 pola jurusan + 324 karier + backfill 15rb prodi
+#   4. questions  → tanam bank soal ke DRAFT (--replace supaya draft lama diperbaiki)
+#   5. verify     → cek ulang setelah seed
+#   6. publish    → promosikan draft jadi LIVE (versi live lama → archived)
+#
+# Keamanan: seeder TIDAK PERNAH menulis ke versi `live`; publish satu-satunya langkah
+# yang mengubah versi live, dan hanya setelah ringkasan lengkap (tanpa soal isian tanpa kunci).
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry | verify | catalog | questions | publish"
+        required: true
+        default: dry
+        type: choice
+        options: [dry, verify, catalog, questions, publish]
+      replace:
+        description: "questions: timpa isi DRAFT (hapus soal draft lalu tanam ulang)"
+        required: false
+        default: true
+        type: boolean
+      new_version:
+        description: "questions: buat draft versi baru (v berikutnya)"
+        required: false
+        default: true
+        type: boolean
+
+concurrency: seed-assessment
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run seeder
+        working-directory: packages/db
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          echo "mode=${{ inputs.mode }} · replace=${{ inputs.replace }} · new_version=${{ inputs.new_version }}"
+          case "${{ inputs.mode }}" in
+            dry)
+              bun run scripts/seed-assessment-prod.mts --dry --yes
+              ;;
+            verify)
+              bun run scripts/verify-tmb-ready.mts
+              ;;
+            catalog)
+              bun run scripts/seed-assessment-prod.mts --catalog-only --yes
+              ;;
+            questions)
+              ARGS="--questions-only --yes"
+              if [ "${{ inputs.new_version }}" = "true" ]; then ARGS="$ARGS --new-version"; fi
+              if [ "${{ inputs.replace }}" = "true" ]; then ARGS="$ARGS --replace"; fi
+              bun run scripts/seed-assessment-prod.mts $ARGS
+              ;;
+            publish)
+              bun run scripts/seed-assessment-prod.mts --questions-only --publish --yes
+              ;;
+            *)
+              echo "mode tidak dikenal"; exit 1
+              ;;
+          esac

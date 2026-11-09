@@ -660,6 +660,12 @@ export const tmbRouter = {
       const nowMs = Date.now();
       if (lbCacheTs > nowMs) return lbCache;
       const viewerId = (context as any)?.session?.user?.id ?? null;
+      // Sumber data = GABUNGAN dua pipeline:
+      //  1) engine baru  : assessment_sessions + assessment_answers (TALENT, 100 soal)
+      //  2) pipeline lama: tmb_test_attempts + tmb_test_answers (ability, 10 soal)
+      // Tanpa gabungan ini, production (yang riwayatnya dari pipeline lama) tampil kosong.
+      // Peringkat: AKURASI (satu-satunya metrik yang adil antar panjang tes berbeda),
+      // lalu jumlah soal dijawab (coverage), lalu jumlah benar, lalu waktu tercepat.
       const rows = (await db.execute(sql`
         WITH per_attempt AS (
           SELECT s.student_id AS user_id, s.id,
@@ -672,12 +678,21 @@ export const tmbRouter = {
           LEFT JOIN assessment_answers an ON an.session_id = s.id
           WHERE s.status IN ('completed','timeout')
           GROUP BY s.student_id, s.id, s.started_at, s.completed_at
+          UNION ALL
+          SELECT t.user_id, t.id,
+            count(a.id)::int,
+            count(a.id) FILTER (WHERE a.is_correct)::int,
+            GREATEST(0, EXTRACT(EPOCH FROM (COALESCE(t.finished_at, t.started_at) - t.started_at))::int)
+          FROM tmb_test_attempts t
+          LEFT JOIN tmb_test_answers a ON a.attempt_id = t.id
+          WHERE t.test_code = 'ability' AND t.status = 'completed'
+          GROUP BY t.user_id, t.id, t.started_at, t.finished_at
         ), scored AS (
           SELECT *, (100.0 * correct / GREATEST(answered, 1))::int AS acc
           FROM per_attempt WHERE answered >= 10
         ), best AS (
           SELECT DISTINCT ON (user_id) user_id, correct, answered, acc, dur, id
-          FROM scored ORDER BY user_id, acc DESC, correct DESC, dur ASC
+          FROM scored ORDER BY user_id, acc DESC, answered DESC, correct DESC, dur ASC
         )
         SELECT b.user_id, b.correct, b.answered, b.acc, b.dur, u.name AS name
         FROM best b
@@ -685,7 +700,8 @@ export const tmbRouter = {
         WHERE u.name IS NOT NULL AND btrim(u.name) <> ''
           AND COALESCE(u.email, '') NOT LIKE '%@test.local'
           AND COALESCE(u.email, '') NOT LIKE '%@example.com'
-        ORDER BY b.acc DESC, b.correct DESC, b.dur ASC
+          AND COALESCE(u.email, '') NOT LIKE '%@contoh.test'
+        ORDER BY b.acc DESC, b.answered DESC, b.correct DESC, b.dur ASC
         LIMIT 50`)) as unknown as {
         rows?: { user_id: string; correct: number; answered: number; acc: number; dur: number; name: string }[];
       };

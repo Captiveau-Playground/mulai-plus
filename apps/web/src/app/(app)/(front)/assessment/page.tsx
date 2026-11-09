@@ -6,36 +6,36 @@ import {
   FileText,
   Map as MapIcon,
   MessageCircle,
-  Quote,
   Sparkles,
   Target,
   TrendingUp,
   User,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { CountUp, Reveal, StaggerGroup, StaggerItem } from "@/components/front/assessment-anim";
 import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
 import { AssessmentMock } from "@/components/front/assessment-mock";
-import { TestimonialCarousel } from "@/components/front/testimonial-carousel";
 import { AssessmentReportPreview } from "@/components/front/assessment-report-preview";
 import { AssessmentEngineSection } from "@/components/front/assessment-usp";
 import { CareerPathMap } from "@/components/front/career-path-map";
+import { TestimonialCarousel } from "@/components/front/testimonial-carousel";
 
 const WA_LINK =
   "https://wa.me/6285730367310?text=Halo%20MULAI%2B%2C%20saya%20ingin%20jadwalkan%20demo%20Test%20Minat%20Bakat%20untuk%20sekolah%20kami";
 
 const STATS = [
-  { valueNum: 20, suffix: "", label: "soal terukur" },
-  { valueNum: 10, suffix: "", label: "menit selesai" },
-  { valueNum: 18, suffix: ".000+", label: "prodi dicocokkan" },
-  { valueNum: 6, suffix: "+5", label: "dimensi minat & bakat" },
+  { valueNum: 220, suffix: "", label: "soal terukur (120 + 100)" },
+  { valueNum: 45, suffix: "–75", label: "menit total pengerjaan" },
+  { valueNum: 15, suffix: ".000+", label: "prodi aktif dicocokkan" },
+  { valueNum: 11, suffix: "", label: "dimensi minat & bakat" },
 ];
 
 const FEATURES = [
   {
     icon: Target,
     title: "Rekomendasi berbasis data",
-    desc: "Setiap jurusan dicocokkan dengan 18.000+ program studi & 400+ universitas di Indonesia — bukan saran umum.",
+    desc: "Setiap jurusan & karier dicocokkan dengan 15.000+ prodi aktif di 400+ kampus (negeri, swasta, keagamaan) — lengkap dengan contoh prodi & kampusnya.",
   },
   {
     icon: Sparkles,
@@ -45,19 +45,27 @@ const FEATURES = [
   {
     icon: BarChart3,
     title: "Profil minat & kemampuan",
-    desc: "Kode Holland 3 huruf + 5 dimensi kemampuan, divisualisasikan agar mudah dipahami.",
+    desc: "Kode Holland 3 huruf, 6 dimensi minat, dan 5 dimensi kemampuan — plus peta rekomendasi jurusan → karier → prodi.",
   },
   {
     icon: FileText,
     title: "Laporan PDF siap unduh",
-    desc: "Hasil lengkap dalam dokumen rapi — bisa dibagikan ke orang tua atau guru BK.",
+    desc: "Hasil lengkap dengan kode QR verifikasi — bisa dibagikan ke orang tua atau guru BK.",
   },
 ];
 
 const STEPS = [
   { icon: User, title: "Buat akun gratis", desc: "Login atau daftar sekali — langsung bisa mulai." },
-  { icon: Compass, title: "Ikuti 2 test", desc: "Tes Minat (Holland) + Tes Bakat, tanpa tekanan waktu." },
-  { icon: Target, title: "Dapat rekomendasi", desc: "Top 5 jurusan & karier dari data prodi nyata." },
+  {
+    icon: Compass,
+    title: "Ikuti 2 test",
+    desc: "Tes Minat 120 soal (tanpa batas waktu) + Tes Bakat 100 soal dengan timer 10 menit per bagian.",
+  },
+  {
+    icon: Target,
+    title: "Dapat rekomendasi",
+    desc: "5 jurusan + 6 karier dari data prodi nyata, plus contoh prodi & kampus.",
+  },
 ];
 
 export default function AssessmentLandingPage() {
@@ -78,7 +86,7 @@ export default function AssessmentLandingPage() {
             <Reveal>
               <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/5 px-3 py-1">
                 <Sparkles className="h-3.5 w-3.5 text-mentor-teal" />
-                <span className="font-manrope font-medium text-teal-700 text-xs">Gratis · 20 Soal · ±10 Menit</span>
+                <span className="font-manrope font-medium text-teal-700 text-xs">Gratis · 220 Soal · 2 Tes</span>
               </div>
 
               <h1 className="mt-5 font-bold font-bricolage text-4xl text-brand-navy leading-[1.05] tracking-tight md:text-5xl lg:text-6xl">
@@ -91,9 +99,9 @@ export default function AssessmentLandingPage() {
 
               <p className="mt-5 max-w-lg font-manrope text-base text-gray-500 leading-relaxed md:text-lg">
                 Test Minat Bakat by MULAI+ menggabungkan{" "}
-                <span className="font-semibold text-gray-800">Tes Minat (Holland)</span> dan{" "}
-                <span className="font-semibold text-gray-800">Tes Bakat</span> — lalu mencocokkan hasilnya dengan data
-                program studi & universitas di Indonesia.
+                <span className="font-semibold text-gray-800">Tes Minat (Holland, 120 soal)</span> dan{" "}
+                <span className="font-semibold text-gray-800">Tes Bakat (100 soal)</span> — lalu mencocokkan hasilnya
+                dengan 15.000+ prodi aktif di 400+ kampus Indonesia.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -207,7 +215,8 @@ export default function AssessmentLandingPage() {
                   </div>
                   <h3 className="mt-5 font-bold font-bricolage text-gray-900 text-xl">Tes Minat</h3>
                   <p className="mt-2 font-manrope text-gray-500 text-sm leading-relaxed">
-                    Model Holland RIASEC — 10 soal untuk menemukan 6 tipe minat yang membentuk arah jurusanmu.
+                    Model Holland RIASEC — 120 soal (20 per tipe) untuk menemukan kode 3 huruf yang membentuk arah
+                    jurusanmu. Tanpa batas waktu, ±20 menit.
                   </p>
                   <div className="mt-5 flex items-center gap-1.5">
                     {["R", "I", "A", "S", "E", "C"].map((c, ci) => (
@@ -242,8 +251,8 @@ export default function AssessmentLandingPage() {
                   </div>
                   <h3 className="mt-5 font-bold font-bricolage text-gray-900 text-xl">Tes Bakat</h3>
                   <p className="mt-2 font-manrope text-gray-500 text-sm leading-relaxed">
-                    5 kemampuan dasar — numerik, verbal, logika, spasial, ketelitian — yang menentukan kecepatan
-                    belajarmu.
+                    100 soal (60 pilihan ganda + 40 isian) untuk mengukur numerik, verbal, logika, spasial, dan
+                    ketelitian — dengan timer 10 menit per bagian.
                   </p>
                   <div className="mt-5 flex flex-wrap gap-1.5">
                     {["Numerik", "Verbal", "Logika", "Spasial", "Ketelitian"].map((a) => (
@@ -286,7 +295,7 @@ export default function AssessmentLandingPage() {
               </p>
               <ul className="mt-5 space-y-2">
                 {[
-                  "Dicocokkan dengan 18.000+ prodi & 400+ universitas",
+                  "Dicocokkan dengan 15.000+ prodi di 400+ kampus (negeri, swasta, keagamaan)",
                   "Peta visual interaktif karir → jurusan → prodi",
                   "Cek keselarasan dengan minat-bakatmu",
                 ].map((t) => (
@@ -368,6 +377,103 @@ export default function AssessmentLandingPage() {
         </StaggerGroup>
       </section>
 
+      {/* ── TAMPILAN ASLI (screenshot produk) ── */}
+      <section className="border-gray-100 border-t bg-gray-50/60">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+          <Reveal className="mx-auto max-w-2xl text-center">
+            <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">Tampilan Asli</p>
+            <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight md:text-4xl">
+              Bukan Mockup — Ini Produknya
+            </h2>
+            <p className="mt-4 font-manrope text-gray-500">
+              Tangkapan layar langsung dari aplikasi: soal Tes Minat skala emoji, Tes Bakat dengan timer per bagian,
+              sampai laporan hasil dan peta rekomendasi.
+            </p>
+          </Reveal>
+
+          {/* Baris 1 — dua layar HP (dipotong rapi, fokus ke soal & opsi) */}
+          <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
+            {[
+              {
+                src: "/product-shots/soal-minat.webp",
+                title: "Soal Tes Minat",
+                desc: "120 soal skala emoji · tanpa batas waktu",
+              },
+              {
+                src: "/product-shots/soal-bakat.webp",
+                title: "Soal Tes Bakat",
+                desc: "100 soal · timer 10 menit per bagian",
+              },
+            ].map((shot) => (
+              <div key={shot.src} className="text-center">
+                <div className="relative overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white p-1.5 shadow-brand-navy/5 shadow-lg">
+                  <Image
+                    src={shot.src}
+                    alt={`Tampilan ${shot.title} di aplikasi MULAI+`}
+                    width={780}
+                    height={1688}
+                    className="max-h-[430px] w-full rounded-[1.4rem] object-cover object-top"
+                    sizes="(max-width: 640px) 90vw, 30vw"
+                  />
+                  <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 h-10 rounded-b-[1.4rem] bg-gradient-to-t from-white to-transparent" />
+                </div>
+                <p className="mt-3 font-bold font-bricolage text-gray-900 text-sm">{shot.title}</p>
+                <p className="font-manrope text-gray-500 text-xs">{shot.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Baris 2 — dua layar lebar (laporan & peta) */}
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            {(
+              [
+                {
+                  src: "/product-shots/hasil.webp",
+                  w: 1200,
+                  h: 497,
+                  title: "Laporan hasil",
+                  desc: "Kode minat, 5 dimensi bakat, dan rekomendasi jurusan dalam satu halaman",
+                },
+                {
+                  src: "/product-shots/peta.webp",
+                  w: 1200,
+                  h: 594,
+                  title: "Peta rekomendasi",
+                  desc: "Profil → jurusan → karier → prodi, tiap node bisa diklik",
+                },
+              ] as { src: string; w: number; h: number; title: string; desc: string }[]
+            ).map((shot) => (
+              <div key={shot.src}>
+                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-brand-navy/5 shadow-lg">
+                  <div className="flex items-center gap-1.5 border-gray-100 border-b bg-gray-50/80 px-3 py-2">
+                    <span className="h-2 w-2 rounded-full bg-red-300" />
+                    <span className="h-2 w-2 rounded-full bg-amber-300" />
+                    <span className="h-2 w-2 rounded-full bg-green-300" />
+                    <span className="ml-2 truncate font-manrope text-[10px] text-gray-400">
+                      mulaiplus.id — {shot.title}
+                    </span>
+                  </div>
+                  <Image
+                    src={shot.src}
+                    alt={`Tampilan ${shot.title} di aplikasi MULAI+`}
+                    width={shot.w ?? 1400}
+                    height={shot.h ?? 1025}
+                    className="h-auto w-full"
+                    sizes="(max-width: 768px) 92vw, 44vw"
+                  />
+                </div>
+                <p className="mt-3 font-bold font-bricolage text-gray-900 text-sm">{shot.title}</p>
+                <p className="font-manrope text-gray-500 text-xs">{shot.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-10 text-center font-manrope text-[11px] text-gray-400">
+            Tangkapan layar dari aplikasi MULAI+ (akun demo) — data pribadi tidak ditampilkan.
+          </p>
+        </div>
+      </section>
+
       {/* ── PREVIEW LAPORAN ── */}
       <section className="bg-white">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
@@ -382,15 +488,16 @@ export default function AssessmentLandingPage() {
                 </span>
               </h2>
               <p className="mt-4 font-manrope text-gray-500">
-                Begitu selesai, laporanmu langsung tersusun: kode Holland (RIASEC), skor bakat, daftar jurusan &amp;
-                kampus yang paling cocok — semua dalam satu halaman PDF yang bisa kamu simpan dan tunjukkan ke orang tua
-                atau guru BK.
+                Begitu kedua tes selesai, laporanmu langsung tersusun: kode Holland (RIASEC), skor 5 dimensi bakat, 5
+                jurusan + 6 karier paling cocok beserta contoh prodi &amp; kampusnya, sampai peta rekomendasi — semua
+                bisa diunduh sebagai PDF untuk orang tua atau guru BK.
               </p>
               <ul className="mt-5 space-y-2">
                 {[
-                  "Kode minat 3 huruf + penjelasan per tipe",
-                  "Skor bakat & analisis singkat",
-                  "Rekomendasi jurusan + link explore",
+                  "Kode minat 3 huruf + penjelasan tiap tipe",
+                  "Skor 5 dimensi bakat & analisis singkat",
+                  "5 jurusan + 6 karier, lengkap dengan contoh prodi & kampus",
+                  "Peta rekomendasi jurusan → karier → prodi",
                   "Tanda tangan elektronik & QR verifikasi",
                 ].map((t) => (
                   <li key={t} className="flex items-center gap-2.5 font-manrope text-gray-600 text-sm">
@@ -525,7 +632,7 @@ export default function AssessmentLandingPage() {
                 Jangan Tunda Kenali Arahmu
               </h2>
               <p className="mx-auto mt-3 max-w-md font-manrope text-sm text-white/70">
-                20 soal · ±10 menit · gratis. Hasil yang bisa mengubah keputusan kuliahmu.
+                220 soal (120 minat + 100 bakat) · ±45–75 menit · gratis. Hasil yang bisa mengubah keputusan kuliahmu.
               </p>
               <Link
                 href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"

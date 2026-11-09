@@ -1,6 +1,5 @@
 "use client";
 
-import { env } from "@mulai-plus/env/web";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -26,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuthorizePage } from "@/lib/auth-client";
 import { notify } from "@/lib/toast";
 import { toast } from "@/lib/toast-client";
+import { SERVER_URL } from "@/lib/web-env";
 import { orpc } from "@/utils/orpc";
 
 export default function AdminSettingsPage() {
@@ -75,7 +75,7 @@ export default function AdminSettingsPage() {
 
     setIsRestarting(true);
     try {
-      const response = await fetch(`${env.NEXT_PUBLIC_SERVER_URL}/api/system/restart`, {
+      const response = await fetch(`${SERVER_URL}/api/system/restart`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
