@@ -155,15 +155,9 @@ export default function MentorProfilePage() {
             </div>
 
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/25 bg-teal-500/5 px-3 py-1 font-manrope font-semibold text-teal-700 text-xs">
-                  <BadgeCheck className="h-3.5 w-3.5" /> Verified Mentor
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 shadow-sm">
-                  <span className="font-manrope text-[10px] text-gray-500">by</span>
-                  <Image src="/letter-icon-logo.svg" alt="MULAI+" width={72} height={18} className="h-[15px] w-auto" />
-                </span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/25 bg-teal-500/5 px-3 py-1 font-manrope font-semibold text-teal-700 text-xs">
+                <BadgeCheck className="h-3.5 w-3.5" /> Verified Mentor
+              </span>
               <h1 className="mt-4 font-bold font-bricolage text-3xl text-brand-navy leading-tight tracking-tight md:text-4xl">
                 {m.name}
               </h1>

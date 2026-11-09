@@ -1,17 +1,88 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, GraduationCap, Search, X } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MentorCard } from "@/components/front/mentor-card";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
-function _menteeLabel(n: number) {
-  if (!n) return null;
-  return n < 10 ? `${n} mentee` : `${Math.floor(n / 10) * 10}+ mentee`;
+/** Filter kampus versi ringkas: satu tombol + dropdown (bukan deretan chip panjang). */
+function CampusFilter({
+  campuses,
+  value,
+  onChange,
+}: {
+  campuses: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const active = value !== "all";
+  const label = active ? value : "Semua kampus";
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        data-testid="mentors-campus-filter"
+        className={`inline-flex h-11 max-w-[240px] items-center gap-2 rounded-xl border px-3.5 font-manrope font-semibold text-xs transition-colors ${
+          active
+            ? "border-brand-navy bg-brand-navy text-white"
+            : "border-gray-200 bg-white text-gray-600 hover:border-teal-500/40 hover:text-teal-700"
+        }`}
+      >
+        <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute right-0 z-40 mt-2 max-h-72 w-64 overflow-y-auto rounded-2xl border border-gray-100 bg-white p-1.5 shadow-xl"
+        >
+          {[{ key: "all", label: "Semua kampus" }, ...campuses.map((c) => ({ key: c, label: c }))].map((o) => {
+            const isActive = value === o.key;
+            return (
+              <button
+                key={o.key}
+                type="button"
+                role="option"
+                aria-selected={isActive}
+                onClick={() => {
+                  onChange(o.key);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left font-manrope text-xs transition-colors ${
+                  isActive ? "bg-teal-50 font-semibold text-teal-800" : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                  {isActive && <Check className="h-3.5 w-3.5 text-teal-600" />}
+                </span>
+                <span className="truncate">{o.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function MentorsGrid() {
@@ -69,59 +140,47 @@ export function MentorsGrid() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-      {/* Search + filter */}
-      <div className="mb-7 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <div className="relative w-full sm:max-w-sm">
-              <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Cari mentor, kampus, atau jurusan…"
-                className="h-11 rounded-xl border-gray-200 bg-white pr-9 pl-10"
-                data-testid="mentors-search"
-              />
-              {q && (
-                <button
-                  type="button"
-                  onClick={() => setQ("")}
-                  aria-label="Hapus pencarian"
-                  className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            <p className="ml-auto shrink-0 font-manrope text-[11px] text-gray-400">
-              <b className="text-gray-700">{filtered.length}</b> mentor
-            </p>
-          </div>
-
-          {campuses.length > 0 && (
-            <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-              <span className="inline-flex shrink-0 items-center gap-1 font-manrope font-semibold text-[11px] text-gray-400 uppercase tracking-wide">
-                <SlidersHorizontal className="h-3 w-3" /> Kampus
-              </span>
-              {[{ key: "all", label: "Semua" }, ...campuses.map((c) => ({ key: c, label: c }))].map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setCampus(f.key)}
-                  title={f.label}
-                  className={cn(
-                    "shrink-0 rounded-full border px-3 py-1.5 font-manrope font-semibold text-[11px] transition-colors",
-                    campus === f.key
-                      ? "border-brand-navy bg-brand-navy text-white shadow-sm"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-teal-500/40 hover:text-teal-700",
-                  )}
-                >
-                  <span className="block max-w-[200px] truncate">{f.label}</span>
-                </button>
-              ))}
-            </div>
+      {/* Search + filter (ringkas: satu input + satu dropdown kampus) */}
+      <div className="mb-7 flex flex-col gap-2 rounded-2xl border border-gray-100 bg-gray-50/60 p-3 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Cari mentor, kampus, atau jurusan…"
+            className="h-11 rounded-xl border-gray-200 bg-white pr-9 pl-10"
+            data-testid="mentors-search"
+          />
+          {q && (
+            <button
+              type="button"
+              onClick={() => setQ("")}
+              aria-label="Hapus pencarian"
+              className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
+
+        {campuses.length > 0 && <CampusFilter campuses={campuses} value={campus} onChange={setCampus} />}
+
+        {(q || campus !== "all") && (
+          <button
+            type="button"
+            onClick={() => {
+              setQ("");
+              setCampus("all");
+            }}
+            className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl px-3 font-manrope font-semibold text-gray-500 text-xs transition-colors hover:text-brand-navy"
+          >
+            <X className="h-3.5 w-3.5" /> Reset
+          </button>
+        )}
+
+        <p className="shrink-0 font-manrope text-[11px] text-gray-400 sm:ml-auto">
+          <b className="text-gray-700">{filtered.length}</b> mentor
+        </p>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
