@@ -78,7 +78,7 @@ export function MeetTheMentor() {
         name: m.name,
         role: m.kampus || "Mentor MULAI+",
         image: m.image || "/letter-icon-logo.svg",
-        href: `/mentors/${m.id}`,
+        href: `/mentors/${m.slug ?? m.id}`,
       }))
     : MENTORS.map((m) => ({ ...m, href: "/mentors" }));
 

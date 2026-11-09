@@ -39,6 +39,16 @@ import { sendNotification } from "../lib/notification";
 import { getPathFromUrl, supabase } from "../lib/supabase";
 import { createSignedToken } from "./esign";
 
+function mentorSlug(name: string) {
+  return (name ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 40);
+}
+
 function slugify(text: string) {
   return text
     .toString()
@@ -177,6 +187,7 @@ export const programsRouter = {
           })
           .map((r) => ({
             id: r.id,
+            slug: r.detail.slug,
             name: r.detail.displayName || r.name,
             image: r.detail.photoUrl ?? r.image,
             kampus: r.detail.kampus,
@@ -188,44 +199,58 @@ export const programsRouter = {
           }));
       }),
 
-    /** Profil publik satu mentor (hanya yang disetujui & aktif). */
-    mentor: publicProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
-      const row = await db
-        .select({ user, detail: mentorDetail })
-        .from(mentorDetail)
-        .innerJoin(user, eq(mentorDetail.userId, user.id))
-        .where(and(eq(mentorDetail.userId, input.id), eq(mentorDetail.isPublic, true), eq(user.banned, false)))
-        .limit(1);
-      const found = row[0];
-      if (!found) notFound("Mentor tidak ditemukan");
+    /** Profil publik satu mentor — bisa lewat SLUG (/mentors/nimitta) atau id lama. */
+    mentor: publicProcedure
+      .input(
+        z.object({ id: z.string().optional(), slug: z.string().optional() }).refine((v) => !!(v.id || v.slug), {
+          message: "id atau slug wajib",
+        }),
+      )
+      .handler(async ({ input }) => {
+        const row = await db
+          .select({ user, detail: mentorDetail })
+          .from(mentorDetail)
+          .innerJoin(user, eq(mentorDetail.userId, user.id))
+          .where(
+            and(
+              input.slug ? eq(mentorDetail.slug, input.slug) : eq(mentorDetail.userId, input.id as string),
+              eq(mentorDetail.isPublic, true),
+              eq(user.banned, false),
+            ),
+          )
+          .limit(1);
+        const found = row[0];
+        if (!found) notFound("Mentor tidak ditemukan");
 
-      const menteeRows = await db
-        .select({ total: count() })
-        .from(mentorMentee)
-        .where(eq(mentorMentee.mentorId, input.id));
+        const mentorUserId = found.user.id;
+        const menteeRows = await db
+          .select({ total: count() })
+          .from(mentorMentee)
+          .where(eq(mentorMentee.mentorId, mentorUserId));
 
-      const batches = await db
-        .selectDistinct({ programName: program.name, programSlug: program.slug })
-        .from(programBatchMentor)
-        .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
-        .innerJoin(program, eq(programBatch.programId, program.id))
-        .where(eq(programBatchMentor.userId, input.id));
+        const batches = await db
+          .selectDistinct({ programName: program.name, programSlug: program.slug })
+          .from(programBatchMentor)
+          .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
+          .innerJoin(program, eq(programBatch.programId, program.id))
+          .where(eq(programBatchMentor.userId, mentorUserId));
 
-      return {
-        id: found.user.id,
-        name: found.detail.displayName || found.user.name,
-        image: found.detail.photoUrl ?? found.user.image,
-        kampus: found.detail.kampus,
-        jurusan: found.detail.jurusan,
-        tahunMasuk: found.detail.tahunMasuk,
-        bidangPekerjaan: found.detail.bidangPekerjaan,
-        bergabungPada: found.detail.bergabungPada ?? found.user.createdAt,
-        pencapaian: found.detail.pencapaian,
-        socialMedia: found.detail.socialMedia ?? {},
-        menteeCount: menteeRows[0]?.total ?? 0,
-        programs: batches,
-      };
-    }),
+        return {
+          id: found.user.id,
+          slug: found.detail.slug,
+          name: found.detail.displayName || found.user.name,
+          image: found.detail.photoUrl ?? found.user.image,
+          kampus: found.detail.kampus,
+          jurusan: found.detail.jurusan,
+          tahunMasuk: found.detail.tahunMasuk,
+          bidangPekerjaan: found.detail.bidangPekerjaan,
+          bergabungPada: found.detail.bergabungPada ?? found.user.createdAt,
+          pencapaian: found.detail.pencapaian,
+          socialMedia: found.detail.socialMedia ?? {},
+          menteeCount: menteeRows[0]?.total ?? 0,
+          programs: batches,
+        };
+      }),
 
     get: publicProcedure.input(z.object({ slug: z.string() })).handler(async ({ input }) => {
       const item = await db.query.program.findFirst({
@@ -1268,6 +1293,7 @@ export const programsRouter = {
               banned: !!acc?.banned,
               joinedAt: d?.bergabungPada ?? acc?.createdAt ?? null,
               detail: {
+                slug: d?.slug ?? null,
                 displayName: d?.displayName ?? null,
                 jurusan: d?.jurusan ?? null,
                 jurusanId: d?.jurusanId ?? null,
@@ -1361,6 +1387,7 @@ export const programsRouter = {
 
           const payload = {
             displayName: input.displayName ?? null,
+            slug: existing?.slug ?? mentorSlug(input.displayName || mentor.name),
             jurusan: input.jurusan ?? null,
             jurusanId: input.jurusanId ?? null,
             kampus: input.kampus ?? null,
@@ -1587,6 +1614,7 @@ export const programsRouter = {
           menteeCount: menteeRows[0]?.total ?? 0,
           detail: detail
             ? {
+                slug: detail.slug,
                 displayName: detail.displayName,
                 jurusan: detail.jurusan,
                 jurusanId: detail.jurusanId,

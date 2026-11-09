@@ -213,6 +213,7 @@ async function main() {
     const detail = await db.query.mentorDetail.findFirst({ where: eq(schema.mentorDetail.userId, userId) });
     const payload = {
       displayName: m.name,
+      slug: slug(m.name),
       jurusan: prodi?.name ?? m.jurusan,
       jurusanId: prodi?.idSms ?? null,
       kampus: uni?.name ?? m.campus,

@@ -137,6 +137,8 @@ export const mentorDetail = pgTable("mentor_detail", {
     .references(() => user.id, { onDelete: "cascade" }),
   /** Nama tampilan (opsional; fallback ke user.name) */
   displayName: text("display_name"),
+  /** Slug URL publik (/mentors/<slug>) — dibuat dari nama panggilan */
+  slug: text("slug").unique(),
   /** Jurusan kuliah (label bebas + id prodi PDDikti bila dipilih) */
   jurusan: text("jurusan"),
   jurusanId: text("jurusan_id"),
