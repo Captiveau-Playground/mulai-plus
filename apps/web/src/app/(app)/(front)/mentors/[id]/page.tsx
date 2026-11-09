@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Award,
+  BadgeCheck,
   Briefcase,
   CalendarDays,
   Globe,
@@ -19,6 +20,8 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { AssessmentBreadcrumb } from "@/components/front/assessment-breadcrumb";
+import { MentorCard } from "@/components/front/mentor-card";
 import { orpc } from "@/utils/orpc";
 
 function fmtMonthYear(v: string | Date | null | undefined) {
@@ -80,6 +83,13 @@ export default function MentorProfilePage() {
   });
   const m: any = data;
 
+  // Mentor lain untuk rekomendasi (4 kartu, tanpa mentor aktif)
+  const { data: allMentors } = useQuery({
+    ...orpc.programs.public.mentors.queryOptions({ input: { limit: 24 } as any }),
+    staleTime: 1000 * 60 * 5,
+  });
+  const others = ((allMentors as any) ?? []).filter((x: any) => x.id !== m?.id).slice(0, 4);
+
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -114,22 +124,7 @@ export default function MentorProfilePage() {
 
   return (
     <div className="overflow-hidden bg-white">
-      {/* Breadcrumb (pola sama dengan /assessment) */}
-      <div className="border-gray-100 border-b bg-white pt-16 sm:pt-20">
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2 font-manrope text-text-muted-custom text-xs">
-            <Link href={"/" as any} className="transition-colors hover:text-brand-navy">
-              Home
-            </Link>
-            <span aria-hidden>/</span>
-            <Link href={"/mentors" as any} className="transition-colors hover:text-brand-navy">
-              Mentor
-            </Link>
-            <span aria-hidden>/</span>
-            <span className="truncate text-text-main">{m.name}</span>
-          </nav>
-        </div>
-      </div>
+      <AssessmentBreadcrumb trail={[{ label: "Mentor", href: "/mentors" }]} current={m.name} />
 
       {/* HERO profil */}
       <section className="relative overflow-hidden border-gray-100 border-b">
@@ -160,9 +155,14 @@ export default function MentorProfilePage() {
             </div>
 
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/5 px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
-                <span className="font-manrope font-medium text-teal-700 text-xs">Mentor MULAI+</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/25 bg-teal-500/5 px-3 py-1 font-manrope font-semibold text-teal-700 text-xs">
+                  <BadgeCheck className="h-3.5 w-3.5" /> Verified Mentor
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 shadow-sm">
+                  <span className="font-manrope text-[10px] text-gray-500">by</span>
+                  <Image src="/letter-icon-logo.svg" alt="MULAI+" width={72} height={18} className="h-[15px] w-auto" />
+                </span>
               </div>
               <h1 className="mt-4 font-bold font-bricolage text-3xl text-brand-navy leading-tight tracking-tight md:text-4xl">
                 {m.name}
@@ -281,6 +281,33 @@ export default function MentorProfilePage() {
           </Link>
         </div>
       </section>
+
+      {/* Mentor lainnya — rekomendasi */}
+      {others.length > 0 && (
+        <section className="border-gray-100 border-t bg-gray-50/60">
+          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16 lg:px-8">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="font-bold font-manrope text-teal-600 text-xs uppercase tracking-widest">Mentor lainnya</p>
+                <h2 className="mt-2 font-bold font-bricolage text-2xl text-brand-navy tracking-tight md:text-3xl">
+                  Kenalan juga dengan mereka
+                </h2>
+              </div>
+              <Link
+                href={"/mentors" as any}
+                className="inline-flex items-center gap-1.5 font-manrope font-semibold text-sm text-teal-700 transition-colors hover:text-teal-800"
+              >
+                Lihat semua <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {others.map((o: any) => (
+                <MentorCard key={o.id} m={o} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
