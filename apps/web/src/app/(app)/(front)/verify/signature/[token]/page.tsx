@@ -1,7 +1,7 @@
-import { env } from "@mulai-plus/env/web";
 import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { SERVER_URL } from "@/lib/web-env";
 
 // ── Decode token (support both HMAC-signed and plain base64url) ──
 function decodeToken(token: string): Record<string, string> | null {
@@ -104,7 +104,7 @@ async function VerifyContent({ token }: { token: string }) {
 
   if (info) {
     try {
-      const res = await fetch(`${env.NEXT_PUBLIC_SERVER_URL}/rpc`, {
+      const res = await fetch(`${SERVER_URL}/rpc`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -67,8 +67,8 @@ const RIASEC = [
 
 const KEY_FACTS = [
   { icon: Compass, valueNum: 6, suffix: " tipe", prefix: "", label: "kepribadian karier (Holland)" },
-  { icon: FlaskConical, valueNum: 10, suffix: " soal", prefix: "", label: "pilihan aktivitas" },
-  { icon: Clock, valueNum: 7, suffix: " menit", prefix: "±", label: "waktu pengerjaan" },
+  { icon: FlaskConical, valueNum: 120, suffix: " soal", prefix: "", label: "pilihan aktivitas (20 per tipe)" },
+  { icon: Clock, valueNum: 20, suffix: " menit", prefix: "±", label: "pengerjaan, tanpa batas waktu" },
   { icon: Target, valueNum: 3, suffix: " huruf", prefix: "Kode ", label: "gambaran minat utamamu" },
 ];
 
@@ -100,8 +100,9 @@ export default function AssessmentMinatPage() {
                 </span>
               </h1>
               <p className="mt-5 max-w-lg font-manrope text-base text-gray-500 leading-relaxed md:text-lg">
-                Tes Minat memetakan kecenderunganmu ke 6 tipe kepribadian karier (John Holland) — dari sana kami temukan
-                jurusan yang paling selaras dengan cara kamu bekerja dan berpikir.
+                Tes Minat memetakan kecenderunganmu ke 6 tipe kepribadian karier (John Holland) lewat 120 soal aktivitas
+                — 20 soal per tipe. Hasilnya kode 3 huruf, lalu kami padukan dengan Tes Bakat untuk menemukan jurusan
+                &amp; karier yang paling selaras dengan cara kamu bekerja dan berpikir.
               </p>
               <Link
                 href="/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment"
@@ -190,7 +191,7 @@ export default function AssessmentMinatPage() {
                 {[
                   "Tidak ada jawaban benar/salah — jawab sesuai dirimu",
                   "Tanpa timer, bisa diubah sebelum lanjut",
-                  "10 soal, selesai ±7 menit",
+                  "120 soal (20 per tipe), selesai ±20 menit",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2.5 font-manrope text-gray-600 text-sm">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" /> {t}
@@ -226,7 +227,7 @@ export default function AssessmentMinatPage() {
                 <div className="mt-4 rounded-xl bg-violet-500/5 p-4">
                   <p className="font-manrope text-violet-700 text-xs leading-relaxed">
                     <span className="font-bold">Memilih "data dan eksperimen"</span> → skor{" "}
-                    <span className="font-bold">Investigative (I)</span> naik. Setelah 10 soal, tiga skor tertinggi
+                    <span className="font-bold">Investigative (I)</span> naik. Setelah 120 soal, tiga skor tertinggi
                     membentuk kode minatmu.
                   </p>
                 </div>
@@ -247,7 +248,7 @@ export default function AssessmentMinatPage() {
           },
           {
             q: "Berapa lama tesnya?",
-            a: "Sekitar 7 menit untuk 10 soal pilihan aktivitas. Tidak ada timer — kamu bisa santai menjawab.",
+            a: "120 soal pilihan aktivitas (20 soal untuk masing-masing tipe), sekitar 20 menit. Tidak ada timer — kamu bisa menjawab dengan tenang dan berpindah bagian kapan saja.",
           },
           {
             q: "Apakah ada jawaban benar atau salah?",
@@ -255,7 +256,7 @@ export default function AssessmentMinatPage() {
           },
           {
             q: "Bagaimana hasil tes ini digunakan?",
-            a: "Kode minatmu digabung dengan hasil Tes Bakat untuk merekomendasikan jurusan dan karier yang cocok — dicocokkan dengan 18.000+ program studi di Indonesia.",
+            a: "Kode minatmu digabung dengan hasil Tes Bakat (100 soal) untuk merekomendasikan 5 jurusan dan 6 karier yang cocok — dicocokkan dengan 15.000+ prodi aktif di 400+ kampus Indonesia, lengkap dengan contoh prodi & kampusnya.",
           },
           {
             q: "Apakah tesnya gratis?",
@@ -267,14 +268,25 @@ export default function AssessmentMinatPage() {
       {/* CTA */}
       <section className="border-gray-100 border-t bg-white">
         <Reveal className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 md:py-20">
-          <p className="font-bold font-manrope text-user-primary text-xs uppercase tracking-widest">Tes Minat · Holland</p>
+          <p className="font-bold font-manrope text-user-primary text-xs uppercase tracking-widest">
+            Tes Minat · Holland
+          </p>
           <h2 className="mt-3 font-bold font-bricolage text-3xl text-brand-navy tracking-tight sm:text-4xl">
             Siap Menemukan Tipe Minatmu?
           </h2>
-          <p className="mx-auto mt-3 max-w-lg font-manrope text-gray-500">Gratis, ±7 menit, hasil langsung. Cari tahu 3 huruf kode minat yang menentukan arah kampusmu.</p>
+          <p className="mx-auto mt-3 max-w-lg font-manrope text-gray-500">
+            Gratis, 120 soal, ±20 menit. Cari tahu 3 huruf kode minat yang menentukan arah kampusmu.
+          </p>
           <a
             data-tracked="1"
-            href={buildUtmUrl('/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment', { source: 'mulaiplus_web', medium: 'front', campaign: 'assessment-minat', content: 'cta-bottom' }) as any}
+            href={
+              buildUtmUrl("/login?callbackUrl=%2Fdashboard%2Fstudent%2Fassessment", {
+                source: "mulaiplus_web",
+                medium: "front",
+                campaign: "assessment-minat",
+                content: "cta-bottom",
+              }) as any
+            }
             onClick={() => trackEvent("assessment_cta_click", { type: "minat", cta: "bottom" })}
             className="mt-7 inline-flex items-center gap-2 rounded-xl bg-brand-orange px-7 py-3.5 font-bold font-bricolage text-base text-white shadow-brand-orange/20 shadow-lg transition-all hover:brightness-105 active:scale-[0.98]"
           >

@@ -11,6 +11,7 @@
 
 export { getApplicationAcceptedHtml } from "./templates/application-accepted";
 export { getApplicationRejectedHtml } from "./templates/application-rejected";
+export { getAssessmentRetakeHtml } from "./templates/assessment-retake";
 export type { NewsletterTemplate } from "./templates/newsletter";
 export { getNewsletterTemplateList, NEWSLETTER_TEMPLATES } from "./templates/newsletter";
 export { getRegistrationSuccessHtml } from "./templates/registration-success";

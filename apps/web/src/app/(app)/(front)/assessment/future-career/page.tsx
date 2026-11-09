@@ -25,7 +25,7 @@ const STEPS = [
   {
     icon: MapIcon,
     title: "Kami Petakan Jalurnya",
-    desc: "Karir dicocokkan ke jurusan, prodi, dan kampus nyata dari 18.000+ program studi di Indonesia.",
+    desc: "Karir dicocokkan ke jurusan, prodi, dan kampus nyata dari 15.000+ prodi aktif di 400+ kampus Indonesia.",
   },
   {
     icon: Target,
@@ -211,7 +211,7 @@ export default function FutureCareerLandingPage() {
         items={[
           {
             q: "Apa itu fitur Karir Impian?",
-            a: 'Kamu menulis profesi impianmu (misal "game developer"), lalu kami memetakan jalur kuliahnya: jurusan yang relevan, program studi, dan universitas — dari data 18.000+ prodi di Indonesia.',
+            a: 'Kamu menulis profesi impianmu (misal "game developer"), lalu kami memetakan jalur kuliahnya: jurusan yang relevan, prodi, dan kampus — dari 15.000+ prodi aktif di 400+ kampus Indonesia (negeri, swasta, keagamaan). Satu karier bisa dicapai lewat beberapa prodi sekaligus.',
           },
           {
             q: "Apakah harus sudah ikut Test Minat Bakat?",

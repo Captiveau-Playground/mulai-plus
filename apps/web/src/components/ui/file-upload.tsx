@@ -1,14 +1,14 @@
 "use client";
 
-import { env } from "@mulai-plus/env/web";
 import { Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { SERVER_URL } from "@/lib/web-env";
 
-const UPLOAD_ENDPOINT = `${env.NEXT_PUBLIC_SERVER_URL}/api/upload`;
+const UPLOAD_ENDPOINT = `${SERVER_URL}/api/upload`;
 
 interface FileUploadProps {
   value?: string;

@@ -32,16 +32,16 @@ export function AssessmentSection() {
               </h2>
 
               <p className="mt-4 max-w-lg font-manrope text-sm text-white/70 leading-relaxed md:text-base">
-                20 soal untuk menemukan jurusan yang benar-benar cocok — dicocokkan dengan{" "}
-                <span className="font-semibold text-white">18.000+ prodi</span> dan{" "}
-                <span className="font-semibold text-white">AI</span>, bukan tebakan.
+                220 soal (120 minat + 100 bakat) untuk menemukan jurusan yang benar-benar cocok — dicocokkan dengan{" "}
+                <span className="font-semibold text-white">15.000+ prodi</span> di{" "}
+                <span className="font-semibold text-white">400+ kampus</span>, bukan tebakan.
               </p>
 
               <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
                 {[
-                  { icon: Compass, text: "Tes Minat — Holland RIASEC" },
-                  { icon: TrendingUp, text: "Tes Bakat — 5 kemampuan" },
-                  { icon: BrainCircuit, text: "AI + data 18k prodi" },
+                  { icon: Compass, text: "Tes Minat — Holland, 120 soal" },
+                  { icon: TrendingUp, text: "Tes Bakat — 100 soal, 5 kemampuan" },
+                  { icon: BrainCircuit, text: "AI + data 15k prodi & 400+ kampus" },
                   { icon: CheckCircle2, text: "Hasil instan + laporan PDF" },
                 ].map((b) => (
                   <li key={b.text} className="flex items-center gap-2.5 font-manrope text-sm text-white/80">
@@ -78,12 +78,12 @@ export function AssessmentSection() {
                   <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                     <Compass className="h-5 w-5 text-teal-300" />
                     <p className="mt-2 font-bold font-bricolage text-sm text-white">Tes Minat</p>
-                    <p className="font-manrope text-[10px] text-white/50">Holland · 10 soal</p>
+                    <p className="font-manrope text-[10px] text-white/50">Holland · 120 soal</p>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                     <TrendingUp className="h-5 w-5 text-teal-300" />
                     <p className="mt-2 font-bold font-bricolage text-sm text-white">Tes Bakat</p>
-                    <p className="font-manrope text-[10px] text-white/50">5 kemampuan · 10 soal</p>
+                    <p className="font-manrope text-[10px] text-white/50">5 kemampuan · 100 soal</p>
                   </div>
                 </div>
 
@@ -96,7 +96,7 @@ export function AssessmentSection() {
                     <p className="font-bold font-manrope text-white text-xs">Mesin MULAI+</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 font-manrope font-semibold text-[9px] text-white/70">
-                        <Database className="h-2.5 w-2.5" /> 18.000+ prodi
+                        <Database className="h-2.5 w-2.5" /> 15.000+ prodi
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 font-manrope font-semibold text-[9px] text-white/70">
                         <BrainCircuit className="h-2.5 w-2.5" /> AI summary

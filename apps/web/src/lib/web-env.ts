@@ -11,11 +11,25 @@ export type WebEnv = "development" | "staging" | "production";
  * - Prod:    https://api-prod.mulaiplus.id / https://api-prod-workers.mulaiplus.id
  */
 export function getWebEnv(): WebEnv {
-  const url = env.NEXT_PUBLIC_SERVER_URL;
-  if (url === "http://localhost:3000" || url.includes("localhost")) return "development";
+  // Defensif: `NEXT_PUBLIC_SERVER_URL` di-inline saat build. Kalau kosong (build lokal tanpa
+  // .env, atau secret CI belum terpasang) JANGAN sampai layout crash — dulu `url.includes`
+  // melempar TypeError dan SEMUA halaman jadi 500.
+  const url = String(env.NEXT_PUBLIC_SERVER_URL ?? "").toLowerCase();
+  if (!url) return process.env.NODE_ENV === "production" ? "production" : "development";
+  if (url.includes("localhost") || url.includes("127.0.0.1")) return "development";
   if (url.includes("staging")) return "staging";
   return "production";
 }
+
+/**
+ * Base URL API untuk pemakaian di klien (tanpa trailing slash).
+ * Fallback ke localhost HANYA bila env tidak ter-inline saat build — supaya URL tidak
+ * menjadi "undefined/rpc" (dulu menyebabkan request gagal tanpa pesan jelas).
+ */
+export const SERVER_URL = (String(env.NEXT_PUBLIC_SERVER_URL ?? "").trim() || "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
 
 /** True when the web build is pointed at a staging API (VPS or Workers). */
 export const isStaging = getWebEnv() === "staging";
