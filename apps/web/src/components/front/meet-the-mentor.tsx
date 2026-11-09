@@ -1,8 +1,10 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { orpc } from "@/utils/orpc";
 
 const MENTORS = [
   {
@@ -63,6 +65,23 @@ const MENTORS = [
 ];
 
 export function MeetTheMentor() {
+  // Sumber utama: data mentor dari DB (hanya yang sudah menyetujui tampil).
+  // Fallback: kartu statis (dipakai selama profil mentor belum dilengkapi).
+  const { data } = useQuery({
+    ...orpc.programs.public.mentors.queryOptions({ input: { limit: 12 } as any }),
+    staleTime: 1000 * 60 * 5,
+  });
+  const dbMentors: any[] = (data as any) ?? [];
+  const MENTORS_DATA = dbMentors.length
+    ? dbMentors.map((m) => ({
+        id: m.id,
+        name: m.name,
+        role: m.kampus || "Mentor MULAI+",
+        image: m.image || "/letter-icon-logo.svg",
+        href: `/mentors/${m.id}`,
+      }))
+    : MENTORS.map((m) => ({ ...m, href: "/mentors" }));
+
   return (
     <section aria-label="Temui Mentor" className="w-full overflow-hidden bg-brand-navy py-16 lg:py-24" id="mentors">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
@@ -83,11 +102,12 @@ export function MeetTheMentor() {
         {/* Marquee */}
         <div className="marquee group relative w-full overflow-hidden rounded-lg pb-8">
           <div className="marquee__inner flex w-max gap-5 transition-all duration-700 group-hover:[animation-play-state:paused]">
-            {MENTORS.concat(MENTORS).map((mentor, index) => (
-              <div
+            {MENTORS_DATA.concat(MENTORS_DATA).map((mentor: any, index: number) => (
+              <Link
+                href={mentor.href as any}
                 key={`${mentor.id}-${index}`}
-                aria-hidden={index >= MENTORS.length}
-                className="group/card relative h-64 w-44 shrink-0 overflow-hidden rounded-2xl bg-white shadow-sm md:h-96 md:w-56"
+                aria-hidden={index >= MENTORS_DATA.length}
+                className="group/card relative block h-64 w-44 shrink-0 overflow-hidden rounded-2xl bg-white shadow-sm md:h-96 md:w-56"
               >
                 {/* Logo watermark */}
                 <div className="pointer-events-none absolute top-3 right-3 z-10 opacity-20">
@@ -111,7 +131,7 @@ export function MeetTheMentor() {
                     {mentor.role}
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -130,16 +150,21 @@ export function MeetTheMentor() {
           `}</style>
         </div>
 
-        {/* CTA */}
-        <div className="flex justify-center">
-          <Link href="/programs">
-            <button
-              type="button"
-              className="group inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-white/20 px-8 py-4 font-bold font-manrope text-sm text-white transition-all duration-300 hover:border-white/40 hover:bg-white/10 active:scale-[0.98] md:px-10 md:py-4 md:text-base"
-            >
-              Lihat Semua Mentor &amp; Program
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </button>
+        {/* CTA — dipisah: mentor dan program punya halaman sendiri */}
+        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href={"/mentors" as any}
+            className="group inline-flex items-center gap-2 rounded-full bg-white px-8 py-4 font-bold font-manrope text-brand-navy text-sm transition-all duration-300 hover:bg-amber-50 active:scale-[0.98] md:text-base"
+          >
+            Lihat Semua Mentor
+            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+          </Link>
+          <Link
+            href={"/programs" as any}
+            className="group inline-flex items-center gap-2 rounded-full border-2 border-white/20 px-8 py-4 font-bold font-manrope text-sm text-white transition-all duration-300 hover:border-white/40 hover:bg-white/10 active:scale-[0.98] md:text-base"
+          >
+            Lihat Semua Program
+            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
           </Link>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { user } from "@mulai-plus/db/schema/auth";
 import { esignSignature } from "@mulai-plus/db/schema/esign";
 import {
   batchReportTemplateItem,
+  mentorDetail,
   mentorMentee,
   program,
   programApplication,
@@ -23,6 +24,7 @@ import {
   summaryReportItem,
 } from "@mulai-plus/db/schema/programs";
 import { systemSettings } from "@mulai-plus/db/schema/settings";
+import { uploadToR2 } from "@mulai-plus/r2/server";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { adminOrProgramManagerProcedure, protectedProcedure, publicProcedure } from "../index";
@@ -50,6 +52,47 @@ function slugify(text: string) {
 }
 
 export const programsRouter = {
+  /** Konsen mentor: izinkan/tolak tampil di landing page. */
+  consent: protectedProcedure.input(z.object({ isPublic: z.boolean() })).handler(async ({ input, context }) => {
+    const me = context.session?.user;
+    if (!me || me.role !== "mentor") return { ok: false as const, error: "bukan_mentor" };
+    const existing = await db.query.mentorDetail.findFirst({ where: eq(mentorDetail.userId, me.id) });
+    if (!existing) {
+      await db.insert(mentorDetail).values({
+        id: `md${randomUUID().replace(/-/g, "").slice(0, 20)}`,
+        userId: me.id,
+        isPublic: input.isPublic,
+        approvedAt: input.isPublic ? new Date() : null,
+        approvedBy: me.id,
+      });
+    } else {
+      await db
+        .update(mentorDetail)
+        .set({
+          isPublic: input.isPublic,
+          approvedAt: input.isPublic ? new Date() : null,
+          approvedBy: me.id,
+        })
+        .where(eq(mentorDetail.userId, me.id));
+    }
+    return { ok: true as const, isPublic: input.isPublic };
+  }),
+
+  /** Status data profil mentor yang login (untuk kartu persetujuan). */
+  myProfile: protectedProcedure.handler(async ({ context }) => {
+    const me = context.session?.user;
+    if (!me) return null;
+    const d = await db.query.mentorDetail.findFirst({ where: eq(mentorDetail.userId, me.id) });
+    return {
+      isPublic: !!d?.isPublic,
+      approvedAt: d?.approvedAt ?? null,
+      hasProfile: !!d,
+      kampus: d?.kampus ?? null,
+      jurusan: d?.jurusan ?? null,
+      bidangPekerjaan: d?.bidangPekerjaan ?? null,
+    };
+  }),
+
   public: {
     list: publicProcedure
       .input(
@@ -94,6 +137,95 @@ export const programsRouter = {
           },
         };
       }),
+
+    /** Daftar mentor untuk landing page (hanya yang DISETUJUI & aktif). */
+    mentors: publicProcedure
+      .input(z.object({ limit: z.number().default(24), search: z.string().optional() }).optional())
+      .handler(async ({ input }) => {
+        const limit = input?.limit ?? 24;
+        const rows = await db
+          .select({
+            id: user.id,
+            name: user.name,
+            image: user.image,
+            banned: user.banned,
+            createdAt: user.createdAt,
+            detail: mentorDetail,
+          })
+          .from(mentorDetail)
+          .innerJoin(user, eq(mentorDetail.userId, user.id))
+          .where(and(eq(mentorDetail.isPublic, true), eq(user.banned, false)))
+          .limit(limit);
+
+        const ids = rows.map((r) => r.id);
+        const mentees = ids.length
+          ? await db
+              .select({ mentorId: mentorMentee.mentorId, total: count() })
+              .from(mentorMentee)
+              .where(inArray(mentorMentee.mentorId, ids))
+              .groupBy(mentorMentee.mentorId)
+          : [];
+        const menteeMap = Object.fromEntries(mentees.map((m) => [m.mentorId, m.total]));
+
+        const q = input?.search?.trim().toLowerCase();
+        return rows
+          .filter((r) => {
+            if (!q) return true;
+            return [r.detail.displayName, r.name, r.detail.kampus, r.detail.jurusan, r.detail.bidangPekerjaan]
+              .filter(Boolean)
+              .some((v) => String(v).toLowerCase().includes(q));
+          })
+          .map((r) => ({
+            id: r.id,
+            name: r.detail.displayName || r.name,
+            image: r.detail.photoUrl ?? r.image,
+            kampus: r.detail.kampus,
+            jurusan: r.detail.jurusan,
+            tahunMasuk: r.detail.tahunMasuk,
+            bidangPekerjaan: r.detail.bidangPekerjaan,
+            bergabungPada: r.detail.bergabungPada ?? r.createdAt,
+            menteeCount: menteeMap[r.id] ?? 0,
+          }));
+      }),
+
+    /** Profil publik satu mentor (hanya yang disetujui & aktif). */
+    mentor: publicProcedure.input(z.object({ id: z.string().min(1) })).handler(async ({ input }) => {
+      const row = await db
+        .select({ user, detail: mentorDetail })
+        .from(mentorDetail)
+        .innerJoin(user, eq(mentorDetail.userId, user.id))
+        .where(and(eq(mentorDetail.userId, input.id), eq(mentorDetail.isPublic, true), eq(user.banned, false)))
+        .limit(1);
+      const found = row[0];
+      if (!found) notFound("Mentor tidak ditemukan");
+
+      const menteeRows = await db
+        .select({ total: count() })
+        .from(mentorMentee)
+        .where(eq(mentorMentee.mentorId, input.id));
+
+      const batches = await db
+        .selectDistinct({ programName: program.name, programSlug: program.slug })
+        .from(programBatchMentor)
+        .innerJoin(programBatch, eq(programBatchMentor.batchId, programBatch.id))
+        .innerJoin(program, eq(programBatch.programId, program.id))
+        .where(eq(programBatchMentor.userId, input.id));
+
+      return {
+        id: found.user.id,
+        name: found.detail.displayName || found.user.name,
+        image: found.detail.photoUrl ?? found.user.image,
+        kampus: found.detail.kampus,
+        jurusan: found.detail.jurusan,
+        tahunMasuk: found.detail.tahunMasuk,
+        bidangPekerjaan: found.detail.bidangPekerjaan,
+        bergabungPada: found.detail.bergabungPada ?? found.user.createdAt,
+        pencapaian: found.detail.pencapaian,
+        socialMedia: found.detail.socialMedia ?? {},
+        menteeCount: menteeRows[0]?.total ?? 0,
+        programs: batches,
+      };
+    }),
 
     get: publicProcedure.input(z.object({ slug: z.string() })).handler(async ({ input }) => {
       const item = await db.query.program.findFirst({
@@ -1036,13 +1168,14 @@ export const programsRouter = {
           z
             .object({
               programId: z.string().optional(),
-              limit: z.number().default(50),
+              search: z.string().optional(),
+              limit: z.number().default(200),
               offset: z.number().default(0),
             })
             .optional(),
         )
         .handler(async ({ input }) => {
-          const limit = input?.limit ?? 50;
+          const limit = input?.limit ?? 200;
           const offset = input?.offset ?? 0;
 
           let mentors: { userId: string; name: string | null; email: string | null; image: string | null }[];
@@ -1103,14 +1236,63 @@ export const programsRouter = {
           const sessionCountMap = Object.fromEntries(sessionCounts.map((s) => [s.mentorId, s.totalSessions]));
           const batchCountMap = Object.fromEntries(batchCounts.map((b) => [b.mentorId, b.totalBatches]));
 
-          const mentorsWithStats = mentors.map((m) => ({
-            id: m.userId,
-            name: m.name,
-            email: m.email,
-            image: m.image,
-            totalSessions: sessionCountMap[m.userId] ?? 0,
-            assignedBatches: batchCountMap[m.userId] ?? 0,
-          }));
+          // Jumlah MENTEE terbimbing (unik per mentor) — dipakai di tabel & profil publik (dibulatkan).
+          const menteeCounts = await db
+            .select({ mentorId: mentorMentee.mentorId, total: count() })
+            .from(mentorMentee)
+            .where(inArray(mentorMentee.mentorId, userIds))
+            .groupBy(mentorMentee.mentorId);
+          const menteeCountMap = Object.fromEntries(menteeCounts.map((m) => [m.mentorId, m.total]));
+
+          // Detail mentor + status akun (banned = nonaktif)
+          const details = await db.select().from(mentorDetail).where(inArray(mentorDetail.userId, userIds));
+          const detailMap = new Map(details.map((d) => [d.userId, d]));
+
+          const accounts = await db
+            .select({ id: user.id, banned: user.banned, createdAt: user.createdAt })
+            .from(user)
+            .where(inArray(user.id, userIds));
+          const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+          let mentorsWithStats = mentors.map((m) => {
+            const d = detailMap.get(m.userId);
+            const acc = accountMap.get(m.userId);
+            return {
+              id: m.userId,
+              name: m.name,
+              email: m.email,
+              image: d?.photoUrl ?? m.image,
+              totalSessions: sessionCountMap[m.userId] ?? 0,
+              assignedBatches: batchCountMap[m.userId] ?? 0,
+              menteeCount: menteeCountMap[m.userId] ?? 0,
+              banned: !!acc?.banned,
+              joinedAt: d?.bergabungPada ?? acc?.createdAt ?? null,
+              detail: {
+                displayName: d?.displayName ?? null,
+                jurusan: d?.jurusan ?? null,
+                jurusanId: d?.jurusanId ?? null,
+                kampus: d?.kampus ?? null,
+                kampusId: d?.kampusId ?? null,
+                tahunMasuk: d?.tahunMasuk ?? null,
+                bidangPekerjaan: d?.bidangPekerjaan ?? null,
+                socialMedia: d?.socialMedia ?? null,
+                pencapaian: d?.pencapaian ?? null,
+                photoUrl: d?.photoUrl ?? null,
+                isPublic: !!d?.isPublic,
+                approvedAt: d?.approvedAt ?? null,
+              },
+            };
+          });
+
+          // Pencarian (nama/email/kampus/jurusan/pekerjaan) — dilakukan setelah join detail.
+          const q = input?.search?.trim().toLowerCase();
+          if (q) {
+            mentorsWithStats = mentorsWithStats.filter((m) =>
+              [m.name, m.email, m.detail.kampus, m.detail.jurusan, m.detail.bidangPekerjaan]
+                .filter(Boolean)
+                .some((v) => String(v).toLowerCase().includes(q)),
+            );
+          }
 
           return {
             data: mentorsWithStats,
@@ -1122,6 +1304,140 @@ export const programsRouter = {
           };
         }),
 
+      /**
+       * Simpan data detail mentor (admin & PM punya hak sama).
+       * `bergabungPada` default = user.createdAt (bisa ditimpa manual).
+       * `isPublic` hanya boleh true bila mentor sudah menyetujui (`approvedAt` terisi).
+       */
+      saveDetail: adminOrProgramManagerProcedure
+        .input(
+          z.object({
+            mentorId: z.string().min(1),
+            displayName: z.string().max(120).optional().nullable(),
+            jurusan: z.string().max(160).optional().nullable(),
+            jurusanId: z.string().max(160).optional().nullable(),
+            kampus: z.string().max(160).optional().nullable(),
+            kampusId: z.string().max(160).optional().nullable(),
+            tahunMasuk: z.number().int().min(1950).max(2100).optional().nullable(),
+            bidangPekerjaan: z.string().max(160).optional().nullable(),
+            bergabungPada: z.string().optional().nullable(),
+            socialMedia: z
+              .object({
+                instagram: z.string().max(120).optional(),
+                tiktok: z.string().max(120).optional(),
+                linkedin: z.string().max(200).optional(),
+                x: z.string().max(120).optional(),
+                threads: z.string().max(120).optional(),
+                website: z.string().max(200).optional(),
+              })
+              .optional()
+              .nullable(),
+            pencapaian: z.string().max(4000).optional().nullable(),
+            isPublic: z.boolean().optional(),
+          }),
+        )
+        .handler(async ({ input, context }) => {
+          const mentor = await db.query.user.findFirst({ where: eq(user.id, input.mentorId) });
+          if (!mentor) notFound("Mentor tidak ditemukan");
+          if (mentor.role !== "mentor") badRequest("User ini bukan mentor");
+
+          const existing = await db.query.mentorDetail.findFirst({ where: eq(mentorDetail.userId, input.mentorId) });
+          const joined =
+            input.bergabungPada !== undefined
+              ? input.bergabungPada
+                ? new Date(input.bergabungPada)
+                : null
+              : (existing?.bergabungPada ?? mentor.createdAt);
+
+          // Persetujuan mentor: admin/PM hanya boleh menayangkan bila sudah ada approvedAt.
+          let isPublic = existing?.isPublic ?? false;
+          if (input.isPublic === false) isPublic = false;
+          if (input.isPublic === true) {
+            if (!existing?.approvedAt) {
+              return { ok: false as const, error: "butuh_persetujuan_mentor" };
+            }
+            isPublic = true;
+          }
+
+          const payload = {
+            displayName: input.displayName ?? null,
+            jurusan: input.jurusan ?? null,
+            jurusanId: input.jurusanId ?? null,
+            kampus: input.kampus ?? null,
+            kampusId: input.kampusId ?? null,
+            tahunMasuk: input.tahunMasuk ?? null,
+            bidangPekerjaan: input.bidangPekerjaan ?? null,
+            bergabungPada: joined,
+            socialMedia: input.socialMedia ?? null,
+            pencapaian: input.pencapaian ?? null,
+            isPublic,
+            updatedBy: context.session?.user?.id ?? null,
+            updatedAt: new Date(),
+          };
+
+          if (existing) {
+            await db.update(mentorDetail).set(payload).where(eq(mentorDetail.userId, input.mentorId));
+          } else {
+            await db.insert(mentorDetail).values({
+              id: `md${randomUUID().replace(/-/g, "").slice(0, 20)}`,
+              userId: input.mentorId,
+              ...payload,
+            });
+          }
+          return { ok: true as const };
+        }),
+
+      /** Upload foto mentor (R2 dinamis) → simpan ke user.image + detail.photoUrl. */
+      uploadPhoto: adminOrProgramManagerProcedure
+        .input(
+          z.object({
+            mentorId: z.string().min(1),
+            dataB64: z.string().min(10),
+            mime: z.string().max(60).optional().default("image/jpeg"),
+          }),
+        )
+        .handler(async ({ input }) => {
+          const buf = Buffer.from(input.dataB64, "base64");
+          if (buf.byteLength > 3_000_000) badRequest("Ukuran foto maksimal 3 MB");
+          const ext = (input.mime.split("/")[1] ?? "jpg").replace(/[^a-z0-9]/gi, "").slice(0, 5) || "jpg";
+          const up = await uploadToR2(buf, {
+            filename: `mentor-${input.mentorId}-${Date.now()}.${ext}`,
+            mimeType: input.mime,
+            path: "mentor-photos",
+          });
+          await db.update(user).set({ image: up.url }).where(eq(user.id, input.mentorId));
+          const existing = await db.query.mentorDetail.findFirst({ where: eq(mentorDetail.userId, input.mentorId) });
+          if (existing) {
+            await db.update(mentorDetail).set({ photoUrl: up.url }).where(eq(mentorDetail.userId, input.mentorId));
+          } else {
+            await db.insert(mentorDetail).values({
+              id: `md${randomUUID().replace(/-/g, "").slice(0, 20)}`,
+              userId: input.mentorId,
+              photoUrl: up.url,
+            });
+          }
+          return { ok: true as const, url: up.url };
+        }),
+
+      /** Aktif / nonaktif mentor — memakai `user.banned` (sesuai keputusan produk). */
+      setActive: adminOrProgramManagerProcedure
+        .input(z.object({ mentorId: z.string().min(1), active: z.boolean() }))
+        .handler(async ({ input }) => {
+          await db
+            .update(user)
+            .set({
+              banned: !input.active,
+              banReason: input.active ? null : "Dinonaktifkan oleh PM/Admin",
+              banExpires: null,
+            })
+            .where(eq(user.id, input.mentorId));
+          // Nonaktif → tidak tayang di landing page.
+          if (!input.active) {
+            await db.update(mentorDetail).set({ isPublic: false }).where(eq(mentorDetail.userId, input.mentorId));
+          }
+          return { ok: true as const };
+        }),
+
       get: adminOrProgramManagerProcedure.input(z.object({ mentorId: z.string() })).handler(async ({ input }) => {
         const mentor = await db.query.user.findFirst({
           where: eq(user.id, input.mentorId),
@@ -1130,6 +1446,12 @@ export const programsRouter = {
         if (!mentor) {
           notFound("Mentor not found");
         }
+
+        const detail = await db.query.mentorDetail.findFirst({ where: eq(mentorDetail.userId, input.mentorId) });
+        const menteeRows = await db
+          .select({ total: count() })
+          .from(mentorMentee)
+          .where(eq(mentorMentee.mentorId, input.mentorId));
 
         const totalSessions = await db
           .select({ count: count() })
@@ -1259,7 +1581,26 @@ export const programsRouter = {
           id: mentor.id,
           name: mentor.name,
           email: mentor.email,
-          image: mentor.image,
+          image: detail?.photoUrl ?? mentor.image,
+          banned: !!mentor.banned,
+          joinedAt: detail?.bergabungPada ?? mentor.createdAt,
+          menteeCount: menteeRows[0]?.total ?? 0,
+          detail: detail
+            ? {
+                displayName: detail.displayName,
+                jurusan: detail.jurusan,
+                jurusanId: detail.jurusanId,
+                kampus: detail.kampus,
+                kampusId: detail.kampusId,
+                tahunMasuk: detail.tahunMasuk,
+                bidangPekerjaan: detail.bidangPekerjaan,
+                socialMedia: detail.socialMedia,
+                pencapaian: detail.pencapaian,
+                photoUrl: detail.photoUrl,
+                isPublic: detail.isPublic,
+                approvedAt: detail.approvedAt,
+              }
+            : null,
           stats: {
             total: totalSessions[0]?.count ?? 0,
             completed: completedSessions[0]?.count ?? 0,

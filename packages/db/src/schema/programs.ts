@@ -119,6 +119,58 @@ export const programMentor = pgTable(
   }),
 );
 
+/**
+ * Data detail mentor — diisi PM/admin, tampil di landing page HANYA bila mentor
+ * sudah menyetujui (`isPublic` + `approvedAt`).
+ *
+ * Catatan:
+ * - Status aktif/nonaktif TIDAK disimpan di sini: memakai `user.banned` (sesuai keputusan produk)
+ *   supaya satu sumber kebenaran untuk akses akun.
+ * - `kampus`/`jurusan` menyimpan label + id PDDikti (opsional) agar bisa ditautkan ke data kampus/prodi.
+ * - `bergabungPada` default dari `user.createdAt`, tetap bisa diubah manual.
+ */
+export const mentorDetail = pgTable("mentor_detail", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+  /** Nama tampilan (opsional; fallback ke user.name) */
+  displayName: text("display_name"),
+  /** Jurusan kuliah (label bebas + id prodi PDDikti bila dipilih) */
+  jurusan: text("jurusan"),
+  jurusanId: text("jurusan_id"),
+  /** Kampus (label bebas + id_sp PDDikti bila dipilih) */
+  kampus: text("kampus"),
+  kampusId: text("kampus_id"),
+  tahunMasuk: integer("tahun_masuk"),
+  bidangPekerjaan: text("bidang_pekerjaan"),
+  bergabungPada: timestamp("bergabung_pada"),
+  /** { instagram?, tiktok?, linkedin?, x?, threads?, website? } */
+  socialMedia: jsonb("social_media").$type<{
+    instagram?: string;
+    tiktok?: string;
+    linkedin?: string;
+    x?: string;
+    threads?: string;
+    website?: string;
+  }>(),
+  /** Pencapaian karier — satu per baris */
+  pencapaian: text("pencapaian"),
+  /** Foto profil (R2). Bila kosong, pakai user.image */
+  photoUrl: text("photo_url"),
+  /** Tampil di landing page (butuh persetujuan mentor) */
+  isPublic: boolean("is_public").default(false).notNull(),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: text("approved_by"),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 export const programApplication = pgTable("program_application", {
   id: text("id").primaryKey(),
   programId: text("program_id")

@@ -6,6 +6,7 @@ import { Calendar, CheckCircle, Clock, GraduationCap, Users, Video } from "lucid
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { MentorPublicConsent } from "@/components/mentor/mentor-public-consent";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +65,9 @@ export default function MentorDashboardPage() {
             Manage your sessions, track student progress, and stay connected.
           </p>
         </div>
+
+        {/* Persetujuan tampil di landing page */}
+        <MentorPublicConsent />
 
         {/* Stats Cards - Brand Styled */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
