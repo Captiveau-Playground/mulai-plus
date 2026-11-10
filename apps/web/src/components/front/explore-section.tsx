@@ -351,7 +351,7 @@ export function ExploreSection() {
               </span>
             </div>
 
-            <h2 className="font-bold font-bricolage text-2xl text-brand-navy leading-tight sm:text-3xl lg:text-5xl">
+            <h2 className="heading-section text-brand-navy">
               Cari <span className="text-brand-red">Jurusan</span> atau{" "}
               <span className="text-brand-red">Universitas</span>mu
             </h2>

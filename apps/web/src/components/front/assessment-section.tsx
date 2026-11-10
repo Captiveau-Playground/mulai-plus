@@ -24,7 +24,7 @@ export function AssessmentSection() {
                 <span className="font-manrope font-medium text-white/80 text-xs">Fitur Baru · Gratis · ±10 Menit</span>
               </div>
 
-              <h2 className="mt-4 font-bold font-bricolage text-3xl leading-tight md:text-4xl">
+              <h2 className="heading-section mt-4">
                 Belum Yakin Mau Kuliah Apa?
                 <span className="mt-1 block bg-gradient-to-r from-teal-300 to-teal-400 bg-clip-text text-transparent">
                   Kenali Minat &amp; Bakatmu Sekarang

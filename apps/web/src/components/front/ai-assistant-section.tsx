@@ -52,8 +52,8 @@ export function AiAssistantSection() {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-orange/30 bg-brand-orange/10 px-3.5 py-1.5 font-manrope font-medium text-[11px] text-brand-orange tracking-wide">
             <Sparkles className="size-3.5" /> Mul.ai — Asisten AI
           </span>
-          <h2 className="mt-4 font-bold font-bricolage text-3xl text-white sm:text-4xl">
-            Tanya apa saja seputar kuliahmu — <span className="text-brand-orange">dijawab langsung</span>
+          <h2 className="heading-section mt-4 text-white">
+            Semua pertanyaan kuliahmu — <span className="text-brand-orange">dijawab langsung</span>
           </h2>
           <p className="mt-3 max-w-lg font-manrope text-sm text-white/70 leading-relaxed">
             Cari universitas, bandingkan passing grade, rekomendasi jurusan sesuai minat &amp; hasil tesmu — lengkap
@@ -66,7 +66,7 @@ export function AiAssistantSection() {
                 <span className={`flex size-8 items-center justify-center rounded-lg ${f.color}`}>
                   <f.icon className="size-4" />
                 </span>
-                <h3 className="mt-2 font-bold font-bricolage text-sm text-white">{f.title}</h3>
+                <h3 className="heading-card mt-2 text-white">{f.title}</h3>
                 <p className="mt-1 font-manrope text-[11px] text-white/55 leading-relaxed">{f.desc}</p>
               </div>
             ))}

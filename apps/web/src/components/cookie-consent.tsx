@@ -101,7 +101,7 @@ export function CookieConsentBanner({
           <span className="flex size-10 items-center justify-center rounded-full bg-brand-orange/10">
             <ShieldCheck className="size-5 text-brand-orange" />
           </span>
-          <h2 className="mt-3 font-bold font-bricolage text-brand-navy text-lg">Kami menghargai privasi Anda</h2>
+          <p className="mt-3 font-bold font-bricolage text-brand-navy text-lg">Kami menghargai privasi Anda</p>
           <p className="mt-1.5 font-manrope text-[13px] text-muted-foreground leading-relaxed">
             Kami menggunakan cookie untuk keperluan analitik dan peningkatan pengalaman — supaya MULAI+ terasa lebih
             baik untuk Anda. Tidak ada data pribadi yang dibagikan ke pihak lain.

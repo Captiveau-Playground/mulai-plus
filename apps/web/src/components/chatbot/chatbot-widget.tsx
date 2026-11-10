@@ -394,7 +394,7 @@ export function ChatbotWidget() {
             </div>
             <div>
               <p className="font-bold font-bricolage text-sm text-white sm:text-base">MULAI+ AI</p>
-              <p className="font-manrope text-[10px] text-white/60 sm:text-xs">
+              <p className="font-manrope text-[10px] text-text-lighter-blue sm:text-xs">
                 {conn === "error"
                   ? "AI sedang tidak tersedia"
                   : remaining !== null

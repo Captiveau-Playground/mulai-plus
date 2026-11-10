@@ -215,12 +215,8 @@ export function FeaturedPrograms({ initialData }: { initialData?: any }) {
             <div className="flex w-full flex-col gap-10 lg:w-[65%]">
               {/* Header Section */}
               <div className="flex flex-col gap-4 text-center lg:text-right">
-                <span className="font-bold font-manrope text-brand-orange text-xl uppercase tracking-widest lg:text-2xl">
-                  Featured Programs
-                </span>
-                <h2 className="font-bold font-bricolage text-4xl text-white leading-tight lg:text-6xl">
-                  MULAI+ Mentoring Programs 2026
-                </h2>
+                <span className="heading-eyebrow text-brand-orange">Featured Programs</span>
+                <h2 className="heading-section text-white">MULAI+ Mentoring Programs 2026</h2>
               </div>
 
               {/* Cards Grid — show only 2 cards sorted by closest date */}
@@ -281,9 +277,7 @@ export function FeaturedPrograms({ initialData }: { initialData?: any }) {
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <div className="flex flex-col flex-wrap items-start gap-2">
-                                    <h3 className="font-bold font-bricolage text-lg text-white leading-tight sm:text-2xl">
-                                      {program.name}
-                                    </h3>
+                                    <h3 className="heading-card text-white">{program.name}</h3>
                                     {/* Batch number badge */}
                                     <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 font-manrope font-medium text-text-light-blue text-xs">
                                       <Icons.Layers className="h-3 w-3" />

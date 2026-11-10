@@ -79,11 +79,11 @@ export function AboutUs() {
           <motion.div variants={fadeUpLeft} className="flex flex-1 flex-col gap-8">
             {/* Header Group */}
             <div className="flex flex-col gap-5">
-              <span className="inline-flex items-center gap-2 font-manrope font-semibold text-brand-orange text-sm tracking-widest md:text-base">
+              <span className="heading-eyebrow inline-flex items-center gap-2 text-brand-orange">
                 <span className="h-px w-6 bg-brand-orange" />
                 ABOUT MULAI+
               </span>
-              <h2 className="font-bold font-bricolage text-4xl text-brand-navy leading-tight md:text-5xl lg:text-[64px]">
+              <h2 className="heading-section text-brand-navy">
                 Bimbingan Nyata Untuk <span className="text-brand-red">Keputusan Masa Depanmu</span>
               </h2>
             </div>

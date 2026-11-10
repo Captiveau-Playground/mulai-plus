@@ -76,7 +76,7 @@ function ArticleCard({ article, index }: { article: ArticleItem; index: number }
               {article.type === "news" ? "News" : "Artikel"}
             </Badge>
           </div>
-          <h3 className="mb-1.5 line-clamp-2 font-bold font-bricolage text-brand-navy text-sm leading-snug transition-colors group-hover:text-brand-orange">
+          <h3 className="heading-card mb-1.5 line-clamp-2 text-brand-navy transition-colors group-hover:text-brand-orange">
             {article.title}
           </h3>
           {article.excerpt && (
@@ -149,9 +149,7 @@ export function BlogSection({ initialData }: { initialData?: any }) {
             <Badge className="mb-3 inline-flex border-0 bg-brand-orange/10 font-manrope font-semibold text-[10px] text-brand-orange uppercase tracking-wider">
               Blog
             </Badge>
-            <h2 className="font-bold font-bricolage text-2xl text-brand-navy sm:text-3xl lg:text-4xl">
-              Artikel &amp; Berita Terbaru
-            </h2>
+            <h2 className="heading-section text-brand-navy">Artikel &amp; Berita Terbaru</h2>
             <p className="mt-1 font-manrope text-sm text-text-muted">
               Tips, panduan, dan info seputar kuliah dan beasiswa
             </p>

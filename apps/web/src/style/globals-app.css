@@ -60,6 +60,8 @@
 
   /* Brand Colors - Accent */
   --brand-orange: #fe9114;
+  /* Oranye pekat untuk TEKS kecil di atas latar terang (brand-orange 2.26:1 → ini 6.8:1) */
+  --brand-orange-ink: #8b4a00;
   --brand-red: #f93447;
   --brand-red-orange: #fb632e;
 
@@ -148,6 +150,7 @@
 
   /* Brand Colors - Accent */
   --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-ink: var(--brand-orange-ink);
   --color-brand-red: var(--brand-red);
   --color-brand-red-orange: var(--brand-red-orange);
 
@@ -571,3 +574,55 @@ body {
   75% { transform: translateX(5px); }
 }
 .animate-shake-soft { animation: shake 0.4s ease-in-out; }
+
+/* ============================================================================
+   Public typography scale — landasan tunggal untuk heading halaman publik
+   (landing + halaman front). JANGAN bikin ukuran heading manual lagi di
+   komponen; pakai salah satu kelas di bawah supaya hierarki tetap konsisten.
+
+   Fluid (clamp) supaya tidak ada lompatan per-breakpoint dan h2 TIDAK PERNAH
+   melebihi h1 di lebar apa pun:
+
+     kelas            @390px   @820px   @1440px   font / weight
+     .heading-display   30       47       72      Bricolage 700  (h1)
+     .heading-section   24       35       52      Bricolage 700  (h2)
+     .heading-card      17       20       22      Bricolage 700  (h3)
+     .heading-eyebrow   12       12       12      Manrope 600 uppercase
+   ========================================================================== */
+@layer components {
+  .heading-display,
+  .heading-section,
+  .heading-card {
+    font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  .heading-display {
+    font-size: clamp(1.875rem, 0.9rem + 4vw, 4.5rem); /* 390px: 30 | 1440px: 72 */
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+  }
+
+  .heading-section {
+    font-size: clamp(1.5rem, 0.85rem + 2.667vw, 3.25rem); /* 390px: 24 | 1440px: 52 */
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .heading-card {
+    font-size: clamp(1.0625rem, 0.946rem + 0.476vw, 1.375rem); /* 390px: 17 | 1440px: 22 */
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  /* Label kecil di atas heading (eyebrow). Bukan heading — jangan pakai <h*>. */
+  .heading-eyebrow {
+    font-family: var(--font-manrope), "Manrope", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.75rem; /* 12px */
+    line-height: 1.4;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+}

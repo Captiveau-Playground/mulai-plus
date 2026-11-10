@@ -155,7 +155,7 @@ export function Footer() {
               </span>
             </div>
 
-            <h2 className="font-bold font-bricolage text-3xl text-white leading-tight tracking-tight md:text-4xl lg:text-5xl">
+            <h2 className="heading-section text-white">
               Ready to <span className="text-brand-orange">mulai+</span>?
             </h2>
 
@@ -240,9 +240,7 @@ export function Footer() {
           <div className="mt-0 grid grid-cols-2 gap-x-4 gap-y-10 md:mt-18 lg:col-span-8 lg:grid-cols-3 lg:gap-8">
             {footerNavLinks.map((column) => (
               <div key={column.title} className="flex flex-col gap-5">
-                <h3 className="font-bricolage font-semibold text-sm text-white uppercase tracking-wider">
-                  {column.title}
-                </h3>
+                <h3 className="heading-eyebrow text-white">{column.title}</h3>
                 <ul className="flex flex-col gap-3.5">
                   {column.links.map((link) => {
                     const Icon = "icon" in link ? link.icon : undefined;
@@ -313,7 +311,7 @@ export function Footer() {
 
             {/* Right: Copyright + Credit */}
             <div className="flex flex-col items-center gap-2 text-center lg:items-end lg:text-right">
-              <p className="font-manrope text-text-lighter-blue/50 text-xs lg:text-sm">
+              <p className="font-manrope text-text-lighter-blue/70 text-xs lg:text-sm">
                 &copy; {new Date().getFullYear()} mulai+. All rights reserved.
               </p>
               {isExplore && (
@@ -324,21 +322,21 @@ export function Footer() {
               <button
                 type="button"
                 onClick={() => resetConsent()}
-                className="font-manrope text-[11px] text-text-lighter-blue/40 underline-offset-2 transition-colors hover:text-text-lighter-blue/70 hover:underline"
+                className="font-manrope text-[11px] text-text-lighter-blue/70 underline-offset-2 transition-colors hover:text-text-lighter-blue/70 hover:underline"
               >
                 Kelola izin cookie
               </button>
-              <p className="font-manrope text-text-lighter-blue/40 text-xs lg:text-sm">
+              <p className="font-manrope text-text-lighter-blue/70 text-xs lg:text-sm">
                 Powered by{" "}
                 <Link
                   href="https://captiveau.fun"
                   target="_blank"
-                  className="font-semibold text-text-lighter-blue/60 transition-colors hover:text-brand-orange"
+                  className="font-semibold text-text-lighter-blue/80 transition-colors hover:text-brand-orange"
                 >
                   Captiveau
                 </Link>
                 <span className="mx-1.5 text-text-lighter-blue/20">|</span>
-                <span className="text-text-lighter-blue/40">Creative Tech Studio</span>
+                <span className="text-text-lighter-blue/70">Creative Tech Studio</span>
               </p>
             </div>
           </div>

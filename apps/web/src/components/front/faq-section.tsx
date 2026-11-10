@@ -41,12 +41,10 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
               className="flex flex-col gap-9 lg:w-[40%] lg:max-w-179.5"
             >
               <div className="flex flex-col gap-4">
-                <span className="font-manrope font-semibold text-2xl text-brand-orange tracking-[0.25em]">FAQ</span>
-                <h2 className="font-bold font-bricolage text-4xl text-brand-navy leading-tight md:text-5xl lg:text-[64px]">
-                  Hal Yang Paling Sering Ditanyain
-                </h2>
+                <span className="heading-eyebrow text-brand-orange-ink">FAQ</span>
+                <h2 className="heading-section text-brand-navy">Hal Yang Paling Sering Ditanyain</h2>
               </div>
-              <p className="font-manrope text-lg text-text-muted leading-relaxed tracking-tight lg:text-2xl">
+              <p className="font-manrope text-lg text-text-main/75 leading-relaxed tracking-tight lg:text-2xl">
                 Kami tahu, sebelum memulai sesuatu yang baru pasti ada banyak pertanyaan muncul di kepala. Karena itu,
                 kami rangkum berbagai hal penting seputar program MULAI+ bisa ambil keputusan dengan tenang dan percaya
                 diri.
@@ -74,21 +72,22 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
                       },
                     }}
                   >
-                    <AccordionItem value={faq.id} className="rounded-xl border-none bg-brand-navy px-6 py-6 shadow-sm">
-                      <AccordionTrigger className="flex cursor-pointer items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden">
+                    <AccordionItem value={faq.id} className="rounded-2xl border-none bg-brand-navy px-6 py-6 shadow-sm">
+                      <AccordionTrigger
+                        headerClassName="heading-card min-w-0 flex-1"
+                        className="flex cursor-pointer items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden"
+                      >
                         <span className="flex min-w-0 flex-1 items-center gap-3 text-left">
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
                             <faq.icon className="h-4 w-4 text-brand-orange" />
                           </span>
-                          <span className="font-manrope font-semibold text-lg text-white leading-snug tracking-[-0.05em] lg:text-2xl">
-                            {faq.question}
-                          </span>
+                          <span className="heading-card text-white">{faq.question}</span>
                         </span>
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-red transition-transform duration-200 group-aria-expanded/accordion-trigger:rotate-180">
                           <ChevronDown className="h-5 w-5 text-white" strokeWidth={3} />
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className="pt-6 font-manrope text-base text-text-light-blue leading-relaxed">
+                      <AccordionContent className="pt-6 font-manrope text-base text-text-light-blue leading-relaxed md:text-lg">
                         {faq.answer}
                       </AccordionContent>
                     </AccordionItem>
@@ -108,12 +107,10 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
               className="flex flex-col gap-9 lg:w-full"
             >
               <div className="flex flex-col gap-4">
-                <span className="font-manrope font-semibold text-2xl text-brand-orange tracking-[0.25em]">FAQ</span>
-                <h2 className="font-bold font-bricolage text-4xl text-brand-navy leading-tight md:text-5xl lg:text-[64px]">
-                  Hal Yang Paling Sering Ditanyain
-                </h2>
+                <span className="heading-eyebrow text-brand-orange-ink">FAQ</span>
+                <h2 className="heading-section text-brand-navy">Hal Yang Paling Sering Ditanyain</h2>
               </div>
-              <p className="font-manrope text-lg text-text-muted leading-relaxed tracking-tight lg:text-2xl">
+              <p className="font-manrope text-lg text-text-main/75 leading-relaxed tracking-tight lg:text-2xl">
                 Kami tahu, sebelum memulai sesuatu yang baru pasti ada banyak pertanyaan muncul di kepala. Karena itu,
                 kami rangkum berbagai hal penting seputar program MULAI+ bisa ambil keputusan dengan tenang dan percaya
                 diri.
@@ -141,21 +138,22 @@ export function FAQSection({ type = "front" }: { type?: "front" | "back" }) {
                       },
                     }}
                   >
-                    <AccordionItem value={faq.id} className="rounded-xl border-none bg-brand-navy px-6 py-6 shadow-sm">
-                      <AccordionTrigger className="flex cursor-pointer items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden">
+                    <AccordionItem value={faq.id} className="rounded-2xl border-none bg-brand-navy px-6 py-6 shadow-sm">
+                      <AccordionTrigger
+                        headerClassName="heading-card min-w-0 flex-1"
+                        className="flex cursor-pointer items-center justify-between gap-6 py-0 transition-none hover:no-underline [&>svg]:hidden"
+                      >
                         <span className="flex min-w-0 flex-1 items-center gap-3 text-left">
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
                             <faq.icon className="h-4 w-4 text-brand-orange" />
                           </span>
-                          <span className="font-manrope font-semibold text-lg text-white leading-snug tracking-[-0.05em] lg:text-2xl">
-                            {faq.question}
-                          </span>
+                          <span className="heading-card text-white">{faq.question}</span>
                         </span>
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-red transition-transform duration-200 group-aria-expanded/accordion-trigger:rotate-180">
                           <ChevronDown className="h-5 w-5 text-white" strokeWidth={3} />
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className="pt-6 font-manrope text-base text-text-light-blue leading-relaxed">
+                      <AccordionContent className="pt-6 font-manrope text-base text-text-light-blue leading-relaxed md:text-lg">
                         {faq.answer}
                       </AccordionContent>
                     </AccordionItem>

@@ -87,12 +87,8 @@ export function MeetTheMentor() {
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
         {/* Section Header */}
         <div className="mb-10 flex flex-col items-center gap-4 text-center md:mb-14">
-          <span className="font-manrope font-semibold text-brand-orange text-lg uppercase tracking-[0.25em] md:text-2xl">
-            MEET THE MENTORS
-          </span>
-          <h2 className="max-w-4xl font-bold font-bricolage text-3xl text-white leading-tight md:text-5xl lg:text-[64px]">
-            Belajar Bareng yang Pernah di Posisi Kamu
-          </h2>
+          <span className="heading-eyebrow text-brand-orange">MEET THE MENTORS</span>
+          <h2 className="heading-section max-w-4xl text-white">Belajar Bareng yang Pernah di Posisi Kamu</h2>
           <p className="max-w-xl font-manrope text-base text-text-lighter-blue/60 leading-relaxed md:text-lg">
             10+ mentor dari berbagai universitas terbaik siap bimbing kamu 1-on-1, dari pemilihan jurusan sampai
             strategi masuk PTN.
@@ -124,9 +120,7 @@ export function MeetTheMentor() {
 
                 {/* Bottom overlay — navy fade for premium contrast */}
                 <div className="pointer-events-none absolute right-0 bottom-0 left-0 bg-gradient-to-t from-brand-navy/80 via-brand-navy/60 to-transparent px-4 pt-12 pb-3 md:pt-16 md:pb-4">
-                  <h3 className="truncate font-manrope font-semibold text-white text-xl leading-tight md:text-2xl">
-                    {mentor.name}
-                  </h3>
+                  <h3 className="heading-card truncate text-white">{mentor.name}</h3>
                   <span className="truncate font-manrope font-medium text-text-light-blue text-xs leading-snug md:text-sm">
                     {mentor.role}
                   </span>

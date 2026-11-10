@@ -67,7 +67,7 @@ export function HeroSection() {
             variants={fadeUp}
             initial="hidden"
             animate="show"
-            className="max-w-3xl font-bold font-bricolage text-3xl text-brand-navy leading-[1.08] tracking-tight md:text-5xl lg:text-[72px] lg:leading-[1.05]"
+            className="heading-display max-w-3xl text-brand-navy"
           >
             <span className="text-brand-orange">Tanya apa saja</span>
             {" seputar kuliahmu — dijawab AI, langsung"}

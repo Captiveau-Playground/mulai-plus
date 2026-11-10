@@ -8,7 +8,7 @@ export function PromptSuggestions({ label, append, suggestions }: PromptSuggesti
   return (
     <div className="flex h-full flex-col justify-center py-4">
       <div className="space-y-4">
-        <h2 className="text-center font-bold font-bricolage text-brand-navy text-lg sm:text-xl">{label}</h2>
+        <p className="text-center font-bold font-bricolage text-brand-navy text-lg sm:text-xl">{label}</p>
         <div className="flex flex-col gap-2">
           {suggestions.map((suggestion) => (
             <button
