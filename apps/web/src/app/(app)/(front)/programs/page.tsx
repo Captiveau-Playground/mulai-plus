@@ -3,20 +3,32 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { CalendarDays, GraduationCap, Layers, Users } from "lucide-react";
+import { CalendarDays, GraduationCap, Users } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
 
+/** Titik status batch — pakai token brand (navy/teal), bukan palet mentah Tailwind. */
+function batchStatusDot(status: string) {
+  if (status === "open") return "bg-mentor-teal";
+  if (status === "upcoming") return "bg-brand-orange";
+  return "bg-gray-400";
+}
+
+function batchStatusLabel(status: string, quota?: number | null) {
+  if (status === "open") return `Pendaftaran dibuka${quota ? ` · kuota ${quota}` : ""}`;
+  if (status === "upcoming") return "Segera dibuka";
+  return "Pendaftaran ditutup";
+}
+
 function ProgramCardSkeleton() {
   return (
-    <Card className="overflow-hidden">
-      <div className="relative aspect-video w-full bg-muted">
+    <Card className="overflow-hidden rounded-2xl border-0 shadow-md ring-1 ring-gray-200/70">
+      <div className="relative aspect-16/10 w-full bg-bg-light">
         <Skeleton className="h-full w-full" />
       </div>
       <CardContent className="space-y-3 p-5">
@@ -29,7 +41,7 @@ function ProgramCardSkeleton() {
         </div>
       </CardContent>
       <CardFooter className="px-5 pt-0 pb-5">
-        <Skeleton className="h-9 w-full rounded-lg" />
+        <Skeleton className="h-11 w-full rounded-full" />
       </CardFooter>
     </Card>
   );
@@ -39,32 +51,35 @@ export default function ProgramsPage() {
   const { data: result, isLoading } = useQuery(orpc.programs.public.list.queryOptions({ input: { limit: 50 } }));
 
   const programs = result?.data ?? [];
+  // 2 kartu di grid 3 kolom bikin sisi kanan kosong — rapikan sesuai jumlah item.
+  const gridClass = programs.length >= 3 ? "lg:grid-cols-3" : "lg:mx-auto lg:max-w-4xl lg:grid-cols-2";
 
   return (
-    <div className="bg-gradient-to-b from-white to-gray-50">
-      {/* Hero Section */}
-      <section className="relative bg-[#1A1F6D] py-16 sm:py-20">
+    <div className="bg-linear-to-b from-white to-bg-light">
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-brand-navy py-16 md:py-20">
         <div
-          className="absolute inset-0 z-0 opacity-10"
+          className="absolute inset-0 opacity-10"
           style={{
             backgroundImage:
               "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(to right, #ffffff 1px, transparent 1px)",
             backgroundSize: "40px 40px",
           }}
         />
-        <div className="container relative z-10 mx-auto mt-10 max-w-6xl px-4 text-center">
-          <h1 className="font-bold font-bricolage text-4xl text-white leading-tight sm:text-5xl lg:text-6xl">
-            Program Mentoring MULAI+
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl font-manrope text-base text-white/80 sm:text-lg">
+        <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 text-center sm:px-6 lg:px-8">
+          <p className="heading-eyebrow text-brand-orange">Mentoring</p>
+          <h1 className="heading-display text-white">Program Mentoring MULAI+</h1>
+          <p className="max-w-2xl font-manrope text-base text-white/75 leading-relaxed md:text-lg">
             Temukan program mentoring yang sesuai dengan kebutuhanmu. Dapatkan bimbingan dari mentor berpengalaman untuk
             membantu kamu memilih universitas dan jurusan yang tepat.
           </p>
         </div>
       </section>
 
-      {/* Programs Grid */}
-      <section className="container mx-auto max-w-6xl px-4 py-12 sm:py-16">
+      {/* Grid program */}
+      <section className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 md:py-16 lg:px-8">
+        <h2 className="sr-only">Daftar program mentoring</h2>
+
         {isLoading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -72,15 +87,17 @@ export default function ProgramsPage() {
             ))}
           </div>
         ) : programs.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-20 text-center">
-            <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground/40" />
-            <h2 className="mt-4 font-semibold text-lg text-muted-foreground">Belum Ada Program</h2>
-            <p className="mt-1 text-muted-foreground text-sm">
+          <div className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-2xl border border-gray-200 border-dashed bg-white px-6 py-16 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-bg-light text-brand-navy/40">
+              <GraduationCap className="size-6" />
+            </span>
+            <h3 className="heading-card text-brand-navy">Belum Ada Program</h3>
+            <p className="font-manrope text-sm text-text-muted-custom leading-relaxed">
               Saat ini belum ada program mentoring yang tersedia. Silakan cek kembali nanti.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={cn("grid grid-cols-1 gap-6 sm:grid-cols-2", gridClass)}>
             {programs.map((program) => {
               const activeBatch = program.batches?.[0];
               const benefitCount = program.benefits?.length ?? 0;
@@ -88,10 +105,10 @@ export default function ProgramsPage() {
               return (
                 <Card
                   key={program.id}
-                  className="group flex flex-col overflow-hidden border-0 bg-white shadow-sm ring-1 ring-gray-200 transition-all duration-300 hover:shadow-lg hover:ring-[#1A1F6D]/20"
+                  className="group flex flex-col overflow-hidden rounded-2xl border-0 bg-white shadow-md ring-1 ring-gray-200/70 transition-shadow duration-300 hover:shadow-lg"
                 >
                   {/* Banner */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-[#1A1F6D]/5">
+                  <div className="relative aspect-16/10 w-full overflow-hidden bg-bg-light">
                     {program.bannerUrl ? (
                       <Image
                         src={program.bannerUrl}
@@ -102,80 +119,59 @@ export default function ProgramsPage() {
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <GraduationCap className="h-12 w-12 text-[#1A1F6D]/20" />
+                      <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-brand-navy via-brand-navy to-brand-navy-light">
+                        <GraduationCap className="size-12 text-white/25" />
                       </div>
                     )}
-                    {/* Batch Badge */}
                     {activeBatch && (
-                      <div className="absolute top-3 left-3">
-                        <Badge
-                          className={cn(
-                            "border-0 font-manrope font-medium text-xs",
-                            activeBatch.status === "open"
-                              ? "bg-green-500 text-white"
-                              : activeBatch.status === "upcoming"
-                                ? "bg-amber-500 text-white"
-                                : "bg-gray-500 text-white",
-                          )}
-                        >
-                          <Layers className="mr-1 h-3 w-3" />
-                          {activeBatch.name}
-                        </Badge>
-                      </div>
+                      <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 font-manrope font-semibold text-brand-navy text-xs shadow-sm backdrop-blur">
+                        <span className={cn("size-1.5 rounded-full", batchStatusDot(activeBatch.status))} />
+                        {activeBatch.name}
+                      </span>
                     )}
                   </div>
 
                   <CardContent className="flex flex-1 flex-col gap-3 p-5">
-                    {/* Title */}
-                    <h2 className="font-bold font-bricolage text-gray-900 text-lg leading-tight transition-colors group-hover:text-[#1A1F6D]">
+                    <h3 className="heading-card text-brand-navy transition-colors group-hover:text-brand-orange">
                       {program.name}
-                    </h2>
+                    </h3>
 
-                    {/* Description */}
-                    <p className="line-clamp-2 font-manrope text-gray-500 text-sm leading-relaxed">
+                    <p className="line-clamp-2 font-manrope text-sm text-text-main/70 leading-relaxed">
                       {program.description || "Belum ada deskripsi"}
                     </p>
 
-                    {/* Program Details */}
-                    <div className="mt-auto flex flex-col gap-2 pt-2">
+                    <dl className="mt-auto flex flex-col gap-2 pt-2">
                       {activeBatch?.startDate && (
-                        <div className="flex items-center gap-2 text-gray-500 text-sm">
-                          <CalendarDays className="h-4 w-4 shrink-0 text-[#1A1F6D]/60" />
-                          <span className="font-manrope">
+                        <div className="flex items-center gap-2 font-manrope text-sm text-text-main/70">
+                          <CalendarDays className="size-4 shrink-0 text-brand-navy/50" />
+                          <dd>
                             {format(new Date(activeBatch.startDate), "dd MMM yyyy", { locale: id })}
                             {activeBatch.endDate &&
-                              ` - ${format(new Date(activeBatch.endDate), "dd MMM yyyy", { locale: id })}`}
-                          </span>
+                              ` – ${format(new Date(activeBatch.endDate), "dd MMM yyyy", { locale: id })}`}
+                          </dd>
                         </div>
                       )}
 
                       {activeBatch && (
-                        <div className="flex items-center gap-2 text-gray-500 text-sm">
-                          <Users className="h-4 w-4 shrink-0 text-[#1A1F6D]/60" />
-                          <span className="font-manrope">
-                            {activeBatch.status === "open"
-                              ? `Pendaftaran Dibuka (Kuota: ${activeBatch.quota ?? "-"})`
-                              : activeBatch.status === "upcoming"
-                                ? "Segera Dibuka"
-                                : "Pendaftaran Ditutup"}
-                          </span>
+                        <div className="flex items-center gap-2 font-manrope text-sm text-text-main/70">
+                          <Users className="size-4 shrink-0 text-brand-navy/50" />
+                          <dd>{batchStatusLabel(activeBatch.status, activeBatch.quota)}</dd>
                         </div>
                       )}
 
                       {benefitCount > 0 && (
-                        <div className="flex items-center gap-2 text-gray-500 text-sm">
-                          <GraduationCap className="h-4 w-4 shrink-0 text-[#1A1F6D]/60" />
-                          <span className="font-manrope">{benefitCount} Benefit</span>
+                        <div className="flex items-center gap-2 font-manrope text-sm text-text-main/70">
+                          <GraduationCap className="size-4 shrink-0 text-brand-navy/50" />
+                          <dd>{benefitCount} benefit</dd>
                         </div>
                       )}
-                    </div>
+                    </dl>
                   </CardContent>
 
                   <CardFooter className="p-5 pt-0">
                     <Link
                       href={`/programs/${program.slug || program.id}` as Route}
-                      className="inline-flex w-full items-center justify-center rounded-lg bg-[#1A1F6D] px-3 py-2 font-manrope font-medium text-sm text-white transition-all hover:bg-[#1A1F6D]/90"
+                      className="inline-flex h-11 w-full items-center justify-center rounded-full bg-brand-navy px-5 font-manrope font-semibold text-sm text-white transition-colors hover:bg-brand-navy-light focus-visible:outline-2 focus-visible:outline-brand-orange focus-visible:outline-offset-2"
                     >
                       Lihat Detail Program
                     </Link>
@@ -187,17 +183,17 @@ export default function ProgramsPage() {
         )}
       </section>
 
-      {/* CTA Section */}
+      {/* CTA */}
       {programs.length > 0 && (
-        <section className="bg-[#1A1F6D] py-16">
-          <div className="container mx-auto max-w-4xl px-4 text-center">
-            <h2 className="font-bold font-bricolage text-3xl text-white sm:text-4xl">Siap Memulai Perjalananmu?</h2>
-            <p className="mx-auto mt-3 max-w-xl font-manrope text-white/70">
+        <section className="bg-brand-navy py-16 md:py-20">
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 px-4 text-center sm:px-6">
+            <h2 className="heading-section text-white">Siap Memulai Perjalananmu?</h2>
+            <p className="max-w-xl font-manrope text-base text-white/75 leading-relaxed">
               Daftar sekarang dan dapatkan bimbingan dari mentor terbaik untuk masa depan yang lebih cerah.
             </p>
             <Link
               href="/login"
-              className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-8 py-3 font-bold font-manrope text-[#1A1F6D] shadow-md transition-all hover:bg-gray-100"
+              className="mt-2 inline-flex h-12 items-center justify-center rounded-full bg-white px-7 font-bold font-manrope text-brand-navy transition-colors hover:bg-bg-light focus-visible:outline-2 focus-visible:outline-brand-orange focus-visible:outline-offset-2"
             >
               Daftar Sekarang
             </Link>
