@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { HeaderDetailsProgram } from "@/components/front/details-program/header-details-program";
 import { ProgramAbout } from "@/components/front/details-program/program-about";
@@ -12,14 +13,6 @@ import { ProgramTimeline } from "@/components/front/details-program/program-time
 import { ProgramWhatYouWillGet } from "@/components/front/details-program/program-what-you-will-get";
 import { RegistrationCTA } from "@/components/front/details-program/registration-cta";
 import { FAQSection } from "@/components/front/faq-section";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { orpc } from "@/utils/orpc";
 
 export default function ProgramDetailPage() {
@@ -36,17 +29,22 @@ export default function ProgramDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex min-h-[60svh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-brand-navy/40" />
       </div>
     );
   }
 
   if (!program) {
     return (
-      <div className="container py-10 text-center">
-        <h1 className="font-bold text-2xl">Program Not Found</h1>
-        <p className="text-muted-foreground">The program you are looking for does not exist.</p>
+      <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-4 py-24 text-center">
+        <h1 className="heading-section text-brand-navy">Program tidak ditemukan</h1>
+        <p className="font-manrope text-base text-text-muted-custom">
+          Program yang kamu cari sudah tidak tersedia atau tautannya berubah.
+        </p>
+        <Link href="/programs" className="mt-1 font-manrope font-semibold text-brand-orange text-sm hover:underline">
+          Lihat semua program
+        </Link>
       </div>
     );
   }
@@ -165,27 +163,8 @@ export default function ProgramDetailPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Visible breadcrumb for SEO & UX */}
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/">Home</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/programs">Programs</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{program.name}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
-
       <HeaderDetailsProgram
-        title={`${program.name} Program ${batch ? new Date(batch.startDate).getFullYear() : ""}`}
+        title={program.name}
         batch={
           program.batches && program.batches.length > 0
             ? program.batches.map((b: { name: string }) => b.name).join(", ")
@@ -197,10 +176,10 @@ export default function ProgramDetailPage() {
             : "Coming Soon"
         }
       />
-      <div className="mx-auto w-full max-w-7xl sm:px-4 md:px-8 lg:px-0">
-        <div className="relative flex flex-col gap-12 lg:flex-row">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="relative flex flex-col gap-12 lg:flex-row lg:gap-10 xl:gap-16">
           {/* Main Content */}
-          <main className="top-[20vh] flex min-w-0 flex-1 flex-col gap-16 px-4">
+          <main className="flex min-w-0 flex-1 flex-col gap-14">
             <ProgramNavigation />
             <ProgramAbout
               title={program.name}
@@ -216,8 +195,9 @@ export default function ProgramDetailPage() {
           </main>
 
           {/* Sidebar */}
-          <aside className="w-full shrink-0 px-4 pt-0 lg:w-105">
-            <div className="sticky top-[10vh] mb-8">
+          <aside className="w-full shrink-0 lg:w-80 xl:w-100">
+            {/* Kartu nempel ke cover (overlap) + sticky di bawah navbar saat scroll */}
+            <div className="lg:sticky lg:top-20 lg:-mt-12">
               {batch ? (
                 <RegistrationCTA
                   programId={program.id}
@@ -252,11 +232,10 @@ export default function ProgramDetailPage() {
                       endDate: b.endDate,
                     }),
                   )}
-                  className=""
                 />
               ) : (
-                <div className="rounded-lg border border-dashed p-8 text-center">
-                  <p className="text-muted-foreground">No active batches available.</p>
+                <div className="rounded-2xl border border-gray-200 border-dashed px-6 py-10 text-center">
+                  <p className="font-manrope text-sm text-text-muted-custom">Belum ada batch yang aktif.</p>
                 </div>
               )}
             </div>

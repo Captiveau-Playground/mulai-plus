@@ -19,31 +19,26 @@ export function ProgramWhatYouWillGet({
   className,
 }: ProgramWhatYouWillGetProps) {
   return (
-    <section id="benefits" className={cn("flex w-full flex-col gap-9 py-8 sm:px-4 md:px-0", className)}>
-      <div className="flex flex-col gap-9">
-        <div className="flex flex-col gap-2">
-          <h2 className="font-inter font-semibold text-2xl text-[#FE9114] leading-[1.2] tracking-[0.15em]">{title}</h2>
-          {description && (
-            <h3 className="font-bold font-bricolage text-3xl text-[#1A1F6D] leading-none md:text-4xl lg:text-5xl">
-              {description}
-            </h3>
-          )}
-        </div>
-        <div className="flex flex-col gap-4">
-          {items.length > 0 ? (
-            items.map((item, index) => (
-              <div key={index} className="flex items-center gap-6">
-                <div className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-[#E0E0E9]">
-                  <Check className="h-6 w-6 text-white" strokeWidth={3} />
-                </div>
-                <p className="font-inter font-normal text-[#333333] text-lg leading-[1.2] md:text-2xl">{item.title}</p>
-              </div>
-            ))
-          ) : (
-            <p className="font-inter font-normal text-[#888888] text-base italic">Data belum tersedia</p>
-          )}
-        </div>
+    <section id="benefits" className={cn("flex w-full scroll-mt-32 flex-col gap-8", className)}>
+      <div className="flex flex-col gap-3">
+        <p className="heading-eyebrow text-brand-orange-ink">{title}</p>
+        {description && <h2 className="heading-section text-brand-navy">{description}</h2>}
       </div>
+
+      {items.length > 0 ? (
+        <ul className="flex flex-col gap-3">
+          {items.map((item, index) => (
+            <li key={index} className="flex items-center gap-4 rounded-xl bg-bg-light px-4 py-3">
+              <span className="flex size-9 flex-none items-center justify-center rounded-full bg-brand-navy/10 text-brand-navy">
+                <Check className="size-4" strokeWidth={3} />
+              </span>
+              <p className="font-manrope font-medium text-base text-text-main md:text-lg">{item.title}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="font-manrope text-base text-text-muted-custom italic">Data belum tersedia</p>
+      )}
     </section>
   );
 }

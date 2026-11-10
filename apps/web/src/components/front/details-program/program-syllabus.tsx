@@ -17,50 +17,41 @@ interface ProgramSyllabusProps {
 
 export function ProgramSyllabus({ title = "SYLLABUS", description, items = [], className }: ProgramSyllabusProps) {
   return (
-    <section id="syllabus" className={cn("flex w-full flex-col gap-9 py-8 sm:px-4 md:px-0", className)}>
-      <div className="flex flex-col gap-9">
-        <div className="flex flex-col gap-2">
-          <h2 className="font-inter font-semibold text-2xl text-[#FE9114] leading-[1.2] tracking-[0.15em]">{title}</h2>
-          {description && (
-            <h3 className="font-bold font-bricolage text-3xl text-[#1A1F6D] leading-none md:text-4xl lg:text-5xl">
-              {description}
-            </h3>
-          )}
-        </div>
-
-        {items.length > 0 ? (
-          <Accordion className="flex flex-col gap-4">
-            {items.map((item, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="rounded-lg border-none bg-white px-6 py-2 shadow-sm ring-1 ring-[#E7E7E7] data-[state=open]:ring-[#FE9114]"
-              >
-                <AccordionTrigger className="cursor-pointer hover:no-underline [&>svg]:hidden">
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-inter font-semibold text-[#99B8FF] text-sm uppercase tracking-[0.15em] md:text-base">
-                        WEEK {item.week}
-                      </span>
-                      <span className="font-inter font-semibold text-[#1A1F6D] text-lg leading-[1.2] md:text-2xl">
-                        {item.title}
-                      </span>
-                    </div>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F6F6F6] transition-transform duration-200 group-data-[state=open]/accordion-trigger:rotate-180">
-                      <ChevronDown className="h-5 w-5 text-[#B0B0B0]" />
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <p className="pt-2 font-inter font-normal text-[#888888] text-base leading-normal">{item.outcome}</p>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        ) : (
-          <p className="font-inter font-normal text-[#888888] text-base italic">Data belum tersedia</p>
-        )}
+    <section id="syllabus" className={cn("flex w-full scroll-mt-32 flex-col gap-8", className)}>
+      <div className="flex flex-col gap-3">
+        <p className="heading-eyebrow text-brand-orange-ink">{title}</p>
+        {description && <h2 className="heading-section text-brand-navy">{description}</h2>}
       </div>
+
+      {items.length > 0 ? (
+        <Accordion className="flex flex-col gap-3">
+          {items.map((item, index) => (
+            <AccordionItem
+              key={index}
+              value={`week-${item.week}-${index}`}
+              className="rounded-2xl bg-white px-5 py-2 shadow-xs ring-1 ring-gray-200 transition-shadow data-open:ring-brand-orange/40"
+            >
+              <AccordionTrigger
+                headerClassName="heading-card min-w-0 flex-1"
+                className="cursor-pointer items-center gap-4 py-4 hover:no-underline [&>[data-slot=accordion-trigger-icon]]:hidden"
+              >
+                <span className="flex min-w-0 flex-1 flex-col gap-1 text-left">
+                  <span className="heading-eyebrow text-brand-navy/70">Week {item.week}</span>
+                  <span className="heading-card text-brand-navy">{item.title}</span>
+                </span>
+                <span className="flex size-8 shrink-0 rotate-0 items-center justify-center rounded-full bg-bg-light text-text-muted-custom transition-transform duration-200 group-aria-expanded/accordion-trigger:rotate-180">
+                  <ChevronDown className="size-4" />
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="pt-1 pb-4 font-manrope text-base text-text-main/75 leading-relaxed">
+                {item.outcome ?? "Materi akan diumumkan."}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      ) : (
+        <p className="font-manrope text-base text-text-muted-custom italic">Data belum tersedia</p>
+      )}
     </section>
   );
 }

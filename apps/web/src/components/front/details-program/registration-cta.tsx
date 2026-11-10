@@ -33,46 +33,44 @@ export function RegistrationCTA({ programId, batch, allBatches, className }: Reg
   };
 
   return (
-    <div className={cn("relative w-full overflow-hidden rounded-bl-[64px] bg-[#1A1F6D] p-10 md:p-12", className)}>
-      <div className="relative flex w-full flex-col gap-12">
-        <h3 className="font-inter font-semibold text-3xl text-white tracking-[-0.05em]">
-          Daftarkan Dirimu Sekarang Juga!
-        </h3>
+    <div className={cn("relative w-full overflow-hidden rounded-2xl bg-brand-navy p-6 md:p-8", className)}>
+      <div className="relative flex w-full flex-col gap-8">
+        <h2 className="heading-card text-white">Daftarkan Dirimu Sekarang Juga!</h2>
 
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <span className="font-bold font-inter text-2xl text-white">{batch.name}</span>
-            <div className="flex items-center justify-center rounded-lg bg-[#F93447] px-6 py-[10px]">
-              <span className="font-manrope font-semibold text-base text-white">{batch.status.toUpperCase()}</span>
-            </div>
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-bold font-bricolage text-lg text-white">{batch.name}</span>
+            <span className="inline-flex items-center rounded-full bg-brand-orange px-3 py-1 font-manrope font-semibold text-brand-navy text-xs">
+              {batch.status.toUpperCase()}
+            </span>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <span className="font-inter font-normal text-[#BFD6FF] text-base">Start</span>
-              <span className="font-manrope font-medium text-base text-white">{formatDate(batch.startDate)}</span>
+          <dl className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="font-manrope text-sm text-text-lighter-blue/80">Start</dt>
+              <dd className="font-manrope font-medium text-sm text-white">{formatDate(batch.startDate)}</dd>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="font-inter font-normal text-[#BFD6FF] text-base">End</span>
-              <span className="font-manrope font-medium text-base text-white">{formatDate(batch.endDate)}</span>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="font-manrope text-sm text-text-lighter-blue/80">End</dt>
+              <dd className="font-manrope font-medium text-sm text-white">{formatDate(batch.endDate)}</dd>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="font-inter font-normal text-[#BFD6FF] text-base">Registration</span>
-              <span className="font-manrope font-medium text-base text-white">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="font-manrope text-sm text-text-lighter-blue/80">Registration</dt>
+              <dd className="font-manrope font-medium text-sm text-white">
                 {formatDate(batch.registrationStartDate)} - {formatDate(batch.registrationEndDate)}
-              </span>
+              </dd>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="font-inter font-normal text-[#BFD6FF] text-base">Quota</span>
-              <span className="font-manrope font-medium text-base text-white">{batch.quota}</span>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="font-manrope text-sm text-text-lighter-blue/80">Quota</dt>
+              <dd className="font-manrope font-medium text-sm text-white">{batch.quota}</dd>
             </div>
-          </div>
+          </dl>
         </div>
 
-        <div className="h-px w-full bg-[#BFD6FF]" />
+        <div className="h-px w-full bg-white/15" />
 
         <ProgramRegistration programId={programId} batch={batch} nextBatch={nextBatch} />
       </div>

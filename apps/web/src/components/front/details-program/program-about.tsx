@@ -10,24 +10,20 @@ interface ProgramAboutProps {
 
 export function ProgramAbout({ title, description, image, className }: ProgramAboutProps) {
   return (
-    <section id="about" className={cn("flex w-full flex-col gap-8 py-8 sm:px-4 md:px-0", className)}>
+    <section id="about" className={cn("flex w-full scroll-mt-32 flex-col gap-8", className)}>
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
         {/* Content */}
-        <div className="flex flex-1 flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h2 className="font-inter font-semibold text-2xl text-[#FE9114] leading-[1.2] tracking-[0.15em]">ABOUT</h2>
-            {title && (
-              <h3 className="font-bold font-bricolage text-3xl text-[#1A1F6D] leading-none md:text-4xl lg:text-5xl">
-                {title}
-              </h3>
-            )}
+        <div className="flex flex-1 flex-col gap-5">
+          <div className="flex flex-col gap-3">
+            <p className="heading-eyebrow text-brand-orange-ink">About</p>
+            {title && <h2 className="heading-section text-brand-navy">{title}</h2>}
           </div>
           {description ? (
-            <div className="flex flex-col gap-4 font-inter font-normal text-[#888888] text-base leading-relaxed md:text-lg">
+            <div className="flex flex-col gap-4 font-manrope text-base text-text-main/75 leading-relaxed md:text-lg">
               <p>{description}</p>
             </div>
           ) : (
-            <p className="font-inter font-normal text-[#888888] text-base italic">Data belum tersedia</p>
+            <p className="font-manrope text-base text-text-muted-custom italic">Data belum tersedia</p>
           )}
         </div>
 
